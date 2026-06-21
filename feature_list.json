@@ -1,0 +1,53 @@
+{
+  "features": [
+    {
+      "id": "feat-001",
+      "name": "Monorepo Baseline Setup",
+      "description": "Confirm the workspace installs, builds, and type-checks from the repo root using the documented verification path.",
+      "dependencies": [],
+      "status": "done",
+      "evidence": "Verified from repo root on 2026-06-21 with ./init.sh. Workspace install, backend build, admin build, storefront typecheck, and storefront build all completed successfully."
+    },
+    {
+      "id": "feat-002",
+      "name": "Backend API Foundation",
+      "description": "Establish the Hono API structure in apps/backend, including route organization and Cloudflare Worker bindings needed for ecommerce features.",
+      "dependencies": [
+        "feat-001"
+      ],
+      "status": "not-started",
+      "evidence": "Approved product catalog design documented in docs/plans/2026-06-21-product-backend-design.md and openspec/changes/2026-06-21-product-catalog/."
+    },
+    {
+      "id": "feat-003",
+      "name": "Data Layer With Drizzle And D1",
+      "description": "Introduce Drizzle schema, migrations, and Cloudflare D1 bindings only after the backend structure is in place.",
+      "dependencies": [
+        "feat-002"
+      ],
+      "status": "not-started",
+      "evidence": ""
+    },
+    {
+      "id": "feat-004",
+      "name": "Admin App Router Migration",
+      "description": "Move the admin app from starter content toward a React Router-based internal application shell and first operational screens.",
+      "dependencies": [
+        "feat-001"
+      ],
+      "status": "done",
+      "evidence": "Implemented a protected admin SPA in apps/admin with routes for /login, /orders, and /products; added local auth guard, valibot login validation, Tailwind styling, and searchable mock data tables. Verified with pnpm --filter admin build and ./init.sh on 2026-06-21."
+    },
+    {
+      "id": "feat-005",
+      "name": "Storefront Commerce Experience",
+      "description": "Build shopper-facing routes and data flows in the React Router storefront, integrating with the backend API once contracts exist.",
+      "dependencies": [
+        "feat-002",
+        "feat-003"
+      ],
+      "status": "not-started",
+      "evidence": ""
+    }
+  ]
+}
