@@ -6,8 +6,10 @@ The approved product behavior is:
 
 - one cup product can expose multiple independent customization zones;
 - zones are rectangular and may be rotated on the preview image;
-- text is restricted to one line and automatically shrinks to fit;
-- shoppers can move, scale, rotate, and crop uploaded images;
+- administrators define ordered customization blocks inside each zone;
+- text blocks support one-line fitting or bounded multi-line input;
+- shoppers edit form values and never manipulate artwork directly on the preview;
+- logo, background, and border blocks can expose revisioned preset assets and optional uploads;
 - production output is SVG and PDF with exact physical measurements;
 - the workshop layout is deferred, so export must support separate-zone and future combined profiles.
 
@@ -25,7 +27,7 @@ The approved product behavior is:
 **Non-Goals:**
 
 - Arbitrary polygon or curved-surface distortion zones.
-- Multi-line text, horizontal text distortion, or automatic text wrapping.
+- Shopper-controlled freeform layout, horizontal text distortion, or automatic unbounded wrapping.
 - A fixed workshop imposition layout before manufacturing requirements are known.
 - Browser-generated production files as the authoritative order artifact.
 - Automatic conversion of all artwork to a machine-specific engraving format.
@@ -38,6 +40,20 @@ The approved product behavior is:
 The persisted design is JSON containing template and zone revisions, layer properties, normalized transforms, physical zone measurements, and immutable asset identifiers. It does not contain serialized Konva nodes, HTML, browser object URLs, or a flattened canvas image.
 
 React components dispatch document operations. `react-konva` and `konva` render the document for admin zone placement and shopper interaction, but the domain model remains independent of Konva.
+
+Shopper interaction is form-driven. Only administrators place blocks. The storefront updates typed
+block values and renders the result using fixed template geometry; it exposes no drag, resize,
+rotation, or crop controls.
+
+### Define customization as typed blocks
+
+Each zone owns ordered, stable block definitions. Text, textarea, preset media, uploaded media,
+color/select/radio, and acknowledgement blocks share common form metadata and use type-specific
+validation. Renderable blocks include fixed normalized placement and production style rules.
+
+Preset logo/background options reference immutable preview and production asset revisions. A block
+may define one default option, a `none` option, and conditional visibility for flows such as “preset
+artwork” versus “upload your own”.
 
 ### Separate preview placement from production space
 
@@ -53,7 +69,7 @@ This prevents later admin edits from changing an existing order.
 
 ### Measure and outline text with the production font
 
-`opentype.js` parses approved font bytes, measures glyph advances with kerning, and produces vector paths. The fitting function removes line breaks and uses binary search to find the largest permitted font size that fits the zone safe width. The design is invalid if it still does not fit at the minimum size.
+`opentype.js` parses approved font bytes, measures glyph advances with kerning, and produces vector paths. One-line blocks remove line breaks and use binary search to find the largest permitted font size that fits the block width. Textarea blocks enforce both `maxChars` and `maxLines` and fit text within their fixed line boxes. The design is invalid if configured text does not fit at the minimum size.
 
 The same fitting function and font revision run in the browser and backend. Production SVG uses glyph paths. PDF either embeds the approved font through `@pdf-lib/fontkit` or draws the same paths through `pdf-lib`; outlined paths are preferred for engraving profiles.
 
@@ -89,7 +105,7 @@ An export request identifies an immutable design revision and export profile rev
 
 1. Admin uploads a cup preview, defines zones and production rules, and publishes a template revision attached to a product.
 2. Storefront loads the published template and approved font metadata.
-3. Shopper edits text and image layers by zone; original images are uploaded to R2 and preview assets are rendered in Konva.
+3. Shopper completes the admin-defined form; fixed blocks render selected defaults, text, and uploaded assets in the preview without direct manipulation.
 4. Storefront saves a draft design JSON through the backend.
 5. Checkout requests authoritative validation; valid input is frozen as an immutable design revision.
 6. Production export loads the frozen revision, exact template revision, font bytes, and original images.

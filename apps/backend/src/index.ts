@@ -1,9 +1,4 @@
-import { Hono } from 'hono'
+import { app } from './app'
 
-const app = new Hono()
-
-
-// app.get('/', (c) => {
-// })
-
+export type { AppType } from './app'
 export default app

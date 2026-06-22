@@ -1,12 +1,13 @@
 ## 1. Domain Contracts and Persistence
 
-- [ ] 1.1 Add shared Valibot schemas and TypeScript domain types for template revisions, zones, designs, layers, assets, validation results, and export profiles.
+- [x] 1.1 Add shared Valibot schemas and TypeScript domain types for template revisions, zones, designs, layers, assets, validation results, and export profiles.
 - [ ] 1.2 Add Drizzle tables and migrations for customization templates, revisions, zones, approved fonts, design revisions, layers, asset metadata, and export jobs.
 - [ ] 1.3 Add fixtures and contract tests for multi-zone templates, normalized geometry, immutable revisions, and invalid production rules.
+- [x] 1.4 Add typed customization block definitions, preset asset options, conditional visibility, and block-value contracts.
 
 ## 2. Asset Storage and Backend APIs
 
-- [ ] 2.1 Confirm R2 bucket names, environments, retention policy, CORS, upload limits, and secrets with the user before changing Wrangler bindings.
+- [x] 2.1 Confirm R2 binding and bucket names for local, staging, and production; use private Worker-proxied access and a 20 MB image upload limit.
 - [ ] 2.2 Add private R2 bindings and signed upload/download flows for cup previews, original shopper uploads, preview derivatives, fonts, and generated output.
 - [ ] 2.3 Add Hono routes for template CRUD/publication, published template retrieval, asset registration, design drafts, validation, and export status.
 - [ ] 2.4 Add MIME, decoded-format, dimension, ownership, and immutable-asset validation for production inputs.
@@ -20,11 +21,12 @@
 
 ## 4. Admin Template Authoring
 
-- [ ] 4.1 Add `konva` and `react-konva` to the admin and create the customization-template route and page shell.
-- [ ] 4.2 Implement cup preview upload plus multi-zone create, select, move, resize, rotate, and delete interactions.
-- [ ] 4.3 Implement zone properties for physical dimensions, safe margin, bleed, allowed content, fonts, DPI, production method, and color expectation.
+- [x] 4.1 Add `konva` and `react-konva` to the admin and create the customization-template route and page shell.
+- [x] 4.2 Implement cup preview upload plus multi-zone create, select, move, resize, rotate, and delete interactions.
+- [x] 4.3 Implement zone properties for physical dimensions, safe margin, bleed, allowed content, fonts, DPI, production method, and color expectation.
 - [ ] 4.4 Implement draft revision, publication validation, product assignment, and revision history behavior.
 - [ ] 4.5 Add component and workflow tests for template authoring and invalid publication.
+- [ ] 4.6 Add per-zone block authoring for form metadata, fixed placement, defaults, preset assets, ordering, and conditions.
 
 ## 5. Storefront Customization
 
@@ -34,6 +36,8 @@
 - [ ] 5.4 Implement original image upload, preview rendering, move, zoom, rotate, crop, and effective-DPI feedback.
 - [ ] 5.5 Implement draft save, authoritative pre-checkout validation, immutable revision freeze, and review summary.
 - [ ] 5.6 Add interaction and contract tests for text, image, DPI, multiple zones, and template version changes.
+- [x] 5.7 Replace direct layer manipulation with a schema-driven form and non-interactive live preview.
+- [x] 5.8 Add text/textarea limits, preset logo/background selection, conditional upload, rights acknowledgement, review, and confirmation.
 
 ## 6. SVG and PDF Production Export
 
