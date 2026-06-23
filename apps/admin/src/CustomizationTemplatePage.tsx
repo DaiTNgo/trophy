@@ -302,10 +302,11 @@ export default function CustomizationTemplatePage() {
                   setTemplate((current) => ({ ...current, name: value, status: "draft" }))
                 }
               />
-              <Field
-                label="Product ID"
+              <ProductSelector
                 value={template.productId}
-                onChange={(value) => setTemplate((current) => ({ ...current, productId: value }))}
+                onChange={(productId) =>
+                  setTemplate((current) => ({ ...current, productId }))
+                }
               />
               <div className="rounded-2xl bg-stone-50 p-4 text-sm text-slate-600">
                 Revision {template.revision} · {template.status}
@@ -874,6 +875,54 @@ function BlockBoundsEditor<T extends Extract<CustomizationBlock, { bounds: unkno
         />
       ))}
     </div>
+  );
+}
+
+function ProductSelector({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (productId: string) => void;
+}) {
+  const [products, setProducts] = useState<Array<{ id: number; title: string; handle: string }>>(
+    [],
+  );
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch(`${BACKEND_URL}/api/products?limit=200`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && Array.isArray(data.items)) {
+          setProducts(data.items);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  return (
+    <label className="block text-sm font-medium text-slate-700">
+      Product
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="mt-2 w-full rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 outline-none focus:border-amber-400"
+      >
+        {loading ? (
+          <option value="">Loading...</option>
+        ) : products.length === 0 ? (
+          <option value="">No products found</option>
+        ) : (
+          products.map((product) => (
+            <option key={product.id} value={String(product.id)}>
+              {product.title} ({product.handle})
+            </option>
+          ))
+        )}
+      </select>
+    </label>
   );
 }
 
