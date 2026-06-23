@@ -36,7 +36,6 @@ export function createOptionValueDefinition(value: string) {
   return {
     id: createDraftId("value"),
     value: value.trim(),
-    enabled: true,
   } satisfies ProductOptionValueDefinition;
 }
 
@@ -84,7 +83,7 @@ function getEnabledOptionDefinitions(
   return getEffectiveOptionDefinitions(values, optionDefinitions)
     .map((option) => ({
       ...option,
-      values: option.values.filter((value) => value.enabled && value.value !== ""),
+      values: option.values.filter((value) => value.value !== ""),
     }))
     .filter((option) => option.title !== "" && option.values.length > 0);
 }
@@ -157,9 +156,8 @@ export function reconcileVariantRows(
       price: current?.price ?? 0,
       inventory: current?.inventory ?? normalizedInventory,
       options: blueprint.options,
-      manageInventory: current?.manageInventory ?? true,
       allowBackorder: current?.allowBackorder ?? false,
-      hasInventoryKit: current?.hasInventoryKit ?? false,
+      media: current?.media ?? [],
     } satisfies ProductVariant;
   });
 }
@@ -179,9 +177,7 @@ function getEffectiveVariantRows(
   return buildVariantPreview(values).map((variant) => ({
     ...variant,
     inventory: normalizedInventory,
-    manageInventory: true,
     allowBackorder: false,
-    hasInventoryKit: false,
   }));
 }
 
@@ -302,9 +298,8 @@ export function buildVariantPreview(values: CreateProductFormValues) {
         price: Number.isFinite(basePrice) ? basePrice : 0,
         inventory: normalizedInventory,
         options: [],
-        manageInventory: true,
         allowBackorder: false,
-        hasInventoryKit: false,
+        media: [],
       },
     ];
   }
@@ -317,9 +312,8 @@ export function buildVariantPreview(values: CreateProductFormValues) {
     price: Number.isFinite(basePrice) ? basePrice : 0,
     inventory: normalizedInventory,
     options: combination,
-    manageInventory: true,
     allowBackorder: false,
-    hasInventoryKit: false,
+    media: [],
   }));
 }
 
@@ -355,8 +349,7 @@ export function createMockProduct(existingProducts: CatalogProduct[], input: Cre
   const attributes = input.attributes.filter((attribute) => attribute.key.trim() !== "" && attribute.value.trim() !== "");
   const highestInventory = variantRows.reduce((total, variant) => total + variant.inventory, 0);
   const leadPrice = variantRows[0]?.price ?? 0;
-  const status =
-    input.mode === "draft" ? "Draft" : derivePublishedStatus(highestInventory);
+  const status = input.mode === "draft" ? "Draft" : "Published";
 
   const variants = variantRows.map((variant, index) => ({
     ...variant,
@@ -383,9 +376,6 @@ export function createMockProduct(existingProducts: CatalogProduct[], input: Cre
     attributes,
     optionDefinitions,
     variants,
-    discountable: input.values.discountable,
-    shippingProfile: input.values.shippingProfile,
-    salesChannels: input.values.salesChannels,
     updatedAt: today,
   };
 }
@@ -395,8 +385,7 @@ export function buildUpdatedProduct(current: CatalogProduct, input: CreateProduc
   const variantRows = getEffectiveVariantRows(input.values, input.variantRows, input.optionDefinitions);
   const totalInventory = variantRows.reduce((total, variant) => total + variant.inventory, 0);
   const leadPrice = variantRows[0]?.price ?? 0;
-  const status =
-    input.mode === "draft" ? "Draft" : derivePublishedStatus(totalInventory);
+  const status = input.mode === "draft" ? "Draft" : "Published";
 
   return {
     ...current,
@@ -424,9 +413,6 @@ export function buildUpdatedProduct(current: CatalogProduct, input: CreateProduc
       sku: variant.sku.trim() || buildSku(input.values.handle || input.values.title || current.handle, index),
       title: variant.title.trim() || "Default variant",
     })),
-    discountable: input.values.discountable,
-    shippingProfile: input.values.shippingProfile,
-    salesChannels: input.values.salesChannels,
     updatedAt: "2026-06-21",
   };
 }
@@ -452,14 +438,11 @@ export function productToFormValues(product: CatalogProduct): CreateProductFormV
     handle: product.handle,
     subtitle: product.subtitle,
     description: product.description,
-    discountable: product.discountable,
     type: product.type,
     collection: product.collection,
     categories: product.categories,
     tags: product.tags.join(", "),
     media: product.media.join("\n"),
-    shippingProfile: product.shippingProfile,
-    salesChannels: product.salesChannels,
     hasVariants: product.optionDefinitions.length > 0,
     basePrice: String(product.price),
     inventory: String(product.inventory),
@@ -470,8 +453,8 @@ export function productToFormValues(product: CatalogProduct): CreateProductFormV
   };
 }
 
-export function derivePublishedStatus(inventory: number): ProductStatus {
-  return inventory > 0 && inventory < 10 ? "Low stock" : "Published";
+export function derivePublishedStatus(): ProductStatus {
+  return "Published";
 }
 
 function ensureUniqueHandle(seed: string, existingProducts: CatalogProduct[]) {

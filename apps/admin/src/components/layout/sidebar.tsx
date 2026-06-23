@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { NavLink } from "react-router";
-import { Avatar, IconButton, Text } from "@medusajs/ui";
-import { Bell, LogOut, MoreHorizontal, PanelLeft } from "lucide-react";
+import { Avatar, Drawer, IconButton, Text } from "@medusajs/ui";
+import { LogOut, MoreHorizontal } from "lucide-react";
 import {
   primarySidebarItems,
   operationsSidebarItems,
@@ -143,39 +143,32 @@ export function SidebarContent({ pathname, accountLabel, auth, navigate: nav }: 
   );
 }
 
-export function DesktopSidebarContainer({ children }: { children: ReactNode }) {
+export function DesktopSidebarContainer({ children, collapsed }: { children: ReactNode; collapsed?: boolean }) {
   return (
-    <aside className="hidden max-h-screen w-full flex-col overflow-hidden border-b border-gray-200 bg-white lg:flex lg:min-h-screen lg:w-[220px] lg:border-b-0 lg:border-r">
-      {children}
+    <aside
+      className={
+        // "hidden max-h-screen flex-col overflow-hidden border-b border-gray-200 bg-white transition-all duration-200 lg:flex lg:min-h-screen lg:border-b-0 lg:border-r" 
+        "hidden max-h-screen flex-col overflow-hidden border-b border-gray-200 bg-white transition-all duration-200 lg:flex lg:min-h-screen lg:border-b-0 lg:border-r"
+        +
+        (collapsed ? "invisible lg:w-0 lg:overflow-hidden lg:border-r-0" : " lg:w-55")
+      }
+    >
+        {children}
     </aside>
   );
 }
 
-export function NavigationBar({ onToggle }: { onToggle: () => void }) {
-  return (
-    <div className="flex items-center justify-between border-b border-gray-200 bg-white px-4 py-3 lg:hidden">
-      <div className="flex items-center gap-2">
-        <IconButton variant="transparent" onClick={onToggle}>
-          <PanelLeft className="h-4 w-4" />
-        </IconButton>
-        <Text size="base" weight="plus" className="text-gray-900">
-          Trophy
-        </Text>
-      </div>
-      <IconButton variant="transparent">
-        <Bell className="h-4 w-4" />
-      </IconButton>
-    </div>
-  );
-}
-
 export function MobileSidebarContainer({ open, onClose, children }: { open: boolean; onClose: () => void; children: ReactNode }) {
-  return open ? (
-    <div className="fixed inset-0 z-50 flex">
-      <div className="fixed inset-0 bg-black/40" onClick={onClose} />
-      <aside className="relative flex h-full w-[280px] flex-col overflow-hidden bg-white shadow-xl">
-        {children}
-      </aside>
-    </div>
-  ) : null;
+  return (
+    <Drawer open={open} onOpenChange={(isOpen) => { if (!isOpen) onClose(); }}>
+      <Drawer.Content
+        className="left-0 right-auto max-sm:inset-x-0 sm:left-2 sm:max-w-70 data-[state=closed]:slide-out-to-left-1/2 data-[state=open]:slide-in-from-left-1/2"
+        style={{ width: "280px" }}
+      >
+        <div className="flex h-full flex-col">
+          {children}
+        </div>
+      </Drawer.Content>
+    </Drawer>
+  );
 }

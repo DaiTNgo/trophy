@@ -20,7 +20,7 @@ export type AuthContextValue = {
 };
 
 export type OrderStatus = "Pending" | "Processing" | "Fulfilled" | "Canceled";
-export type ProductStatus = "Published" | "Draft" | "Low stock";
+export type ProductStatus = "Published" | "Draft";
 
 export type Order = {
   id: string;
@@ -63,9 +63,6 @@ export type CatalogProduct = {
   attributes: ProductAttribute[];
   optionDefinitions: ProductOptionDefinition[];
   variants: ProductVariant[];
-  discountable: boolean;
-  shippingProfile: string;
-  salesChannels: string[];
   updatedAt: string;
 };
 
@@ -75,6 +72,16 @@ export type CatalogContextValue = {
   updateProduct: (productId: string, updater: (product: CatalogProduct) => CatalogProduct) => CatalogProduct | null;
 };
 
+export type ProductVariantMedia = {
+  id: string;
+  fileName: string;
+  mimeType: string;
+  widthPx: number;
+  heightPx: number;
+  byteSize: number;
+  contentUrl: string;
+};
+
 export type ProductVariant = {
   id: string;
   title: string;
@@ -82,9 +89,8 @@ export type ProductVariant = {
   price: number;
   inventory: number;
   options: VariantOptionValue[];
-  manageInventory: boolean;
   allowBackorder: boolean;
-  hasInventoryKit: boolean;
+  media: ProductVariantMedia[];
 };
 
 export type VariantOptionValue = {
@@ -101,7 +107,6 @@ export type ProductOptionDefinition = {
 export type ProductOptionValueDefinition = {
   id: string;
   value: string;
-  enabled: boolean;
 };
 
 export type ProductAttribute = {
@@ -114,14 +119,11 @@ export type CreateProductFormValues = {
   handle: string;
   subtitle: string;
   description: string;
-  discountable: boolean;
   type: string;
   collection: string;
   categories: string[];
   tags: string;
   media: string;
-  shippingProfile: string;
-  salesChannels: string[];
   hasVariants: boolean;
   basePrice: string;
   inventory: string;

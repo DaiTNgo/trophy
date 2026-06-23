@@ -9,6 +9,7 @@ The backend needs a product model that follows Medusa's core catalog mental mode
 - Add a Medusa-thin product domain model to the backend design.
 - Make `product_variants` the sole owner of sellable price data.
 - Support optional product detail fields: `subtitle`, `description`, `media`, and `attributes`.
+- Support variant-specific media so each variant can carry its own shopper-preview imagery.
 - Treat `handle` as optional in admin input but auto-generate and persist a unique handle on create.
 - Support `collection` as an optional catalog relation in v1.
 - Support `categories` as optional taxonomy relations in v1.
@@ -21,3 +22,4 @@ The backend needs a product model that follows Medusa's core catalog mental mode
 - Backend API planning can proceed with a normalized catalog schema.
 - Admin product workflows can be implemented without branching data models for single-variant vs multi-variant products.
 - Future customization work can attach to products cleanly through separate tables.
+- Shopper-facing product presentation can distinguish variants visually without overloading shared product-level media.

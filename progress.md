@@ -59,6 +59,8 @@
 - [x] Documented an approved `Medusa-thin` product-catalog design in `docs/plans/2026-06-23-medusa-thin-product-catalog-design.md`, keeping attributes in `Details` and removing Medusa-full scope such as sales channels, shipping profiles, inventory kits, and multi-region pricing from v1.
 - [x] Applied the approved `Medusa-thin` product-catalog design to `/products/new` by trimming the admin mock model and create flow: removed `discountable`, `shipping profile`, `sales channels`, `managed inventory`, `inventory kits`, and `Low stock` product status from the v1 authoring path.
 - [x] Updated `/products/new` so `Details` previews generated variants before pricing, `Organize` only carries collection/categories plus optional type/tags, and `Variants` is limited to title, SKU, allow backorder, price, and inventory quantity.
+- [x] Extended `/products/new` variants with variant-specific media upload so each variant row can store multiple shopper-preview images separately from product-level media.
+- [x] Added a backend `/api/products/assets` upload/content/delete pipeline plus local migration `0006_calm_butterfly.sql`, then wired the admin variant grid to upload, preview, and delete variant media inline.
 - [x] Documented the Medusa-style sidebar pass in `docs/plans/2026-06-23-admin-sidebar-medusa-design.md`.
 - [x] Reworked the protected admin shell into a Medusa-style dark rail with grouped commerce navigation, nested `Products -> Collections/Categories`, bottom-pinned settings/account actions, and a slimmer top bar.
 - [x] Added placeholder admin routes for `collections`, `categories`, `inventory`, `customers`, `promotions`, and `price-lists` so the Medusa-like information architecture is navigable without inventing unsupported business rules.
@@ -102,6 +104,7 @@
 - [ ] `apps/storefront` is currently untracked in the root working tree, so it must be staged deliberately when the existing workspace changes are ready to commit.
 
 - [ ] Mock-first risk: the new create product flow persists only in browser storage and is not yet connected to the backend catalog API.
+- [ ] Asset lifecycle risk: variant media uploads are backend-backed immediately, but the create product flow is still mock-first, so canceled flows or removed variant combinations can leave orphaned uploaded assets until cleanup is implemented.
 - [ ] Mock-first risk: order detail actions mutate only local mock order state and are not yet connected to backend order contracts.
 - [ ] Auth operations risk: production environments still need explicit `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `ADMIN_APP_ORIGIN`, and `ADMIN_BOOTSTRAP_SECRET` bindings before deploy.
 - [ ] Verification coverage risk: there are still no automated UI or endpoint-level tests covering the product authoring lifecycle.
@@ -173,6 +176,10 @@
 - [x] Full repo verification after the `FocusModal` overlay refactor: `./init.sh`
 - [x] Admin build after applying the approved Medusa-thin create-product alignment: `pnpm --filter admin build`
 - [x] Full repo verification after the Medusa-thin create-product alignment: `./init.sh`
+- [x] Backend build after adding the product-assets upload route: `pnpm --filter backend build`
+- [x] Admin build after wiring variant-media upload, preview, and delete in the create-product variants grid: `pnpm --filter admin build`
+- [x] Local D1 migration for variant-media asset metadata: `pnpm --filter backend db:migrate:local`
+- [x] Full repo verification after the variant-media upload implementation: `./init.sh`
 - [x] Auth migration: `pnpm --filter backend db:generate` and `pnpm --filter backend db:migrate:local`
 - [x] Auth runtime verification: local worker requests for bootstrap, sign-in, get-session, change-password, create-user, ban-user, set-user-password, revoke-user-sessions, and disabled-user rejection
 - [x] Repo verification: `./init.sh`

@@ -21,6 +21,9 @@
 - [x] Removed thin-scope exclusions from the v1 admin product authoring path: `discountable`, `shipping profile`, `sales channels`, `managed inventory`, `inventory kits`, and `Low stock` product status.
 - [x] Updated `/products/new` so `Details` previews generated variants, `Organize` only covers collection/categories plus optional type/tags, and `Variants` only edits title, SKU, allow backorder, price, and inventory quantity.
 - [x] Verified the thin-scope alignment with `pnpm --filter admin build` and `./init.sh`.
+- [x] Added variant-specific media upload for `/products/new` so each variant row can upload multiple images, preview thumbnails, and delete uploaded assets inline.
+- [x] Added backend product-asset metadata storage plus `/api/products/assets` POST/GET/DELETE endpoints and applied local migration `0006_calm_butterfly.sql`.
+- [x] Verified the variant-media implementation with `pnpm --filter backend build`, `pnpm --filter admin build`, `pnpm --filter backend db:migrate:local`, and `./init.sh`.
 
 ## Completed This Session (legacy)
 
@@ -145,6 +148,7 @@ Customization verification on 2026-06-22:
 - Approved font storage, SVG glyph outlining, and custom-font PDF embedding remain pending.
 - Staging/production customization deployment needs environment-specific D1 IDs alongside the confirmed R2 buckets.
 - The create product flow is still browser-local mock persistence, not backend-backed data, even though the layout and variant UX now more closely match Medusa.
+- Variant media uploads are now backend-backed even though the create-product record itself is still mock-first, so canceled create flows or removed option combinations can leave orphaned uploaded assets until cleanup policy is added.
 - Order detail actions are still browser-local mock state, not backend-backed operations.
 - Production deployment still needs explicit `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `ADMIN_APP_ORIGIN`, and `ADMIN_BOOTSTRAP_SECRET` bindings.
 - Automated UI and endpoint-level tests for the product authoring lifecycle still do not exist.

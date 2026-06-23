@@ -53,8 +53,8 @@ The system SHALL use the `Details` tab for core product identity, media, descrip
 
 #### Scenario: Review generated variant values before pricing
 - **WHEN** an admin has entered one or more option values while variants are enabled
-- **THEN** the `Details` tab shows a `Product variants` area that reflects the current option-value structure
-- **AND** the system allows the admin to review which values will participate in variant generation before moving to the `Variants` tab
+- **THEN** the `Details` tab shows a `Product variants` preview area that reflects the current option-value structure
+- **AND** the system allows the admin to review which generated variants will participate in variant editing before moving to the `Variants` tab
 
 #### Scenario: Provide organize metadata
 - **WHEN** an admin assigns collection and categories during create
@@ -78,12 +78,12 @@ The system SHALL use the `Organize` tab for thin-scope catalog metadata rather t
 - **THEN** the system still permits a valid draft save if the minimum create requirements are satisfied
 
 ### Requirement: Variants Tab Purpose
-The system SHALL use the `Variants` tab to edit variant rows and commercial data.
+The system SHALL use the `Variants` tab to edit variant rows, commercial data, and variant-specific shopper-preview media.
 
 #### Scenario: Edit a default variant row
 - **WHEN** variants are disabled and an admin reaches the `Variants` tab
 - **THEN** the system shows a single default variant row
-- **AND** the row supports variant-level commercial fields such as title, SKU, inventory quantity, optional backorder behavior, and price inputs
+- **AND** the row supports variant-level fields such as title, SKU, inventory quantity, optional backorder behavior, price inputs, and media management
 
 #### Scenario: Edit generated variant rows
 - **WHEN** variants are enabled and an admin reaches the `Variants` tab
@@ -95,6 +95,17 @@ The system SHALL use the `Variants` tab to edit variant rows and commercial data
 - **THEN** the system provides price inputs in the `Variants` tab for each variant row
 - **AND** the system does not require the admin to enter publishable prices in the `Details` tab
 
+#### Scenario: Upload media for a variant
+- **WHEN** an admin is editing a variant row in the `Variants` tab
+- **THEN** the system provides a variant-media management control for that variant
+- **AND** the admin can upload one or more media assets that are attached to that variant only
+- **AND** those media assets are separate from product-level media entered in `Details`
+
+#### Scenario: Use variant media to disambiguate shopper preview
+- **WHEN** multiple variants have different visual appearances such as different colors, prints, or finishes
+- **THEN** the admin can attach different media to each variant
+- **AND** the stored variant media allows shopper-facing preview to show the correct imagery for the selected variant instead of relying on shared product media
+
 ### Requirement: Options and Variants During Create
 The system SHALL support option-driven variant creation during the initial product flow.
 
@@ -102,6 +113,7 @@ The system SHALL support option-driven variant creation during the initial produ
 - **WHEN** an admin defines product options and their values during product creation
 - **THEN** the system creates variants from those combinations
 - **AND** variant-level prices remain attached to variants only
+- **AND** variant-level media remains attached to variants only
 - **AND** the resulting variant rows follow the structure defined in the `Variants` tab
 
 #### Scenario: Reject invalid option definitions during create
@@ -141,11 +153,17 @@ The system SHALL expose a create product contract compatible with mock-first adm
 #### Scenario: Submit create product request
 - **WHEN** the admin submits the create product flow
 - **THEN** the contract accepts details, organize metadata, option definitions, and variant-row inputs
+- **AND** each variant-row input can carry uploaded media references for that variant
 - **AND** the response returns the normalized created product aggregate
 
 #### Scenario: Keep create contract aligned to thin scope
 - **WHEN** the create product contract is implemented
 - **THEN** the contract does not require shipping-profile, sales-channel, or inventory-kit fields for v1 compatibility
+
+#### Scenario: Separate product media from variant media in the contract
+- **WHEN** the create product contract is implemented
+- **THEN** the contract keeps product-level media and variant-level media as separate collections
+- **AND** variant media is associated with a specific variant rather than with the product root
 
 #### Scenario: Fulfill create contract with mock data
 - **WHEN** the current admin runtime has no live backend implementation yet

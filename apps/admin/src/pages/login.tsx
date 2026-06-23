@@ -1,13 +1,14 @@
-import {
-  startTransition,
-  useState,
-  type FormEvent,
-} from "react";
+import { useState, type FormEvent } from "react";
 import { useLocation, useNavigate } from "react-router";
-import { TextField } from "../components/ui/medusa";
+import {
+  Button,
+  Heading,
+  Input,
+  Label,
+  Text,
+} from "@medusajs/ui";
 import { InlineError } from "../components/ui/medusa/inline-error";
 import { AuthScreenState } from "../components/ui/medusa/auth-screen-state";
-import { MetricCard } from "../components/ui/medusa/metric-card";
 import { useAuth } from "../hooks/use-auth";
 import { validateLogin } from "../lib/validation";
 import type { LoginFormValues, LoginFormErrors } from "../types";
@@ -45,65 +46,46 @@ export function LoginPage() {
     }
 
     setErrors({});
-    startTransition(() => {
-      navigate(destination, { replace: true });
-    });
+    navigate(destination, { replace: true });
   }
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,#fef3c7,transparent_30%),linear-gradient(135deg,#0f172a,#1e293b_55%,#334155)] px-4 py-10 text-white">
-      <div className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-        <section className="rounded-[32px] border border-white/10 bg-white/8 p-8 backdrop-blur sm:p-10">
-          <p className="text-sm uppercase tracking-[0.35em] text-amber-200/80">Trophy Commerce</p>
-          <h1 className="mt-5 max-w-xl text-5xl font-semibold leading-tight tracking-tight sm:text-6xl">
-            Admin pages for orders and products, built to move fast.
-          </h1>
-          <p className="mt-6 max-w-xl text-lg leading-8 text-slate-200">
-            This round ships a protected admin surface with real login submission, local session state, and mock operational data for teams to iterate on before API integration.
-          </p>
-          <div className="mt-10 grid gap-4 sm:grid-cols-3">
-            <MetricCard label="Orders today" value="46" />
-            <MetricCard label="Products live" value="128" />
-            <MetricCard label="Conversion" value="3.9%" />
-          </div>
-        </section>
+    <div className="flex min-h-screen items-center justify-center bg-stone-100 px-4">
+      <div className="w-full max-w-sm space-y-8">
+        <Heading level="h1" className="text-center">Sign in</Heading>
 
-        <section className="rounded-[32px] bg-white p-8 text-slate-900 shadow-2xl shadow-slate-950/20 sm:p-10">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-sm font-medium uppercase tracking-[0.3em] text-slate-500">Sign in</p>
-              <h2 className="mt-3 text-3xl font-semibold tracking-tight">Admin login</h2>
-            </div>
-          </div>
-
-          <form className="mt-8 space-y-5" onSubmit={handleSubmit} noValidate>
-            <TextField
-              label="Username"
-              name="username"
+        <form className="space-y-5" onSubmit={handleSubmit} noValidate>
+          <div className="space-y-2">
+            <Label htmlFor="login-username">Username</Label>
+            <Input
+              id="login-username"
               value={values.username}
-              error={errors.username}
-              onChange={(value) => setValues((current) => ({ ...current, username: value }))}
+              onChange={(event) => setValues((current) => ({ ...current, username: event.target.value }))}
             />
-            <TextField
-              label="Password"
-              name="password"
+            {errors.username ? <Text size="small" className="text-rose-700">{errors.username}</Text> : null}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="login-password">Password</Label>
+            <Input
+              id="login-password"
               type="password"
               value={values.password}
-              error={errors.password}
-              onChange={(value) => setValues((current) => ({ ...current, password: value }))}
+              onChange={(event) => setValues((current) => ({ ...current, password: event.target.value }))}
             />
+            {errors.password ? <Text size="small" className="text-rose-700">{errors.password}</Text> : null}
+          </div>
 
-            {errors.form ? <InlineError message={errors.form} /> : null}
+          {errors.form ? <InlineError message={errors.form} /> : null}
 
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full rounded-2xl bg-slate-950 px-5 py-4 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
-            >
-              {isSubmitting ? "Signing in..." : "Sign in to admin"}
-            </button>
-          </form>
-        </section>
+          <Button
+            type="submit"
+            disabled={isSubmitting}
+            className="w-full"
+          >
+            {isSubmitting ? "Signing in..." : "Sign in"}
+          </Button>
+        </form>
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
 type OrderStatus = "Pending" | "Processing" | "Fulfilled" | "Canceled";
-type ProductStatus = "Published" | "Draft" | "Low stock";
+type ProductStatus = "Published" | "Draft";
 
 export function StatusBadge({ status }: { status: OrderStatus | ProductStatus }) {
   const className =
@@ -7,7 +7,7 @@ export function StatusBadge({ status }: { status: OrderStatus | ProductStatus })
       ? "bg-emerald-50 text-emerald-700"
       : status === "Processing"
         ? "bg-sky-50 text-sky-700"
-        : status === "Pending" || status === "Low stock"
+        : status === "Pending"
           ? "bg-amber-50 text-amber-700"
           : "bg-slate-100 text-slate-600";
 

@@ -28,7 +28,7 @@ export function ProductsListPage() {
   const productStats = useMemo(
     () => ({
       published: products.filter((product) => product.status === "Published").length,
-      lowStock: products.filter((product) => product.status === "Low stock").length,
+      lowInventory: products.filter((product) => product.status === "Published" && product.inventory > 0 && product.inventory < 10).length,
       drafts: products.filter((product) => product.status === "Draft").length,
     }),
     [products],
@@ -58,7 +58,7 @@ export function ProductsListPage() {
 
       <div className="grid gap-4 md:grid-cols-3">
         <StatCard label="Published" value={String(productStats.published)} hint="Visible in storefront" />
-        <StatCard label="Low stock" value={String(productStats.lowStock)} hint="Needs replenishment soon" />
+        <StatCard label="Low inventory" value={String(productStats.lowInventory)} hint="Needs replenishment soon" />
         <StatCard label="Drafts" value={String(productStats.drafts)} hint="Awaiting merchandising review" />
       </div>
 

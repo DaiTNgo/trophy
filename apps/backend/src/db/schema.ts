@@ -243,6 +243,24 @@ export const productMedia = sqliteTable("product_media", {
   position: integer("position").notNull(),
 });
 
+export const productAssets = sqliteTable(
+  "product_assets",
+  {
+    id: text("id").primaryKey(),
+    ownerKey: text("owner_key").notNull(),
+    objectKey: text("object_key").notNull(),
+    fileName: text("file_name").notNull(),
+    mimeType: text("mime_type").notNull(),
+    widthPx: integer("width_px"),
+    heightPx: integer("height_px"),
+    byteSize: integer("byte_size").notNull(),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [index("product_assets_owner_key_idx").on(table.ownerKey)],
+);
+
 export const customizationTemplates = sqliteTable(
   "customization_templates",
   {

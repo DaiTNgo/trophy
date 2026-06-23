@@ -22,6 +22,7 @@ This design updates the current repository direction. It does not restart the pr
 - Product options and option values that generate variants.
 - Variant-level price.
 - Variant-level inventory quantity.
+- Variant-level media for shopper preview and visual disambiguation.
 - Optional collection assignment.
 - Optional multi-category assignment.
 - Optional descriptive attributes defined in the product details flow.
@@ -63,7 +64,7 @@ Implementation should refine this base, not replace it.
   - `has_variants`
   - `collection_id`
 - `product_media`
-  - product-level media only in v1
+  - shared product-level media
 - `product_categories`
   - hierarchical taxonomy
 - `product_category_links`
@@ -79,6 +80,9 @@ Implementation should refine this base, not replace it.
   - `inventory_quantity`
   - optional `allow_backorder`
   - `is_default`
+- `product_variant_media`
+  - one or more media assets attached to a specific variant
+  - used to show the correct shopper preview for the selected variant
 - `product_variant_option_values`
   - normalized mapping between variants and option values
 - `product_attributes`
@@ -179,6 +183,7 @@ Per variant row:
 - `Price`
 - `Inventory quantity`
 - optional `Allow backorder`
+- `Variant media uploads`
 
 This step must not include inventory-kit controls.
 

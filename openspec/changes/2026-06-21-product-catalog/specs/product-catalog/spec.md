@@ -13,6 +13,24 @@ The system SHALL support a product record with a required title and optional sub
 - **THEN** the system generates a handle from the title
 - **AND** the stored handle is unique
 
+### Requirement: Variant Media Separation
+The system SHALL support variant-specific media separate from product-level media.
+
+#### Scenario: Store shared product media
+- **WHEN** an admin uploads product-level media for a product
+- **THEN** the system stores that media on the product root
+- **AND** the media is available as shared product imagery
+
+#### Scenario: Store variant-specific media
+- **WHEN** an admin uploads media for a specific variant
+- **THEN** the system stores that media as media associated with that variant
+- **AND** the media does not become shared product-root media by default
+
+#### Scenario: Use variant media for visual disambiguation
+- **WHEN** two variants differ visually
+- **THEN** the system can return different media per variant
+- **AND** shopper-facing clients can show the correct imagery for the selected variant instead of relying only on shared product media
+
 ### Requirement: Variant-Owned Pricing
 The system SHALL store price on product variants only.
 
@@ -20,6 +38,7 @@ The system SHALL store price on product variants only.
 - **WHEN** an admin creates a product with variants disabled
 - **THEN** the product still has exactly one default variant
 - **AND** price is stored on that variant
+- **AND** variant-specific media can still be attached to that default variant
 
 ### Requirement: Variant Option Separation
 The system SHALL separate variant options from descriptive attributes.

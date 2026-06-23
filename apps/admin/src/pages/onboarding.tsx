@@ -1,6 +1,12 @@
 import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router";
-import { TextField } from "../components/ui/medusa";
+import {
+  Button,
+  Heading,
+  Input,
+  Label,
+  Text,
+} from "@medusajs/ui";
 import { InlineError } from "../components/ui/medusa/inline-error";
 import { SuccessMessage } from "../components/ui/medusa/success-message";
 import { bootstrapFirstAdmin } from "../lib/auth-client";
@@ -46,45 +52,44 @@ export function OnboardingPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top,#fef3c7,transparent_30%),linear-gradient(135deg,#0f172a,#1e293b_55%,#334155)] px-4">
-      <div className="w-full max-w-md">
-        <div className="rounded-[32px] bg-white p-8 text-slate-900 shadow-2xl shadow-slate-950/20 sm:p-10">
-          <p className="text-sm font-medium uppercase tracking-[0.3em] text-slate-500">Setup</p>
-          <h2 className="mt-3 text-3xl font-semibold tracking-tight">Create super-admin</h2>
-          <p className="mt-2 text-sm text-slate-500">
-            Create the first super-admin account to get started.
-          </p>
+    <div className="flex min-h-screen items-center justify-center bg-stone-100 px-4">
+      <div className="w-full max-w-sm space-y-8">
+        <Heading level="h1">Setup</Heading>
 
-          {message ? <SuccessMessage message={message} /> : null}
+        {message ? <SuccessMessage message={message} /> : null}
 
-          <form className="mt-8 space-y-5" onSubmit={handleSubmit} noValidate>
-            <TextField
-              label="Username"
-              name="username"
+        <form className="space-y-5" onSubmit={handleSubmit} noValidate>
+          <div className="space-y-2">
+            <Label htmlFor="onboarding-username">Username</Label>
+            <Input
+              id="onboarding-username"
               value={values.username}
-              error={errors.username}
-              onChange={(value) => setValues((current) => ({ ...current, username: value }))}
+              onChange={(event) => setValues((current) => ({ ...current, username: event.target.value }))}
             />
-            <TextField
-              label="Password"
-              name="password"
+            {errors.username ? <Text size="small" className="text-rose-700">{errors.username}</Text> : null}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="onboarding-password">Password</Label>
+            <Input
+              id="onboarding-password"
               type="password"
               value={values.password}
-              error={errors.password}
-              onChange={(value) => setValues((current) => ({ ...current, password: value }))}
+              onChange={(event) => setValues((current) => ({ ...current, password: event.target.value }))}
             />
+            {errors.password ? <Text size="small" className="text-rose-700">{errors.password}</Text> : null}
+          </div>
 
-            {errors.form ? <InlineError message={errors.form} /> : null}
+          {errors.form ? <InlineError message={errors.form} /> : null}
 
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full rounded-2xl bg-slate-950 px-5 py-4 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
-            >
-              {isSubmitting ? "Creating..." : "Create super-admin"}
-            </button>
-          </form>
-        </div>
+          <Button
+            type="submit"
+            disabled={isSubmitting}
+            className="w-full"
+          >
+            {isSubmitting ? "Creating..." : "Create super-admin"}
+          </Button>
+        </form>
       </div>
     </div>
   );

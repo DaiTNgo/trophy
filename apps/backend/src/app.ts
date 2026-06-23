@@ -5,12 +5,14 @@ import {
   buildBackendAllowedOrigins,
   CUSTOMIZATION_CORS_POLICY,
   LOCAL_APP_ORIGINS,
+  PRODUCT_ASSET_CORS_POLICY,
   SESSION_CORS_POLICY,
   type CorsPolicy,
 } from "./lib/cors";
 import { adminAccountsRoute } from "./routes/admin-accounts";
 import { adminBootstrapRoute } from "./routes/admin-bootstrap";
 import { customizationAssetsRoute } from "./routes/customization-assets";
+import { productAssetsRoute } from "./routes/product-assets";
 import { customizationsRoute } from "./routes/customizations";
 import { productMetadataRoute } from "./routes/product-metadata";
 import { productsRoute } from "./routes/products";
@@ -113,6 +115,7 @@ app.use(`${AUTH_BASE_PATH}/*`, createCorsMiddleware(SESSION_CORS_POLICY));
 app.use("/api/admin/bootstrap/*", createCorsMiddleware(SESSION_CORS_POLICY));
 app.use("/api/admin/accounts/*", createCorsMiddleware(SESSION_CORS_POLICY));
 app.use("/api/customizations/*", createCorsMiddleware(CUSTOMIZATION_CORS_POLICY));
+app.use("/api/products/assets/*", createCorsMiddleware(PRODUCT_ASSET_CORS_POLICY));
 
 app.get("/", (c) => {
   return c.json(
@@ -135,6 +138,7 @@ export const routes = app
   .route("/admin/accounts", adminAccountsRoute)
   .route("/customizations/assets", customizationAssetsRoute)
   .route("/customizations", customizationsRoute)
+  .route("/products/assets", productAssetsRoute)
   .route("/product-metadata", productMetadataRoute)
   .route("/products", productsRoute)
   .route("/samples", samplesRoute);

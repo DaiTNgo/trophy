@@ -33,14 +33,11 @@ const defaultCreateProductValues: CreateProductFormValues = {
   handle: "",
   subtitle: "",
   description: "",
-  discountable: true,
   type: "",
   collection: "",
   categories: [],
   tags: "",
   media: "",
-  shippingProfile: "Default Shipping Profile",
-  salesChannels: ["Default Sales Channel"],
   hasVariants: false,
   basePrice: "",
   inventory: "",
@@ -434,7 +431,7 @@ export function ProductDetailPage() {
               <SummaryRow label="Handle" value={values.handle.trim() || product.handle} />
               <SummaryRow label="Saved status" value={product.status} />
               <SummaryRow label="Draft result" value="Draft" />
-              <SummaryRow label="Publish result" value={derivePublishedStatus(Number(values.inventory || 0))} />
+              <SummaryRow label="Publish result" value={derivePublishedStatus()} />
               <SummaryRow label="Variants" value={String(variantPreview.length)} />
               <SummaryRow label="Updated" value={product.updatedAt} />
             </dl>
