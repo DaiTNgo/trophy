@@ -23,6 +23,11 @@
 
 - [x] Added `/products/new` to the admin router
 - [x] Implemented a Medusa-like create product page with section-based authoring
+- [x] Reworked the create product page into a Medusa-like three-tab workflow while keeping it as a dedicated route instead of a modal
+- [x] Rewrote the create-product OpenSpec so Medusa parity now explicitly covers the purpose of `Details`, `Organize`, and `Variants`, plus variant-option authoring and variant-row pricing
+- [x] Applied the OpenSpec to the admin UI: `Details` now owns variant toggle plus option/value authoring, `Organize` is metadata-only, and `Variants` now uses a row editor for SKU, inventory flags, price, and inventory
+- [x] Flattened the create-product page layout and switched its shell to `@medusajs/ui` components so the route now uses Medusa-style tabs and tables instead of nested local cards
+- [x] Moved the create-product experience into a `@medusajs/ui` `FocusModal` overlay above the products list so `/products/new` now behaves closer to Medusa's modal workflow
 - [x] Added mock catalog persistence so created products show up in the product list
 - [x] Added draft and publish validation using `valibot`
 - [x] Added `/orders/:orderId` and a Medusa-like order detail workspace with mock actions
@@ -34,6 +39,7 @@
 - [x] Re-ran repo verification from the root
 - [x] Configured dedicated dev/preview ports for all three apps and verified the repo with `./init.sh`
 - [x] Moved backend CORS resolution into a single `app.ts` helper, shared origin/policy constants in `src/lib/cors.ts`, and aligned Vite dev-server preflight so local credentialed auth requests from the repo's fixed app ports pass
+- [x] Wrote `docs/plans/2026-06-23-medusa-thin-product-catalog-design.md` to lock the catalog into a Medusa-thin v1: keep variant pricing, collection/category taxonomy, and custom attributes; remove sales channels, shipping profiles, inventory kits, and other Medusa-full complexity from the approved scope
 
 ## Verification Evidence
 
@@ -74,7 +80,11 @@ Customization verification on 2026-06-22:
 ## Decisions Made
 
 - Keep the create product experience mock-first for now so admin authoring can move ahead without waiting on live API wiring.
-- Model the page after Medusa information architecture: overview, organize, media, attributes, and variants.
+- Model the page after Medusa information architecture, then tighten it further into a three-tab workflow: `Details`, `Organize`, and `Variants`.
+- Keep the spec authoritative for Medusa parity: option titles and values are defined in `Details`, prices are entered in `Variants`, and `Organize` remains metadata-only.
+- The mock catalog model now stores option definitions, discountable, shipping profile, sales channels, and richer variant rows so create-product UI can evolve without breaking legacy product-detail editing.
+- A new approved design now supersedes that broader mock-first catalog shape: the next alignment pass should trim the product model and UX back to the documented Medusa-thin scope instead of preserving Medusa-full fields in v1.
+- `@medusajs/ui` is already installed and wired through Tailwind preset/content scanning in `apps/admin`, so future Medusa parity work should prefer those primitives before adding local wrappers.
 - Persist mock catalog state in browser storage so the products list reflects newly created records during local iteration.
 - Keep order detail actions mock-first as well, updating local order state and timeline until backend order contracts exist.
 - Use Better Auth's built-in admin plugin primitives (`createUser`, `banUser`, `setUserPassword`, `revokeUserSessions`) instead of inventing a parallel account-management layer.
@@ -88,7 +98,8 @@ Customization verification on 2026-06-22:
 - Block condition-builder UI and production asset picker/upload for preset options remain pending.
 - Approved font storage, SVG glyph outlining, and custom-font PDF embedding remain pending.
 - Staging/production customization deployment needs environment-specific D1 IDs alongside the confirmed R2 buckets.
-- The create product flow is still browser-local mock persistence, not backend-backed data.
+- The create product flow is still browser-local mock persistence, not backend-backed data, even though the layout and variant UX now more closely match Medusa.
+- The admin mock model still includes Medusa-full fields such as `shippingProfile`, `salesChannels`, and `hasInventoryKit`, which now conflict with the approved thin-scope design and should be removed or ignored in the next pass.
 - Order detail actions are still browser-local mock state, not backend-backed operations.
 - Production deployment still needs explicit `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `ADMIN_APP_ORIGIN`, and `ADMIN_BOOTSTRAP_SECRET` bindings.
 - Automated UI and endpoint-level tests for the product authoring lifecycle still do not exist.
@@ -99,8 +110,9 @@ Customization verification on 2026-06-22:
 1. Read `AGENTS.md`.
 2. Read `feature_list.json` and `progress.md`.
 3. Review this handoff.
-4. Continue with the next admin pages in scope, ideally collections and categories.
+4. Read `docs/plans/2026-06-23-medusa-thin-product-catalog-design.md`.
+5. Align product OpenSpec, admin mock model, and backend contracts to that thin-scope catalog before continuing with collections and categories.
 
 ## Recommended Next Step
 
-- For customization, connect admin template publication and storefront template loading to the backend, then complete production font outlining.
+- Align the product domain to the approved Medusa-thin design first, then continue with collections and categories or backend wiring for the catalog.
