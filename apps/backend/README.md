@@ -32,15 +32,15 @@ pnpm --filter backend db:migrate:local
 pnpm --filter backend db:migrate:remote
 ```
 
-Seed the first admin account in local development:
+Create the first super-admin account via the admin UI at `/onboarding`. Alternatively, POST to the bootstrap endpoint directly:
 
 ```txt
-pnpm --filter backend seed:admin -- --username=admin
+curl -X POST http://localhost:8787/api/admin/bootstrap \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"admin","password":"admin1234"}'
 ```
 
-The seed helper posts to `/api/admin/bootstrap` and uses `trophy-local-bootstrap`
-automatically on loopback URLs when `ADMIN_BOOTSTRAP_SECRET` is not set. The
-admin UI now signs in with `username + password`, not email.
+The admin UI signs in with `username + password`, not email.
 
 ## D1 binding
 

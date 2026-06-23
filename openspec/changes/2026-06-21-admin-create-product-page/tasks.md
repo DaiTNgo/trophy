@@ -1,4 +1,6 @@
-1. Add create product route and form shell with Medusa-like section ordering.
-2. Add create flow behavior for title, handle, organize fields, media, attributes, options, variants, and draft or publish actions.
-3. Add validators for required title, handle uniqueness, variant uniqueness, and publish readiness.
-4. Add mock-first create product contract and tests for minimal create, default variant generation, and publish blocking.
+1. Update the create product route spec to use a Medusa-like three-tab workflow with fixed footer actions.
+2. Define `Details` tab behavior for core product fields, media, the variant toggle, and product-option authoring with option titles and values.
+3. Define `Organize` tab behavior for catalog metadata such as discountable, type, collection, categories, tags, shipping profile, and sales channels.
+4. Define `Variants` tab behavior as a variant-row editor for title, SKU, inventory flags, and prices rather than a preview-card summary.
+5. Add validation rules for minimal draft creation, default variant fallback, option/value validity when variants are enabled, and publish blocking at the variants step.
+6. Update the mock-first create contract so option definitions and generated variant rows follow the Medusa-aligned workflow.

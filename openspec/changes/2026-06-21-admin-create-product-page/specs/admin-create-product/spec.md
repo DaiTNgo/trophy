@@ -1,11 +1,17 @@
 ## ADDED Requirements
 
-### Requirement: Create Product Page
-The system SHALL provide an admin create product page that follows a Medusa-like catalog authoring flow.
+### Requirement: Create Product Workflow
+The system SHALL provide an admin create product workflow that follows Medusa's three-tab authoring model.
 
 #### Scenario: Open create product page
 - **WHEN** an admin chooses to create a product
-- **THEN** the system opens a product creation page with sectioned inputs for core catalog data
+- **THEN** the system opens a create product workflow with the tabs `Details`, `Organize`, and `Variants`
+- **AND** the system shows persistent footer actions for `Cancel`, `Save as draft`, and the current step action
+
+#### Scenario: Move through the create workflow
+- **WHEN** an admin completes the current step and continues
+- **THEN** the system advances to the next tab in the order `Details` -> `Organize` -> `Variants`
+- **AND** the final step action changes from `Continue` to `Publish`
 
 ### Requirement: Minimal Product Creation
 The system SHALL allow creation of a draft product with minimal required input.
@@ -16,24 +22,87 @@ The system SHALL allow creation of a draft product with minimal required input.
 - **AND** the system generates a unique handle if omitted
 - **AND** the system creates a default variant
 
-### Requirement: Organize and Media Inputs
-The system SHALL support Medusa-like organize and merchandising fields during product creation.
+### Requirement: Details Tab Purpose
+The system SHALL use the `Details` tab for core product identity, media, and variant-mode setup.
+
+#### Scenario: Enter core product details
+- **WHEN** an admin is on the `Details` tab
+- **THEN** the system provides fields for `Title`, `Subtitle`, `Handle`, `Description`, and `Media`
+- **AND** the system treats `Title` as the minimal required identity input
+
+#### Scenario: Use default variant mode
+- **WHEN** an admin leaves `This is a product with variants` disabled
+- **THEN** the system keeps the workflow in default-variant mode
+- **AND** the system creates a default variant for the product if the draft or publish action succeeds
+
+#### Scenario: Enable variants from details
+- **WHEN** an admin enables `This is a product with variants`
+- **THEN** the `Details` tab reveals a `Product options` authoring area
+- **AND** the system allows the admin to add one or more product options
+- **AND** each product option contains an option title and multiple option values
+
+#### Scenario: Enter option values as multiple chips or tags
+- **WHEN** an admin enters multiple values for an option
+- **THEN** the system captures those values as distinct option values for the option
+- **AND** the system allows the admin to remove an individual option value or the entire option
+
+#### Scenario: Review generated variant values before pricing
+- **WHEN** an admin has entered one or more option values while variants are enabled
+- **THEN** the `Details` tab shows a `Product variants` area that reflects the current option-value structure
+- **AND** the system allows the admin to review which values will participate in variant generation before moving to the `Variants` tab
 
 #### Scenario: Provide organize metadata
 - **WHEN** an admin assigns collection, categories, type, and tags during create
 - **THEN** the system stores those values on the new product record
 
-#### Scenario: Provide media and descriptive data
-- **WHEN** an admin supplies subtitle, description, media, or attributes
-- **THEN** the system stores that data without changing variant logic
+### Requirement: Organize Tab Purpose
+The system SHALL use the `Organize` tab for catalog and operational metadata rather than variant pricing.
+
+#### Scenario: Enter organize metadata
+- **WHEN** an admin is on the `Organize` tab
+- **THEN** the system provides organize controls for `Discountable`, `Type`, `Collection`, `Categories`, `Tags`, `Shipping profile`, and `Sales channels`
+- **AND** the system keeps those fields separate from variant row editing
+
+#### Scenario: Keep organize metadata optional
+- **WHEN** an admin leaves optional organize metadata unset
+- **THEN** the system still permits a valid draft save if the minimum create requirements are satisfied
+
+### Requirement: Variants Tab Purpose
+The system SHALL use the `Variants` tab to edit variant rows and commercial data.
+
+#### Scenario: Edit a default variant row
+- **WHEN** variants are disabled and an admin reaches the `Variants` tab
+- **THEN** the system shows a single default variant row
+- **AND** the row supports variant-level commercial fields such as title, SKU, inventory flags, and price inputs
+
+#### Scenario: Edit generated variant rows
+- **WHEN** variants are enabled and an admin reaches the `Variants` tab
+- **THEN** the system generates variant rows from the option titles and option values defined in `Details`
+- **AND** the system presents those rows in a variant editor or grid rather than a preview-card summary
+
+#### Scenario: Enter prices in the variants tab
+- **WHEN** an admin is editing variants
+- **THEN** the system provides price inputs in the `Variants` tab for each variant row
+- **AND** the system does not require the admin to enter publishable prices in the `Details` tab
 
 ### Requirement: Options and Variants During Create
 The system SHALL support option-driven variant creation during the initial product flow.
 
 #### Scenario: Create product with variants
-- **WHEN** an admin defines product options and variant combinations during product creation
+- **WHEN** an admin defines product options and their values during product creation
 - **THEN** the system creates variants from those combinations
 - **AND** variant-level prices remain attached to variants only
+- **AND** the resulting variant rows follow the structure defined in the `Variants` tab
+
+#### Scenario: Reject invalid option definitions during create
+- **WHEN** variants are enabled and an option is missing its title or all of its values
+- **THEN** the system rejects the step transition or submit action
+- **AND** the page identifies the option definition that must be corrected
+
+#### Scenario: Reject duplicate value in one option
+- **WHEN** variants are enabled and an option contains the same value more than once
+- **THEN** the system rejects the option definition
+- **AND** the page identifies the duplicated value problem
 
 #### Scenario: Reject duplicate variant combination during create
 - **WHEN** the submitted product contains duplicate option-value combinations
@@ -49,14 +118,19 @@ The system SHALL distinguish saving a draft from publishing a product.
 #### Scenario: Reject invalid publish on create
 - **WHEN** an admin attempts to publish during create and required publish rules fail
 - **THEN** the system rejects publish
-- **AND** the page identifies the blocking validation errors
+- **AND** the page identifies the blocking validation errors on the tab responsible for them
+
+#### Scenario: Block publish when variant rows are missing commercial data
+- **WHEN** the product requires variant pricing or other required variant-row fields that are not complete
+- **THEN** the system blocks publish from the `Variants` tab
+- **AND** the page points the admin to the blocking variant rows and fields
 
 ### Requirement: Create Product API Contract
 The system SHALL expose a create product contract compatible with mock-first admin delivery and later backend implementation.
 
 #### Scenario: Submit create product request
 - **WHEN** the admin submits the create product flow
-- **THEN** the contract accepts overview, organize, media, attribute, option, and variant inputs
+- **THEN** the contract accepts details, organize metadata, option definitions, and variant-row inputs
 - **AND** the response returns the normalized created product aggregate
 
 #### Scenario: Fulfill create contract with mock data

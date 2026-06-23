@@ -1,0 +1,27 @@
+approvals_reviewer = "user"
+
+approval_policy = "on-request"
+sandbox_mode = "read-only"
+model = "gpt-5.5"
+model_reasoning_effort = "medium"
+
+[projects.'c:\users\admin\.cursor\projects\cv-excel-mapper']
+trust_level = "trusted"
+
+[projects.'c:\users\admin\onedrive\máy tính\code\ot-pto']
+trust_level = "trusted"
+
+[projects.'c:\users\admin\onedrive\máy tính\vibe-game']
+trust_level = "trusted"
+
+[projects.'c:\users\admin\desktop\code\aps']
+trust_level = "trusted"
+
+[tui.model_availability_nux]
+"gpt-5.5" = 4
+
+[windows]
+sandbox = "elevated"
+
+[notice.model_migrations]
+"gpt-5.3-codex" = "gpt-5.4"

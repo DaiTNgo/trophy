@@ -2,7 +2,7 @@
 
 ## Current State
 
-**Last Updated:** 2026-06-23
+**Last Updated:** 2026-06-24
 **Session ID:** [optional]
 **Active Feature:** `feat-004 - Admin App Router Migration`
 
@@ -13,7 +13,8 @@
 - [x] Replaced the admin app's local demo credentials and `localStorage` session with Better Auth session cookies served from `apps/backend`.
 - [x] Added Better Auth Drizzle/D1 auth tables, the username plugin, and local migration `0004_username_admin.sql` for username/password admin access.
 - [x] Added first-admin bootstrap at `/api/admin/bootstrap`, including a local fallback bootstrap secret for loopback development.
-- [x] Added a one-time `pnpm --filter backend seed:admin` script that posts to the bootstrap endpoint with env/flag inputs for username, password, and bootstrap secret, and uses it only for the first `super-admin`.
+- [x] Added a one-time `pnpm --filter backend seed:admin` script for creating the first `super-admin`.
+- [x] Rewrote `seed-admin.mjs` to insert directly into the local D1 database via `wrangler d1 execute` instead of POST-ing to the HTTP bootstrap endpoint. Uses Node.js `crypto.scrypt` with better-auth-compatible parameters. No `--url` / `--secret` flags needed — just `--username` and `--password`.
 - [x] Limited `/team` account-management actions to `super-admin` while allowing both `super-admin` and `admin` to enter the admin panel.
 - [x] Added admin account management UI at `/team` for create admin, disable/reactivate account, manual password reset, and session revocation.
 - [x] Added signed-in password change UI at `/settings/security`.
@@ -56,12 +57,26 @@
 - [x] Configured dedicated local dev/preview ports for `admin`, `backend`, and `storefront` to avoid Vite defaults and prevent app port collisions.
 - [x] Verified `node --check apps/backend/scripts/seed-admin.mjs`, `pnpm --filter backend db:migrate:local`, `pnpm --filter backend build`, `pnpm --filter admin build`, and `./init.sh` after the username/password auth change.
 - [x] Documented an approved `Medusa-thin` product-catalog design in `docs/plans/2026-06-23-medusa-thin-product-catalog-design.md`, keeping attributes in `Details` and removing Medusa-full scope such as sales channels, shipping profiles, inventory kits, and multi-region pricing from v1.
+- [x] Documented the Medusa-style sidebar pass in `docs/plans/2026-06-23-admin-sidebar-medusa-design.md`.
+- [x] Reworked the protected admin shell into a Medusa-style dark rail with grouped commerce navigation, nested `Products -> Collections/Categories`, bottom-pinned settings/account actions, and a slimmer top bar.
+- [x] Added placeholder admin routes for `collections`, `categories`, `inventory`, `customers`, `promotions`, and `price-lists` so the Medusa-like information architecture is navigable without inventing unsupported business rules.
+- [x] Re-ran `pnpm --filter admin build` and `./init.sh` after the sidebar refactor.
+- [x] Refactored sidebar into reusable medusa-style components in `src/components/ui/medusa/sidebar.tsx` (SidebarRoot, SidebarBrand, SidebarSearch, SidebarNav, SidebarNavItemRow, SidebarSection, SidebarSpacer, SidebarUserRow).
+- [x] Extracted sidebar nav config to `src/lib/sidebar-config.ts`, only keeping real project features: Orders, Products, Customization, Team, Settings (removed placeholder-only Inventory, Customers, Promotions, Price Lists, Collections, Categories).
+- [x] Re-ran `pnpm --filter admin build` and `./init.sh` after the sidebar componentization.
+- [x] Converted sidebar to full light theme (white bg, gray text, blue active state) matching Medusa v2 design.
+- [x] Removed sidebar scroll (`max-h-screen overflow-hidden`) - sidebar now fits entirely within viewport.
+- [x] Removed search bar from sidebar (Medusa doesn't have it).
+- [x] Removed unused SidebarSearch component and cleaned up related imports.
+- [x] Re-ran `pnpm --filter admin build` and `./init.sh` after light theme conversion.
+- [x] Refactored `App.tsx` from 4071 lines to ~80 lines by extracting types, utilities, context providers, page components, and layout components into ~20 focused files under `src/types.ts`, `src/lib/`, `src/hooks/`, `src/pages/`, and `src/components/layout/`.
+- [x] Re-ran `pnpm --filter admin build` and `./init.sh` after the App.tsx refactoring.
 
 ### What's In Progress
 
 - [ ] Admin management page expansion.
-  - Details: auth, team access control, create product, product detail, and order detail now run inside a real session-backed admin shell, but `collections` and `categories` pages are still pending.
-  - Blockers: merchandising/taxonomy pages still have OpenSpec coverage but not yet UI implementation.
+  - Details: auth, team access control, create product, product detail, order detail, and a Medusa-like shell/navigation now run inside a real session-backed admin shell, but `collections` and `categories` still stop at placeholder index pages.
+  - Blockers: taxonomy and merchandising pages now exist in navigation, but they still need real page behaviors and data wiring.
 
 - [ ] Connect admin and storefront editors to the backend instead of local/default fixtures.
 - [ ] Complete admin visibility-condition authoring and production asset upload/revision selection for preset options.
@@ -71,7 +86,7 @@
 
 ### What's Next
 
-1. Implement the next Medusa-like admin pages: `collections` and `categories`.
+1. Replace the new `collections` and `categories` placeholders with real Medusa-like merchandising pages.
 2. Decide when to switch the `create product` and `order detail` flows from mock persistence to backend contracts now that admin auth is real.
 3. Add automated UI or endpoint coverage for the admin auth and management lifecycle once the integration boundary is chosen.
 
@@ -87,7 +102,7 @@
 - [ ] Mock-first risk: order detail actions mutate only local mock order state and are not yet connected to backend order contracts.
 - [ ] Auth operations risk: production environments still need explicit `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `ADMIN_APP_ORIGIN`, and `ADMIN_BOOTSTRAP_SECRET` bindings before deploy.
 - [ ] Verification coverage risk: there are still no automated UI or endpoint-level tests covering the product authoring lifecycle.
-- [ ] Scope risk: several Medusa-like admin pages are specified, but collections and categories are still unimplemented.
+- [ ] Scope risk: several Medusa-like admin pages are now represented in navigation, but collections, categories, inventory, customers, promotions, and price lists remain placeholder screens rather than full workflows.
 
 ## Decisions Made
 
@@ -103,9 +118,14 @@
   - Context: the repo already has Medusa-like catalog primitives, but current spec and mock UI still include unsupported full-Medusa concepts.
   - Alternatives considered: preserving shipping profiles, sales channels, and inventory-kit controls in the v1 UX, which would increase implementation complexity without matching the approved business scope.
 
+- **Mirror Medusa shell hierarchy before deeper page implementation**.
+  - Context: the user asked specifically for a sidebar that matches Medusa in both UX/UI and information architecture, while the repo still lacks several downstream pages.
+  - Alternatives considered: changing only colors and spacing on the existing sidebar, which would leave the admin IA inconsistent with Medusa and force another shell refactor later.
+
 ## Files Modified This Session
 
 - `apps/admin/src/App.tsx` - added the Medusa-like create product flow, mock catalog persistence, and expanded products screen.
+- `apps/admin/src/App.tsx` - rebuilt the protected shell navigation into a Medusa-style rail and added placeholder commerce routes for new sidebar entries.
 - `apps/admin/src/App.tsx` - added the Medusa-like order detail flow, mock order state, and order actions.
 - `apps/admin/src/App.tsx` - replaced local auth with Better Auth username/password login, bootstrap, team management, and change-password flows.
 - `apps/admin/src/lib/auth-client.ts` - added Better Auth client setup, username plugin wiring, and bootstrap helpers.
@@ -123,6 +143,7 @@
 - `progress.md` - recorded the current admin create product state and verification.
 - `session-handoff.md` - updated restart notes for the admin implementation path.
 - `apps/admin/vite.config.ts`, `apps/backend/vite.config.ts`, `apps/storefront/vite.config.ts` - set explicit dev and preview ports for each app.
+- `docs/plans/2026-06-23-admin-sidebar-medusa-design.md` - recorded the approved Medusa-style sidebar shape and scope boundaries.
 - `docs/plans/2026-06-23-medusa-thin-product-catalog-design.md` - approved design for aligning the existing catalog model and UX to a trimmed Medusa-compatible scope.
 - `apps/admin/README.md`, `apps/backend/README.md`, `apps/storefront/README.md` - documented the active ports.
 
@@ -152,8 +173,11 @@
 - [x] Repo verification: `./init.sh`
 - [x] Manual verification: `Real admin login, bootstrap, account disable, manual reset, and signed-in password change were implemented across apps/backend and apps/admin`
 - [x] Repo verification after port changes: `./init.sh`
+- [x] Admin build after the Medusa-style sidebar/navigation pass: `pnpm --filter admin build`
+- [x] Full repo verification after the Medusa-style sidebar/navigation pass: `./init.sh`
 - [ ] Design-only note: no additional verification was run for `docs/plans/2026-06-23-medusa-thin-product-catalog-design.md` because this step documented approved product scope rather than changing runtime behavior
+- [x] App.tsx refactoring verified: `pnpm --filter admin build` and `./init.sh` pass cleanly
 
 ## Notes for Next Session
 
-The admin app now includes real Better Auth-backed access control plus mock-first `create product`, `product detail`, and `order detail` flows. The `create product` page now follows a Medusa-like tabbed workflow with option authoring in `Details` and variant-row pricing in `Variants` instead of the earlier stacked page plus preview-card approach. Product scope is now also documented in `docs/plans/2026-06-23-medusa-thin-product-catalog-design.md`: keep core product, collection, category, variant pricing, variant-level inventory, and project-specific attributes; remove v1 expectations around sales channels, shipping profiles, inventory kits, and multi-region pricing. The cleanest next step is to align the OpenSpec, admin mock model, and backend contracts to that approved thin scope, then continue with `collections` and `categories`.
+The admin app now includes real Better Auth-backed access control plus mock-first `create product`, `product detail`, and `order detail` flows. The shell itself now also matches Medusa more closely: dark left rail, grouped commerce navigation, nested `Products -> Collections/Categories`, and bottom-pinned settings/account actions, with placeholder routes keeping the new IA clickable. Product scope is now also documented in `docs/plans/2026-06-23-medusa-thin-product-catalog-design.md`: keep core product, collection, category, variant pricing, variant-level inventory, and project-specific attributes; remove v1 expectations around sales channels, shipping profiles, inventory kits, and multi-region pricing. The cleanest next step is to replace the new placeholder merchandising pages with real workflows while aligning the product model and backend contracts to that approved thin scope.

@@ -1,0 +1,144 @@
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
+import type { AuthUser, AuthContextValue } from "../types";
+import { authClient } from "../lib/auth-client";
+import { hasAdminAccess, getAuthErrorMessage, normalizeUsername } from "../lib/auth-utils";
+
+const authContext = createContext<AuthContextValue | null>(null);
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  async function refreshSession() {
+    const { data } = await authClient.getSession();
+    const nextUser = data?.user;
+
+    if (!nextUser || !hasAdminAccess(nextUser.role)) {
+      setUser(null);
+      return;
+    }
+
+    setUser({
+      id: nextUser.id,
+      username: nextUser.username ?? nextUser.email,
+      name: nextUser.name,
+      role: nextUser.role,
+      banned: nextUser.banned,
+    });
+  }
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadSession() {
+      try {
+        const { data } = await authClient.getSession();
+        if (!active) {
+          return;
+        }
+
+        const nextUser = data?.user;
+        if (!nextUser || !hasAdminAccess(nextUser.role)) {
+          setUser(null);
+          return;
+        }
+
+        setUser({
+          id: nextUser.id,
+          username: nextUser.username ?? nextUser.email,
+          name: nextUser.name,
+          role: nextUser.role,
+          banned: nextUser.banned,
+        });
+      } finally {
+        if (active) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    void loadSession();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const value = useMemo<AuthContextValue>(
+    () => ({
+      isLoading,
+      isAuthenticated: user !== null,
+      user,
+      login: async (username, password) => {
+        const { error } = await authClient.signIn.username({
+          username: normalizeUsername(username),
+          password,
+          rememberMe: true,
+        });
+
+        if (error) {
+          return {
+            ok: false,
+            message: getAuthErrorMessage(error, "Unable to sign in."),
+          };
+        }
+
+        const { data } = await authClient.getSession();
+        if (!hasAdminAccess(data?.user.role)) {
+          await authClient.signOut();
+          setUser(null);
+          return {
+            ok: false,
+            message: "This account is not allowed to access the admin workspace.",
+          };
+        }
+
+        await refreshSession();
+        return { ok: true };
+      },
+      logout: async () => {
+        await authClient.signOut();
+        setUser(null);
+      },
+      refreshSession: async () => {
+        await refreshSession();
+      },
+      changePassword: async (currentPassword, newPassword) => {
+        const { error } = await authClient.changePassword({
+          currentPassword,
+          newPassword,
+          revokeOtherSessions: true,
+        });
+
+        if (error) {
+          return {
+            ok: false,
+            message: getAuthErrorMessage(error, "Unable to change password."),
+          };
+        }
+
+        await refreshSession();
+        return { ok: true };
+      },
+    }),
+    [isLoading, user],
+  );
+
+  return <authContext.Provider value={value}>{children}</authContext.Provider>;
+}
+
+export function useAuth() {
+  const context = useContext(authContext);
+  if (!context) {
+    throw new Error("useAuth must be used within AuthProvider.");
+  }
+
+  return context;
+}

@@ -9,7 +9,6 @@ import type { AppBindings } from './env'
 export const AUTH_BASE_PATH = '/api/admin/auth'
 
 const DEFAULT_AUTH_BASE_URL = 'http://localhost:8787'
-const DEFAULT_LOCAL_BOOTSTRAP_SECRET = 'trophy-local-bootstrap'
 
 type AuthSettings = {
   baseUrl:
@@ -33,14 +32,6 @@ function splitOrigins(value: string | undefined) {
     .filter(Boolean)
 }
 
-function isLoopbackOrigin(origin: string) {
-  return (
-    origin.startsWith('http://127.0.0.1:') ||
-    origin.startsWith('http://localhost:') ||
-    origin.startsWith('http://[::1]:')
-  )
-}
-
 export function getAuthSettings(bindings: Partial<AppBindings>): AuthSettings {
   return {
     baseUrl: bindings.BETTER_AUTH_URL
@@ -62,22 +53,6 @@ export function getAuthSettings(bindings: Partial<AppBindings>): AuthSettings {
       bindings.BETTER_AUTH_SECRET ||
       'replace-this-local-dev-secret-with-a-real-value'
   }
-}
-
-export function getBootstrapSecret(
-  bindings: Partial<AppBindings>,
-  requestUrl: string
-) {
-  if (bindings.ADMIN_BOOTSTRAP_SECRET) {
-    return bindings.ADMIN_BOOTSTRAP_SECRET
-  }
-
-  const { origin } = new URL(requestUrl)
-  if (isLoopbackOrigin(origin)) {
-    return DEFAULT_LOCAL_BOOTSTRAP_SECRET
-  }
-
-  return null
 }
 
 export function getAuth(bindings: AppBindings) {

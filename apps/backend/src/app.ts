@@ -8,6 +8,7 @@ import {
   SESSION_CORS_POLICY,
   type CorsPolicy,
 } from "./lib/cors";
+import { adminAccountsRoute } from "./routes/admin-accounts";
 import { adminBootstrapRoute } from "./routes/admin-bootstrap";
 import { customizationAssetsRoute } from "./routes/customization-assets";
 import { customizationsRoute } from "./routes/customizations";
@@ -51,7 +52,7 @@ function createCorsMiddleware(policy: CorsPolicy) {
       return next();
     }
 
-    const allowedOrigins = getAllowedAppOrigins(c.env);
+    const allowedOrigins = getAllowedAppOrigins(c.env as AppEnv["Bindings"]);
     if (!isAllowedAppOrigin(requestOrigin, allowedOrigins)) {
       return c.body(null, 403);
     }
@@ -110,6 +111,7 @@ function buildCorsHeaders(
 
 app.use(`${AUTH_BASE_PATH}/*`, createCorsMiddleware(SESSION_CORS_POLICY));
 app.use("/api/admin/bootstrap/*", createCorsMiddleware(SESSION_CORS_POLICY));
+app.use("/api/admin/accounts/*", createCorsMiddleware(SESSION_CORS_POLICY));
 app.use("/api/customizations/*", createCorsMiddleware(CUSTOMIZATION_CORS_POLICY));
 
 app.get("/", (c) => {
@@ -130,6 +132,7 @@ export const routes = app
   .basePath("/api")
   .get("/health", (c) => c.json({ ok: true }, 200))
   .route("/admin/bootstrap", adminBootstrapRoute)
+  .route("/admin/accounts", adminAccountsRoute)
   .route("/customizations/assets", customizationAssetsRoute)
   .route("/customizations", customizationsRoute)
   .route("/product-metadata", productMetadataRoute)
