@@ -30,14 +30,17 @@ The system SHALL separate variant options from descriptive attributes.
 - **AND** attributes remain descriptive metadata only
 
 ### Requirement: Organize Relations
-The system SHALL support optional Medusa-like organize fields.
+The system SHALL support optional Medusa-thin organize fields.
 
 #### Scenario: Assign organize metadata
-- **WHEN** an admin assigns type, collection, categories, and tags
-- **THEN** the product stores one optional type
-- **AND** one optional collection
+- **WHEN** an admin assigns collection and categories
+- **THEN** the product stores one optional collection
 - **AND** zero or more categories
-- **AND** zero or more tags
+
+#### Scenario: Keep full-Medusa organize features out of v1
+- **WHEN** product catalog v1 is implemented
+- **THEN** the product model does not require sales channels, shipping profiles, or inventory kits
+- **AND** the v1 price model does not require multi-region or multi-currency pricing
 
 ### Requirement: Publish Validation
 The system SHALL validate product completeness before publish.

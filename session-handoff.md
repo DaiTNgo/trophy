@@ -17,6 +17,10 @@
 - [x] Still checks for existing users before inserting (idempotent).
 - [x] Kept the HTTP bootstrap endpoint in the backend for the admin app's onboarding UI.
 - [x] Verified with direct execution and `./init.sh`.
+- [x] Applied `docs/plans/2026-06-23-medusa-thin-product-catalog-design.md` to the admin create-product flow and mock catalog model.
+- [x] Removed thin-scope exclusions from the v1 admin product authoring path: `discountable`, `shipping profile`, `sales channels`, `managed inventory`, `inventory kits`, and `Low stock` product status.
+- [x] Updated `/products/new` so `Details` previews generated variants, `Organize` only covers collection/categories plus optional type/tags, and `Variants` only edits title, SKU, allow backorder, price, and inventory quantity.
+- [x] Verified the thin-scope alignment with `pnpm --filter admin build` and `./init.sh`.
 
 ## Completed This Session (legacy)
 
@@ -53,6 +57,7 @@
 - [x] Wrote `docs/plans/2026-06-23-medusa-thin-product-catalog-design.md` to lock the catalog into a Medusa-thin v1: keep variant pricing, collection/category taxonomy, and custom attributes; remove sales channels, shipping profiles, inventory kits, and other Medusa-full complexity from the approved scope
 - [x] Wrote `docs/plans/2026-06-23-admin-sidebar-medusa-design.md` to lock the shell/navigation pass before implementation
 - [x] Rebuilt the protected admin shell into a Medusa-style dark rail with grouped navigation, nested `Products -> Collections/Categories`, bottom-pinned settings/account actions, and placeholder pages for unfinished commerce sections
+- [x] Updated the product-related OpenSpec changes to the approved Medusa-thin scope and validated `2026-06-21-product-catalog`, `2026-06-21-admin-create-product-page`, and `2026-06-21-admin-product-detail-page` with `openspec validate --strict`
 
 ## App.tsx Refactor (2026-06-23)
 
@@ -123,8 +128,7 @@ Customization verification on 2026-06-22:
 - Keep the create product experience mock-first for now so admin authoring can move ahead without waiting on live API wiring.
 - Model the page after Medusa information architecture, then tighten it further into a three-tab workflow: `Details`, `Organize`, and `Variants`.
 - Keep the spec authoritative for Medusa parity: option titles and values are defined in `Details`, prices are entered in `Variants`, and `Organize` remains metadata-only.
-- The mock catalog model now stores option definitions, discountable, shipping profile, sales channels, and richer variant rows so create-product UI can evolve without breaking legacy product-detail editing.
-- A new approved design now supersedes that broader mock-first catalog shape: the next alignment pass should trim the product model and UX back to the documented Medusa-thin scope instead of preserving Medusa-full fields in v1.
+- The mock catalog model is now trimmed to the approved Medusa-thin v1 for the create-product flow; future product-detail work should preserve that reduced scope instead of reintroducing Medusa-full fields.
 - Match Medusa shell UX early so later `collections`, `categories`, and related merchandising work can land inside the right information architecture instead of forcing another shell rewrite.
 - `@medusajs/ui` is already installed and wired through Tailwind preset/content scanning in `apps/admin`, so future Medusa parity work should prefer those primitives before adding local wrappers.
 - Persist mock catalog state in browser storage so the products list reflects newly created records during local iteration.
@@ -141,7 +145,6 @@ Customization verification on 2026-06-22:
 - Approved font storage, SVG glyph outlining, and custom-font PDF embedding remain pending.
 - Staging/production customization deployment needs environment-specific D1 IDs alongside the confirmed R2 buckets.
 - The create product flow is still browser-local mock persistence, not backend-backed data, even though the layout and variant UX now more closely match Medusa.
-- The admin mock model still includes Medusa-full fields such as `shippingProfile`, `salesChannels`, and `hasInventoryKit`, which now conflict with the approved thin-scope design and should be removed or ignored in the next pass.
 - Order detail actions are still browser-local mock state, not backend-backed operations.
 - Production deployment still needs explicit `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `ADMIN_APP_ORIGIN`, and `ADMIN_BOOTSTRAP_SECRET` bindings.
 - Automated UI and endpoint-level tests for the product authoring lifecycle still do not exist.

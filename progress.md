@@ -57,6 +57,8 @@
 - [x] Configured dedicated local dev/preview ports for `admin`, `backend`, and `storefront` to avoid Vite defaults and prevent app port collisions.
 - [x] Verified `node --check apps/backend/scripts/seed-admin.mjs`, `pnpm --filter backend db:migrate:local`, `pnpm --filter backend build`, `pnpm --filter admin build`, and `./init.sh` after the username/password auth change.
 - [x] Documented an approved `Medusa-thin` product-catalog design in `docs/plans/2026-06-23-medusa-thin-product-catalog-design.md`, keeping attributes in `Details` and removing Medusa-full scope such as sales channels, shipping profiles, inventory kits, and multi-region pricing from v1.
+- [x] Applied the approved `Medusa-thin` product-catalog design to `/products/new` by trimming the admin mock model and create flow: removed `discountable`, `shipping profile`, `sales channels`, `managed inventory`, `inventory kits`, and `Low stock` product status from the v1 authoring path.
+- [x] Updated `/products/new` so `Details` previews generated variants before pricing, `Organize` only carries collection/categories plus optional type/tags, and `Variants` is limited to title, SKU, allow backorder, price, and inventory quantity.
 - [x] Documented the Medusa-style sidebar pass in `docs/plans/2026-06-23-admin-sidebar-medusa-design.md`.
 - [x] Reworked the protected admin shell into a Medusa-style dark rail with grouped commerce navigation, nested `Products -> Collections/Categories`, bottom-pinned settings/account actions, and a slimmer top bar.
 - [x] Added placeholder admin routes for `collections`, `categories`, `inventory`, `customers`, `promotions`, and `price-lists` so the Medusa-like information architecture is navigable without inventing unsupported business rules.
@@ -71,6 +73,7 @@
 - [x] Re-ran `pnpm --filter admin build` and `./init.sh` after light theme conversion.
 - [x] Refactored `App.tsx` from 4071 lines to ~80 lines by extracting types, utilities, context providers, page components, and layout components into ~20 focused files under `src/types.ts`, `src/lib/`, `src/hooks/`, `src/pages/`, and `src/components/layout/`.
 - [x] Re-ran `pnpm --filter admin build` and `./init.sh` after the App.tsx refactoring.
+- [x] Updated OpenSpec changes `2026-06-21-product-catalog`, `2026-06-21-admin-create-product-page`, and `2026-06-21-admin-product-detail-page` to match the approved Medusa-thin scope and verified each with `openspec validate <change> --strict`.
 
 ### What's In Progress
 
@@ -168,6 +171,8 @@
 - [x] Full repo verification after the Medusa UI shell refactor: `./init.sh`
 - [x] Admin build after moving create-product into `FocusModal`: `pnpm --filter admin build`
 - [x] Full repo verification after the `FocusModal` overlay refactor: `./init.sh`
+- [x] Admin build after applying the approved Medusa-thin create-product alignment: `pnpm --filter admin build`
+- [x] Full repo verification after the Medusa-thin create-product alignment: `./init.sh`
 - [x] Auth migration: `pnpm --filter backend db:generate` and `pnpm --filter backend db:migrate:local`
 - [x] Auth runtime verification: local worker requests for bootstrap, sign-in, get-session, change-password, create-user, ban-user, set-user-password, revoke-user-sessions, and disabled-user rejection
 - [x] Repo verification: `./init.sh`

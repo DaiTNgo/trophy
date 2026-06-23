@@ -2,16 +2,18 @@
 
 ## Why
 
-The admin needs a create product experience that matches Medusa's information architecture and operator workflow closely enough that merchandising users can move between the two without relearning the task. The current mock-first page captures some of the same data, but it does not yet align with Medusa's tab purposes or its variant authoring UX.
+The admin needs a create product experience that matches Medusa's information architecture and operator workflow closely enough that merchandising users can move between the two without relearning the task, but without pulling in Medusa's full catalog complexity. The current mock-first page captures some of the same data, but it does not yet align cleanly with either the approved thin-scope business requirements or Medusa's tab purposes.
 
 ## What Changes
 
 - Redefine the create product flow as a Medusa-like three-tab workflow: `Details`, `Organize`, and `Variants`.
 - Define the purpose of each tab and the expected footer actions across the workflow.
 - Specify the variant-enabled UX in `Details`, including the product-options authoring model with option titles and multiple values.
-- Specify the `Variants` tab as the place where admins edit variant rows and commercial data such as SKU, inventory flags, and prices.
+- Keep project-specific descriptive `attributes` in `Details`.
+- Specify the `Variants` tab as the place where admins edit variant rows and commercial data such as SKU, inventory quantity, optional backorder behavior, and prices.
 - Clarify draft and publish validation rules for default-variant and variant-enabled products.
-- Keep the create contract mock-first compatible while aligning the shape with the UX Medusa expects.
+- Keep the create contract mock-first compatible while aligning the shape with the approved Medusa-thin catalog scope.
+- Remove unsupported Medusa-full fields such as shipping profiles, sales channels, and inventory-kit controls from the v1 workflow.
 
 ## Impact
 

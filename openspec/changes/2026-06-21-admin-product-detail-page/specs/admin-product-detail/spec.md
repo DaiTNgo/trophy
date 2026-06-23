@@ -15,6 +15,10 @@ The system SHALL organize product editing into Medusa-like sections.
 - **WHEN** the product detail page loads
 - **THEN** the page shows editable sections for overview, organize, media, attributes, options, variants, and publish status
 
+#### Scenario: Exclude unsupported Medusa-full sections
+- **WHEN** the v1 product detail page is rendered
+- **THEN** the page does not require sections for shipping profiles, sales channels, or inventory kits
+
 #### Scenario: Partial edits
 - **WHEN** an admin updates one section only
 - **THEN** the system persists that change without requiring unrelated sections to be edited in the same action

@@ -23,12 +23,17 @@ The system SHALL allow creation of a draft product with minimal required input.
 - **AND** the system creates a default variant
 
 ### Requirement: Details Tab Purpose
-The system SHALL use the `Details` tab for core product identity, media, and variant-mode setup.
+The system SHALL use the `Details` tab for core product identity, media, descriptive attributes, and variant-mode setup.
 
 #### Scenario: Enter core product details
 - **WHEN** an admin is on the `Details` tab
 - **THEN** the system provides fields for `Title`, `Subtitle`, `Handle`, `Description`, and `Media`
 - **AND** the system treats `Title` as the minimal required identity input
+
+#### Scenario: Capture project-specific attributes
+- **WHEN** an admin is on the `Details` tab
+- **THEN** the system provides an `Attributes` area for descriptive product data
+- **AND** those attributes do not participate in variant generation
 
 #### Scenario: Use default variant mode
 - **WHEN** an admin leaves `This is a product with variants` disabled
@@ -52,16 +57,21 @@ The system SHALL use the `Details` tab for core product identity, media, and var
 - **AND** the system allows the admin to review which values will participate in variant generation before moving to the `Variants` tab
 
 #### Scenario: Provide organize metadata
-- **WHEN** an admin assigns collection, categories, type, and tags during create
+- **WHEN** an admin assigns collection and categories during create
 - **THEN** the system stores those values on the new product record
 
 ### Requirement: Organize Tab Purpose
-The system SHALL use the `Organize` tab for catalog and operational metadata rather than variant pricing.
+The system SHALL use the `Organize` tab for thin-scope catalog metadata rather than variant pricing.
 
 #### Scenario: Enter organize metadata
 - **WHEN** an admin is on the `Organize` tab
-- **THEN** the system provides organize controls for `Discountable`, `Type`, `Collection`, `Categories`, `Tags`, `Shipping profile`, and `Sales channels`
+- **THEN** the system provides organize controls for `Collection` and `Categories`
 - **AND** the system keeps those fields separate from variant row editing
+
+#### Scenario: Exclude Medusa-full organize features from v1
+- **WHEN** an admin is using the v1 create flow
+- **THEN** the `Organize` tab does not require `Shipping profile`, `Sales channels`, or `Inventory kit` concepts
+- **AND** those concepts do not block draft or publish
 
 #### Scenario: Keep organize metadata optional
 - **WHEN** an admin leaves optional organize metadata unset
@@ -73,7 +83,7 @@ The system SHALL use the `Variants` tab to edit variant rows and commercial data
 #### Scenario: Edit a default variant row
 - **WHEN** variants are disabled and an admin reaches the `Variants` tab
 - **THEN** the system shows a single default variant row
-- **AND** the row supports variant-level commercial fields such as title, SKU, inventory flags, and price inputs
+- **AND** the row supports variant-level commercial fields such as title, SKU, inventory quantity, optional backorder behavior, and price inputs
 
 #### Scenario: Edit generated variant rows
 - **WHEN** variants are enabled and an admin reaches the `Variants` tab
@@ -132,6 +142,10 @@ The system SHALL expose a create product contract compatible with mock-first adm
 - **WHEN** the admin submits the create product flow
 - **THEN** the contract accepts details, organize metadata, option definitions, and variant-row inputs
 - **AND** the response returns the normalized created product aggregate
+
+#### Scenario: Keep create contract aligned to thin scope
+- **WHEN** the create product contract is implemented
+- **THEN** the contract does not require shipping-profile, sales-channel, or inventory-kit fields for v1 compatibility
 
 #### Scenario: Fulfill create contract with mock data
 - **WHEN** the current admin runtime has no live backend implementation yet
