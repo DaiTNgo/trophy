@@ -2,9 +2,15 @@ import {
   DEFAULT_TEMPLATE,
   buildDesignFromForm,
   createDefaultFormValues,
+  fitPreviewIntoBox,
+  getCoverImageRect,
+  getTextBlockValue,
+  getBlockPreviewRect,
+  getCropPanFromImagePosition,
+  hasRenderablePreview,
   isBlockVisible,
   limitTextBlockValue,
-  renderZoneSvg,
+  renderBlockSvg,
   validateCustomizationValues,
   validateDesign,
   type ChoiceBlock,
@@ -12,20 +18,24 @@ import {
   type CustomizationFieldValue,
   type CustomizationFormValues,
   type CustomizationTemplate,
+  type IconPickerBlock,
   type ImageLayer,
-  type MediaSelectBlock,
-  type MediaUploadBlock,
-  type TextBlock,
+  type ImageUploadBlock,
+  type TextMultiBlock,
+  type TextSingleBlock,
+  type TextBlockValue,
   type TextLayer,
   type UploadedMediaValue,
 } from "@trophy/customization";
 import { useEffect, useMemo, useState, type ChangeEvent } from "react";
-import { Image as KonvaImage, Layer, Rect, Stage, Text } from "react-konva";
+import { Group, Image as KonvaImage, Layer, Stage, Text } from "react-konva";
 
-const STAGE_SIZE = 680;
+const PREVIEW_BOX_SIZE = 680;
 const BACKEND_URL =
   (import.meta.env.VITE_BACKEND_URL as string | undefined)?.replace(/\/$/, "") ??
   "http://127.0.0.1:8787";
+
+type RenderableBlock = Extract<CustomizationBlock, { preview: unknown }>;
 
 function useHtmlImage(source: string) {
   const [image, setImage] = useState<HTMLImageElement | null>(null);
@@ -55,17 +65,45 @@ export default function CupCustomizer({
   template?: CustomizationTemplate;
 } = {}) {
   const template = templateProp ?? DEFAULT_TEMPLATE;
-  const [activeZoneId, setActiveZoneId] = useState(template.zones[0]!.id);
-  const [values, setValues] = useState<CustomizationFormValues>(() =>
-    createDefaultFormValues(template),
-  );
+  const [values, setValues] = useState<CustomizationFormValues>(() => createDefaultFormValues(template));
   const [uploadingBlockId, setUploadingBlockId] = useState("");
   const [message, setMessage] = useState("");
+  const [activeRenderableBlockId, setActiveRenderableBlockId] = useState("");
   const cupImage = useHtmlImage(template.previewUrl);
-  const activeZone = template.zones.find((zone) => zone.id === activeZoneId)!;
-  const visibleBlocks = [...activeZone.blocks]
-    .sort((a, b) => a.order - b.order)
-    .filter((block) => isBlockVisible(block, values));
+
+  const previewSize = useMemo(
+    () =>
+      fitPreviewIntoBox({
+        intrinsicWidthPx: cupImage?.naturalWidth || template.previewWidthPx || PREVIEW_BOX_SIZE,
+        intrinsicHeightPx: cupImage?.naturalHeight || template.previewHeightPx || PREVIEW_BOX_SIZE,
+        maxWidthPx: PREVIEW_BOX_SIZE,
+        maxHeightPx: PREVIEW_BOX_SIZE,
+      }),
+    [cupImage?.naturalHeight, cupImage?.naturalWidth, template.previewHeightPx, template.previewWidthPx],
+  );
+
+  const visibleBlocks = useMemo(
+    () =>
+      [...template.blocks].sort((a, b) => a.order - b.order).filter((block) => isBlockVisible(block, values)),
+    [template.blocks, values],
+  );
+
+  const renderableBlocks = useMemo(
+    () =>
+      template.blocks
+        .filter((block) => hasRenderablePreview(block) && isBlockVisible(block, values))
+        .sort((a, b) => a.order - b.order),
+    [template.blocks, values],
+  );
+
+  useEffect(() => {
+    setActiveRenderableBlockId((current) =>
+      renderableBlocks.some((block) => block.id === current)
+        ? current
+        : (renderableBlocks[0]?.id ?? ""),
+    );
+  }, [renderableBlocks]);
+
   const formValidation = useMemo(
     () => validateCustomizationValues({ template, values }),
     [template, values],
@@ -80,20 +118,39 @@ export default function CupCustomizer({
   );
 
   function updateValue(blockId: string, value: CustomizationFieldValue) {
-    setValues((current) => ({ ...current, [blockId]: value }));
-    if (blockId !== "design_confirmation") {
-      setValues((current) => ({ ...current, design_confirmation: false }));
-    }
+    setValues((current) => ({ ...current, [blockId]: value, design_confirmation: false }));
     setMessage("");
   }
 
-  async function uploadImage(block: MediaUploadBlock, file: File) {
-    if (!block.accept.includes(file.type as "image/png" | "image/jpeg")) {
+  function updateUploadedCrop(
+    blockId: string,
+    crop: Pick<UploadedMediaValue, "cropScale" | "cropXRatio" | "cropYRatio">,
+  ) {
+    setValues((current) => {
+      const currentValue = current[blockId];
+      if (!currentValue || typeof currentValue !== "object" || !("assetId" in currentValue)) {
+        return current;
+      }
+      return {
+        ...current,
+        [blockId]: { ...currentValue, ...crop },
+        design_confirmation: false,
+      };
+    });
+  }
+
+  async function uploadMedia(
+    block: IconPickerBlock | ImageUploadBlock,
+    file: File,
+  ) {
+    const accept = "accept" in block && block.accept ? block.accept : ["image/png", "image/jpeg"];
+    const maxBytes = "maxBytes" in block && block.maxBytes ? block.maxBytes : 20 * 1024 * 1024;
+    if (!accept.includes(file.type as "image/png" | "image/jpeg")) {
       setMessage("Use a PNG or JPEG production image.");
       return;
     }
-    if (file.size > block.maxBytes) {
-      setMessage(`Image exceeds the ${Math.round(block.maxBytes / 1024 / 1024)} MB limit.`);
+    if (file.size > maxBytes) {
+      setMessage(`Image exceeds the ${Math.round(maxBytes / 1024 / 1024)} MB limit.`);
       return;
     }
 
@@ -121,6 +178,9 @@ export default function CupCustomizer({
         previewUrl: `${BACKEND_URL}${payload.asset.contentUrl}`,
         sourceWidthPx: payload.asset.widthPx,
         sourceHeightPx: payload.asset.heightPx,
+        cropScale: 1,
+        cropXRatio: 0,
+        cropYRatio: 0,
       };
       updateValue(block.id, uploaded);
     } catch (error) {
@@ -130,20 +190,18 @@ export default function CupCustomizer({
     }
   }
 
-  function downloadZoneSvg() {
-    const svg = renderZoneSvg({ template, design, zoneId: activeZone.id });
+  function downloadBlockSvg() {
+    if (!activeRenderableBlockId) return;
+    const svg = renderBlockSvg({ template, design, blockId: activeRenderableBlockId });
     const url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" }));
     const link = document.createElement("a");
     link.href = url;
-    link.download = `${design.id}-${activeZone.id}-preview.svg`;
+    link.download = `${design.id}-${activeRenderableBlockId}.svg`;
     link.click();
     URL.revokeObjectURL(url);
   }
 
-  const zoneIssues = [
-    ...formValidation.issues.filter((issue) => issue.zoneId === activeZone.id),
-    ...productionValidation.issues.filter((issue) => issue.zoneId === activeZone.id),
-  ];
+  const allIssues = [...formValidation.issues, ...productionValidation.issues];
 
   return (
     <main className="min-h-screen bg-[#f4f1ea] px-4 py-6 text-slate-950 sm:px-6 lg:px-10">
@@ -157,8 +215,8 @@ export default function CupCustomizer({
               Customize your trophy
             </h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-emerald-50/70">
-              Complete the form and review the live preview. Layout and production sizing are fixed
-              by the workshop template.
+              Complete the form and review the live preview. Each block is fixed by the production
+              template.
             </p>
           </div>
           <div className="rounded-2xl bg-white/10 px-5 py-4 text-sm">
@@ -168,50 +226,61 @@ export default function CupCustomizer({
 
         <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(420px,0.8fr)]">
           <section className="rounded-[34px] border border-black/5 bg-white p-5 shadow-[0_24px_70px_rgba(35,40,36,0.08)]">
-            <div className="mb-5 flex flex-wrap gap-2">
-              {template.zones.map((zone) => (
-                <button
-                  key={zone.id}
-                  type="button"
-                  onClick={() => setActiveZoneId(zone.id)}
-                  className={[
-                    "rounded-full px-5 py-2.5 text-sm font-semibold transition",
-                    activeZoneId === zone.id
-                      ? "bg-[#13231d] text-white"
-                      : "bg-stone-100 text-slate-600",
-                  ].join(" ")}
-                >
-                  {zone.name}
-                </button>
-              ))}
-            </div>
+            {renderableBlocks.length > 0 ? (
+              <div className="mb-5 flex flex-wrap gap-2">
+                {renderableBlocks.map((block) => (
+                  <button
+                    key={block.id}
+                    type="button"
+                    onClick={() => setActiveRenderableBlockId(block.id)}
+                    className={[
+                      "rounded-full px-5 py-2.5 text-sm font-semibold transition",
+                      activeRenderableBlockId === block.id
+                        ? "bg-[#13231d] text-white"
+                        : "bg-stone-100 text-slate-600",
+                    ].join(" ")}
+                  >
+                    {block.label}
+                  </button>
+                ))}
+              </div>
+            ) : null}
 
             <div className="overflow-hidden rounded-[28px] bg-stone-100">
-              <Stage width={STAGE_SIZE} height={STAGE_SIZE} className="mx-auto max-w-full">
+              <Stage width={previewSize.widthPx} height={previewSize.heightPx} className="mx-auto max-w-full">
                 <Layer listening={false}>
                   {cupImage ? (
-                    <KonvaImage image={cupImage} width={STAGE_SIZE} height={STAGE_SIZE} />
+                    <KonvaImage
+                      image={cupImage}
+                      width={previewSize.widthPx}
+                      height={previewSize.heightPx}
+                    />
                   ) : null}
-                  <Rect
-                    x={activeZone.previewBounds.xRatio * STAGE_SIZE}
-                    y={activeZone.previewBounds.yRatio * STAGE_SIZE}
-                    width={activeZone.previewBounds.widthRatio * STAGE_SIZE}
-                    height={activeZone.previewBounds.heightRatio * STAGE_SIZE}
-                    rotation={activeZone.previewBounds.rotationDeg}
-                    fill="rgba(255,255,255,0.08)"
-                    stroke="#f59e0b"
-                    dash={[8, 6]}
-                    strokeWidth={2}
-                  />
-                  {design.layers
-                    .filter((layer) => layer.zoneId === activeZone.id)
-                    .map((layer) =>
-                      layer.type === "text" ? (
-                        <FixedTextLayer key={layer.id} layer={layer} zone={activeZone} />
-                      ) : (
-                        <FixedImageLayer key={layer.id} layer={layer} zone={activeZone} />
-                      ),
-                    )}
+                  {design.layers.map((layer) =>
+                    layer.type === "text" ? (
+                      <FixedTextLayer
+                        key={layer.id}
+                        layer={layer}
+                        template={template}
+                        previewWidthPx={previewSize.widthPx}
+                        previewHeightPx={previewSize.heightPx}
+                      />
+                    ) : (
+                      <FixedImageLayer
+                        key={layer.id}
+                        layer={layer}
+                        template={template}
+                        previewWidthPx={previewSize.widthPx}
+                        previewHeightPx={previewSize.heightPx}
+                        editable={Boolean(
+                          values[layer.blockId] &&
+                            typeof values[layer.blockId] === "object" &&
+                            "assetId" in values[layer.blockId],
+                        )}
+                        onCropChange={(crop) => updateUploadedCrop(layer.blockId, crop)}
+                      />
+                    ),
+                  )}
                 </Layer>
               </Stage>
             </div>
@@ -221,27 +290,20 @@ export default function CupCustomizer({
           </section>
 
           <aside className="space-y-5">
-            <Panel
-              title={activeZone.name}
-              description={`${activeZone.widthMm} × ${activeZone.heightMm} mm · complete the fields below`}
-            >
+            <Panel title={template.name} description="Complete the fields below.">
               <div className="space-y-5">
                 {visibleBlocks.map((block) => (
                   <BlockField
                     key={block.id}
                     block={block}
                     value={values[block.id]}
-                    issue={
-                      zoneIssues.find((issue) =>
-                        "blockId" in issue
-                          ? issue.blockId === block.id
-                          : issue.layerId.startsWith(block.id),
-                      )?.message
-                    }
+                    issue={allIssues.find((issue) => issue.blockId === block.id)?.message}
                     uploading={uploadingBlockId === block.id}
                     onChange={(value) => updateValue(block.id, value)}
                     onUpload={(file) =>
-                      block.type === "media-upload" ? uploadImage(block, file) : Promise.resolve()
+                      block.type === "icon_picker" || block.type === "image_upload"
+                        ? uploadMedia(block, file)
+                        : Promise.resolve()
                     }
                   />
                 ))}
@@ -250,11 +312,9 @@ export default function CupCustomizer({
 
             <Panel title="Production check" description="Review all fields before checkout.">
               <div className="space-y-3 text-sm">
-                {template.zones.map((zone) => {
-                  const invalid =
-                    formValidation.issues.some((issue) => issue.zoneId === zone.id) ||
-                    productionValidation.issues.some((issue) => issue.zoneId === zone.id);
-                  return <StatusLine key={zone.id} label={zone.name} ok={!invalid} />;
+                {renderableBlocks.map((block) => {
+                  const invalid = allIssues.some((issue) => issue.blockId === block.id);
+                  return <StatusLine key={block.id} label={block.label} ok={!invalid} />;
                 })}
               </div>
               {message ? (
@@ -262,7 +322,7 @@ export default function CupCustomizer({
               ) : null}
               <button
                 type="button"
-                onClick={downloadZoneSvg}
+                onClick={downloadBlockSvg}
                 className="mt-5 w-full rounded-2xl border border-slate-300 px-5 py-4 text-sm font-semibold text-slate-800"
               >
                 Download SVG preview
@@ -304,22 +364,25 @@ function BlockField({
           <label className="text-sm font-semibold text-slate-800">
             {block.label} {block.required ? <span className="text-rose-600">*</span> : null}
           </label>
-          {(block.type === "text" || block.type === "textarea") && typeof value === "string" ? (
+          {(block.type === "text_single" || block.type === "text_multi") &&
+          typeof value === "object" &&
+          value !== null &&
+          "text" in value ? (
             <span className="text-xs text-slate-400">
-              {value.length}/{block.maxChars}
+              {value.text.length}/{block.maxChars}
             </span>
           ) : null}
         </div>
       ) : null}
 
-      {block.type === "text" ? (
+      {block.type === "text_single" ? (
         <TextControl block={block} value={value} onChange={onChange} />
-      ) : block.type === "textarea" ? (
+      ) : block.type === "text_multi" ? (
         <TextareaControl block={block} value={value} onChange={onChange} />
-      ) : block.type === "media-select" ? (
-        <MediaSelectControl block={block} value={value} onChange={onChange} />
-      ) : block.type === "media-upload" ? (
-        <UploadControl block={block} value={value} uploading={uploading} onUpload={onUpload} />
+      ) : block.type === "icon_picker" ? (
+        <IconPickerControl block={block} value={value} uploading={uploading} onChange={onChange} onUpload={onUpload} />
+      ) : block.type === "image_upload" ? (
+        <ImageChoiceControl block={block} value={value} uploading={uploading} onChange={onChange} onUpload={onUpload} />
       ) : block.type === "checkbox" ? (
         <label className="flex cursor-pointer gap-3 rounded-2xl border border-stone-200 bg-stone-50 p-4 text-sm text-slate-700">
           <input
@@ -332,9 +395,9 @@ function BlockField({
             {block.label} {block.required ? <span className="text-rose-600">*</span> : null}
           </span>
         </label>
-      ) : block.type === "select" || block.type === "radio" || block.type === "color" ? (
+      ) : (
         <ChoiceControl block={block} value={value} onChange={onChange} />
-      ) : null}
+      )}
 
       {block.helpText ? <p className="mt-2 text-xs text-slate-400">{block.helpText}</p> : null}
       {issue ? <p className="mt-2 text-xs font-medium text-rose-700">{issue}</p> : null}
@@ -347,18 +410,24 @@ function TextControl({
   value,
   onChange,
 }: {
-  block: TextBlock;
+  block: TextSingleBlock;
   value: CustomizationFieldValue | undefined;
-  onChange: (value: string) => void;
+  onChange: (value: TextBlockValue) => void;
 }) {
+  const textValue = getTextBlockValue(block, value);
   return (
-    <input
-      value={typeof value === "string" ? value : ""}
-      maxLength={block.maxChars}
-      placeholder={block.placeholder}
-      onChange={(event) => onChange(limitTextBlockValue(block, event.target.value))}
-      className="w-full rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm outline-none focus:border-amber-400"
-    />
+    <div className="space-y-3">
+      <input
+        value={textValue.text}
+        maxLength={block.maxChars}
+        placeholder={block.placeholder}
+        onChange={(event) =>
+          onChange({ ...textValue, text: limitTextBlockValue(block, event.target.value) })
+        }
+        className="w-full rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm outline-none focus:border-amber-400"
+      />
+      <TextStyleControls block={block} value={textValue} onChange={onChange} />
+    </div>
   );
 }
 
@@ -367,81 +436,229 @@ function TextareaControl({
   value,
   onChange,
 }: {
-  block: TextBlock;
+  block: TextMultiBlock;
   value: CustomizationFieldValue | undefined;
-  onChange: (value: string) => void;
+  onChange: (value: TextBlockValue) => void;
 }) {
+  const textValue = getTextBlockValue(block, value);
   return (
     <>
       <textarea
         rows={Math.min(block.maxLines + 1, 6)}
-        value={typeof value === "string" ? value : ""}
+        value={textValue.text}
         maxLength={block.maxChars}
         placeholder={block.placeholder}
-        onChange={(event) => onChange(limitTextBlockValue(block, event.target.value))}
+        onChange={(event) =>
+          onChange({ ...textValue, text: limitTextBlockValue(block, event.target.value) })
+        }
         className="w-full resize-none rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm outline-none focus:border-amber-400"
       />
+      <TextStyleControls block={block} value={textValue} onChange={onChange} />
       <p className="mt-2 text-xs text-slate-400">Maximum {block.maxLines} lines</p>
     </>
   );
 }
 
-function MediaSelectControl({
+function TextStyleControls({
   block,
   value,
   onChange,
 }: {
-  block: MediaSelectBlock;
-  value: CustomizationFieldValue | undefined;
-  onChange: (value: string) => void;
+  block: TextSingleBlock | TextMultiBlock;
+  value: TextBlockValue;
+  onChange: (value: TextBlockValue) => void;
 }) {
+  if (block.colorMode !== "user_selectable" && block.fontFamilyMode !== "user_selectable") {
+    return null;
+  }
+
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-      {block.options.map((option) => (
-        <button
-          key={option.id}
-          type="button"
-          onClick={() => onChange(option.id)}
-          className={[
-            "overflow-hidden rounded-2xl border bg-white text-left transition",
-            value === option.id ? "border-amber-500 ring-2 ring-amber-200" : "border-stone-200",
-          ].join(" ")}
-        >
-          <img src={option.previewUrl} alt="" className="h-20 w-full object-contain bg-stone-100" />
-          <span className="block px-3 py-2 text-xs font-semibold text-slate-700">
-            {option.label}
-          </span>
-        </button>
-      ))}
+    <div className="grid gap-3 sm:grid-cols-2">
+      {block.colorMode === "user_selectable" ? (
+        <label className="block text-sm font-medium text-slate-700">
+          Text color
+          <div className="mt-2 flex flex-wrap gap-2">
+            {block.colorOptions.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => onChange({ ...value, color: option.value })}
+                className={[
+                  "flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-semibold",
+                  value.color === option.value
+                    ? "border-amber-500 bg-amber-50 text-amber-900"
+                    : "border-stone-200 text-slate-600",
+                ].join(" ")}
+              >
+                {option.swatch ? (
+                  <span className="size-4 rounded-full border" style={{ backgroundColor: option.swatch }} />
+                ) : null}
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </label>
+      ) : null}
+
+      {block.fontFamilyMode === "user_selectable" ? (
+        <label className="block text-sm font-medium text-slate-700">
+          Font family
+          <select
+            value={value.fontId ?? block.fontId}
+            onChange={(event) => onChange({ ...value, fontId: event.target.value })}
+            className="mt-2 w-full rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm"
+          >
+            {block.fontFamilyOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : null}
     </div>
   );
 }
 
-function UploadControl({
+function IconPickerControl({
   block,
   value,
   uploading,
+  onChange,
   onUpload,
 }: {
-  block: MediaUploadBlock;
+  block: IconPickerBlock;
   value: CustomizationFieldValue | undefined;
   uploading: boolean;
+  onChange: (value: CustomizationFieldValue) => void;
   onUpload: (file: File) => Promise<void>;
 }) {
-  const uploaded = value && typeof value === "object" ? value : null;
+  const uploaded = value && typeof value === "object" && "assetId" in value ? value : null;
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        {block.options.map((option) => (
+          <button
+            key={option.id}
+            type="button"
+            onClick={() => onChange(option.id)}
+            className={[
+              "overflow-hidden rounded-2xl border bg-white text-left transition",
+              value === option.id ? "border-amber-500 ring-2 ring-amber-200" : "border-stone-200",
+            ].join(" ")}
+          >
+            <img src={option.previewUrl} alt="" className="h-20 w-full object-contain bg-stone-100" />
+            <span className="block px-3 py-2 text-xs font-semibold text-slate-700">
+              {option.label}
+            </span>
+          </button>
+        ))}
+      </div>
+      {block.allowUpload !== false ? (
+        <>
+          <UploadButton
+            uploaded={uploaded}
+            uploading={uploading}
+            accept={(block.accept ?? ["image/png", "image/jpeg"]).join(",")}
+            emptyLabel="Upload custom icon"
+            replaceLabel="Replace custom icon"
+            onUpload={onUpload}
+          />
+          {uploaded ? (
+            <MediaCropControls
+              value={uploaded}
+              onChange={(crop) => onChange({ ...uploaded, ...crop })}
+            />
+          ) : null}
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+function ImageChoiceControl({
+  block,
+  value,
+  uploading,
+  onChange,
+  onUpload,
+}: {
+  block: ImageUploadBlock;
+  value: CustomizationFieldValue | undefined;
+  uploading: boolean;
+  onChange: (value: CustomizationFieldValue) => void;
+  onUpload: (file: File) => Promise<void>;
+}) {
+  const uploaded = value && typeof value === "object" && "assetId" in value ? value : null;
+  const hasOptions = (block.options?.length ?? 0) > 0;
+  return (
+    <div className="space-y-3">
+      {hasOptions ? (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          {block.options?.map((option) => (
+            <button
+              key={option.id}
+              type="button"
+              onClick={() => onChange(option.id)}
+              className={[
+                "overflow-hidden rounded-2xl border bg-white text-left transition",
+                value === option.id ? "border-amber-500 ring-2 ring-amber-200" : "border-stone-200",
+              ].join(" ")}
+            >
+              <img src={option.previewUrl} alt="" className="h-20 w-full object-contain bg-stone-100" />
+              <span className="block px-3 py-2 text-xs font-semibold text-slate-700">
+                {option.label}
+              </span>
+            </button>
+          ))}
+        </div>
+      ) : null}
+      {block.allowUpload !== false ? (
+        <>
+          <UploadButton
+            uploaded={uploaded}
+            uploading={uploading}
+            accept={block.accept.join(",")}
+            emptyLabel={hasOptions ? "Upload custom image" : "Choose PNG or JPEG"}
+            replaceLabel="Replace custom image"
+            onUpload={onUpload}
+          />
+          {uploaded ? (
+            <MediaCropControls
+              value={uploaded}
+              onChange={(crop) => onChange({ ...uploaded, ...crop })}
+            />
+          ) : null}
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+function UploadButton({
+  uploaded,
+  uploading,
+  accept,
+  emptyLabel,
+  replaceLabel,
+  onUpload,
+}: {
+  uploaded: UploadedMediaValue | null;
+  uploading: boolean;
+  accept: string;
+  emptyLabel: string;
+  replaceLabel: string;
+  onUpload: (file: File) => Promise<void>;
+}) {
   return (
     <label className="block cursor-pointer rounded-2xl border border-dashed border-slate-300 bg-stone-50 p-4 text-center text-sm font-semibold text-slate-700">
       {uploaded ? (
-        <img
-          src={uploaded.previewUrl}
-          alt="Uploaded logo"
-          className="mx-auto mb-3 h-24 object-contain"
-        />
+        <img src={uploaded.previewUrl} alt="Uploaded artwork" className="mx-auto mb-3 h-24 object-contain" />
       ) : null}
-      {uploading ? "Uploading…" : uploaded ? "Replace artwork" : "Choose PNG or JPEG"}
+      {uploading ? "Uploading..." : uploaded ? replaceLabel : emptyLabel}
       <input
         type="file"
-        accept={block.accept.join(",")}
+        accept={accept}
         disabled={uploading}
         onChange={(event: ChangeEvent<HTMLInputElement>) => {
           const file = event.target.files?.[0];
@@ -451,6 +668,39 @@ function UploadControl({
         className="sr-only"
       />
     </label>
+  );
+}
+
+function MediaCropControls({
+  value,
+  onChange,
+}: {
+  value: UploadedMediaValue;
+  onChange: (value: UploadedMediaValue) => void;
+}) {
+  return (
+    <div className="rounded-2xl bg-stone-50 p-4">
+      <label className="block text-xs font-semibold text-slate-600">
+        Image zoom
+        <input
+          type="range"
+          min={1}
+          max={4}
+          step={0.05}
+          value={value.cropScale ?? 1}
+          onChange={(event) =>
+            onChange({
+              ...value,
+              cropScale: Number(event.target.value),
+              cropXRatio: value.cropXRatio ?? 0,
+              cropYRatio: value.cropYRatio ?? 0,
+            })
+          }
+          className="mt-3 w-full accent-[#13231d]"
+        />
+      </label>
+      <p className="mt-2 text-xs text-slate-400">Drag the image on the preview to adjust position.</p>
+    </div>
   );
 }
 
@@ -494,10 +744,7 @@ function ChoiceControl({
           ].join(" ")}
         >
           {option.swatch ? (
-            <span
-              className="size-4 rounded-full border"
-              style={{ backgroundColor: option.swatch }}
-            />
+            <span className="size-4 rounded-full border" style={{ backgroundColor: option.swatch }} />
           ) : null}
           {option.label}
         </button>
@@ -508,28 +755,36 @@ function ChoiceControl({
 
 function FixedTextLayer({
   layer,
-  zone,
+  template,
+  previewWidthPx,
+  previewHeightPx,
 }: {
   layer: TextLayer;
-  zone: (typeof DEFAULT_TEMPLATE.zones)[number];
+  template: CustomizationTemplate;
+  previewWidthPx: number;
+  previewHeightPx: number;
 }) {
-  const bounds = zone.previewBounds;
-  const zoneX = bounds.xRatio * STAGE_SIZE;
-  const zoneY = bounds.yRatio * STAGE_SIZE;
-  const zoneWidth = bounds.widthRatio * STAGE_SIZE;
-  const zoneHeight = bounds.heightRatio * STAGE_SIZE;
-  const fontSize = Math.max(7, (layer.fontSizePt * zoneWidth) / zone.widthMm / 2.2);
+  const block = template.blocks.find((entry) => entry.id === layer.blockId);
+  if (!block || !hasRenderablePreview(block)) return null;
+  const rect = getBlockPreviewRect({ block, previewWidthPx, previewHeightPx });
+  const fontSize = Math.max(7, (layer.fontSizePt * rect.widthPx) / block.production.widthMm / 2.2);
+  const isMultiLine = block.type === "text_multi";
   return (
     <Text
-      x={zoneX + layer.xRatio * zoneWidth}
-      y={zoneY + layer.yRatio * zoneHeight}
+      x={rect.centerXPx}
+      y={rect.centerYPx}
+      width={rect.widthPx}
+      height={isMultiLine ? rect.heightPx : fontSize * 1.2}
       text={layer.text}
       fontSize={fontSize}
       fontStyle="bold"
       fill={layer.color}
-      align="center"
-      offsetX={(layer.text.length * fontSize * 0.55) / 2}
-      offsetY={fontSize / 2}
+      align={layer.alignment}
+      verticalAlign="middle"
+      wrap="none"
+      lineHeight={1.15}
+      offsetX={rect.widthPx / 2}
+      offsetY={isMultiLine ? rect.heightPx / 2 : fontSize * 0.6}
       rotation={layer.rotationDeg}
     />
   );
@@ -537,30 +792,78 @@ function FixedTextLayer({
 
 function FixedImageLayer({
   layer,
-  zone,
+  template,
+  previewWidthPx,
+  previewHeightPx,
+  editable = false,
+  onCropChange,
 }: {
   layer: ImageLayer;
-  zone: (typeof DEFAULT_TEMPLATE.zones)[number];
+  template: CustomizationTemplate;
+  previewWidthPx: number;
+  previewHeightPx: number;
+  editable?: boolean;
+  onCropChange?: (crop: Pick<UploadedMediaValue, "cropScale" | "cropXRatio" | "cropYRatio">) => void;
 }) {
   const image = useHtmlImage(layer.previewUrl);
-  const bounds = zone.previewBounds;
-  const zoneX = bounds.xRatio * STAGE_SIZE;
-  const zoneY = bounds.yRatio * STAGE_SIZE;
-  const zoneWidth = bounds.widthRatio * STAGE_SIZE;
-  const zoneHeight = bounds.heightRatio * STAGE_SIZE;
-  const width = layer.widthRatio * zoneWidth;
-  const height = layer.heightRatio * zoneHeight;
+  const block = template.blocks.find((entry) => entry.id === layer.blockId);
+  if (!block || !hasRenderablePreview(block)) return null;
+  const rect = getBlockPreviewRect({ block, previewWidthPx, previewHeightPx });
+  const cropRect = getCoverImageRect({
+    sourceWidthPx: layer.sourceWidthPx,
+    sourceHeightPx: layer.sourceHeightPx,
+    frameWidthPx: rect.widthPx,
+    frameHeightPx: rect.heightPx,
+    cropScale: layer.cropScale,
+    cropXRatio: layer.cropXRatio,
+    cropYRatio: layer.cropYRatio,
+  });
   return (
-    <KonvaImage
-      image={image ?? undefined}
-      x={zoneX + layer.xRatio * zoneWidth}
-      y={zoneY + layer.yRatio * zoneHeight}
-      width={width}
-      height={height}
-      offsetX={width / 2}
-      offsetY={height / 2}
+    <Group
+      x={rect.centerXPx}
+      y={rect.centerYPx}
       rotation={layer.rotationDeg}
-    />
+      clipX={-rect.widthPx / 2}
+      clipY={-rect.heightPx / 2}
+      clipWidth={rect.widthPx}
+      clipHeight={rect.heightPx}
+    >
+      <KonvaImage
+        image={image ?? undefined}
+        x={cropRect.xPx}
+        y={cropRect.yPx}
+        width={cropRect.widthPx}
+        height={cropRect.heightPx}
+        draggable={editable}
+        listening={editable}
+        dragBoundFunc={(position) => {
+          const absoluteCenterX = rect.centerXPx;
+          const absoluteCenterY = rect.centerYPx;
+          const minX = absoluteCenterX - rect.widthPx / 2 - cropRect.overflowXPx;
+          const maxX = absoluteCenterX - rect.widthPx / 2;
+          const minY = absoluteCenterY - rect.heightPx / 2 - cropRect.overflowYPx;
+          const maxY = absoluteCenterY - rect.heightPx / 2;
+          return {
+            x: cropRect.overflowXPx > 0 ? Math.min(maxX, Math.max(minX, position.x)) : cropRect.xPx + absoluteCenterX,
+            y: cropRect.overflowYPx > 0 ? Math.min(maxY, Math.max(minY, position.y)) : cropRect.yPx + absoluteCenterY,
+          };
+        }}
+        onDragEnd={(event) => {
+          const pan = getCropPanFromImagePosition({
+            imageXPx: event.target.x(),
+            imageYPx: event.target.y(),
+            frameWidthPx: rect.widthPx,
+            frameHeightPx: rect.heightPx,
+            imageWidthPx: cropRect.widthPx,
+            imageHeightPx: cropRect.heightPx,
+          });
+          onCropChange?.({
+            cropScale: cropRect.cropScale,
+            ...pan,
+          });
+        }}
+      />
+    </Group>
   );
 }
 

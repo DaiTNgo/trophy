@@ -2,13 +2,34 @@
 
 ## Current Objective
 
-- Goal: expand the admin app with Medusa-like management pages on top of real session-backed access control.
-- Current status: the admin now has working Better Auth-backed username/password login/bootstrap/team/security flows, a direct-DB seed script for the first super-admin, mock-first create product/product detail/order detail pages, and a Medusa-style sidebar shell with grouped commerce navigation.
-- Local dev ports are now fixed explicitly: admin `5174`, backend `8787`, storefront `5175` with matching preview ports.
+- Goal: fix variant media gallery modal interaction — backdrop click and Escape key should close gallery without closing FocusModal.
+- Current status: Done. Backdrop click closes gallery via `onClick` handler on gallery overlay (checks `e.target === e.currentTarget`). Escape closes gallery on first press (capture-phase `keydown` listener with `stopPropagation`/`preventDefault`), second Escape closes FocusModal (guarded `onOpenChange` with `!variantGallery` check). Browser-verified both flows.
+- Local dev ports: admin `5174`, backend `8787`, storefront `5175` with matching preview ports.
 - Branch / commit: current working branch
-- **2026-06-24 seed script rewrite:** `seed-admin.mjs` now inserts directly into D1 via `wrangler d1 execute` instead of POST-ing to the HTTP bootstrap endpoint. Uses Node.js `crypto.scrypt` with better-auth compatible parameters. No `--url` / `--secret` flags needed — just `--username` and `--password`. Supports `--target=local` (default) and `--target=remote`.
 
 ## Completed This Session
+
+- [x] Fixed variant media gallery backdrop click: added `pointer-events-auto` to gallery overlay + `onClick` handler (`e.target === e.currentTarget`) to close gallery.
+- [x] Fixed Escape key: capture-phase `keydown` listener closes gallery + `stopPropagation`/`preventDefault`, guarded FocusModal `onOpenChange` with `!variantGallery` check. First Escape closes gallery, second Escape closes FocusModal.
+- [x] Browser-verified both backdrop click and Escape-two-press flow on create-product page.
+- [x] Admin build passes (`pnpm --filter admin build`).
+- [x] Added fixed vs shopper-selectable text color/font-family policies to the shared customization contract and storefront form renderer.
+- [x] Added block hide/unhide and dependency-aware delete behavior in the admin editor.
+- [x] Added same-page `Edit` / `Preview` mode in the admin customization editor and kept preview sandbox values separate from the saved draft template state.
+- [x] Fixed admin/storefront preview text rendering so `text_single` stays on one canvas line while `text_multi` preserves newline breaks in the rendered layer.
+- [x] Kept `visibleWhen` intact while allowing both `icon_picker` and `image_upload` blocks to use either admin-provided presets or an uploaded media value from the same block control/value slot.
+- [x] Updated admin block placement editing so operators move and resize block bounds only; rotation handles are disabled and resize persists width/height ratios rather than exposing scale semantics.
+- [x] Added uploaded-media cover crop support: uploaded icon/image values persist crop zoom and pan metadata, Konva previews clip cover-fit media to fixed block bounds, and storefront plus admin Preview mode let users drag uploaded media and adjust zoom without changing block geometry.
+- [x] Updated and validated the `cup-customization-production` OpenSpec for uploaded-media pan/zoom crop behavior.
+- [x] Reused the shopper-form rendering rules inside admin preview mode so operators can test text, textarea, selectable styles, preset icons, and production-image upload behavior without leaving the editor.
+- [x] Verified the preview media-source and admin move/resize editor changes with `pnpm --filter @trophy/customization test`, `pnpm --filter admin build`, and `pnpm --filter router-cf build`.
+- [x] Verified uploaded-media cover crop with `pnpm --filter @trophy/customization test`, `pnpm --filter admin build`, `pnpm --filter router-cf build`, and `openspec validate cup-customization-production --strict`.
+- [x] Verified `pnpm --filter @trophy/customization test`, `pnpm --filter admin build`, `pnpm --filter router-cf build`, `pnpm --filter backend build`, and `openspec validate cup-customization-production --strict`.
+
+- [x] Rewrote the shared customization contract to a block-only model and removed current zone/surface usage from runtime types.
+- [x] Updated admin/storefront/backend customization flows to use `blocks`, `blockId`, and `blockCount`.
+- [x] Rewrote `cup-customization-production` proposal/design/spec/tasks to match block-only authoring and export.
+- [x] Verified `pnpm --filter @trophy/customization test`, `pnpm --filter admin build`, `pnpm --filter router-cf build`, `pnpm --filter backend build`, and `openspec validate cup-customization-production --strict`.
 
 - [x] Rewrote `seed-admin.mjs` to insert directly into D1 via `wrangler d1 execute` instead of POST-ing to the HTTP bootstrap endpoint.
 - [x] Password hashing uses Node.js `crypto.scrypt` with the same parameters as better-auth (N=16384, r=16, p=1, dkLen=64).
@@ -38,6 +59,13 @@
 - [x] Reworked shopper customization into admin-defined typed blocks with fixed geometry and a non-interactive live preview.
 - [x] Added default logo/background choices, bounded text fields, conditional uploads, acknowledgements, and final confirmation.
 - [x] Persisted block definitions in zone revisions and made backend validation rebuild layers from submitted block values.
+- [x] Updated the `cup-customization-production` OpenSpec so v1 personalization blocks are explicitly limited to `text_single`, `text_multi`, `image_upload`, and `icon_picker`; TrophySmack-style `perpetual_list` is deferred to v2 and must not be modeled as a textarea.
+- [x] Added the responsive coordinate model to OpenSpec: the preview asset stores intrinsic size, zones are normalized against the preview image, blocks are normalized against their parent zone, and admin drag/resize persists ratios rather than viewport pixels.
+- [x] Aligned the shared runtime contract to the v1 taxonomy and removed the default fixture's old background/preset-media block shape in favor of `badge_icon`, `uploaded_logo`, `line_1`, and `line_2`.
+- [x] Added shared `fitPreviewIntoBox`, `getZonePreviewRect`, and `getBlockPreviewRect` helpers plus contract coverage for responsive `image -> zone -> block` rehydration.
+- [x] Updated the admin customization template editor so uploaded previews capture intrinsic width/height, the canvas respects image aspect ratio, and renderable blocks can be dragged/resized directly inside the selected zone.
+- [x] Updated the storefront customizer to render from the same aspect-ratio-aware geometry model and v1 block taxonomy.
+- [x] Added local migration `0007_quaint_geometry.sql` so customization template revisions persist `preview_width_px` and `preview_height_px`.
 
 - [x] Added `/products/new` to the admin router
 - [x] Implemented a Medusa-like create product page with section-based authoring
@@ -143,25 +171,27 @@ Customization verification on 2026-06-22:
 
 ## Blockers / Risks
 
+- (RESOLVED) Variant media gallery was non-interactive due to Radix Dialog `pointer-events: none` on body — fixed with `pointer-events-auto` on gallery overlay.
+- (RESOLVED) Escape key closed FocusModal instead of gallery — fixed with capture-phase listener + guarded `onOpenChange`.
+- (RESOLVED) `GET /api/customizations/templates` returned 500 due to missing `blocks_json` column — fixed via ALTER TABLE.
+- (RESOLVED) `ProductSelector` sent `limit=200` exceeding backend max of 100 — changed to `limit=100`.
+- (RESOLVED) Products endpoint had no CORS middleware for admin cross-origin requests — added `PRODUCTS_CORS_POLICY`.
 - Customization admin still uses local template state; connect publish/load to the Hono template endpoints.
-- Block condition-builder UI and production asset picker/upload for preset options remain pending.
+- The backend TypeScript `check` command is still blocked by pre-existing issues in `apps/backend/src/routes/product-assets.ts`, which were not touched by this customization slice.
 - Approved font storage, SVG glyph outlining, and custom-font PDF embedding remain pending.
 - Staging/production customization deployment needs environment-specific D1 IDs alongside the confirmed R2 buckets.
-- The create product flow is still browser-local mock persistence, not backend-backed data, even though the layout and variant UX now more closely match Medusa.
+- The create product flow is still browser-local mock persistence, not backend-backed data.
 - Variant media uploads are now backend-backed even though the create-product record itself is still mock-first, so canceled create flows or removed option combinations can leave orphaned uploaded assets until cleanup policy is added.
 - Order detail actions are still browser-local mock state, not backend-backed operations.
 - Production deployment still needs explicit `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `ADMIN_APP_ORIGIN`, and `ADMIN_BOOTSTRAP_SECRET` bindings.
-- Automated UI and endpoint-level tests for the product authoring lifecycle still do not exist.
-- Collections, categories, inventory, customers, promotions, and price-lists have placeholder routes but are no longer shown in the sidebar — only real features (Orders, Products, Customization, Team, Settings) are exposed.
 
 ## Next Session Startup
 
 1. Read `AGENTS.md`.
 2. Read `feature_list.json` and `progress.md`.
 3. Review this handoff.
-4. Read `docs/plans/2026-06-23-admin-sidebar-medusa-design.md` and `docs/plans/2026-06-23-medusa-thin-product-catalog-design.md`.
-5. Continue building real admin pages for the features that need implementation.
+4. Continue the customization production path: draft/freeze validation, export jobs, production font handling.
 
 ## Recommended Next Step
 
-- Connect the admin and storefront editors to the backend instead of local/default fixtures, now that the shell and sidebar are cleanly componentized and trimmed to real features.
+- Gallery interaction is now working (backdrop click + Escape). No pending gallery work. Pick next item from feature_list.json.

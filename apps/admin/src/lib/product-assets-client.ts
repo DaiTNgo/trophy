@@ -47,8 +47,8 @@ export async function uploadProductVariantMedia(file: File): Promise<ProductVari
 }
 
 export async function deleteProductVariantMedia(assetId: string) {
-  const response = await fetch(`${backendBaseUrl}/api/products/assets/${assetId}`, {
-    method: "DELETE",
+  const response = await fetch(`${backendBaseUrl}/api/products/assets/${assetId}/delete`, {
+    method: "POST",
     credentials: "include",
   });
 

@@ -80,6 +80,8 @@ export type ProductVariantMedia = {
   heightPx: number;
   byteSize: number;
   contentUrl: string;
+  file?: File;
+  isPending?: boolean;
 };
 
 export type ProductVariant = {
@@ -91,6 +93,7 @@ export type ProductVariant = {
   options: VariantOptionValue[];
   allowBackorder: boolean;
   media: ProductVariantMedia[];
+  shouldCreate: boolean;
 };
 
 export type VariantOptionValue = {

@@ -50,6 +50,20 @@
       "when": 1782327600000,
       "tag": "0006_calm_butterfly",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1782403200000,
+      "tag": "0007_quaint_geometry",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1782493200000,
+      "tag": "0008_block_only_templates",
+      "breakpoints": true
     }
   ]
 }

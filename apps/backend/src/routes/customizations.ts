@@ -1,14 +1,15 @@
 import {
   buildDesignFromForm,
-  renderZoneSvg,
+  hasRenderablePreview,
+  renderBlockSvg,
   validateCustomizationValues,
   validateDesign,
   type CustomizationDesign,
+  type CustomizationBlock,
   type CustomizationFormValues,
   type CustomizationTemplate,
-  type CustomizationZone,
 } from "@trophy/customization";
-import { asc, count, desc, eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { PDFDocument, StandardFonts, grayscale } from "pdf-lib";
 import * as v from "valibot";
@@ -18,7 +19,6 @@ import {
   customizationDesigns,
   customizationTemplateRevisions,
   customizationTemplates,
-  customizationZones,
   products,
 } from "../db/schema";
 import type { AppEnv } from "../lib/env";
@@ -29,50 +29,18 @@ const positiveNumber = v.pipe(finiteNumber, v.minValue(0.01));
 const ratio = v.pipe(finiteNumber, v.minValue(0), v.maxValue(1));
 const identifier = v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(120));
 
-const zoneSchema = v.object({
-  id: identifier,
-  name: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(120)),
-  previewBounds: v.object({
-    xRatio: ratio,
-    yRatio: ratio,
-    widthRatio: positiveNumber,
-    heightRatio: positiveNumber,
-    rotationDeg: finiteNumber,
-  }),
-  widthMm: positiveNumber,
-  heightMm: positiveNumber,
-  bleedMm: v.pipe(finiteNumber, v.minValue(0)),
-  safeMarginMm: v.pipe(finiteNumber, v.minValue(0)),
-  allowedContent: v.pipe(v.array(v.union([v.literal("text"), v.literal("image")])), v.minLength(1)),
-  textRules: v.object({
-    fontIds: v.array(identifier),
-    minFontSizePt: positiveNumber,
-    maxFontSizePt: positiveNumber,
-    alignment: v.union([v.literal("left"), v.literal("center"), v.literal("right")]),
-    singleLine: v.literal(true),
-  }),
-  production: v.object({
-    method: v.union([v.literal("print"), v.literal("engrave")]),
-    colorMode: v.union([
-      v.literal("rgb"),
-      v.literal("cmyk"),
-      v.literal("grayscale"),
-      v.literal("monochrome"),
-    ]),
-    minImageDpi: v.pipe(v.number(), v.integer(), v.minValue(72), v.maxValue(2400)),
-  }),
-  blocks: v.pipe(
-    v.array(v.unknown()),
-    v.maxLength(100),
-    v.transform((blocks) => blocks as CustomizationZone["blocks"]),
-  ),
-});
-
 const templateInputSchema = v.object({
   productId: v.pipe(v.number(), v.integer(), v.minValue(1)),
   name: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(160)),
   previewUrl: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(2_000_000)),
-  zones: v.pipe(v.array(zoneSchema), v.minLength(1), v.maxLength(20)),
+  previewWidthPx: v.pipe(v.number(), v.integer(), v.minValue(1)),
+  previewHeightPx: v.pipe(v.number(), v.integer(), v.minValue(1)),
+  blocks: v.pipe(
+    v.array(v.unknown()),
+    v.minLength(1),
+    v.maxLength(100),
+    v.transform((blocks) => blocks as CustomizationBlock[]),
+  ),
 });
 
 const templatePayloadSchema = v.object({
@@ -83,14 +51,20 @@ const templatePayloadSchema = v.object({
     revision: v.pipe(v.number(), v.integer(), v.minValue(1)),
     status: v.union([v.literal("draft"), v.literal("published")]),
     previewUrl: v.string(),
-    zones: v.array(zoneSchema),
+    previewWidthPx: v.pipe(v.number(), v.integer(), v.minValue(0)),
+    previewHeightPx: v.pipe(v.number(), v.integer(), v.minValue(0)),
+    blocks: v.pipe(
+      v.array(v.unknown()),
+      v.maxLength(100),
+      v.transform((blocks) => blocks as CustomizationBlock[]),
+    ),
   }),
 });
 
 const layerSchema = v.union([
   v.object({
     id: identifier,
-    zoneId: identifier,
+    blockId: identifier,
     type: v.literal("text"),
     xRatio: ratio,
     yRatio: ratio,
@@ -103,7 +77,7 @@ const layerSchema = v.union([
   }),
   v.object({
     id: identifier,
-    zoneId: identifier,
+    blockId: identifier,
     type: v.literal("image"),
     xRatio: ratio,
     yRatio: ratio,
@@ -142,7 +116,7 @@ const validatePayloadSchema = v.intersect([
 
 const exportPayloadSchema = v.intersect([
   validatePayloadSchema,
-  v.object({ zoneId: v.optional(identifier) }),
+  v.object({ blockId: v.optional(identifier) }),
 ]);
 
 const templateParamsSchema = v.object({ id: identifier });
@@ -173,33 +147,10 @@ const readTemplateRevision = async (
     return null;
   }
 
-  const rows = await db
-    .select()
-    .from(customizationZones)
-    .where(eq(customizationZones.templateRevisionId, revision.id))
-    .orderBy(asc(customizationZones.position));
-
-  const zones: CustomizationZone[] = rows.map((row) => ({
-    id: row.id,
-    name: row.name,
-    previewBounds: {
-      xRatio: row.previewXRatio,
-      yRatio: row.previewYRatio,
-      widthRatio: row.previewWidthRatio,
-      heightRatio: row.previewHeightRatio,
-      rotationDeg: row.rotationDeg,
-    },
-    widthMm: row.widthMm,
-    heightMm: row.heightMm,
-    bleedMm: row.bleedMm,
-    safeMarginMm: row.safeMarginMm,
-    allowedContent: JSON.parse(row.allowedContentJson),
-    textRules: JSON.parse(row.textRulesJson),
-    production: JSON.parse(row.productionJson),
-    blocks: JSON.parse(row.blocksJson),
-  }));
-
-  return { revision, zones };
+  return {
+    revision,
+    blocks: JSON.parse(revision.blocksJson) as CustomizationBlock[],
+  };
 };
 
 const parseDataUrl = (value: string) => {
@@ -302,29 +253,10 @@ export const customizationsRoute = new Hono<AppEnv>()
       revision: revisionNumber,
       status: "draft",
       previewUrl: parsed.output.previewUrl,
+      previewWidthPx: parsed.output.previewWidthPx,
+      previewHeightPx: parsed.output.previewHeightPx,
+      blocksJson: JSON.stringify(parsed.output.blocks),
     });
-
-    for (const [position, zone] of parsed.output.zones.entries()) {
-      await db.insert(customizationZones).values({
-        id: `${revisionId}:${zone.id}`,
-        templateRevisionId: revisionId,
-        name: zone.name,
-        position,
-        previewXRatio: zone.previewBounds.xRatio,
-        previewYRatio: zone.previewBounds.yRatio,
-        previewWidthRatio: zone.previewBounds.widthRatio,
-        previewHeightRatio: zone.previewBounds.heightRatio,
-        rotationDeg: zone.previewBounds.rotationDeg,
-        widthMm: zone.widthMm,
-        heightMm: zone.heightMm,
-        bleedMm: zone.bleedMm,
-        safeMarginMm: zone.safeMarginMm,
-        allowedContentJson: JSON.stringify(zone.allowedContent),
-        textRulesJson: JSON.stringify(zone.textRules),
-        productionJson: JSON.stringify(zone.production),
-        blocksJson: JSON.stringify(zone.blocks),
-      });
-    }
 
     return c.json(
       {
@@ -335,10 +267,9 @@ export const customizationsRoute = new Hono<AppEnv>()
           revision: revisionNumber,
           status: "draft",
           previewUrl: parsed.output.previewUrl,
-          zones: parsed.output.zones.map((zone) => ({
-            ...zone,
-            id: `${revisionId}:${zone.id}`,
-          })),
+          previewWidthPx: parsed.output.previewWidthPx,
+          previewHeightPx: parsed.output.previewHeightPx,
+          blocks: parsed.output.blocks,
         },
       },
       201,
@@ -361,8 +292,8 @@ export const customizationsRoute = new Hono<AppEnv>()
     }
 
     const latest = await readTemplateRevision(db, template.id);
-    if (!latest || latest.zones.length === 0) {
-      return jsonError(c, 422, "Template requires at least one valid zone");
+    if (!latest || latest.blocks.length === 0) {
+      return jsonError(c, 422, "Template requires at least one valid block");
     }
 
     const publishedAt = new Date().toISOString();
@@ -411,7 +342,9 @@ export const customizationsRoute = new Hono<AppEnv>()
           revision: result.revision.revision,
           status: result.revision.status === "published" ? "published" : "draft",
           previewUrl: result.revision.previewUrl,
-          zones: result.zones,
+          previewWidthPx: result.revision.previewWidthPx,
+          previewHeightPx: result.revision.previewHeightPx,
+          blocks: result.blocks,
         } satisfies CustomizationTemplate,
       },
       200,
@@ -429,6 +362,9 @@ export const customizationsRoute = new Hono<AppEnv>()
         revision: {
           revision: customizationTemplateRevisions.revision,
           previewUrl: customizationTemplateRevisions.previewUrl,
+          previewWidthPx: customizationTemplateRevisions.previewWidthPx,
+          previewHeightPx: customizationTemplateRevisions.previewHeightPx,
+          blocksJson: customizationTemplateRevisions.blocksJson,
         },
       })
       .from(customizationTemplates)
@@ -445,14 +381,7 @@ export const customizationsRoute = new Hono<AppEnv>()
 
     const templates = await Promise.all(
       rows.map(async (row) => {
-        const activeRevisionId = row.template.activeRevisionId;
-        const zoneRow = activeRevisionId
-          ? await db
-              .select({ count: count() })
-              .from(customizationZones)
-              .where(eq(customizationZones.templateRevisionId, activeRevisionId))
-              .get()
-          : null;
+        const blockCount = row.revision.blocksJson ? (JSON.parse(row.revision.blocksJson) as unknown[]).length : 0;
         return {
           id: row.template.id,
           productId: String(row.template.productId),
@@ -461,7 +390,9 @@ export const customizationsRoute = new Hono<AppEnv>()
           name: row.template.name,
           revision: row.revision.revision,
           previewUrl: row.revision.previewUrl,
-          zoneCount: zoneRow?.count ?? 0,
+          previewWidthPx: row.revision.previewWidthPx,
+          previewHeightPx: row.revision.previewHeightPx,
+          blockCount,
           createdAt: row.template.createdAt,
         };
       }),
@@ -499,7 +430,9 @@ export const customizationsRoute = new Hono<AppEnv>()
           revision: result.revision.revision,
           status: "published",
           previewUrl: result.revision.previewUrl,
-          zones: result.zones,
+          previewWidthPx: result.revision.previewWidthPx,
+          previewHeightPx: result.revision.previewHeightPx,
+          blocks: result.blocks,
         } satisfies CustomizationTemplate,
       },
       200,
@@ -563,19 +496,21 @@ export const customizationsRoute = new Hono<AppEnv>()
       return c.json(result, 422);
     }
 
-    const zoneId = parsed.output.zoneId ?? parsed.output.template.zones[0]?.id;
-    if (!zoneId) {
-      return jsonError(c, 422, "A production zone is required");
+    const blockId =
+      parsed.output.blockId ??
+      parsed.output.template.blocks.find((block) => hasRenderablePreview(block))?.id;
+    if (!blockId) {
+      return jsonError(c, 422, "A production block is required");
     }
 
-    const svg = renderZoneSvg({
+    const svg = renderBlockSvg({
       template: parsed.output.template,
       design,
-      zoneId,
+      blockId,
     });
     return c.body(svg, 200, {
       "Content-Type": "image/svg+xml; charset=utf-8",
-      "Content-Disposition": `attachment; filename="${zoneId}.svg"`,
+      "Content-Disposition": `attachment; filename="${blockId}.svg"`,
     });
   })
   .post("/exports/pdf", async (c) => {
@@ -595,14 +530,22 @@ export const customizationsRoute = new Hono<AppEnv>()
     const pdf = await PDFDocument.create();
     const font = await pdf.embedFont(StandardFonts.Helvetica);
 
-    for (const zone of parsed.output.template.zones) {
-      const page = pdf.addPage([mmToPoints(zone.widthMm), mmToPoints(zone.heightMm)]);
-      const safeWidth = zone.widthMm - zone.safeMarginMm * 2;
-      const safeHeight = zone.heightMm - zone.safeMarginMm * 2;
+    for (const block of parsed.output.template.blocks.filter(hasRenderablePreview)) {
+      const page = pdf.addPage([mmToPoints(block.production.widthMm), mmToPoints(block.production.heightMm)]);
+      const safeWidth = block.production.widthMm - block.production.safeMarginMm * 2;
+      const safeHeight = block.production.heightMm - block.production.safeMarginMm * 2;
 
-      for (const layer of design.layers.filter((entry) => entry.zoneId === zone.id)) {
-        const x = mmToPoints(zone.safeMarginMm + layer.xRatio * safeWidth);
-        const y = mmToPoints(zone.safeMarginMm + layer.yRatio * safeHeight);
+      for (const layer of design.layers.filter((entry) => entry.blockId === block.id)) {
+        const x =
+          mmToPoints(
+            block.production.safeMarginMm +
+              ((layer.xRatio - block.preview.xRatio) / block.preview.widthRatio + 0.5) * safeWidth,
+          );
+        const y =
+          mmToPoints(
+            block.production.safeMarginMm +
+              ((layer.yRatio - block.preview.yRatio) / block.preview.heightRatio + 0.5) * safeHeight,
+          );
 
         if (layer.type === "text") {
           page.drawText(layer.text, {
@@ -624,8 +567,8 @@ export const customizationsRoute = new Hono<AppEnv>()
           source.mimeType === "image/png"
             ? await pdf.embedPng(source.bytes)
             : await pdf.embedJpg(source.bytes);
-        const width = mmToPoints(layer.widthRatio * safeWidth);
-        const height = mmToPoints(layer.heightRatio * safeHeight);
+        const width = mmToPoints((layer.widthRatio / block.preview.widthRatio) * safeWidth);
+        const height = mmToPoints((layer.heightRatio / block.preview.heightRatio) * safeHeight);
         page.drawImage(image, {
           x: x - width / 2,
           y: y - height / 2,

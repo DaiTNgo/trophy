@@ -2,13 +2,39 @@
 
 ## Current State
 
-**Last Updated:** 2026-06-24
-**Session ID:** [optional]
-**Active Feature:** `feat-004 - Admin App Router Migration`
+**Last Updated:** 2026-06-25
+**Session ID:** customization-fix
+**Active Feature:** `feat-006 - Cup Customization And Production Artwork`
 
 ## Status
 
 ### What's Done
+
+- [x] Refactored orders-list.tsx and order-detail.tsx to use @medusajs/ui components (Container, Heading, Text, Input, Table, Button, Badge) with lucide-react icons (Search, ArrowLeft, CreditCard, Package, XCircle, ShoppingCart, User, MapPin, Clock, Activity) instead of custom HTML tables, inputs, and buttons.
+- [x] Removed custom StatusBadge, PageHeader, StatCard, DataPanel, SectionCard, SummaryRow, EmptyState imports from the order pages in favor of @medusajs/ui equivalents.
+- [x] Fixed the pre-existing `Table.Cell colSpan` type error that was blocking admin build.
+- [x] Verified `pnpm --filter admin build` and `./init.sh` pass cleanly.
+
+- [x] Simplified the customization admin block editor to a dynamic per-type form and removed primary-form inputs for DPI, bleed, safe margin, manual x/y/width/height, production method, and other technical export fields.
+- [x] Added text-block style policies so admin can choose fixed or shopper-selectable color and font-family options per text block.
+- [x] Added block lifecycle actions in admin: hide/unhide and dependency-aware delete.
+- [x] Added same-page `Edit` / `Preview` mode in the admin customization editor, with preview sandbox values kept separate from the draft template state.
+- [x] Fixed customization preview text rendering so single-line text no longer wraps in the canvas and multi-line text preserves shopper-entered line breaks in admin/storefront preview layers.
+- [x] Kept `visibleWhen` behavior intact while changing icon/image customization blocks to support both admin-provided preset choices and shopper/admin-preview uploads in the same block value slot.
+- [x] Updated admin block placement editing to behave as position + size editing only: the canvas copy now says move/resize, rotation handles are disabled, and resizing persists block width/height ratios rather than exposing scale semantics.
+- [x] Added uploaded-media cover crop behavior: uploaded icon/image values now store crop zoom and pan metadata, preview rendering clips cover-fit media to fixed admin block bounds, and storefront plus admin Preview mode allow dragging the uploaded image and adjusting zoom without changing block geometry.
+- [x] Updated the `cup-customization-production` OpenSpec design/spec/tasks for fixed block bounds plus uploaded-media pan/zoom crop behavior and validated it with `openspec validate cup-customization-production --strict`.
+- [x] Updated the storefront customizer so hidden blocks are excluded and shopper-selectable text color/font-family controls render only when the published block schema enables them.
+- [x] Reused the storefront's schema-driven shopper-form rendering rules inside admin preview mode so operators can test text inputs, textarea limits, selectable styles, preset icons, and upload behavior before publishing.
+- [x] Re-ran `pnpm --filter @trophy/customization test`, `pnpm --filter admin build`, and `pnpm --filter router-cf build` after the icon/image preset-or-upload and admin move/resize editor changes.
+- [x] Re-ran `pnpm --filter @trophy/customization test`, `pnpm --filter admin build`, and `pnpm --filter router-cf build` after the uploaded-media cover crop implementation.
+- [x] Re-ran `pnpm --filter @trophy/customization test`, `pnpm --filter admin build`, `pnpm --filter router-cf build`, `pnpm --filter backend build`, and `openspec validate cup-customization-production --strict` after the admin/storefront block-editor update.
+
+- [x] Refactored the customization slice from the earlier `zone + block` draft to a clean block-only model.
+- [x] Rewrote the shared customization contract around template-level blocks, `blockId`-based layers, normalized preview-image-relative geometry, and block-based SVG export helpers.
+- [x] Updated admin template authoring, storefront customization preview, backend template/design/export routes, and list UIs to use `blocks` / `blockCount` instead of `zones` / `zoneCount`.
+- [x] Rewrote the `cup-customization-production` OpenSpec proposal, design, specs, and tasks so the artifacts now describe the approved block-only model.
+- [x] Verified the current refactor with `pnpm --filter @trophy/customization test`, `pnpm --filter admin build`, `pnpm --filter router-cf build`, `pnpm --filter backend build`, and `openspec validate cup-customization-production --strict`.
 
 - [x] Replaced the admin app's local demo credentials and `localStorage` session with Better Auth session cookies served from `apps/backend`.
 - [x] Added Better Auth Drizzle/D1 auth tables, the username plugin, and local migration `0004_username_admin.sql` for username/password admin access.
@@ -38,6 +64,13 @@
 - [x] Added basic per-zone admin block authoring for type, label, required state, ordering, text limits/defaults, fixed bounds, and media preset options.
 - [x] Added backend `blocks_json` persistence via local migration `0005_silky_malice.sql` and authoritative value-to-layer rebuilding.
 - [x] Browser-verified textarea input `ONE\nTWO\nTHREE` is limited to `ONE\nTWO`, conditional upload fields replace preset logo fields, and the preview contains no Transformer controls.
+- [x] Updated the `cup-customization-production` OpenSpec to define the v1 personalization taxonomy as `text_single`, `text_multi`, `image_upload`, and `icon_picker`, while explicitly deferring TrophySmack-style `perpetual_list` blocks to v2.
+- [x] Extended the `cup-customization-production` OpenSpec with the responsive coordinate model: preview asset intrinsic size, normalized `image -> zone -> block` geometry, and admin pixel-to-ratio persistence for desktop/mobile parity.
+- [x] Aligned the shared customization contract and runtime fixtures to the v1 taxonomy: renderable blocks now use `text_single`, `text_multi`, `image_upload`, and `icon_picker`, while radio/checkbox remain non-rendering control fields.
+- [x] Added shared preview geometry helpers for intrinsic image fitting plus normalized `zone` and `block` rehydration, and covered the responsive hierarchy with a shared contract test.
+- [x] Updated the admin template editor to persist preview intrinsic size, fit the canvas to the uploaded preview aspect ratio, and allow draggable/resizable block overlays inside the selected zone.
+- [x] Updated the storefront preview to render the cup image, zone overlay, and fixed layers from intrinsic aspect-ratio-aware geometry instead of a square stage assumption.
+- [x] Added backend persistence for preview intrinsic width/height via local migration `0007_quaint_geometry.sql` and returned those values from customization template APIs.
 
 - [x] Kept the protected admin shell, auth guard, and existing `orders` and `products` pages building cleanly.
 - [x] Added a Medusa-like `create product` route at `/products/new`.
@@ -77,7 +110,18 @@
 - [x] Re-ran `pnpm --filter admin build` and `./init.sh` after the App.tsx refactoring.
 - [x] Updated OpenSpec changes `2026-06-21-product-catalog`, `2026-06-21-admin-create-product-page`, and `2026-06-21-admin-product-detail-page` to match the approved Medusa-thin scope and verified each with `openspec validate <change> --strict`.
 
+### What's Done This Session
+
+- [x] Fixed variant media gallery backdrop closing: added `pointer-events-auto` to gallery overlay (Radix Dialog sets `pointer-events: none` on `<body>`), added `onClick` handler on backdrop to close gallery when clicking outside content.
+- [x] Fixed Escape key handling in gallery: capture-phase `keydown` listener closes gallery + `e.stopPropagation()`/`e.preventDefault()`, guarded FocusModal `onOpenChange` with `!variantGallery` check so Escape closes gallery first, second Escape closes FocusModal.
+- [x] Browser-verified both backdrop click and Escape behaviors on create-product page.
+
 ### What's In Progress
+
+- [ ] Finish the remaining feat-006 production path on top of the block-only model.
+- [ ] Variant media server-side delete is still not wired up (`deleteProductVariantMedia` is exported from client but never called — only local state removal).
+  - Details: asset validation hardening, authoritative draft/freeze flow, export profiles/jobs, and production-font-quality output are still incomplete.
+  - Blockers: environment-specific D1 IDs and production font assets are still not finalized.
 
 - [ ] Admin management page expansion.
   - Details: auth, team access control, create product, product detail, order detail, and a Medusa-like shell/navigation now run inside a real session-backed admin shell, but `collections` and `categories` still stop at placeholder index pages.
@@ -91,12 +135,13 @@
 
 ### What's Next
 
-1. Replace the new `collections` and `categories` placeholders with real Medusa-like merchandising pages.
-2. Decide when to switch the `create product` and `order detail` flows from mock persistence to backend contracts now that admin auth is real.
-3. Add automated UI or endpoint coverage for the admin auth and management lifecycle once the integration boundary is chosen.
+1. Run the local customization migration path again against the current workspace and add backend contract/export verification for the block-only routes.
+2. Finish backend-backed draft validation/freeze/export-job flow for customization.
+3. Replace scaffold PDF/text output with approved production-font handling and tighter asset validation.
 
 ## Blockers / Risks
 
+- [ ] (RESOLVED) `pnpm --filter admin build` was previously blocked by `Table.Cell colSpan={7}` type error in orders-list.tsx; this is now fixed as part of the Medusa UI refactor.
 - [ ] Staging/production R2 bucket names are confirmed, but Wrangler environment blocks cannot be safely added until each environment's required D1 database ID is known.
 - [ ] Asset reads currently use unguessable IDs and private R2 storage; authenticated order/operator authorization must be added before production release.
 - [ ] Current SVG preview uses SVG text and PDF uses standard Helvetica; these outputs are scaffolds, not yet approved engraving artifacts.
@@ -130,6 +175,13 @@
 
 ## Files Modified This Session
 
+- `apps/admin/src/CustomizationTemplatePage.tsx` - changed ProductSelector limit from 200 to 100 to match backend validation.
+- `apps/backend/src/lib/cors.ts` - added `PRODUCTS_CORS_POLICY` for admin cross-origin product API access.
+- `apps/backend/src/app.ts` - added `PRODUCTS_CORS_POLICY` import and CORS middleware for `/api/products/*`.
+- `feature_list.json` - updated feat-006 evidence with fix notes.
+- `progress.md` - recorded customization API fixes.
+- `session-handoff.md` - updated restart notes.
+
 - `apps/admin/src/App.tsx` - added the Medusa-like create product flow, mock catalog persistence, and expanded products screen.
 - `apps/admin/src/App.tsx` - rebuilt the protected shell navigation into a Medusa-style rail and added placeholder commerce routes for new sidebar entries.
 - `apps/admin/src/App.tsx` - added the Medusa-like order detail flow, mock order state, and order actions.
@@ -155,6 +207,7 @@
 
 ## Evidence of Completion
 
+- [x] Order UI Medusa refactor: `pnpm --filter admin build` and `./init.sh`
 - [x] Core tests: `pnpm --filter @trophy/customization test` and root `vp test` (4 tests pass)
 - [x] Local migration: `pnpm --filter backend db:migrate:local`
 - [x] Backend: `pnpm --filter backend check` and `pnpm --filter backend build`
@@ -164,6 +217,10 @@
 - [x] R2 endpoint smoke test: uploaded `apps/admin/src/assets/hero.png`, read back 13,057 bytes, and matched SHA-256 `881ffbcaafc212e49addad08846a5b82761355fa20624253af3477ba33262c5c`.
 - [x] Re-ran `vp test`, backend check/build, storefront typecheck/build, and `./init.sh` after the R2 integration; all passed.
 - [x] Re-ran `vp test` (7 tests), OpenSpec strict validation, local migration, and `./init.sh`; all feature checks and app builds pass.
+- [x] OpenSpec validation after v1 personalization taxonomy update: `openspec validate cup-customization-production --strict`.
+- [x] Shared package verification after runtime taxonomy and coordinate updates: `pnpm --filter @trophy/customization check` and `pnpm --filter @trophy/customization test`.
+- [x] Admin/runtime verification after responsive preview updates: `pnpm --filter admin build` and `pnpm --filter router-cf build`.
+- [x] Backend/runtime verification after preview-dimension persistence: `pnpm --filter backend build` and `pnpm --filter backend db:migrate:local`.
 - [ ] Root `vp check` still reports 69 pre-existing formatting differences outside the files changed for this customization slice; touched files pass targeted formatting.
 
 - [x] Admin build: `pnpm --filter admin build`
@@ -192,4 +249,4 @@
 
 ## Notes for Next Session
 
-The admin app now includes real Better Auth-backed access control plus mock-first `create product`, `product detail`, and `order detail` flows. The shell itself now also matches Medusa more closely: dark left rail, grouped commerce navigation, nested `Products -> Collections/Categories`, and bottom-pinned settings/account actions, with placeholder routes keeping the new IA clickable. Product scope is now also documented in `docs/plans/2026-06-23-medusa-thin-product-catalog-design.md`: keep core product, collection, category, variant pricing, variant-level inventory, and project-specific attributes; remove v1 expectations around sales channels, shipping profiles, inventory kits, and multi-region pricing. The cleanest next step is to replace the new placeholder merchandising pages with real workflows while aligning the product model and backend contracts to that approved thin scope.
+The admin app now includes real Better Auth-backed access control plus mock-first `create product`, `product detail`, and `order detail` flows. The shell itself now matches Medusa more closely: dark left rail, grouped commerce navigation, nested `Products -> Collections/Categories`, and bottom-pinned settings/account actions. Both order screens now use @medusajs/ui components consistently with the rest of the app. Product scope is documented in `docs/plans/2026-06-23-medusa-thin-product-catalog-design.md`: keep core product, collection, category, variant pricing, variant-level inventory, and project-specific attributes; remove v1 expectations around sales channels, shipping profiles, inventory kits, and multi-region pricing. The cleanest next step is to apply the same Medusa UI component treatment to remaining custom pages (products-list, product-detail, security, team) or replace placeholder merchandising pages with real workflows.

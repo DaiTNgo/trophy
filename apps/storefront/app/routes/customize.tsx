@@ -13,7 +13,7 @@ type TemplateSummary = {
   name: string;
   revision: number;
   previewUrl: string;
-  zoneCount: number;
+  blockCount: number;
   createdAt: string;
 };
 
@@ -80,7 +80,7 @@ export default function Customize({ loaderData }: Route.ComponentProps) {
                     </h2>
                     <p className="text-sm text-slate-500">{template.productTitle}</p>
                     <p className="text-xs text-slate-400">
-                      {template.zoneCount} zone{template.zoneCount !== 1 ? "s" : ""}
+                      {template.blockCount} block{template.blockCount !== 1 ? "s" : ""}
                     </p>
                   </div>
                 </Link>

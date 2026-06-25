@@ -5,6 +5,7 @@ import {
   buildBackendAllowedOrigins,
   CUSTOMIZATION_CORS_POLICY,
   LOCAL_APP_ORIGINS,
+  PRODUCTS_CORS_POLICY,
   PRODUCT_ASSET_CORS_POLICY,
   SESSION_CORS_POLICY,
   type CorsPolicy,
@@ -115,6 +116,7 @@ app.use(`${AUTH_BASE_PATH}/*`, createCorsMiddleware(SESSION_CORS_POLICY));
 app.use("/api/admin/bootstrap/*", createCorsMiddleware(SESSION_CORS_POLICY));
 app.use("/api/admin/accounts/*", createCorsMiddleware(SESSION_CORS_POLICY));
 app.use("/api/customizations/*", createCorsMiddleware(CUSTOMIZATION_CORS_POLICY));
+app.use("/api/products/*", createCorsMiddleware(PRODUCTS_CORS_POLICY));
 app.use("/api/products/assets/*", createCorsMiddleware(PRODUCT_ASSET_CORS_POLICY));
 
 app.get("/", (c) => {

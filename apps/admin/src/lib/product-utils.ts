@@ -158,6 +158,7 @@ export function reconcileVariantRows(
       options: blueprint.options,
       allowBackorder: current?.allowBackorder ?? false,
       media: current?.media ?? [],
+      shouldCreate: current?.shouldCreate ?? true,
     } satisfies ProductVariant;
   });
 }
@@ -178,6 +179,7 @@ function getEffectiveVariantRows(
     ...variant,
     inventory: normalizedInventory,
     allowBackorder: false,
+    shouldCreate: true,
   }));
 }
 
@@ -300,6 +302,7 @@ export function buildVariantPreview(values: CreateProductFormValues) {
         options: [],
         allowBackorder: false,
         media: [],
+        shouldCreate: true,
       },
     ];
   }
@@ -314,6 +317,7 @@ export function buildVariantPreview(values: CreateProductFormValues) {
     options: combination,
     allowBackorder: false,
     media: [],
+    shouldCreate: true,
   }));
 }
 

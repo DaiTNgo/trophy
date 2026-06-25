@@ -94,7 +94,7 @@ export function SidebarContent({ pathname, accountLabel, auth, navigate: nav }: 
         >
           Operations
         </Text>
-        <nav className="space-y-0.5">
+        <nav className="space-y-0.5 px-3">
           {operationsSidebarItems
             .filter((item) => !item.requiresSuperAdmin || isSuperAdmin(auth.user?.role))
             .map((item) => (

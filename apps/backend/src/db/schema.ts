@@ -288,6 +288,9 @@ export const customizationTemplateRevisions = sqliteTable(
     status: text("status").notNull().default("draft"),
     previewAssetKey: text("preview_asset_key"),
     previewUrl: text("preview_url").notNull(),
+    previewWidthPx: integer("preview_width_px").notNull().default(0),
+    previewHeightPx: integer("preview_height_px").notNull().default(0),
+    blocksJson: text("blocks_json").notNull().default("[]"),
     createdAt: text("created_at")
       .notNull()
       .default(sql`CURRENT_TIMESTAMP`),
@@ -295,32 +298,6 @@ export const customizationTemplateRevisions = sqliteTable(
   },
   (table) => [
     uniqueIndex("customization_template_revision_idx").on(table.templateId, table.revision),
-  ],
-);
-
-export const customizationZones = sqliteTable(
-  "customization_zones",
-  {
-    id: text("id").primaryKey(),
-    templateRevisionId: text("template_revision_id").notNull(),
-    name: text("name").notNull(),
-    position: integer("position").notNull(),
-    previewXRatio: real("preview_x_ratio").notNull(),
-    previewYRatio: real("preview_y_ratio").notNull(),
-    previewWidthRatio: real("preview_width_ratio").notNull(),
-    previewHeightRatio: real("preview_height_ratio").notNull(),
-    rotationDeg: real("rotation_deg").notNull().default(0),
-    widthMm: real("width_mm").notNull(),
-    heightMm: real("height_mm").notNull(),
-    bleedMm: real("bleed_mm").notNull().default(0),
-    safeMarginMm: real("safe_margin_mm").notNull().default(0),
-    allowedContentJson: text("allowed_content_json").notNull(),
-    textRulesJson: text("text_rules_json").notNull(),
-    productionJson: text("production_json").notNull(),
-    blocksJson: text("blocks_json").notNull().default("[]"),
-  },
-  (table) => [
-    uniqueIndex("customization_zone_revision_name_idx").on(table.templateRevisionId, table.name),
   ],
 );
 

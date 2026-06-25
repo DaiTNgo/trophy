@@ -47,16 +47,18 @@ pnpm --filter backend seed:admin -- --username=admin
 ```
 
 The script POSTs to `POST /api/admin/bootstrap` on the local backend. On loopback URLs the default bootstrap secret `trophy-local-bootstrap` is used automatically. Use `--url` for a different target or `--secret` / `ADMIN_SEED_SECRET` for a custom secret in production. The admin app's onboarding UI also uses this endpoint for the first-time setup when no users exist.
+The CLI seed flow writes directly to D1 via `wrangler d1 execute`. Use `--username` and `--password`, with optional `--target=local|remote`. Keep the HTTP bootstrap endpoint only for the admin app onboarding flow.
 
 ## Data
 
-Drizzle ORM + Cloudflare D1 (SQLite). Schema in `apps/backend/src/db/schema.ts`. Migrations in `apps/backend/drizzle/`.
+Drizzle ORM + Cloudflare D1 (SQLite). Schema lives in `apps/backend/src/db/schema.ts`.
 
-```bash
-pnpm --filter backend db:generate         # drizzle-kit generate
-pnpm --filter backend db:migrate:local     # wrangler d1 migrations apply DB --local
-pnpm --filter backend db:migrate:remote    # wrangler d1 migrations apply DB --remote
-```
+This repository is currently in **dev mode** for agent work:
+
+- Do not preserve deprecated code paths just for compatibility.
+- Do not add or maintain migrations unless the user explicitly asks for them.
+- If a model or flow is replaced in the current scope, delete the old unused code instead of keeping both.
+- Prefer the clean current contract over transition layers.
 
 ## UI conventions
 
@@ -73,6 +75,7 @@ pnpm --filter backend db:migrate:remote    # wrangler d1 migrations apply DB --r
 
 - One feature at a time — pick exactly one unfinished item from `feature_list.json`.
 - Stay in scope: do not refactor unrelated apps while working on one feature.
+- Dev mode cleanup is allowed inside the active feature: remove dead code, deprecated paths, and unused compatibility shims when replacing a flow.
 - Preserve app boundaries:
   - `backend` owns API routes, business logic, and Cloudflare bindings.
   - `admin` owns operator flows; must not depend on storefront route code.
@@ -97,6 +100,8 @@ A feature is done only when all of the following are true:
 - [ ] Relevant verification actually ran (`./init.sh`, package checks).
 - [ ] Evidence is recorded in `feature_list.json` and `progress.md`.
 - [ ] The repository is restartable from `./init.sh`.
+
+Do not treat migration authoring, deprecated-path compatibility, or dual-model support as part of done unless the user explicitly requests them.
 
 ## Required Artifacts
 

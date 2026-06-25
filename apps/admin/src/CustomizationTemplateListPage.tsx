@@ -9,7 +9,7 @@ type TemplateListItem = {
   name: string;
   revision: number;
   previewUrl: string;
-  zoneCount: number;
+  blockCount: number;
   createdAt: string;
 };
 
@@ -81,7 +81,7 @@ export default function CustomizationTemplateListPage() {
             <p className="text-xs font-semibold uppercase tracking-[0.28em] text-amber-700">Customization</p>
             <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">Templates</h2>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-500">
-              Published customization templates and their zone configurations.
+              Published customization templates and their block configurations.
             </p>
           </div>
           <Link
@@ -123,7 +123,7 @@ export default function CustomizationTemplateListPage() {
                 <p className="mt-1 text-xs text-slate-400">/{template.productHandle}</p>
                 <div className="mt-4 flex items-center justify-between text-sm text-slate-500">
                   <span>Rev {template.revision}</span>
-                  <span>{template.zoneCount} zones</span>
+                  <span>{template.blockCount} blocks</span>
                 </div>
                 <div className="mt-4 flex gap-3">
                   <button

@@ -29,6 +29,13 @@ export const CUSTOMIZATION_CORS_POLICY: CorsPolicy = {
   exposeHeaders: ["Content-Length", "ETag"],
 };
 
+export const PRODUCTS_CORS_POLICY: CorsPolicy = {
+  allowHeaders: ["Content-Type", "Authorization"],
+  allowMethods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
+  credentials: true,
+  exposeHeaders: ["Content-Length"],
+};
+
 export const PRODUCT_ASSET_CORS_POLICY: CorsPolicy = {
   allowHeaders: ["Content-Type", "Authorization"],
   allowMethods: ["GET", "POST", "DELETE", "OPTIONS"],

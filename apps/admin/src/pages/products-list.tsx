@@ -1,9 +1,30 @@
 import { useDeferredValue, useMemo, useState } from "react";
 import { Link, useLocation } from "react-router";
-import { StatusBadge } from "../components/ui/medusa/status-badge";
-import { PageHeader, StatCard, DataPanel, EmptyState } from "../components/ui/medusa";
+import {
+  Badge,
+  Button,
+  Container,
+  Heading,
+  Input,
+  Table,
+  Text,
+} from "@medusajs/ui";
+import { Plus } from "lucide-react";
 import { useCatalog } from "../hooks/use-catalog";
 import { formatCurrency } from "../lib/utils";
+
+function getBadgeColor(
+  status: string,
+): "green" | "red" | "blue" | "orange" | "grey" | "purple" {
+  switch (status) {
+    case "Published":
+      return "green";
+    case "Draft":
+      return "grey";
+    default:
+      return "grey";
+  }
+}
 
 export function ProductsListPage() {
   const { products } = useCatalog();
@@ -14,13 +35,10 @@ export function ProductsListPage() {
 
   const filteredProducts = useMemo(() => {
     const normalizedQuery = deferredQuery.trim().toLowerCase();
-    if (!normalizedQuery) {
-      return products;
-    }
-
+    if (!normalizedQuery) return products;
     return products.filter((product) =>
-      [product.id, product.title, product.status, product.category, product.collection, product.handle].some((value) =>
-        value.toLowerCase().includes(normalizedQuery),
+      [product.id, product.title, product.status, product.category, product.collection, product.handle].some(
+        (value) => value.toLowerCase().includes(normalizedQuery),
       ),
     );
   }, [deferredQuery, products]);
@@ -28,87 +46,169 @@ export function ProductsListPage() {
   const productStats = useMemo(
     () => ({
       published: products.filter((product) => product.status === "Published").length,
-      lowInventory: products.filter((product) => product.status === "Published" && product.inventory > 0 && product.inventory < 10).length,
+      lowInventory: products.filter(
+        (product) => product.status === "Published" && product.inventory > 0 && product.inventory < 10,
+      ).length,
       drafts: products.filter((product) => product.status === "Draft").length,
     }),
     [products],
   );
 
   return (
-    <section className="space-y-6">
-      <PageHeader
-        eyebrow="Products"
-        title="Catalog control"
-        description="Track publish state, inventory pressure, and pricing across the current assortment."
-        actions={
-          <Link
-            to="/products/new"
-            className="inline-flex items-center rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
-          >
-            Create product
-          </Link>
-        }
-      />
+    <div className="flex flex-col gap-y-6">
+      <Container>
+        <div className="flex flex-col gap-y-3">
+          <Text size="small" className="text-ui-fg-muted uppercase tracking-wider">
+            Products
+          </Text>
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="flex flex-col gap-y-1">
+              <Heading level="h2">Catalog control</Heading>
+              <Text size="base" className="text-ui-fg-subtle">
+                Track publish state, inventory pressure, and pricing across the current assortment.
+              </Text>
+            </div>
+            <Button variant="secondary" size="small" asChild>
+              <Link to="/products/new">
+                <Plus className="h-4 w-4" />
+                Create product
+              </Link>
+            </Button>
+          </div>
+        </div>
+      </Container>
 
       {flash ? (
-        <div className="rounded-[24px] border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm text-emerald-800">
-          {flash}
-        </div>
+        <Container>
+          <Text size="small" className="text-ui-fg-success">
+            {flash}
+          </Text>
+        </Container>
       ) : null}
 
       <div className="grid gap-4 md:grid-cols-3">
-        <StatCard label="Published" value={String(productStats.published)} hint="Visible in storefront" />
-        <StatCard label="Low inventory" value={String(productStats.lowInventory)} hint="Needs replenishment soon" />
-        <StatCard label="Drafts" value={String(productStats.drafts)} hint="Awaiting merchandising review" />
+        <Container className="flex flex-col gap-y-1">
+          <Text size="small" className="text-ui-fg-subtle">
+            Published
+          </Text>
+          <Heading level="h1" className="text-ui-fg-base">
+            {productStats.published}
+          </Heading>
+          <Text size="xsmall" className="text-ui-fg-muted">
+            Visible in storefront
+          </Text>
+        </Container>
+        <Container className="flex flex-col gap-y-1">
+          <Text size="small" className="text-ui-fg-subtle">
+            Low inventory
+          </Text>
+          <Heading level="h1" className="text-ui-fg-base">
+            {productStats.lowInventory}
+          </Heading>
+          <Text size="xsmall" className="text-ui-fg-muted">
+            Needs replenishment soon
+          </Text>
+        </Container>
+        <Container className="flex flex-col gap-y-1">
+          <Text size="small" className="text-ui-fg-subtle">
+            Drafts
+          </Text>
+          <Heading level="h1" className="text-ui-fg-base">
+            {productStats.drafts}
+          </Heading>
+          <Text size="xsmall" className="text-ui-fg-muted">
+            Awaiting merchandising review
+          </Text>
+        </Container>
       </div>
 
-      <DataPanel
-        title="Product list"
-        description="Search by title, handle, collection, category, or publish state."
-        action={
-          <input
+      <Container>
+        <div className="flex flex-col gap-y-3">
+          <div className="flex flex-col gap-y-1">
+            <Heading level="h3">Product list</Heading>
+            <Text size="small" className="text-ui-fg-subtle">
+              Search by title, handle, collection, category, or publish state.
+            </Text>
+          </div>
+          <Input
+            type="search"
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            onChange={(e) => setQuery(e.target.value)}
             placeholder="Search products"
-            className="w-full rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm outline-none transition focus:border-amber-400 focus:ring-4 focus:ring-amber-100 sm:w-72"
+            className="w-full sm:w-72"
           />
-        }
-      >
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-left text-sm">
-            <thead className="border-b border-stone-200 text-slate-500">
-              <tr>
-                <th className="px-4 py-3 font-medium">Product</th>
-                <th className="px-4 py-3 font-medium">Collection</th>
-                <th className="px-4 py-3 font-medium">Status</th>
-                <th className="px-4 py-3 font-medium">Inventory</th>
-                <th className="px-4 py-3 font-medium">Updated</th>
-                <th className="px-4 py-3 font-medium">Price</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredProducts.map((product) => (
-                <tr key={product.id} className="border-b border-stone-100 last:border-b-0">
-                  <td className="px-4 py-4">
-                    <Link to={`/products/${product.id}`} className="block">
-                      <p className="font-semibold text-slate-800 transition hover:text-slate-950">{product.title}</p>
-                      <p className="mt-1 font-mono text-xs text-slate-400">{product.handle}</p>
-                    </Link>
-                  </td>
-                  <td className="px-4 py-4 text-slate-600">{product.collection || "Unassigned"}</td>
-                  <td className="px-4 py-4">
-                    <StatusBadge status={product.status} />
-                  </td>
-                  <td className="px-4 py-4 text-slate-600">{product.inventory}</td>
-                  <td className="px-4 py-4 text-slate-600">{product.updatedAt}</td>
-                  <td className="px-4 py-4 font-medium text-slate-800">{formatCurrency(product.price)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {filteredProducts.length === 0 ? <EmptyState message="No products matched your current search." /> : null}
         </div>
-      </DataPanel>
-    </section>
+        <div className="mt-3">
+          {filteredProducts.length === 0 ? (
+            <div className="flex items-center justify-center py-8">
+              <Text size="small" className="text-ui-fg-muted">
+                No products matched your current search.
+              </Text>
+            </div>
+          ) : (
+            <Table>
+              <Table.Header>
+                <Table.Row>
+                  <Table.HeaderCell>Product</Table.HeaderCell>
+                  <Table.HeaderCell>Collection</Table.HeaderCell>
+                  <Table.HeaderCell>Status</Table.HeaderCell>
+                  <Table.HeaderCell>Inventory</Table.HeaderCell>
+                  <Table.HeaderCell>Updated</Table.HeaderCell>
+                  <Table.HeaderCell className="text-right">
+                    Price
+                  </Table.HeaderCell>
+                </Table.Row>
+              </Table.Header>
+              <Table.Body>
+                {filteredProducts.map((product) => (
+                  <Table.Row key={product.id}>
+                    <Table.Cell>
+                      <Link
+                        to={`/products/${product.id}`}
+                        className="text-ui-fg-interactive hover:text-ui-fg-interactive-hover font-medium"
+                      >
+                        {product.title}
+                      </Link>
+                      <Text size="xsmall" className="text-ui-fg-muted">
+                        {product.handle}
+                      </Text>
+                    </Table.Cell>
+                    <Table.Cell>
+                      <Text size="small" className="text-ui-fg-subtle">
+                        {product.collection || "Unassigned"}
+                      </Text>
+                    </Table.Cell>
+                    <Table.Cell>
+                      <Badge
+                        color={getBadgeColor(product.status)}
+                        size="xsmall"
+                        rounded="full"
+                      >
+                        {product.status}
+                      </Badge>
+                    </Table.Cell>
+                    <Table.Cell>
+                      <Text size="small" className="text-ui-fg-subtle">
+                        {product.inventory}
+                      </Text>
+                    </Table.Cell>
+                    <Table.Cell>
+                      <Text size="small" className="text-ui-fg-subtle">
+                        {product.updatedAt}
+                      </Text>
+                    </Table.Cell>
+                    <Table.Cell className="text-right">
+                      <Text size="small" className="text-ui-fg-base font-medium">
+                        {formatCurrency(product.price)}
+                      </Text>
+                    </Table.Cell>
+                  </Table.Row>
+                ))}
+              </Table.Body>
+            </Table>
+          )}
+        </div>
+      </Container>
+    </div>
   );
 }
