@@ -1,29 +1,79 @@
-[2026-06-23T08:03:59.947Z] [debug] [vite] connecting...
-[2026-06-23T08:03:59.947Z] [debug] [vite] connected.
-[2026-06-23T08:03:59.957Z] [info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
-[2026-06-23T08:04:20.387Z] [debug] [vite] connecting...
-[2026-06-23T08:04:20.388Z] [debug] [vite] connected.
-[2026-06-23T08:04:20.444Z] [info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
-[2026-06-23T08:07:02.561Z] [error] [vite] SyntaxError: Identifier 'NavItem' has already been declared
-[2026-06-23T08:07:02.561Z] [error] [vite] Failed to reload /src/App.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above)
-[2026-06-23T08:07:02.561Z] [debug] [vite] hot updated: /src/App.tsx
-[2026-06-23T08:07:02.561Z] [debug] [vite] hot updated: /src/index.css
-[2026-06-23T08:07:55.324Z] [debug] [vite] hot updated: /src/App.tsx
-[2026-06-23T08:07:55.324Z] [debug] [vite] hot updated: /src/index.css
-[2026-06-23T08:08:09.686Z] [log] [vite] server connection lost. Polling for restart...
-[2026-06-23T08:08:16.177Z] [debug] [vite] connecting...
-[2026-06-23T08:08:16.191Z] [debug] [vite] connected.
-[2026-06-23T08:08:16.221Z] [info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
-[2026-06-23T08:08:23.128Z] [debug] [vite] connecting...
-[2026-06-23T08:08:23.130Z] [debug] [vite] connected.
-[2026-06-23T08:08:23.184Z] [info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
-[2026-06-23T08:08:34.796Z] [debug] [vite] connecting...
-[2026-06-23T08:08:34.813Z] [debug] [vite] connected.
-[2026-06-23T08:08:34.860Z] [info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
-[2026-06-23T08:09:13.574Z] [debug] [vite] hot updated: /src/App.tsx
-[2026-06-23T08:09:13.574Z] [debug] [vite] hot updated: /src/index.css
-[2026-06-23T08:09:22.150Z] [debug] [vite] hot updated: /src/App.tsx
-[2026-06-23T08:09:22.150Z] [debug] [vite] hot updated: /src/index.css
-[2026-06-23T08:09:27.737Z] [debug] [vite] hot updated: /src/App.tsx
-[2026-06-23T08:09:27.737Z] [debug] [vite] hot updated: /src/index.css
-[2026-06-23T08:09:37.518Z] [log] [vite] server connection lost. Polling for restart...
+[2026-06-25T15:38:13.158Z] [error] `DialogContent` requires a `DialogTitle` for the component to be accessible for screen reader users.
+
+If you want to hide the `DialogTitle`, you can wrap it with our VisuallyHidden component.
+
+For more information, see https://radix-ui.com/primitives/docs/components/dialog
+[2026-06-25T15:38:13.162Z] [warning] Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}.
+[2026-06-25T15:38:13.162Z] [error] `DialogContent` requires a `DialogTitle` for the component to be accessible for screen reader users.
+
+If you want to hide the `DialogTitle`, you can wrap it with our VisuallyHidden component.
+
+For more information, see https://radix-ui.com/primitives/docs/components/dialog
+[2026-06-25T15:38:13.162Z] [warning] Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}.
+[2026-06-25T15:38:13.216Z] [debug] [vite] hot updated: /src/index.css
+[2026-06-25T15:38:13.220Z] [debug] [vite] invalidate /src/hooks/use-catalog.tsx: Could not Fast Refresh ("useCatalog" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+[2026-06-25T15:38:13.231Z] [debug] [vite] hot updated: /src/hooks/use-catalog.tsx
+[2026-06-25T15:38:13.231Z] [debug] [vite] invalidate /src/hooks/use-orders.tsx: Could not Fast Refresh ("useOrders" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+[2026-06-25T15:38:13.231Z] [debug] [vite] hot updated: /src/hooks/use-orders.tsx
+[2026-06-25T15:38:13.231Z] [debug] [vite] hot updated: /src/pages/create-product.tsx
+[2026-06-25T15:38:13.231Z] [debug] [vite] hot updated: /src/pages/product-detail.tsx
+[2026-06-25T15:38:13.281Z] [debug] [vite] hot updated: /src/index.css
+[2026-06-25T15:38:13.281Z] [debug] [vite] hot updated: /src/pages/create-product.tsx
+[2026-06-25T15:38:13.281Z] [debug] [vite] hot updated: /src/pages/product-detail.tsx
+[2026-06-25T15:38:13.289Z] [debug] [vite] hot updated: /src/index.css
+[2026-06-25T15:38:13.289Z] [debug] [vite] hot updated: /src/hooks/use-catalog.tsx
+[2026-06-25T15:38:13.289Z] [debug] [vite] hot updated: /src/pages/create-product.tsx
+[2026-06-25T15:38:13.289Z] [debug] [vite] hot updated: /src/pages/product-detail.tsx
+[2026-06-25T15:38:13.304Z] [warning] %s
+
+%s
+ An error occurred in the <CreateProductPage> component. Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+[2026-06-25T15:38:13.304Z] [debug] [vite] hot updated: /src/pages/create-product.tsx
+[2026-06-25T15:38:13.304Z] [debug] [vite] hot updated: /src/index.css
+[2026-06-25T15:38:13.310Z] [debug] [vite] hot updated: /src/pages/order-detail.tsx
+[2026-06-25T15:38:13.310Z] [debug] [vite] hot updated: /src/index.css
+[2026-06-25T15:38:13.336Z] [debug] [vite] hot updated: /src/pages/orders-list.tsx
+[2026-06-25T15:38:13.336Z] [debug] [vite] hot updated: /src/index.css
+[2026-06-25T15:38:13.336Z] [debug] [vite] hot updated: /src/pages/placeholder-index.tsx
+[2026-06-25T15:38:13.336Z] [debug] [vite] hot updated: /src/index.css
+[2026-06-25T15:38:13.340Z] [debug] [vite] hot updated: /src/pages/product-detail.tsx
+[2026-06-25T15:38:13.340Z] [debug] [vite] hot updated: /src/index.css
+[2026-06-25T15:38:13.346Z] [debug] [vite] hot updated: /src/pages/products-list.tsx
+[2026-06-25T15:38:13.346Z] [debug] [vite] hot updated: /src/index.css
+[2026-06-25T15:38:13.347Z] [debug] [vite] hot updated: /src/pages/security.tsx
+[2026-06-25T15:38:13.347Z] [debug] [vite] hot updated: /src/index.css
+[2026-06-25T15:38:13.355Z] [debug] [vite] hot updated: /src/pages/team.tsx
+[2026-06-25T15:38:13.355Z] [debug] [vite] hot updated: /src/index.css
+[2026-06-25T15:38:13.356Z] [debug] [vite] hot updated: /src/index.css
+[2026-06-25T15:38:13.356Z] [debug] [vite] hot updated: /src/CustomizationTemplatePage.tsx
+[2026-06-25T15:38:13.366Z] [debug] [vite] hot updated: /src/App.tsx
+[2026-06-25T15:38:13.366Z] [debug] [vite] hot updated: /src/pages/create-product.tsx
+[2026-06-25T15:38:13.366Z] [debug] [vite] hot updated: /src/pages/products-list.tsx
+[2026-06-25T15:38:13.366Z] [debug] [vite] hot updated: /src/pages/product-detail.tsx
+[2026-06-25T15:38:13.366Z] [debug] [vite] hot updated: /src/App.tsx
+[2026-06-25T15:38:13.366Z] [debug] [vite] hot updated: /src/pages/orders-list.tsx
+[2026-06-25T15:38:13.366Z] [debug] [vite] hot updated: /src/pages/order-detail.tsx
+[2026-06-25T15:38:14.265Z] [error] Failed to load resource: net::ERR_CONNECTION_REFUSED
+[2026-06-25T15:38:14.265Z] [error] Failed to load resource: net::ERR_CONNECTION_REFUSED
+[2026-06-25T15:38:26.100Z] [debug] [vite] hot updated: /src/pages/create-product.tsx
+[2026-06-25T15:38:26.100Z] [debug] [vite] hot updated: /src/index.css
+[2026-06-25T15:38:26.137Z] [debug] [vite] hot updated: /src/pages/product-detail.tsx
+[2026-06-25T15:38:26.137Z] [debug] [vite] hot updated: /src/index.css
+[2026-06-25T15:38:28.972Z] [debug] [vite] connecting...
+[2026-06-25T15:38:28.977Z] [debug] [vite] connected.
+[2026-06-25T15:38:29.076Z] [info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[2026-06-25T15:38:29.137Z] [error] Failed to load resource: the server responded with a status of 504 (Outdated Optimize Dep)
+[2026-06-25T15:38:58.581Z] [debug] [vite] hot updated: /src/index.css
+[2026-06-25T15:38:58.581Z] [debug] [vite] hot updated: /src/components/ui/medusa/category-multiselect.tsx
+[2026-06-25T15:38:58.581Z] [debug] [vite] hot updated: /src/index.css
+[2026-06-25T15:38:58.581Z] [debug] [vite] hot updated: /src/components/ui/medusa/category-multiselect.tsx
+[2026-06-25T15:39:01.386Z] [debug] [vite] hot updated: /src/index.css
+[2026-06-25T15:39:01.386Z] [debug] [vite] hot updated: /src/components/ui/medusa/category-multiselect.tsx
+[2026-06-25T15:39:01.386Z] [debug] [vite] hot updated: /src/index.css
+[2026-06-25T15:39:01.386Z] [debug] [vite] hot updated: /src/components/ui/medusa/category-multiselect.tsx
+[2026-06-25T15:39:54.499Z] [error] Failed to load resource: the server responded with a status of 401 (Unauthorized)
+[2026-06-25T15:40:19.994Z] [debug] [vite] connecting...
+[2026-06-25T15:40:20.002Z] [debug] [vite] connected.
+[2026-06-25T15:40:20.047Z] [info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[2026-06-25T15:40:20.082Z] [error] Failed to load resource: the server responded with a status of 504 (Outdated Optimize Dep)
