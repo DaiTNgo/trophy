@@ -1,2225 +1,1341 @@
 import {
+  DEFAULT_FONT_FAMILY_OPTIONS,
+  DEFAULT_TEMPLATE,
+  DEFAULT_TEXT_COLOR_OPTIONS,
   buildDesignFromForm,
   createDefaultFormValues,
-  DEFAULT_FONT_FAMILY_OPTIONS,
-  DEFAULT_TEXT_COLOR_OPTIONS,
-  DEFAULT_TEMPLATE,
-  getTextBlockValue,
-  isBlockVisible,
-  limitTextBlockValue,
-  type ChoiceBlock,
-  type CustomizationBlock,
-  type CustomizationFieldValue,
+  getOrderedFormFields,
+  getVisibleLayers,
+  layerGeometryToPixels,
+  pixelRectToLayerGeometry,
+  validateTemplateForPublish,
+  type BackgroundAsset,
+  type CustomizationFormField,
   type CustomizationFormValues,
+  type CustomizationLayer,
   type CustomizationTemplate,
-  fitPreviewIntoBox,
-  getCoverImageRect,
-  getBlockPreviewRect,
-  getCropPanFromImagePosition,
-  hasRenderablePreview,
-  type IconOption,
-  type IconPickerBlock,
-  type ImageLayer,
-  type ImageUploadBlock,
-  type PreviewBounds,
-  type TextBlockValue,
-  type TextLayer,
-  type TextMultiBlock,
-  type TextSingleBlock,
-  type UploadedMediaValue,
-  validateCustomizationValues,
-  validateDesign,
+  type ImageShapeEditorLayer,
+  type ImageShapeFieldValue,
+  type ShapeType,
+  type TextEditorLayer,
+  type TextFieldValue,
+  type TextPath,
 } from "@trophy/customization";
-import Konva from "konva";
-import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
-import { Group, Image as KonvaImage, Layer, Rect, Stage, Text, Transformer } from "react-konva";
+import {
+  ArrowDown,
+  ArrowLeft,
+  ArrowUp,
+  Eye,
+  EyeOff,
+  FileImage,
+  Layers,
+  Lock,
+  PanelRight,
+  Plus,
+  RotateCcw,
+  Save,
+  Shapes,
+  Trash2,
+  Type,
+  Unlock,
+} from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL ?? "http://localhost:8787";
-const PREVIEW_BOX_SIZE = 680;
+const SHAPES: ShapeType[] = ["rectangle", "circle", "ellipse", "rounded_rectangle", "star", "heart"];
+type RailTab = "blocks" | "layers" | "form" | "background";
 
-type RenderableBlock = Extract<CustomizationBlock, { preview: unknown }>;
-
-function useHtmlImage(source: string) {
-  const [image, setImage] = useState<HTMLImageElement | null>(null);
-
-  useEffect(() => {
-    const nextImage = new Image();
-    nextImage.onload = () => setImage(nextImage);
-    nextImage.src = source;
-  }, [source]);
-
-  return image;
-}
-
-function numberValue(value: string, fallback: number) {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : fallback;
-}
-
-function getUploadToken() {
-  const storageKey = "trophy-customization-upload-token";
-  const existing = window.sessionStorage.getItem(storageKey);
-  if (existing) return existing;
-  const token = crypto.randomUUID();
-  window.sessionStorage.setItem(storageKey, token);
-  return token;
-}
-
-function isUploadedMediaValue(value: CustomizationFieldValue | undefined): value is UploadedMediaValue {
-  return Boolean(value && typeof value === "object" && "assetId" in value);
-}
+const createId = (prefix: string) => `${prefix}_${crypto.randomUUID()}`;
+const maxZ = (layers: CustomizationLayer[]) => Math.max(0, ...layers.map((layer) => layer.zIndex));
 
 export default function CustomizationTemplatePage() {
   const [searchParams] = useSearchParams();
-  const edit = searchParams.get("edit");
+  const editParam = searchParams.get("edit");
   const [template, setTemplate] = useState<CustomizationTemplate>(DEFAULT_TEMPLATE);
-  const [selectedBlockId, setSelectedBlockId] = useState("");
-  const [previewSelectedBlockId, setPreviewSelectedBlockId] = useState("");
-  const [mode, setMode] = useState<"edit" | "preview">("edit");
+  const [selectedLayerId, setSelectedLayerId] = useState(DEFAULT_TEMPLATE.layers[0]?.id ?? "");
+  const [activeTab, setActiveTab] = useState<RailTab>("blocks");
+  const [flash, setFlash] = useState("");
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [pathEditingLayerId, setPathEditingLayerId] = useState("");
   const [previewValues, setPreviewValues] = useState<CustomizationFormValues>(() =>
     createDefaultFormValues(DEFAULT_TEMPLATE),
   );
-  const [uploadingPreviewBlockId, setUploadingPreviewBlockId] = useState("");
-  const [flash, setFlash] = useState("");
-  const previewImage = useHtmlImage(template.previewUrl);
-
-  const previewSize = useMemo(
-    () =>
-      fitPreviewIntoBox({
-        intrinsicWidthPx: previewImage?.naturalWidth || template.previewWidthPx || PREVIEW_BOX_SIZE,
-        intrinsicHeightPx:
-          previewImage?.naturalHeight || template.previewHeightPx || PREVIEW_BOX_SIZE,
-        maxWidthPx: PREVIEW_BOX_SIZE,
-        maxHeightPx: PREVIEW_BOX_SIZE,
-      }),
-    [previewImage?.naturalHeight, previewImage?.naturalWidth, template.previewHeightPx, template.previewWidthPx],
-  );
-
-  const renderableBlocks = useMemo(
-    () =>
-      template.blocks
-        .filter(hasRenderablePreview)
-        .sort((a, b) => a.order - b.order),
-    [template.blocks],
-  );
-
-  const visiblePreviewBlocks = useMemo(
-    () =>
-      [...template.blocks]
-        .sort((a, b) => a.order - b.order)
-        .filter((block) => isBlockVisible(block, previewValues)),
-    [template.blocks, previewValues],
-  );
-
-  const previewRenderableBlocks = useMemo(
-    () =>
-      template.blocks
-        .filter(
-          (block): block is RenderableBlock =>
-            hasRenderablePreview(block) && isBlockVisible(block, previewValues),
-        )
-        .sort((a, b) => a.order - b.order),
-    [template.blocks, previewValues],
-  );
-
-  const previewDesign = useMemo(
-    () => buildDesignFromForm({ template, values: previewValues, designId: "admin_preview" }),
-    [template, previewValues],
-  );
-
-  const previewFormValidation = useMemo(
-    () => validateCustomizationValues({ template, values: previewValues }),
-    [template, previewValues],
-  );
-
-  const previewProductionValidation = useMemo(
-    () => validateDesign({ template, design: previewDesign }),
-    [template, previewDesign],
-  );
+  const [deleted, setDeleted] = useState<{
+    layer: CustomizationLayer;
+    field?: CustomizationFormField;
+    selectedLayerId: string;
+  } | null>(null);
 
   useEffect(() => {
-    setSelectedBlockId((current) =>
-      template.blocks.some((block) => block.id === current)
-        ? current
-        : (template.blocks[0]?.id ?? ""),
-    );
-  }, [template.blocks]);
-
-  useEffect(() => {
-    const editParam = edit ?? "";
     if (!editParam || editParam === "new") return;
+    const target = editParam;
     let active = true;
-
     async function loadTemplate() {
-      try {
-        const isTemplateId = editParam.includes("-");
-        const url = isTemplateId
-          ? `${BACKEND_URL}/api/customizations/templates/${editParam}`
-          : `${BACKEND_URL}/api/customizations/templates/product/${editParam}`;
-        const response = await fetch(url);
-        if (!response.ok) {
-          setFlash("Template not found.");
-          return;
-        }
-        const data = await response.json();
-        if (active) {
-          setTemplate(data.template);
-          setSelectedBlockId(data.template.blocks[0]?.id ?? "");
-          setPreviewValues(createDefaultFormValues(data.template));
-        }
-      } catch {
-        if (active) setFlash("Failed to load template.");
-      }
+      const endpoint = /^\d+$/.test(target)
+        ? `${BACKEND_URL}/api/customizations/templates/product/${target}`
+        : `${BACKEND_URL}/api/customizations/templates/${target}`;
+      const response = await fetch(endpoint);
+      if (!response.ok) return;
+      const data = (await response.json()) as { template: CustomizationTemplate };
+      if (!active) return;
+      setTemplate(data.template);
+      setSelectedLayerId(data.template.layers[0]?.id ?? "");
+      setPreviewValues(createDefaultFormValues(data.template));
     }
-
     void loadTemplate();
     return () => {
       active = false;
     };
-  }, [edit]);
-
-  const selectedBlock = template.blocks.find((block) => block.id === selectedBlockId) ?? null;
+  }, [editParam]);
 
   useEffect(() => {
-    if (mode === "preview") {
-      setPreviewValues(createDefaultFormValues(template));
-    }
-  }, [mode, template]);
+    setPreviewValues(createDefaultFormValues(template));
+  }, [template.id, template.revision]);
 
-  function updateBlock(
-    blockId: string,
-    updater: (block: CustomizationBlock) => CustomizationBlock,
-  ) {
-    setTemplate((current) => ({
+  const selectedLayer = template.layers.find((layer) => layer.id === selectedLayerId) ?? null;
+  function updateTemplate(updater: (current: CustomizationTemplate) => CustomizationTemplate) {
+    setTemplate((current) => ({ ...updater(current), status: "draft" }));
+  }
+
+  function updateLayer(layerId: string, updater: (layer: CustomizationLayer) => CustomizationLayer) {
+    updateTemplate((current) => ({
       ...current,
-      status: "draft",
-      blocks: current.blocks.map((block) => (block.id === blockId ? updater(block) : block)),
+      layers: current.layers.map((layer) => (layer.id === layerId ? updater(layer) : layer)),
     }));
   }
 
-  function findDependentBlocks(blockId: string) {
-    return template.blocks.filter((block) => block.visibleWhen?.blockId === blockId);
+  function updateField(fieldId: string, updater: (field: CustomizationFormField) => CustomizationFormField) {
+    updateTemplate((current) => ({
+      ...current,
+      formFields: current.formFields.map((field) => (field.id === fieldId ? updater(field) : field)),
+    }));
   }
 
-  function updatePreviewValue(blockId: string, value: CustomizationFieldValue) {
-    setPreviewValues((current) => ({ ...current, [blockId]: value, design_confirmation: false }));
+  function addLayer(layer: CustomizationLayer, field: CustomizationFormField) {
+    updateTemplate((current) => ({
+      ...current,
+      layers: [...current.layers, layer],
+      formFields: [...current.formFields, field],
+    }));
+    setSelectedLayerId(layer.id);
   }
 
-  function updatePreviewUploadedCrop(
-    blockId: string,
-    crop: Pick<UploadedMediaValue, "cropScale" | "cropXRatio" | "cropYRatio">,
-  ) {
-    setPreviewValues((current) => {
-      const currentValue = current[blockId];
-      if (!currentValue || typeof currentValue !== "object" || !("assetId" in currentValue)) {
-        return current;
-      }
-      return {
-        ...current,
-        [blockId]: { ...currentValue, ...crop },
-        design_confirmation: false,
-      };
-    });
+  function addTextLayer() {
+    if (!template.background) return;
+    const id = createId("text");
+    addLayer(
+      {
+        id,
+        name: "Text layer",
+        type: "text",
+        hidden: false,
+        locked: false,
+        zIndex: maxZ(template.layers) + 1,
+        geometry: { xRatio: 0.5, yRatio: 0.5, widthRatio: 0.28, rotationDeg: 0 },
+        text: {
+          sampleText: "YOUR TEXT",
+          maxLines: 1,
+          minFontSizePt: 8,
+          maxFontSizePt: 20,
+          align: "center",
+          colorPolicy: { mode: "fixed", color: "#111111" },
+          fontPolicy: { mode: "fixed", fontId: "sans-bold" },
+          path: { type: "straight" },
+        },
+      },
+      {
+        id: createId("field"),
+        layerId: id,
+        label: "Text",
+        placeholder: "YOUR TEXT",
+        required: true,
+        order: template.formFields.length + 1,
+      },
+    );
   }
 
-  async function uploadCustomizationAsset({
-    file,
-    accept,
-    maxBytes,
-  }: {
-    file: File;
-    accept: Array<"image/png" | "image/jpeg">;
-    maxBytes: number;
-  }) {
-    if (!accept.includes(file.type as "image/png" | "image/jpeg")) {
-      setFlash("Use a PNG or JPEG production image.");
-      return null;
-    }
-    if (file.size > maxBytes) {
-      setFlash(`Image exceeds the ${Math.round(maxBytes / 1024 / 1024)} MB limit.`);
-      return null;
-    }
-
-    const response = await fetch(`${BACKEND_URL}/api/customizations/assets`, {
-      method: "POST",
-      headers: { "Content-Type": file.type, "X-Upload-Token": getUploadToken() },
-      body: file,
-    });
-    const payload = (await response.json()) as {
-      asset?: { id: string; widthPx: number; heightPx: number; contentUrl: string };
-      error?: string;
-    };
-    if (!response.ok || !payload.asset) throw new Error(payload.error ?? "Upload failed.");
-
-    return {
-      assetId: payload.asset.id,
-      previewUrl: `${BACKEND_URL}${payload.asset.contentUrl}`,
-      sourceWidthPx: payload.asset.widthPx,
-      sourceHeightPx: payload.asset.heightPx,
-      cropScale: 1,
-      cropXRatio: 0,
-      cropYRatio: 0,
-    } satisfies UploadedMediaValue;
+  function addImageShape(shape: ShapeType) {
+    if (!template.background) return;
+    const id = createId("image_shape");
+    addLayer(
+      {
+        id,
+        name: shapeLabel(shape),
+        type: "image_shape",
+        hidden: false,
+        locked: false,
+        zIndex: maxZ(template.layers) + 1,
+        geometry: { xRatio: 0.5, yRatio: 0.5, widthRatio: 0.2, heightRatio: 0.2, rotationDeg: 0 },
+        shape: { type: shape, lockAspectRatio: ["circle", "star", "heart"].includes(shape) },
+        upload: { fit: "cover", defaultCrop: { scale: 1, xRatio: 0, yRatio: 0 } },
+      },
+      {
+        id: createId("field"),
+        layerId: id,
+        label: "Upload image",
+        helpText: "Your image will be clipped to the selected shape.",
+        required: false,
+        order: template.formFields.length + 1,
+      },
+    );
   }
 
-  async function uploadPreviewImage(block: ImageUploadBlock, file: File) {
-    setUploadingPreviewBlockId(block.id);
-    try {
-      const uploaded = await uploadCustomizationAsset({
-        file,
-        accept: block.accept,
-        maxBytes: block.maxBytes,
-      });
-      if (!uploaded) return;
-      updatePreviewValue(block.id, uploaded);
-      setFlash("");
-    } catch (error) {
-      setFlash(error instanceof Error ? error.message : "Upload failed.");
-    } finally {
-      setUploadingPreviewBlockId("");
-    }
+  function deleteSelectedLayer() {
+    const layer = selectedLayer;
+    if (!layer) return;
+    const field = template.formFields.find((entry) => entry.layerId === layer.id);
+    setDeleted({ layer, field, selectedLayerId });
+    updateTemplate((current) => ({
+      ...current,
+      layers: current.layers.filter((entry) => entry.id !== layer.id),
+      formFields: current.formFields.filter((entry) => entry.layerId !== layer.id),
+    }));
+    setSelectedLayerId("");
+    setFlash(`Deleted "${layer.name}".`);
   }
 
-  async function uploadPreviewIcon(block: IconPickerBlock, file: File) {
-    setUploadingPreviewBlockId(block.id);
-    try {
-      const uploaded = await uploadCustomizationAsset({
-        file,
-        accept: block.accept ?? ["image/png", "image/jpeg"],
-        maxBytes: block.maxBytes ?? 20 * 1024 * 1024,
-      });
-      if (!uploaded) return;
-      updatePreviewValue(block.id, uploaded);
-      setFlash("");
-    } catch (error) {
-      setFlash(error instanceof Error ? error.message : "Upload failed.");
-    } finally {
-      setUploadingPreviewBlockId("");
-    }
+  function undoDelete() {
+    if (!deleted) return;
+    updateTemplate((current) => ({
+      ...current,
+      layers: [...current.layers, deleted.layer].sort((a, b) => a.zIndex - b.zIndex),
+      formFields: deleted.field
+        ? [...current.formFields, deleted.field].sort((a, b) => a.order - b.order)
+        : current.formFields,
+    }));
+    setSelectedLayerId(deleted.selectedLayerId);
+    setDeleted(null);
+    setFlash("Layer restored.");
   }
 
-  function loadPreview(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    if (!file || !file.type.startsWith("image/")) return;
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result !== "string") return;
-      const image = new Image();
-      image.onload = () => {
-        setTemplate((current) => ({
-          ...current,
-          previewUrl: reader.result as string,
-          previewWidthPx: image.naturalWidth,
-          previewHeightPx: image.naturalHeight,
-          status: "draft",
-        }));
-      };
-      image.src = reader.result;
-    };
-    reader.readAsDataURL(file);
-  }
-
-  const saveToServer = useCallback(async () => {
+  async function saveDraft() {
     const response = await fetch(`${BACKEND_URL}/api/customizations/templates`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        productId: Number(template.productId),
+        productId: Number(template.productId) || 1,
         name: template.name,
-        previewUrl: template.previewUrl,
-        previewWidthPx: template.previewWidthPx,
-        previewHeightPx: template.previewHeightPx,
-        blocks: template.blocks,
+        background: template.background,
+        layers: template.layers,
+        formFields: template.formFields,
       }),
     });
-    if (!response.ok) return null;
-    const data = await response.json();
-    return data.template as CustomizationTemplate;
-  }, [template]);
-
-  async function handleSaveDraft() {
-    const serverTemplate = await saveToServer();
-    if (!serverTemplate) {
-      setFlash("Failed to save template.");
-      return;
+    if (!response.ok) {
+      setFlash("Failed to save draft.");
+      return null;
     }
-    setTemplate(serverTemplate);
+    const data = (await response.json()) as { template: CustomizationTemplate };
+    setTemplate(data.template);
     setFlash("Draft saved.");
+    return data.template;
   }
 
-  async function handlePublish() {
-    const serverTemplate = await saveToServer();
-    if (!serverTemplate) {
-      setFlash("Failed to save before publishing.");
+  async function publish() {
+    const validation = validateTemplateForPublish(template);
+    if (!validation.valid) {
+      setFlash(validation.issues[0]?.message ?? "Template is invalid.");
       return;
     }
-    setTemplate(serverTemplate);
-
-    const publishResponse = await fetch(
-      `${BACKEND_URL}/api/customizations/templates/${serverTemplate.id}/publish`,
-      { method: "POST" },
-    );
-    if (!publishResponse.ok) {
-      setFlash("Failed to publish revision.");
-      return;
-    }
-    setFlash("Template revision published.");
+    const saved = await saveDraft();
+    if (!saved) return;
+    const response = await fetch(`${BACKEND_URL}/api/customizations/templates/${saved.id}/publish`, {
+      method: "POST",
+    });
+    setFlash(response.ok ? "Template published." : "Failed to publish template.");
   }
+
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "z") {
+        event.preventDefault();
+        undoDelete();
+        return;
+      }
+      if (event.key === "Delete" || event.key === "Backspace") {
+        event.preventDefault();
+        deleteSelectedLayer();
+        return;
+      }
+      if (event.key === "Escape") {
+        if (pathEditingLayerId) {
+          setPathEditingLayerId("");
+          return;
+        }
+        setSelectedLayerId("");
+        return;
+      }
+      if (!selectedLayer || !["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.key)) return;
+      event.preventDefault();
+      const delta = event.shiftKey ? 10 : 1;
+      const background = template.background;
+      if (!background) return;
+      updateLayer(selectedLayer.id, (layer) => {
+        const rect = layerGeometryToPixels({ geometry: layer.geometry, background });
+        const next = {
+          ...rect,
+          xPx: rect.xPx + (event.key === "ArrowLeft" ? -delta : event.key === "ArrowRight" ? delta : 0),
+          yPx: rect.yPx + (event.key === "ArrowUp" ? -delta : event.key === "ArrowDown" ? delta : 0),
+        };
+        const geometry = pixelRectToLayerGeometry({
+          ...next,
+          heightPx: layer.type === "image_shape" ? next.heightPx : undefined,
+          background,
+        });
+        return { ...layer, geometry: layer.type === "text" ? { ...geometry, heightRatio: undefined } : { ...geometry, heightRatio: geometry.heightRatio ?? 0.1 } } as CustomizationLayer;
+      });
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [deleted, pathEditingLayerId, selectedLayer, template.background]);
 
   return (
-    <section className="space-y-6">
-      <header className="rounded-[32px] border border-stone-200 bg-white p-6 shadow-sm sm:p-8">
-        <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-end">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-amber-700">
-              Customization
-            </p>
-            <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">
-              Cup production template
-            </h2>
-            <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-500">
-              Add custom blocks, place them on the preview, and switch to preview mode to test the
-              draft without leaving admin.
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="rounded-full border border-stone-300 bg-white p-1">
-              <button
-                type="button"
-                onClick={() => setMode("edit")}
-                className={[
-                  "rounded-full px-4 py-2 text-sm font-semibold",
-                  mode === "edit" ? "bg-slate-950 text-white" : "text-slate-700",
-                ].join(" ")}
-              >
-                Edit
-              </button>
-              <button
-                type="button"
-                onClick={() => setMode("preview")}
-                className={[
-                  "rounded-full px-4 py-2 text-sm font-semibold",
-                  mode === "preview" ? "bg-slate-950 text-white" : "text-slate-700",
-                ].join(" ")}
-              >
-                Preview
-              </button>
-            </div>
-            <Link
-              to="/customization-templates"
-              className="rounded-full border border-stone-300 bg-white px-5 py-3 text-sm font-semibold text-slate-800"
-            >
-              Back to list
-            </Link>
-            <button
-              type="button"
-              onClick={() => void handleSaveDraft()}
-              className="rounded-full border border-stone-300 bg-white px-5 py-3 text-sm font-semibold text-slate-800"
-            >
-              Save draft
-            </button>
-            <button
-              type="button"
-              onClick={() => void handlePublish()}
-              className="rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white"
-            >
-              Publish revision
-            </button>
-          </div>
-        </div>
-      </header>
-
+    <section className="flex min-h-[calc(100vh-96px)] flex-col overflow-hidden rounded-xl border border-ui-border-base bg-ui-bg-base shadow-sm">
+      <EditorHeader template={template} onSave={() => void saveDraft()} onPublish={() => void publish()} onPreview={() => setPreviewOpen(true)} />
       {flash ? (
-        <div className="rounded-3xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm text-emerald-800">
-          {flash}
+        <div className="flex items-center justify-between border-b border-ui-border-base bg-ui-bg-subtle px-4 py-2 text-sm text-ui-fg-subtle">
+          <span>{flash}</span>
+          {deleted ? (
+            <button type="button" onClick={undoDelete} className="font-medium text-ui-fg-base">
+              Undo
+            </button>
+          ) : null}
         </div>
       ) : null}
-
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(380px,0.75fr)]">
-        <div className="rounded-[32px] border border-stone-200 bg-white p-5 shadow-sm">
-          <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <p className="font-semibold text-slate-900">
-                {mode === "edit" ? "Preview placement" : "Draft preview"}
-              </p>
-              <p className="mt-1 text-sm text-slate-500">
-                {mode === "edit"
-                  ? "Move and resize each custom block directly on the uploaded preview."
-                  : "Simulate the shopper experience against the current draft template."}
-              </p>
-            </div>
-            {mode === "edit" ? (
-              <label className="cursor-pointer rounded-full border border-stone-300 px-4 py-2 text-sm font-semibold text-slate-700">
-                Upload cup image
-                <input type="file" accept="image/*" onChange={loadPreview} className="sr-only" />
-              </label>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setPreviewValues(createDefaultFormValues(template))}
-                className="rounded-full border border-stone-300 px-4 py-2 text-sm font-semibold text-slate-700"
-              >
-                Reset test data
-              </button>
-            )}
-          </div>
-
-          <div className="overflow-hidden rounded-[28px] border border-stone-200 bg-stone-100">
-            <Stage
-              width={previewSize.widthPx}
-              height={previewSize.heightPx}
-              className="mx-auto max-w-full"
-              onClick={() => setPreviewSelectedBlockId("")}
-              onTap={() => setPreviewSelectedBlockId("")}
-            >
-              <Layer>
-                {previewImage ? (
-                  <KonvaImage
-                    image={previewImage}
-                    width={previewSize.widthPx}
-                    height={previewSize.heightPx}
-                  />
-                ) : null}
-                {mode === "edit"
-                  ? renderableBlocks.map((block) => (
-                      <EditableBlock
-                        key={block.id}
-                        block={block}
-                        previewWidthPx={previewSize.widthPx}
-                        previewHeightPx={previewSize.heightPx}
-                        selected={block.id === selectedBlockId}
-                        onSelect={() => setSelectedBlockId(block.id)}
-                        onChange={(nextBlock) => updateBlock(block.id, () => nextBlock)}
-                      />
-                    ))
-                  : previewDesign.layers.map((layer) =>
-                      layer.type === "text" ? (
-                        <FixedTextLayer
-                          key={layer.id}
-                          layer={layer}
-                          template={template}
-                          previewWidthPx={previewSize.widthPx}
-                          previewHeightPx={previewSize.heightPx}
-                        />
-                      ) : (
-                        <FixedImageLayer
-                          key={layer.id}
-                          layer={layer}
-                          template={template}
-                          previewWidthPx={previewSize.widthPx}
-                          previewHeightPx={previewSize.heightPx}
-                          editable={isUploadedMediaValue(previewValues[layer.blockId])}
-                          selected={previewSelectedBlockId === layer.blockId}
-                          onSelect={() => setPreviewSelectedBlockId(layer.blockId)}
-                          onCropChange={(crop) => updatePreviewUploadedCrop(layer.blockId, crop)}
-                        />
-                      ),
-                    )}
-              </Layer>
-            </Stage>
-          </div>
-        </div>
-
-        <aside className="space-y-6">
-          {mode === "edit" ? (
-            <>
-              <div className="rounded-[32px] border border-stone-200 bg-white p-6 shadow-sm">
-                <p className="font-semibold text-slate-900">Template</p>
-                <div className="mt-5 space-y-4">
-                  <Field
-                    label="Template name"
-                    value={template.name}
-                    onChange={(value) =>
-                      setTemplate((current) => ({ ...current, name: value, status: "draft" }))
-                    }
-                  />
-                  <ProductSelector
-                    value={template.productId}
-                    onChange={(productId) =>
-                      setTemplate((current) => ({ ...current, productId, status: "draft" }))
-                    }
-                  />
-                  <div className="rounded-2xl bg-stone-50 p-4 text-sm text-slate-600">
-                    Revision {template.revision} · {template.status}
-                  </div>
-                </div>
-              </div>
-
-              <div className="rounded-[32px] border border-stone-200 bg-white p-6 shadow-sm">
-                <BlockEditor
-                  blocks={template.blocks}
-                  selectedId={selectedBlockId}
-                  onSelect={setSelectedBlockId}
-                  onChange={(blocks) =>
-                    setTemplate((current) => ({ ...current, blocks, status: "draft" }))
-                  }
-                />
-              </div>
-
-              {selectedBlock ? (
-                <div className="rounded-[32px] border border-stone-200 bg-white p-6 shadow-sm">
-                  <p className="font-semibold text-slate-900">Block settings</p>
-                  <div className="mt-5 space-y-4">
-                    <Field
-                      label="Field label"
-                      value={selectedBlock.label}
-                      onChange={(label) =>
-                        updateBlock(selectedBlock.id, (block) => ({ ...block, label }))
-                      }
-                    />
-                    <Field
-                      label="Help text"
-                      value={selectedBlock.helpText ?? ""}
-                      onChange={(helpText) =>
-                        updateBlock(selectedBlock.id, (block) => ({ ...block, helpText }))
-                      }
-                    />
-                    <label className="flex items-center gap-2 text-sm text-slate-700">
-                      <input
-                        type="checkbox"
-                        checked={selectedBlock.required}
-                        onChange={(event) =>
-                          updateBlock(selectedBlock.id, (block) => ({
-                            ...block,
-                            required: event.target.checked,
-                          }))
-                        }
-                      />
-                      Required field
-                    </label>
-                    <ConditionEditor
-                      block={selectedBlock}
-                      blocks={template.blocks}
-                      onChange={(visibleWhen) =>
-                        updateBlock(selectedBlock.id, (block) => ({ ...block, visibleWhen }))
-                      }
-                    />
-
-                    {selectedBlock.type === "text_single" || selectedBlock.type === "text_multi" ? (
-                      <TextBlockSettings
-                        block={selectedBlock}
-                        onChange={(block) => updateBlock(selectedBlock.id, () => block)}
-                      />
-                    ) : null}
-
-                    {selectedBlock.type === "icon_picker" ? (
-                      <IconPickerSettings
-                        block={selectedBlock}
-                        onChange={(block) => updateBlock(selectedBlock.id, () => block)}
-                      />
-                    ) : null}
-
-                    {selectedBlock.type === "image_upload" ? (
-                      <ImageUploadSettings
-                        block={selectedBlock}
-                        onChange={(block) => updateBlock(selectedBlock.id, () => block)}
-                      />
-                    ) : null}
-
-                    {(selectedBlock.type === "select" ||
-                      selectedBlock.type === "radio" ||
-                      selectedBlock.type === "color") ? (
-                      <ChoiceSettings
-                        block={selectedBlock}
-                        onChange={(block) => updateBlock(selectedBlock.id, () => block)}
-                      />
-                    ) : null}
-                    <div className="flex flex-wrap gap-3 border-t border-stone-200 pt-4">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          updateBlock(selectedBlock.id, (block) => ({
-                            ...block,
-                            hidden: !block.hidden,
-                          }))
-                        }
-                        className="rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700"
-                      >
-                        {selectedBlock.hidden ? "Unhide block" : "Hide block"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const dependents = findDependentBlocks(selectedBlock.id);
-                          if (dependents.length > 0) {
-                            setFlash(
-                              `Delete blocked. Update dependent blocks first: ${dependents
-                                .map((block) => block.label)
-                                .join(", ")}.`,
-                            );
-                            return;
-                          }
-                          if (!window.confirm(`Delete "${selectedBlock.label}" permanently?`))
-                            return;
-                          setTemplate((current) => ({
-                            ...current,
-                            status: "draft",
-                            blocks: current.blocks.filter((block) => block.id !== selectedBlock.id),
-                          }));
-                          setFlash(`Deleted block "${selectedBlock.label}".`);
-                        }}
-                        className="rounded-full border border-rose-300 bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-700"
-                      >
-                        Delete block
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ) : null}
-            </>
-          ) : (
-            <AdminPreviewPanel
-              visibleBlocks={visiblePreviewBlocks}
-              renderableBlocks={previewRenderableBlocks}
-              values={previewValues}
-              uploadingBlockId={uploadingPreviewBlockId}
-              formIssues={[
-                ...previewFormValidation.issues,
-                ...previewProductionValidation.issues,
-              ]}
-              onChange={updatePreviewValue}
-              onUpload={(file, block) => uploadPreviewImage(block, file)}
-              onIconUpload={(file, block) => uploadPreviewIcon(block, file)}
-            />
-          )}
-        </aside>
+      <div className="grid min-h-0 flex-1 grid-cols-[56px_280px_minmax(0,1fr)_320px]">
+        <Rail activeTab={activeTab} onChange={setActiveTab} />
+        <LeftPanel
+          activeTab={activeTab}
+          template={template}
+          selectedLayerId={selectedLayerId}
+          onAddText={addTextLayer}
+          onAddShape={addImageShape}
+          onSelectLayer={setSelectedLayerId}
+          onUpdateTemplate={updateTemplate}
+          onUpdateField={updateField}
+          onDelete={deleteSelectedLayer}
+          onUndoDelete={undoDelete}
+        />
+        <EditorCanvas
+          template={template}
+          selectedLayerId={selectedLayerId}
+          pathEditingLayerId={pathEditingLayerId}
+          onSelectLayer={setSelectedLayerId}
+          onPathEditingLayerChange={setPathEditingLayerId}
+          onUpdateLayer={updateLayer}
+          onUploadBackground={(background) =>
+            updateTemplate((current) => ({ ...current, background }))
+          }
+        />
+        <Inspector
+          template={template}
+          selectedLayer={selectedLayer}
+          pathEditingLayerId={pathEditingLayerId}
+          onUpdateLayer={updateLayer}
+          onPathEditingLayerChange={setPathEditingLayerId}
+          onUpdateTemplate={updateTemplate}
+        />
       </div>
+      {previewOpen ? (
+        <PreviewDialog
+          template={template}
+          values={previewValues}
+          onChange={(fieldId, value) => setPreviewValues((current) => ({ ...current, [fieldId]: value }))}
+          onClose={() => setPreviewOpen(false)}
+          onReset={() => setPreviewValues(createDefaultFormValues(template))}
+        />
+      ) : null}
     </section>
   );
 }
 
-function AdminPreviewPanel({
-  visibleBlocks,
-  renderableBlocks,
-  values,
-  uploadingBlockId,
-  formIssues,
-  onChange,
-  onUpload,
-  onIconUpload,
+function EditorHeader({
+  template,
+  onSave,
+  onPublish,
+  onPreview,
 }: {
-  visibleBlocks: CustomizationBlock[];
-  renderableBlocks: RenderableBlock[];
-  values: CustomizationFormValues;
-  uploadingBlockId: string;
-  formIssues: Array<{ blockId: string; message: string }>;
-  onChange: (blockId: string, value: CustomizationFieldValue) => void;
-  onUpload: (file: File, block: ImageUploadBlock) => Promise<void>;
-  onIconUpload: (file: File, block: IconPickerBlock) => Promise<void>;
+  template: CustomizationTemplate;
+  onSave: () => void;
+  onPublish: () => void;
+  onPreview: () => void;
 }) {
   return (
-    <div className="rounded-[32px] border border-stone-200 bg-white p-6 shadow-sm">
-      <p className="font-semibold text-slate-900">Preview mode</p>
-      <p className="mt-1 text-sm text-slate-500">
-        Test the current draft as a shopper without publishing it.
-      </p>
-      <div className="mt-5 space-y-5">
-        {visibleBlocks.length === 0 ? (
-          <div className="rounded-2xl bg-stone-50 p-4 text-sm text-slate-500">
-            No shopper-previewable blocks yet.
-          </div>
-        ) : (
-          visibleBlocks.map((block) => (
-            <PreviewBlockField
-              key={block.id}
-              block={block}
-              value={values[block.id]}
-              issue={formIssues.find((issue) => issue.blockId === block.id)?.message}
-              uploading={uploadingBlockId === block.id}
-              onChange={(value) => onChange(block.id, value)}
-              onUpload={(file) =>
-                block.type === "image_upload" ? onUpload(file, block) : Promise.resolve()
-              }
-              onIconUpload={(file) =>
-                block.type === "icon_picker"
-                  ? onIconUpload(file, block)
-                  : Promise.resolve()
-              }
-            />
-          ))
-        )}
-
-        <div className="rounded-2xl bg-stone-50 p-4 text-sm text-slate-600">
-          Renderable blocks in preview: {renderableBlocks.length}
+    <header className="flex h-16 items-center justify-between border-b border-ui-border-base px-4">
+      <div className="flex items-center gap-3">
+        <Link to="/customization-templates" className="rounded-md border border-ui-border-base p-2 text-ui-fg-subtle">
+          <ArrowLeft className="size-4" />
+        </Link>
+        <div>
+          <p className="text-sm font-medium text-ui-fg-base">{template.name}</p>
+          <p className="text-xs text-ui-fg-muted">Product {template.productId} · Rev {template.revision} · {template.status}</p>
         </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <button type="button" onClick={onPreview} className="rounded-md border border-ui-border-base px-3 py-2 text-sm font-medium">
+          Preview
+        </button>
+        <button type="button" onClick={onSave} className="inline-flex items-center gap-2 rounded-md border border-ui-border-base px-3 py-2 text-sm font-medium">
+          <Save className="size-4" /> Save draft
+        </button>
+        <button type="button" onClick={onPublish} className="rounded-md bg-ui-bg-interactive px-3 py-2 text-sm font-medium text-ui-fg-on-color">
+          Publish
+        </button>
+      </div>
+    </header>
+  );
+}
+
+function Rail({ activeTab, onChange }: { activeTab: RailTab; onChange: (tab: RailTab) => void }) {
+  const items = [
+    { id: "blocks", label: "Blocks", icon: Plus },
+    { id: "layers", label: "Layers", icon: Layers },
+    { id: "form", label: "Form", icon: PanelRight },
+    { id: "background", label: "Background", icon: FileImage },
+  ] as const;
+  return (
+    <nav className="flex flex-col items-center gap-2 border-r border-ui-border-base bg-ui-bg-subtle py-3">
+      {items.map((item) => {
+        const Icon = item.icon;
+        return (
+          <button
+            key={item.id}
+            type="button"
+            title={item.label}
+            onClick={() => onChange(item.id)}
+            className={`rounded-md p-3 ${activeTab === item.id ? "bg-ui-bg-base text-ui-fg-base shadow-sm" : "text-ui-fg-muted"}`}
+          >
+            <Icon className="size-4" />
+          </button>
+        );
+      })}
+    </nav>
+  );
+}
+
+function LeftPanel(props: {
+  activeTab: RailTab;
+  template: CustomizationTemplate;
+  selectedLayerId: string;
+  onAddText: () => void;
+  onAddShape: (shape: ShapeType) => void;
+  onSelectLayer: (layerId: string) => void;
+  onUpdateTemplate: (updater: (current: CustomizationTemplate) => CustomizationTemplate) => void;
+  onUpdateField: (fieldId: string, updater: (field: CustomizationFormField) => CustomizationFormField) => void;
+  onDelete: () => void;
+  onUndoDelete: () => void;
+}) {
+  return (
+    <aside className="overflow-y-auto border-r border-ui-border-base p-4">
+      {props.activeTab === "blocks" ? <BlocksPanel template={props.template} onAddText={props.onAddText} onAddShape={props.onAddShape} /> : null}
+      {props.activeTab === "layers" ? <LayersPanel {...props} /> : null}
+      {props.activeTab === "form" ? <FormPanel {...props} /> : null}
+      {props.activeTab === "background" ? <BackgroundPanel template={props.template} onUpdateTemplate={props.onUpdateTemplate} /> : null}
+    </aside>
+  );
+}
+
+function BlocksPanel({ template, onAddText, onAddShape }: { template: CustomizationTemplate; onAddText: () => void; onAddShape: (shape: ShapeType) => void }) {
+  const disabled = !template.background;
+  return (
+    <div className="space-y-4">
+      <PanelTitle title="Blocks" subtitle={disabled ? "Upload a background before creating blocks." : "Create text or image shape layers."} />
+      <button type="button" disabled={disabled} onClick={onAddText} className="flex w-full items-center gap-3 rounded-md border border-ui-border-base px-3 py-2 text-sm disabled:opacity-40">
+        <Type className="size-4" /> Text
+      </button>
+      <div className="space-y-2">
+        <p className="text-xs font-medium uppercase text-ui-fg-muted">Image Shapes</p>
+        {SHAPES.map((shape) => (
+          <button key={shape} type="button" disabled={disabled} onClick={() => onAddShape(shape)} className="flex w-full items-center gap-3 rounded-md border border-ui-border-base px-3 py-2 text-sm disabled:opacity-40">
+            <Shapes className="size-4" /> {shapeLabel(shape)}
+          </button>
+        ))}
       </div>
     </div>
   );
 }
 
-function FixedTextLayer({
-  layer,
+function LayersPanel({
   template,
-  previewWidthPx,
-  previewHeightPx,
-}: {
-  layer: TextLayer;
-  template: CustomizationTemplate;
-  previewWidthPx: number;
-  previewHeightPx: number;
-}) {
-  const block = template.blocks.find((entry) => entry.id === layer.blockId);
-  if (!block || !hasRenderablePreview(block)) return null;
-  const rect = getBlockPreviewRect({ block, previewWidthPx, previewHeightPx });
-  const fontSize = Math.max(7, (layer.fontSizePt * rect.widthPx) / block.production.widthMm / 2.2);
-  const isMultiLine = block.type === "text_multi";
+  selectedLayerId,
+  onSelectLayer,
+  onUpdateTemplate,
+  onDelete,
+}: Parameters<typeof LeftPanel>[0]) {
+  const topFirst = [...template.layers].sort((a, b) => b.zIndex - a.zIndex);
+  function move(layerId: string, direction: -1 | 1) {
+    const ordered = [...topFirst];
+    const index = ordered.findIndex((layer) => layer.id === layerId);
+    const nextIndex = index + direction;
+    if (index < 0 || nextIndex < 0 || nextIndex >= ordered.length) return;
+    [ordered[index], ordered[nextIndex]] = [ordered[nextIndex]!, ordered[index]!];
+    onUpdateTemplate((current) => ({
+      ...current,
+      layers: current.layers.map((layer) => ({
+        ...layer,
+        zIndex: ordered.length - ordered.findIndex((entry) => entry.id === layer.id),
+      })),
+    }));
+  }
   return (
-    <Text
-      x={rect.centerXPx}
-      y={rect.centerYPx}
-      width={rect.widthPx}
-      height={isMultiLine ? rect.heightPx : fontSize * 1.2}
-      text={layer.text}
-      fontSize={fontSize}
-      fontStyle="bold"
-      fill={layer.color}
-      align={layer.alignment}
-      verticalAlign="middle"
-      wrap="none"
-      lineHeight={1.15}
-      offsetX={rect.widthPx / 2}
-      offsetY={isMultiLine ? rect.heightPx / 2 : fontSize * 0.6}
-      rotation={layer.rotationDeg}
-      listening={false}
+    <div className="space-y-4">
+      <PanelTitle title="Layers" subtitle="Top item renders above lower layers." />
+      {topFirst.map((layer) => (
+        <div key={layer.id} className={`rounded-md border p-2 ${selectedLayerId === layer.id ? "border-ui-fg-interactive" : "border-ui-border-base"} ${layer.hidden ? "opacity-50" : ""}`}>
+          <button type="button" onClick={() => onSelectLayer(layer.id)} className="block w-full text-left text-sm font-medium">
+            {layer.name}
+          </button>
+          <div className="mt-2 flex items-center gap-1">
+            <button type="button" onClick={() => move(layer.id, -1)} className="rounded border p-1"><ArrowUp className="size-3" /></button>
+            <button type="button" onClick={() => move(layer.id, 1)} className="rounded border p-1"><ArrowDown className="size-3" /></button>
+            <button type="button" onClick={() => onUpdateTemplate((current) => ({ ...current, layers: current.layers.map((entry) => entry.id === layer.id ? { ...entry, hidden: !entry.hidden } : entry) }))} className="rounded border p-1">
+              {layer.hidden ? <EyeOff className="size-3" /> : <Eye className="size-3" />}
+            </button>
+            <button type="button" onClick={() => onUpdateTemplate((current) => ({ ...current, layers: current.layers.map((entry) => entry.id === layer.id ? { ...entry, locked: !entry.locked } : entry) }))} className="rounded border p-1">
+              {layer.locked ? <Lock className="size-3" /> : <Unlock className="size-3" />}
+            </button>
+            <button type="button" onClick={onDelete} className="ml-auto rounded border border-rose-200 p-1 text-rose-600"><Trash2 className="size-3" /></button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function FormPanel({ template, onSelectLayer, onUpdateField, onUpdateTemplate }: Parameters<typeof LeftPanel>[0]) {
+  const fields = [...template.formFields].sort((a, b) => a.order - b.order);
+  const [draggedId, setDraggedId] = useState("");
+  function reorder(targetId: string) {
+    if (!draggedId || draggedId === targetId) return;
+    const ordered = [...fields];
+    const from = ordered.findIndex((field) => field.id === draggedId);
+    const to = ordered.findIndex((field) => field.id === targetId);
+    if (from < 0 || to < 0) return;
+    const [item] = ordered.splice(from, 1);
+    ordered.splice(to, 0, item!);
+    onUpdateTemplate((current) => ({
+      ...current,
+      formFields: current.formFields.map((field) => ({
+        ...field,
+        order: ordered.findIndex((entry) => entry.id === field.id) + 1,
+      })),
+    }));
+  }
+  return (
+    <div className="space-y-4">
+      <PanelTitle title="Form" subtitle="Shopper field order and copy." />
+      {fields.map((field) => (
+        <div key={field.id} draggable onDragStart={() => setDraggedId(field.id)} onDragOver={(event) => event.preventDefault()} onDrop={() => reorder(field.id)} className="space-y-2 rounded-md border border-ui-border-base p-3">
+          <button type="button" onClick={() => onSelectLayer(field.layerId)} className="text-sm font-medium">{field.label}</button>
+          <Input value={field.label} onChange={(label) => onUpdateField(field.id, (current) => ({ ...current, label }))} />
+          <Input value={field.placeholder ?? ""} placeholder="Placeholder" onChange={(placeholder) => onUpdateField(field.id, (current) => ({ ...current, placeholder }))} />
+          <textarea value={field.helpText ?? ""} placeholder="Help text" onChange={(event) => onUpdateField(field.id, (current) => ({ ...current, helpText: event.target.value }))} className="w-full rounded-md border border-ui-border-base px-2 py-1 text-sm" />
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={field.required} onChange={(event) => onUpdateField(field.id, (current) => ({ ...current, required: event.target.checked }))} />
+            Required
+          </label>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function BackgroundPanel({ template, onUpdateTemplate }: { template: CustomizationTemplate; onUpdateTemplate: (updater: (current: CustomizationTemplate) => CustomizationTemplate) => void }) {
+  return (
+    <div className="space-y-4">
+      <PanelTitle title="Background" subtitle="Single template coordinate image." />
+      {template.background ? (
+        <div className="space-y-3">
+          <img src={template.background.previewUrl} alt="" className="aspect-video w-full rounded-md border object-contain" />
+          <p className="text-sm text-ui-fg-subtle">{template.background.filename ?? template.background.assetId}</p>
+          <p className="text-xs text-ui-fg-muted">{template.background.widthPx} x {template.background.heightPx}px</p>
+        </div>
+      ) : (
+        <p className="text-sm text-ui-fg-muted">No background uploaded.</p>
+      )}
+      <BackgroundUpload onUpload={(background) => onUpdateTemplate((current) => ({ ...current, background }))} />
+      <button type="button" onClick={() => onUpdateTemplate((current) => ({ ...current, background: null }))} className="rounded-md border border-ui-border-base px-3 py-2 text-sm">
+        Remove background
+      </button>
+    </div>
+  );
+}
+
+function EditorCanvas({
+  template,
+  selectedLayerId,
+  pathEditingLayerId,
+  onSelectLayer,
+  onPathEditingLayerChange,
+  onUpdateLayer,
+  onUploadBackground,
+}: {
+  template: CustomizationTemplate;
+  selectedLayerId: string;
+  pathEditingLayerId: string;
+  onSelectLayer: (layerId: string) => void;
+  onPathEditingLayerChange: (layerId: string) => void;
+  onUpdateLayer: (layerId: string, updater: (layer: CustomizationLayer) => CustomizationLayer) => void;
+  onUploadBackground: (background: BackgroundAsset) => void;
+}) {
+  const [zoom, setZoom] = useState(0.72);
+  const background = template.background;
+  if (!background) {
+    return (
+      <main className="flex items-center justify-center bg-ui-bg-subtle p-8">
+        <label className="flex h-full min-h-[420px] w-full cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-ui-border-base bg-ui-bg-base text-ui-fg-muted">
+          <FileImage className="mb-3 size-8" />
+          Upload background image
+          <BackgroundUpload onUpload={onUploadBackground} hidden />
+        </label>
+      </main>
+    );
+  }
+  const width = background.widthPx * zoom;
+  const height = background.heightPx * zoom;
+  return (
+    <main className="overflow-auto bg-ui-bg-subtle p-6">
+      <div className="mb-3 flex items-center gap-2">
+        <button type="button" onClick={() => setZoom((current) => Math.max(0.2, current - 0.1))} className="rounded border px-2 py-1 text-sm">-</button>
+        <button type="button" onClick={() => setZoom(0.72)} className="rounded border px-2 py-1 text-sm">Fit</button>
+        <button type="button" onClick={() => setZoom((current) => Math.min(2, current + 0.1))} className="rounded border px-2 py-1 text-sm">+</button>
+        <span className="text-xs text-ui-fg-muted">{Math.round(zoom * 100)}%</span>
+      </div>
+      <div
+        className="relative mx-auto bg-white shadow-lg"
+        style={{ width, height }}
+        onPointerDown={(event) => {
+          if (event.target === event.currentTarget) onSelectLayer("");
+        }}
+        onDoubleClick={(event) => {
+          const layer = template.layers.find((entry) => entry.id === pathEditingLayerId);
+          if (!layer || layer.type !== "text" || layer.text.path.type !== "custom") return;
+          const bounds = event.currentTarget.getBoundingClientRect();
+          const xRatio = (event.clientX - bounds.left) / bounds.width;
+          const yRatio = (event.clientY - bounds.top) / bounds.height;
+          const rect = layerGeometryToPixels({ geometry: layer.geometry, background });
+          const point = {
+            id: createId("path_point"),
+            xRatio: Math.max(0, Math.min(1, (xRatio * background.widthPx - rect.xPx) / rect.widthPx)),
+            yRatio: Math.max(0, Math.min(1, (yRatio * background.heightPx - rect.yPx) / Math.max(1, layer.text.maxFontSizePt * layer.text.maxLines * 1.35))),
+            inHandle: { xRatio: -0.08, yRatio: 0 },
+            outHandle: { xRatio: 0.08, yRatio: 0 },
+          };
+          onUpdateLayer(layer.id, (current) =>
+            current.type === "text" && current.text.path.type === "custom"
+              ? { ...current, text: { ...current.text, path: { ...current.text.path, points: [...current.text.path.points, point] } } }
+              : current,
+          );
+        }}
+      >
+        <img src={background.previewUrl} alt="" className="absolute inset-0 h-full w-full select-none object-fill" draggable={false} />
+        {getVisibleLayers(template).map((layer) => (
+          <CanvasLayer
+            key={layer.id}
+            layer={layer}
+            background={background}
+            zoom={zoom}
+            selected={selectedLayerId === layer.id}
+            pathEditing={pathEditingLayerId === layer.id}
+            onSelect={() => onSelectLayer(layer.id)}
+            onEditPath={() => onPathEditingLayerChange(layer.id)}
+            onUpdate={(updater) => onUpdateLayer(layer.id, updater)}
+          />
+        ))}
+      </div>
+    </main>
+  );
+}
+
+function CanvasLayer({
+  layer,
+  background,
+  zoom,
+  selected,
+  pathEditing,
+  onSelect,
+  onEditPath,
+  onUpdate,
+}: {
+  layer: CustomizationLayer;
+  background: BackgroundAsset;
+  zoom: number;
+  selected: boolean;
+  pathEditing: boolean;
+  onSelect: () => void;
+  onEditPath: () => void;
+  onUpdate: (updater: (layer: CustomizationLayer) => CustomizationLayer) => void;
+}) {
+  const rect = layerGeometryToPixels({ geometry: layer.geometry, background });
+  const textHeight = layer.type === "text" ? layer.text.maxLines * layer.text.maxFontSizePt * 1.35 : rect.heightPx;
+  const h = layer.type === "text" ? textHeight : rect.heightPx;
+  const top = layer.type === "text" ? layer.geometry.yRatio * background.heightPx - h / 2 : rect.yPx;
+  const drag = useRef<{ x: number; y: number; rect: typeof rect } | null>(null);
+  function startDrag(event: React.PointerEvent) {
+    if (layer.locked) return;
+    onSelect();
+    drag.current = { x: event.clientX, y: event.clientY, rect };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+  function move(event: React.PointerEvent) {
+    if (!drag.current || layer.locked) return;
+    const dx = (event.clientX - drag.current.x) / zoom;
+    const dy = (event.clientY - drag.current.y) / zoom;
+    const geometry = pixelRectToLayerGeometry({
+      xPx: drag.current.rect.xPx + dx,
+      yPx: (layer.type === "text" ? top : drag.current.rect.yPx) + dy,
+      widthPx: drag.current.rect.widthPx,
+      heightPx: layer.type === "image_shape" ? drag.current.rect.heightPx : undefined,
+      background,
+    });
+    onUpdate((current) => ({ ...current, geometry: current.type === "text" ? { ...geometry, heightRatio: undefined } : { ...geometry, heightRatio: geometry.heightRatio ?? 0.1 } }) as CustomizationLayer);
+  }
+  return (
+    <div
+      className={`absolute ${selected ? "ring-2 ring-ui-fg-interactive" : "ring-1 ring-teal-500/70"} ${layer.locked ? "cursor-not-allowed" : "cursor-move"}`}
+      style={{
+        left: rect.xPx * zoom,
+        top: top * zoom,
+        width: rect.widthPx * zoom,
+        height: h * zoom,
+        transform: `rotate(${layer.geometry.rotationDeg}deg)`,
+        zIndex: layer.zIndex,
+      }}
+      onPointerDown={startDrag}
+      onPointerMove={move}
+      onPointerUp={() => {
+        drag.current = null;
+      }}
+      onDoubleClick={(event) => {
+        if (layer.type === "text" && layer.text.path.type === "custom") {
+          event.stopPropagation();
+          onEditPath();
+        }
+      }}
+    >
+      {layer.type === "text" ? (
+        <div className="flex h-full items-center justify-center overflow-hidden bg-teal-500/10 text-center text-xs font-medium text-teal-900">
+          {layer.text.sampleText}
+        </div>
+      ) : (
+        <div className="h-full w-full bg-teal-500/10" style={{ borderRadius: layer.shape.type === "circle" ? "999px" : layer.shape.type === "rounded_rectangle" ? "12%" : undefined, clipPath: cssShapeClip(layer.shape.type) }} />
+      )}
+      {pathEditing && layer.type === "text" && layer.text.path.type === "custom" ? (
+        <PathPointOverlay
+          layer={layer}
+          onUpdate={onUpdate}
+        />
+      ) : null}
+      {selected && !layer.locked ? <ResizeHandles layer={layer} background={background} zoom={zoom} onUpdate={onUpdate} /> : null}
+    </div>
+  );
+}
+
+function PathPointOverlay({
+  layer,
+  onUpdate,
+}: {
+  layer: TextEditorLayer;
+  onUpdate: (updater: (layer: CustomizationLayer) => CustomizationLayer) => void;
+}) {
+  if (layer.text.path.type !== "custom") return null;
+  const points = layer.text.path.points;
+  return (
+    <>
+      {points.map((point, index) => (
+        <div key={point.id}>
+          <PathHandle
+            pointId={point.id}
+            kind="anchor"
+            xRatio={point.xRatio}
+            yRatio={point.yRatio}
+            onMove={(xRatio, yRatio) => {
+              onUpdate((current) =>
+                current.type === "text" && current.text.path.type === "custom"
+                  ? {
+                      ...current,
+                      text: {
+                        ...current.text,
+                        path: {
+                          ...current.text.path,
+                          points: current.text.path.points.map((entry) =>
+                            entry.id === point.id ? { ...entry, xRatio, yRatio } : entry,
+                          ),
+                        },
+                      },
+                    }
+                  : current,
+              );
+            }}
+          />
+          {point.inHandle ? (
+            <PathHandle
+              pointId={point.id}
+              kind="in"
+              xRatio={point.xRatio + point.inHandle.xRatio}
+              yRatio={point.yRatio + point.inHandle.yRatio}
+              onMove={(xRatio, yRatio) => updatePathHandle(onUpdate, point.id, "inHandle", xRatio - point.xRatio, yRatio - point.yRatio)}
+            />
+          ) : null}
+          {point.outHandle ? (
+            <PathHandle
+              pointId={point.id}
+              kind="out"
+              xRatio={point.xRatio + point.outHandle.xRatio}
+              yRatio={point.yRatio + point.outHandle.yRatio}
+              onMove={(xRatio, yRatio) => updatePathHandle(onUpdate, point.id, "outHandle", xRatio - point.xRatio, yRatio - point.yRatio)}
+            />
+          ) : null}
+          {index > 0 ? (
+            <div
+              className="pointer-events-none absolute h-px bg-amber-500"
+              style={{
+                left: `${points[index - 1]!.xRatio * 100}%`,
+                top: `${points[index - 1]!.yRatio * 100}%`,
+                width: `${Math.hypot(point.xRatio - points[index - 1]!.xRatio, point.yRatio - points[index - 1]!.yRatio) * 100}%`,
+              }}
+            />
+          ) : null}
+        </div>
+      ))}
+    </>
+  );
+}
+
+function PathHandle({
+  kind,
+  xRatio,
+  yRatio,
+  onMove,
+}: {
+  pointId: string;
+  kind: "anchor" | "in" | "out";
+  xRatio: number;
+  yRatio: number;
+  onMove: (xRatio: number, yRatio: number) => void;
+}) {
+  return (
+    <button
+      type="button"
+      className={`absolute size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white ${kind === "anchor" ? "bg-amber-500" : "bg-sky-500"}`}
+      style={{ left: `${xRatio * 100}%`, top: `${yRatio * 100}%` }}
+      onPointerDown={(event) => {
+        event.stopPropagation();
+        const target = event.currentTarget.parentElement?.parentElement as HTMLElement | null;
+        if (!target) return;
+        const bounds = target.getBoundingClientRect();
+        function move(pointer: PointerEvent) {
+          onMove(
+            Math.max(0, Math.min(1, (pointer.clientX - bounds.left) / bounds.width)),
+            Math.max(0, Math.min(1, (pointer.clientY - bounds.top) / bounds.height)),
+          );
+        }
+        function stop() {
+          window.removeEventListener("pointermove", move);
+          window.removeEventListener("pointerup", stop);
+        }
+        window.addEventListener("pointermove", move);
+        window.addEventListener("pointerup", stop);
+      }}
     />
   );
 }
 
-function FixedImageLayer({
-  layer,
-  template,
-  previewWidthPx,
-  previewHeightPx,
-  editable = false,
-  selected = false,
-  onSelect,
-  onCropChange,
-}: {
-  layer: ImageLayer;
-  template: CustomizationTemplate;
-  previewWidthPx: number;
-  previewHeightPx: number;
-  editable?: boolean;
-  selected?: boolean;
-  onSelect?: () => void;
-  onCropChange?: (crop: Pick<UploadedMediaValue, "cropScale" | "cropXRatio" | "cropYRatio">) => void;
-}) {
-  const image = useHtmlImage(layer.previewUrl);
-  const block = template.blocks.find((entry) => entry.id === layer.blockId);
-  const overlayRef = useRef<Konva.Rect>(null);
-  const transformerRef = useRef<Konva.Transformer>(null);
-  if (!block || !hasRenderablePreview(block)) return null;
-  const rect = getBlockPreviewRect({ block, previewWidthPx, previewHeightPx });
-  const cropRect = getCoverImageRect({
-    sourceWidthPx: layer.sourceWidthPx,
-    sourceHeightPx: layer.sourceHeightPx,
-    frameWidthPx: rect.widthPx,
-    frameHeightPx: rect.heightPx,
-    cropScale: layer.cropScale,
-    cropXRatio: layer.cropXRatio,
-    cropYRatio: layer.cropYRatio,
-  });
-
-  useEffect(() => {
-    if (selected && overlayRef.current && transformerRef.current) {
-      transformerRef.current.nodes([overlayRef.current]);
-      transformerRef.current.getLayer()?.batchDraw();
-    }
-  }, [selected]);
-
+function ResizeHandles({ layer, background, zoom, onUpdate }: { layer: CustomizationLayer; background: BackgroundAsset; zoom: number; onUpdate: (updater: (layer: CustomizationLayer) => CustomizationLayer) => void }) {
+  const handles = layer.type === "text" ? ["left", "right"] : layer.shape.lockAspectRatio ? ["nw", "ne", "sw", "se"] : ["nw", "n", "ne", "e", "se", "s", "sw", "w"];
   return (
     <>
-      <Group
-        x={rect.centerXPx}
-        y={rect.centerYPx}
-        rotation={layer.rotationDeg}
-        clipX={-rect.widthPx / 2}
-        clipY={-rect.heightPx / 2}
-        clipWidth={rect.widthPx}
-        clipHeight={rect.heightPx}
-      >
-        <KonvaImage
-          image={image ?? undefined}
-          x={cropRect.xPx}
-          y={cropRect.yPx}
-          width={cropRect.widthPx}
-          height={cropRect.heightPx}
-          draggable={editable}
-          listening={editable}
-          dragBoundFunc={(position) => {
-            const absoluteCenterX = rect.centerXPx;
-            const absoluteCenterY = rect.centerYPx;
-            const minX = absoluteCenterX - rect.widthPx / 2 - cropRect.overflowXPx;
-            const maxX = absoluteCenterX - rect.widthPx / 2;
-            const minY = absoluteCenterY - rect.heightPx / 2 - cropRect.overflowYPx;
-            const maxY = absoluteCenterY - rect.heightPx / 2;
-            return {
-              x: cropRect.overflowXPx > 0 ? Math.min(maxX, Math.max(minX, position.x)) : cropRect.xPx + absoluteCenterX,
-              y: cropRect.overflowYPx > 0 ? Math.min(maxY, Math.max(minY, position.y)) : cropRect.yPx + absoluteCenterY,
-            };
-          }}
-          onDragEnd={(event) => {
-            const pan = getCropPanFromImagePosition({
-              imageXPx: event.target.x(),
-              imageYPx: event.target.y(),
-              frameWidthPx: rect.widthPx,
-              frameHeightPx: rect.heightPx,
-              imageWidthPx: cropRect.widthPx,
-              imageHeightPx: cropRect.heightPx,
-            });
-            onCropChange?.({
-              cropScale: cropRect.cropScale,
-              ...pan,
-            });
+      {handles.map((handle) => (
+        <button
+          key={handle}
+          type="button"
+          className="absolute size-2 rounded-full bg-ui-fg-interactive"
+          style={handleStyle(handle)}
+          onPointerDown={(event) => {
+            event.stopPropagation();
+            const startX = event.clientX;
+            const startY = event.clientY;
+            const start = layerGeometryToPixels({ geometry: layer.geometry, background });
+            function move(pointer: PointerEvent) {
+              const dx = (pointer.clientX - startX) / zoom;
+              const dy = (pointer.clientY - startY) / zoom;
+              const next = resizeRect(start, handle, dx, dy, layer.type === "image_shape" && layer.shape.lockAspectRatio);
+              const geometry = pixelRectToLayerGeometry({ ...next, heightPx: layer.type === "image_shape" ? next.heightPx : undefined, background });
+              onUpdate((current) => ({ ...current, geometry: current.type === "text" ? { ...geometry, heightRatio: undefined } : { ...geometry, heightRatio: geometry.heightRatio ?? 0.1 } }) as CustomizationLayer);
+            }
+            function stop() {
+              window.removeEventListener("pointermove", move);
+              window.removeEventListener("pointerup", stop);
+            }
+            window.addEventListener("pointermove", move);
+            window.addEventListener("pointerup", stop);
           }}
         />
-      </Group>
-      {editable ? (
-        <>
-          <Rect
-            ref={overlayRef}
-            x={rect.centerXPx - rect.widthPx / 2}
-            y={rect.centerYPx - rect.heightPx / 2}
-            width={rect.widthPx}
-            height={rect.heightPx}
-            fill="transparent"
-            stroke={selected ? "#0f766e" : undefined}
-            strokeWidth={selected ? 2 : undefined}
-            dash={selected ? [4, 4] : undefined}
-            onClick={(e) => {
-              onSelect?.();
-              e.cancelBubble = true;
+      ))}
+    </>
+  );
+}
+
+function Inspector({
+  template,
+  selectedLayer,
+  pathEditingLayerId,
+  onUpdateLayer,
+  onPathEditingLayerChange,
+  onUpdateTemplate,
+}: {
+  template: CustomizationTemplate;
+  selectedLayer: CustomizationLayer | null;
+  pathEditingLayerId: string;
+  onUpdateLayer: (layerId: string, updater: (layer: CustomizationLayer) => CustomizationLayer) => void;
+  onPathEditingLayerChange: (layerId: string) => void;
+  onUpdateTemplate: (updater: (current: CustomizationTemplate) => CustomizationTemplate) => void;
+}) {
+  return (
+    <aside className="overflow-y-auto border-l border-ui-border-base p-4">
+      {!selectedLayer ? <CanvasInspector template={template} onUpdateTemplate={onUpdateTemplate} /> : null}
+      {selectedLayer?.type === "text" ? (
+        <TextInspector
+          template={template}
+          layer={selectedLayer}
+          pathEditing={pathEditingLayerId === selectedLayer.id}
+          onPathEditingChange={(active) => onPathEditingLayerChange(active ? selectedLayer.id : "")}
+          onUpdate={(updater) => onUpdateLayer(selectedLayer.id, updater)}
+        />
+      ) : null}
+      {selectedLayer?.type === "image_shape" ? <ImageShapeInspector template={template} layer={selectedLayer} onUpdate={(updater) => onUpdateLayer(selectedLayer.id, updater)} /> : null}
+    </aside>
+  );
+}
+
+function CanvasInspector({ template, onUpdateTemplate }: { template: CustomizationTemplate; onUpdateTemplate: (updater: (current: CustomizationTemplate) => CustomizationTemplate) => void }) {
+  return (
+    <div className="space-y-4">
+      <PanelTitle title="Canvas" subtitle="No layer selected." />
+      <Input value={template.name} onChange={(name) => onUpdateTemplate((current) => ({ ...current, name }))} />
+      {template.background ? <p className="text-sm text-ui-fg-muted">{template.background.widthPx} x {template.background.heightPx}px</p> : <p className="text-sm text-ui-fg-muted">Upload a background to begin.</p>}
+    </div>
+  );
+}
+
+function TextInspector({
+  template,
+  layer,
+  pathEditing,
+  onPathEditingChange,
+  onUpdate,
+}: {
+  template: CustomizationTemplate;
+  layer: TextEditorLayer;
+  pathEditing: boolean;
+  onPathEditingChange: (active: boolean) => void;
+  onUpdate: (updater: (layer: CustomizationLayer) => CustomizationLayer) => void;
+}) {
+  return (
+    <div className="space-y-5">
+      <PanelTitle title="Text" subtitle={layer.name} />
+      <LayerName layer={layer} onUpdate={onUpdate} />
+      <PositionFields template={template} layer={layer} onUpdate={onUpdate} textOnly />
+      <Input value={layer.text.sampleText} onChange={(sampleText) => onUpdate((current) => ({ ...current, text: { ...(current as TextEditorLayer).text, sampleText } }) as CustomizationLayer)} />
+      <div className="grid grid-cols-2 gap-2">
+        <NumberInput label="Max lines" value={layer.text.maxLines} onChange={(maxLines) => updateText(onUpdate, { maxLines: layer.text.path.type === "straight" ? Math.max(1, Math.round(maxLines)) : 1 })} />
+        <NumberInput label="Min font" value={layer.text.minFontSizePt} onChange={(minFontSizePt) => updateText(onUpdate, { minFontSizePt })} />
+        <NumberInput label="Max font" value={layer.text.maxFontSizePt} onChange={(maxFontSizePt) => updateText(onUpdate, { maxFontSizePt })} />
+        <Select label="Align" value={layer.text.align} options={["left", "center", "right"]} onChange={(align) => updateText(onUpdate, { align: align as TextEditorLayer["text"]["align"] })} />
+      </div>
+      <TextStyleControls layer={layer} onUpdate={onUpdate} />
+      <TextPathControls layer={layer} pathEditing={pathEditing} onPathEditingChange={onPathEditingChange} onUpdate={onUpdate} />
+    </div>
+  );
+}
+
+function ImageShapeInspector({ template, layer, onUpdate }: { template: CustomizationTemplate; layer: ImageShapeEditorLayer; onUpdate: (updater: (layer: CustomizationLayer) => CustomizationLayer) => void }) {
+  return (
+    <div className="space-y-5">
+      <PanelTitle title="Image Shape" subtitle={layer.name} />
+      <LayerName layer={layer} onUpdate={onUpdate} />
+      <PositionFields template={template} layer={layer} onUpdate={onUpdate} />
+      <p className="text-sm text-ui-fg-subtle">Shape: {shapeLabel(layer.shape.type)}</p>
+      <label className="flex items-center gap-2 text-sm">
+        <input type="checkbox" checked={layer.shape.lockAspectRatio} onChange={(event) => onUpdate((current) => ({ ...current, shape: { ...(current as ImageShapeEditorLayer).shape, lockAspectRatio: event.target.checked } }) as CustomizationLayer)} />
+        Lock aspect ratio
+      </label>
+      <p className="text-xs text-ui-fg-muted">Uploads use cover fit and clip to this shape. Shape type is fixed after creation.</p>
+    </div>
+  );
+}
+
+function PreviewDialog({ template, values, onChange, onClose, onReset }: { template: CustomizationTemplate; values: CustomizationFormValues; onChange: (fieldId: string, value: TextFieldValue | ImageShapeFieldValue | null) => void; onClose: () => void; onReset: () => void }) {
+  const design = useMemo(() => buildDesignFromForm({ template, values, designId: "admin_preview" }), [template, values]);
+  return (
+    <div className="fixed inset-0 z-50 flex bg-black/40 p-8">
+      <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_360px] overflow-hidden rounded-xl bg-ui-bg-base shadow-xl">
+        <div className="overflow-auto bg-ui-bg-subtle p-6">
+          <PreviewCanvas template={template} design={design} />
+        </div>
+        <aside className="overflow-y-auto border-l border-ui-border-base p-5">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-lg font-semibold">Preview</h2>
+            <button type="button" onClick={onClose} className="rounded border px-3 py-1 text-sm">Close</button>
+          </div>
+          <button type="button" onClick={onReset} className="mb-4 inline-flex items-center gap-2 rounded border px-3 py-2 text-sm">
+            <RotateCcw className="size-4" /> Reset preview data
+          </button>
+          <div className="space-y-4">
+            {getOrderedFormFields(template).map((field) => {
+              const layer = template.layers.find((entry) => entry.id === field.layerId);
+              if (!layer) return null;
+              return <PreviewField key={field.id} field={field} layer={layer} value={values[field.id]} onChange={(value) => onChange(field.id, value)} />;
+            })}
+          </div>
+        </aside>
+      </div>
+    </div>
+  );
+}
+
+function PreviewCanvas({ template, design }: { template: CustomizationTemplate; design: ReturnType<typeof buildDesignFromForm> }) {
+  const background = template.background;
+  const width = background?.widthPx ?? 900;
+  const height = background?.heightPx ?? 900;
+  const scale = Math.min(720 / width, 720 / height);
+  return (
+    <div className="relative mx-auto bg-white shadow" style={{ width: width * scale, height: height * scale }}>
+      {background ? <img src={background.previewUrl} alt="" className="absolute inset-0 h-full w-full object-fill" /> : null}
+      {[...design.layers].sort((a, b) => a.zIndex - b.zIndex).map((layer) => {
+        if (layer.type === "text") {
+          const left = layer.geometry.xRatio * width * scale;
+          const top = layer.geometry.yRatio * height * scale;
+          const w = layer.geometry.widthRatio * width * scale;
+          return <div key={layer.id} className="absolute -translate-x-1/2 -translate-y-1/2 overflow-hidden text-center" style={{ left, top, width: w, color: layer.color, fontSize: layer.fontSizePt * scale }}>{layer.text}</div>;
+        }
+        const rect = layerGeometryToPixels({ geometry: layer.geometry, background: { widthPx: width, heightPx: height } });
+        const panX = layer.cropXRatio * rect.widthPx * 0.25;
+        const panY = layer.cropYRatio * rect.heightPx * 0.25;
+        return (
+          <div
+            key={layer.id}
+            className="absolute overflow-hidden"
+            style={{
+              left: rect.xPx * scale,
+              top: rect.yPx * scale,
+              width: rect.widthPx * scale,
+              height: rect.heightPx * scale,
+              clipPath: cssShapeClip(layer.shape.type),
             }}
-            onTap={(e) => {
-              onSelect?.();
-              e.cancelBubble = true;
-            }}
-          />
-          {selected ? (
-            <Transformer
-              ref={transformerRef}
-              rotateEnabled={false}
-              keepRatio={true}
-              boundBoxFunc={(oldBox, newBox) => {
-                const s = (layer.cropScale ?? 1) * (newBox.width / rect.widthPx);
-                return s >= 1 && s <= 4 ? newBox : oldBox;
-              }}
-              onTransformEnd={() => {
-                const node = overlayRef.current;
-                if (!node) return;
-                const scale = node.scaleX();
-                node.scaleX(1);
-                node.scaleY(1);
-                const newCropScale = Math.max(1, (layer.cropScale ?? 1) * scale);
-                onCropChange?.({
-                  cropScale: Math.min(4, newCropScale),
-                  cropXRatio: layer.cropXRatio ?? 0,
-                  cropYRatio: layer.cropYRatio ?? 0,
-                });
+          >
+            <img
+              src={layer.previewUrl}
+              alt=""
+              className="h-full w-full object-cover"
+              style={{
+                transform: `translate(${panX * scale}px, ${panY * scale}px) scale(${layer.cropScale})`,
+                transformOrigin: "center",
               }}
             />
-          ) : null}
-        </>
-      ) : null}
-    </>
-  );
-}
-
-function PreviewBlockField({
-  block,
-  value,
-  issue,
-  uploading,
-  onChange,
-  onUpload,
-  onIconUpload,
-}: {
-  block: CustomizationBlock;
-  value: CustomizationFieldValue | undefined;
-  issue?: string;
-  uploading: boolean;
-  onChange: (value: CustomizationFieldValue) => void;
-  onUpload: (file: File) => Promise<void>;
-  onIconUpload: (file: File) => Promise<void>;
-}) {
-  return (
-    <div>
-      {block.type !== "checkbox" ? (
-        <div className="mb-2 flex items-center justify-between gap-3">
-          <label className="text-sm font-semibold text-slate-800">
-            {block.label} {block.required ? <span className="text-rose-600">*</span> : null}
-          </label>
-          {(block.type === "text_single" || block.type === "text_multi") ? (
-            <span className="text-xs text-slate-400">
-              {getTextBlockValue(block, value).text.length}/{block.maxChars}
-            </span>
-          ) : null}
-        </div>
-      ) : null}
-
-      {block.type === "text_single" ? (
-        <PreviewTextControl block={block} value={value} onChange={onChange} />
-      ) : block.type === "text_multi" ? (
-        <PreviewTextareaControl block={block} value={value} onChange={onChange} />
-      ) : block.type === "icon_picker" ? (
-        <PreviewIconPickerControl
-          block={block}
-          value={value}
-          uploading={uploading}
-          onChange={onChange}
-          onUpload={onIconUpload}
-        />
-      ) : block.type === "image_upload" ? (
-        <PreviewImageChoiceControl
-          block={block}
-          value={value}
-          uploading={uploading}
-          onChange={onChange}
-          onUpload={onUpload}
-        />
-      ) : block.type === "checkbox" ? (
-        <label className="flex cursor-pointer gap-3 rounded-2xl border border-stone-200 bg-stone-50 p-4 text-sm text-slate-700">
-          <input
-            type="checkbox"
-            checked={value === true}
-            onChange={(event) => onChange(event.target.checked)}
-            className="mt-0.5 size-4 accent-[#13231d]"
-          />
-          <span>
-            {block.label} {block.required ? <span className="text-rose-600">*</span> : null}
-          </span>
-        </label>
-      ) : (
-        <PreviewChoiceControl block={block} value={value} onChange={onChange} />
-      )}
-
-      {block.helpText ? <p className="mt-2 text-xs text-slate-400">{block.helpText}</p> : null}
-      {issue ? <p className="mt-2 text-xs font-medium text-rose-700">{issue}</p> : null}
-    </div>
-  );
-}
-
-function PreviewTextControl({
-  block,
-  value,
-  onChange,
-}: {
-  block: TextSingleBlock;
-  value: CustomizationFieldValue | undefined;
-  onChange: (value: TextBlockValue) => void;
-}) {
-  const textValue = getTextBlockValue(block, value);
-  return (
-    <div className="space-y-3">
-      <input
-        value={textValue.text}
-        maxLength={block.maxChars}
-        placeholder={block.placeholder}
-        onChange={(event) =>
-          onChange({ ...textValue, text: limitTextBlockValue(block, event.target.value) })
-        }
-        className="w-full rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm outline-none focus:border-amber-400"
-      />
-      <PreviewTextStyleControls block={block} value={textValue} onChange={onChange} />
-    </div>
-  );
-}
-
-function PreviewTextareaControl({
-  block,
-  value,
-  onChange,
-}: {
-  block: TextMultiBlock;
-  value: CustomizationFieldValue | undefined;
-  onChange: (value: TextBlockValue) => void;
-}) {
-  const textValue = getTextBlockValue(block, value);
-  return (
-    <>
-      <textarea
-        rows={Math.min(block.maxLines + 1, 6)}
-        value={textValue.text}
-        maxLength={block.maxChars}
-        placeholder={block.placeholder}
-        onChange={(event) =>
-          onChange({ ...textValue, text: limitTextBlockValue(block, event.target.value) })
-        }
-        className="w-full resize-none rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm outline-none focus:border-amber-400"
-      />
-      <PreviewTextStyleControls block={block} value={textValue} onChange={onChange} />
-      <p className="mt-2 text-xs text-slate-400">Maximum {block.maxLines} lines</p>
-    </>
-  );
-}
-
-function PreviewTextStyleControls({
-  block,
-  value,
-  onChange,
-}: {
-  block: TextSingleBlock | TextMultiBlock;
-  value: TextBlockValue;
-  onChange: (value: TextBlockValue) => void;
-}) {
-  if (block.colorMode !== "user_selectable" && block.fontFamilyMode !== "user_selectable") {
-    return null;
-  }
-
-  return (
-    <div className="grid gap-3 sm:grid-cols-2">
-      {block.colorMode === "user_selectable" ? (
-        <label className="block text-sm font-medium text-slate-700">
-          Text color
-          <div className="mt-2 flex flex-wrap gap-2">
-            {block.colorOptions.map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                onClick={() => onChange({ ...value, color: option.value })}
-                className={[
-                  "flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-semibold",
-                  value.color === option.value
-                    ? "border-amber-500 bg-amber-50 text-amber-900"
-                    : "border-stone-200 text-slate-600",
-                ].join(" ")}
-              >
-                {option.swatch ? (
-                  <span className="size-4 rounded-full border" style={{ backgroundColor: option.swatch }} />
-                ) : null}
-                {option.label}
-              </button>
-            ))}
           </div>
-        </label>
-      ) : null}
-
-      {block.fontFamilyMode === "user_selectable" ? (
-        <label className="block text-sm font-medium text-slate-700">
-          Font family
-          <select
-            value={value.fontId ?? block.fontId}
-            onChange={(event) => onChange({ ...value, fontId: event.target.value })}
-            className="mt-2 w-full rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm"
-          >
-            {block.fontFamilyOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
-      ) : null}
+        );
+      })}
     </div>
   );
 }
 
-function PreviewIconPickerControl({
-  block,
-  value,
-  uploading,
-  onChange,
-  onUpload,
-}: {
-  block: IconPickerBlock;
-  value: CustomizationFieldValue | undefined;
-  uploading: boolean;
-  onChange: (value: CustomizationFieldValue) => void;
-  onUpload: (file: File) => Promise<void>;
-}) {
-  const uploaded = value && typeof value === "object" && "assetId" in value ? value : null;
-  return (
-    <div className="space-y-3">
-      <div className="grid grid-cols-2 gap-3">
-        {block.options.map((option) => (
-          <button
-            key={option.id}
-            type="button"
-            onClick={() => onChange(option.id)}
-            className={[
-              "overflow-hidden rounded-2xl border bg-white text-left transition",
-              value === option.id ? "border-amber-500 ring-2 ring-amber-200" : "border-stone-200",
-            ].join(" ")}
-          >
-            <img src={option.previewUrl} alt="" className="h-20 w-full object-contain bg-stone-100" />
-            <span className="block px-3 py-2 text-xs font-semibold text-slate-700">
-              {option.label}
-            </span>
-          </button>
-        ))}
-      </div>
-      {block.allowUpload !== false ? (
-        <>
-          <PreviewUploadButton
-            uploaded={uploaded}
-            uploading={uploading}
-            accept={(block.accept ?? ["image/png", "image/jpeg"]).join(",")}
-            emptyLabel="Upload custom icon"
-            replaceLabel="Replace custom icon"
-            onUpload={onUpload}
-          />
-          {uploaded ? (
-            <p className="text-xs text-slate-400">Click the icon on the preview, then drag corners to resize. Drag the icon itself to adjust position.</p>
-          ) : null}
-        </>
-      ) : null}
-    </div>
-  );
-}
-
-function PreviewImageChoiceControl({
-  block,
-  value,
-  uploading,
-  onChange,
-  onUpload,
-}: {
-  block: ImageUploadBlock;
-  value: CustomizationFieldValue | undefined;
-  uploading: boolean;
-  onChange: (value: CustomizationFieldValue) => void;
-  onUpload: (file: File) => Promise<void>;
-}) {
-  const uploaded = value && typeof value === "object" && "assetId" in value ? value : null;
-  const hasOptions = (block.options?.length ?? 0) > 0;
-  return (
-    <div className="space-y-3">
-      {hasOptions ? (
-        <div className="grid grid-cols-2 gap-3">
-          {block.options?.map((option) => (
-            <button
-              key={option.id}
-              type="button"
-              onClick={() => onChange(option.id)}
-              className={[
-                "overflow-hidden rounded-2xl border bg-white text-left transition",
-                value === option.id ? "border-amber-500 ring-2 ring-amber-200" : "border-stone-200",
-              ].join(" ")}
-            >
-              <img src={option.previewUrl} alt="" className="h-20 w-full object-contain bg-stone-100" />
-              <span className="block px-3 py-2 text-xs font-semibold text-slate-700">
-                {option.label}
-              </span>
-            </button>
-          ))}
-        </div>
-      ) : null}
-      {block.allowUpload !== false ? (
-        <>
-          <PreviewUploadButton
-            uploaded={uploaded}
-            uploading={uploading}
-            accept={block.accept.join(",")}
-            emptyLabel={hasOptions ? "Upload custom image" : "Choose PNG or JPEG"}
-            replaceLabel="Replace custom image"
-            onUpload={onUpload}
-          />
-          {uploaded ? (
-            <p className="text-xs text-slate-400">Click the image on the preview, then drag corners to resize. Drag the image itself to adjust position.</p>
-          ) : null}
-        </>
-      ) : null}
-    </div>
-  );
-}
-
-function PreviewUploadButton({
-  uploaded,
-  uploading,
-  accept,
-  emptyLabel,
-  replaceLabel,
-  onUpload,
-}: {
-  uploaded: UploadedMediaValue | null;
-  uploading: boolean;
-  accept: string;
-  emptyLabel: string;
-  replaceLabel: string;
-  onUpload: (file: File) => Promise<void>;
-}) {
-  return (
-    <label className="block cursor-pointer rounded-2xl border border-dashed border-slate-300 bg-stone-50 p-4 text-center text-sm font-semibold text-slate-700">
-      {uploaded ? (
-        <img src={uploaded.previewUrl} alt="Uploaded artwork" className="mx-auto mb-3 h-24 object-contain" />
-      ) : null}
-      {uploading ? "Uploading..." : uploaded ? replaceLabel : emptyLabel}
-      <input
-        type="file"
-        accept={accept}
-        disabled={uploading}
-        onChange={(event: ChangeEvent<HTMLInputElement>) => {
-          const file = event.target.files?.[0];
-          if (file) void onUpload(file);
-          event.target.value = "";
-        }}
-        className="sr-only"
-      />
-    </label>
-  );
-}
-
-function PreviewChoiceControl({
-  block,
-  value,
-  onChange,
-}: {
-  block: ChoiceBlock;
-  value: CustomizationFieldValue | undefined;
-  onChange: (value: string) => void;
-}) {
-  if (block.type === "select") {
+function PreviewField({ field, layer, value, onChange }: { field: CustomizationFormField; layer: CustomizationLayer; value: unknown; onChange: (value: TextFieldValue | ImageShapeFieldValue | null) => void }) {
+  if (layer.type === "text") {
+    const textValue = value && typeof value === "object" && "text" in value ? value as TextFieldValue : { text: "" };
     return (
-      <select
-        value={typeof value === "string" ? value : ""}
-        onChange={(event) => onChange(event.target.value)}
-        className="w-full rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm"
-      >
-        {block.options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
+      <div className="space-y-2">
+        <label className="text-sm font-medium">{field.label}{field.required ? " *" : ""}</label>
+        <textarea value={textValue.text} placeholder={field.placeholder} onChange={(event) => onChange({ ...textValue, text: event.target.value })} className="w-full rounded-md border border-ui-border-base px-3 py-2 text-sm" rows={layer.text.maxLines} />
+        {layer.text.colorPolicy.mode === "shopper_selectable" ? <Select label="Color" value={textValue.color ?? layer.text.colorPolicy.defaultColor} options={layer.text.colorPolicy.options.map((option) => option.value)} onChange={(color) => onChange({ ...textValue, color })} /> : null}
+        {layer.text.fontPolicy.mode === "shopper_selectable" ? <Select label="Font" value={textValue.fontId ?? layer.text.fontPolicy.defaultFontId} options={layer.text.fontPolicy.options.map((option) => option.value)} onChange={(fontId) => onChange({ ...textValue, fontId })} /> : null}
+      </div>
     );
   }
-
+  const imageValue = value && typeof value === "object" && "assetId" in value ? value as ImageShapeFieldValue : null;
   return (
-    <div className="flex flex-wrap gap-2">
-      {block.options.map((option) => (
-        <button
-          key={option.value}
-          type="button"
-          onClick={() => onChange(option.value)}
-          className={[
-            "flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold",
-            value === option.value
-              ? "border-amber-500 bg-amber-50 text-amber-900"
-              : "border-stone-200 text-slate-600",
-          ].join(" ")}
-        >
-          {option.swatch ? (
-            <span className="size-4 rounded-full border" style={{ backgroundColor: option.swatch }} />
-          ) : null}
-          {option.label}
-        </button>
-      ))}
+    <div className="space-y-2">
+      <label className="text-sm font-medium">{field.label}{field.required ? " *" : ""}</label>
+      <input type="file" accept="image/*" onChange={(event) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+        void fileToBackground(file).then((asset) => onChange({ assetId: createId("local_asset"), previewUrl: asset.previewUrl, sourceWidthPx: asset.widthPx, sourceHeightPx: asset.heightPx, cropScale: 1, cropXRatio: 0, cropYRatio: 0 }));
+      }} />
+      {imageValue ? (
+        <>
+          <NumberInput label="Zoom" value={imageValue.cropScale ?? 1} onChange={(cropScale) => onChange({ ...imageValue, cropScale })} />
+          <NumberInput label="Pan X" value={imageValue.cropXRatio ?? 0} onChange={(cropXRatio) => onChange({ ...imageValue, cropXRatio })} />
+          <NumberInput label="Pan Y" value={imageValue.cropYRatio ?? 0} onChange={(cropYRatio) => onChange({ ...imageValue, cropYRatio })} />
+        </>
+      ) : null}
     </div>
   );
 }
 
-function EditableBlock({
-  block,
-  previewWidthPx,
-  previewHeightPx,
-  selected,
-  onSelect,
-  onChange,
-}: {
-  block: RenderableBlock;
-  previewWidthPx: number;
-  previewHeightPx: number;
-  selected: boolean;
-  onSelect: () => void;
-  onChange: (block: RenderableBlock) => void;
-}) {
-  const shapeRef = useRef<Konva.Rect>(null);
-  const transformerRef = useRef<Konva.Transformer>(null);
-
-  useEffect(() => {
-    if (selected && shapeRef.current && transformerRef.current) {
-      transformerRef.current.nodes([shapeRef.current]);
-      transformerRef.current.getLayer()?.batchDraw();
-    }
-  }, [selected]);
-
-  const rect = getBlockPreviewRect({ block, previewWidthPx, previewHeightPx });
-
+function PositionFields({ template, layer, onUpdate, textOnly }: { template: CustomizationTemplate; layer: CustomizationLayer; onUpdate: (updater: (layer: CustomizationLayer) => CustomizationLayer) => void; textOnly?: boolean }) {
+  const background = template.background;
+  if (!background) return null;
+  const rect = layerGeometryToPixels({ geometry: layer.geometry, background });
+  const updateRect = (next: Partial<typeof rect>) => {
+    const merged = { ...rect, ...next };
+    const geometry = pixelRectToLayerGeometry({ ...merged, heightPx: textOnly ? undefined : merged.heightPx, background });
+    onUpdate((current) => ({ ...current, geometry: current.type === "text" ? { ...geometry, heightRatio: undefined } : { ...geometry, heightRatio: geometry.heightRatio ?? 0.1 } }) as CustomizationLayer);
+  };
   return (
-    <>
-      <Rect
-        ref={shapeRef}
-        x={rect.xPx}
-        y={rect.yPx}
-        width={rect.widthPx}
-        height={rect.heightPx}
-        rotation={rect.rotationDeg}
-        stroke={selected ? "#0f766e" : "#14b8a6"}
-        strokeWidth={selected ? 3 : 2}
-        dash={[6, 4]}
-        fill="rgba(20,184,166,0.08)"
-        draggable
-        onClick={onSelect}
-        onTap={onSelect}
-        onDragEnd={(event) =>
-          onChange({
-            ...block,
-            preview: {
-              ...block.preview,
-              xRatio: (event.target.x() + rect.widthPx / 2) / previewWidthPx,
-              yRatio: (event.target.y() + rect.heightPx / 2) / previewHeightPx,
-            },
-          })
-        }
-        onTransformEnd={() => {
-          const node = shapeRef.current;
-          if (!node) return;
-          const scaleX = node.scaleX();
-          const scaleY = node.scaleY();
-          const widthPx = Math.max(18, node.width() * scaleX);
-          const heightPx = Math.max(18, node.height() * scaleY);
-          node.scaleX(1);
-          node.scaleY(1);
-          onChange({
-            ...block,
-            preview: {
-              ...block.preview,
-              xRatio: (node.x() + widthPx / 2) / previewWidthPx,
-              yRatio: (node.y() + heightPx / 2) / previewHeightPx,
-              widthRatio: widthPx / previewWidthPx,
-              heightRatio: heightPx / previewHeightPx,
-              rotationDeg: block.preview.rotationDeg,
-            },
-          });
-        }}
-      />
-      <Text
-        x={rect.xPx}
-        y={rect.yPx - 18}
-        text={block.label}
-        fontSize={12}
-        fill="#115e59"
-        listening={false}
-      />
-      {selected ? (
-        <Transformer
-          ref={transformerRef}
-          flipEnabled={false}
-          rotateEnabled={false}
-          boundBoxFunc={(oldBox, nextBox) =>
-            nextBox.width < 18 || nextBox.height < 18 ? oldBox : nextBox
+    <div className="grid grid-cols-2 gap-2">
+      <NumberInput label="X" value={Math.round(rect.xPx)} onChange={(xPx) => updateRect({ xPx })} />
+      <NumberInput label="Y" value={Math.round(rect.yPx)} onChange={(yPx) => updateRect({ yPx })} />
+      <NumberInput label="W" value={Math.round(rect.widthPx)} onChange={(widthPx) => updateRect({ widthPx })} />
+      <NumberInput label="H" value={Math.round(textOnly && layer.type === "text" ? layer.text.maxLines * layer.text.maxFontSizePt * 1.35 : rect.heightPx)} disabled={textOnly} onChange={(heightPx) => updateRect({ heightPx })} />
+    </div>
+  );
+}
+
+function TextStyleControls({ layer, onUpdate }: { layer: TextEditorLayer; onUpdate: (updater: (layer: CustomizationLayer) => CustomizationLayer) => void }) {
+  return (
+    <div className="space-y-2">
+      <Select label="Color mode" value={layer.text.colorPolicy.mode} options={["fixed", "shopper_selectable"]} onChange={(mode) => updateText(onUpdate, { colorPolicy: mode === "fixed" ? { mode: "fixed", color: "#111111" } : { mode: "shopper_selectable", defaultColor: "#111111", options: DEFAULT_TEXT_COLOR_OPTIONS } })} />
+      <Select label="Font mode" value={layer.text.fontPolicy.mode} options={["fixed", "shopper_selectable"]} onChange={(mode) => updateText(onUpdate, { fontPolicy: mode === "fixed" ? { mode: "fixed", fontId: "sans-bold" } : { mode: "shopper_selectable", defaultFontId: "sans-bold", options: DEFAULT_FONT_FAMILY_OPTIONS } })} />
+    </div>
+  );
+}
+
+function TextPathControls({
+  layer,
+  pathEditing,
+  onPathEditingChange,
+  onUpdate,
+}: {
+  layer: TextEditorLayer;
+  pathEditing: boolean;
+  onPathEditingChange: (active: boolean) => void;
+  onUpdate: (updater: (layer: CustomizationLayer) => CustomizationLayer) => void;
+}) {
+  const customPath = layer.text.path.type === "custom" ? layer.text.path : null;
+  return (
+    <div className="space-y-2">
+      <Select label="Text path" value={layer.text.path.type} options={["straight", "arc_up", "arc_down", "circle_top", "circle_bottom", "custom"]} onChange={(type) => {
+        const path = defaultPath(type as TextPath["type"]);
+        updateText(onUpdate, { path, maxLines: type === "straight" ? layer.text.maxLines : 1 });
+      }} />
+      {layer.text.path.type === "arc_up" || layer.text.path.type === "arc_down" ? (
+        <NumberInput
+          label="Curve amount"
+          value={layer.text.path.curveAmount}
+          onChange={(curveAmount) =>
+            updateText(onUpdate, {
+              path: { type: layer.text.path.type as "arc_up" | "arc_down", curveAmount },
+            })
           }
         />
       ) : null}
-    </>
-  );
-}
-
-function createPreview(order: number): PreviewBounds {
-  return {
-    xRatio: 0.5,
-    yRatio: 0.5,
-    widthRatio: 0.25,
-    heightRatio: 0.1,
-    rotationDeg: 0,
-    zIndex: order,
-  };
-}
-
-function createBlock(type: CustomizationBlock["type"], order: number): CustomizationBlock {
-  const id = `block_${crypto.randomUUID()}`;
-  const preview = createPreview(order);
-  const production = {
-    widthMm: 40,
-    heightMm: 20,
-    safeMarginMm: 2,
-    bleedMm: 1,
-    method: "engrave" as const,
-    colorMode: "monochrome" as const,
-    minImageDpi: 300,
-  };
-  const common = { id, label: "New field", helpText: "", hidden: false, required: false, order };
-
-  if (type === "text_single") {
-    return {
-      ...common,
-      type,
-      defaultValue: "",
-      maxChars: 30,
-      fontId: "sans-bold",
-      minFontSizePt: 8,
-      maxFontSizePt: 20,
-      color: "#111111",
-      alignment: "center",
-      uppercase: true,
-      colorMode: "fixed",
-      colorOptions: DEFAULT_TEXT_COLOR_OPTIONS,
-      fontFamilyMode: "fixed",
-      fontFamilyOptions: DEFAULT_FONT_FAMILY_OPTIONS,
-      preview,
-      production,
-    };
-  }
-
-  if (type === "text_multi") {
-    return {
-      ...common,
-      type,
-      defaultValue: "",
-      maxChars: 60,
-      maxLines: 3,
-      fontId: "sans-bold",
-      minFontSizePt: 8,
-      maxFontSizePt: 20,
-      color: "#111111",
-      alignment: "center",
-      colorMode: "fixed",
-      colorOptions: DEFAULT_TEXT_COLOR_OPTIONS,
-      fontFamilyMode: "fixed",
-      fontFamilyOptions: DEFAULT_FONT_FAMILY_OPTIONS,
-      preview,
-      production,
-    };
-  }
-
-  if (type === "icon_picker") {
-    return {
-      ...common,
-      type,
-      defaultOptionId: "none",
-      allowNone: true,
-      allowUpload: true,
-      accept: ["image/png", "image/jpeg"],
-      maxBytes: 20 * 1024 * 1024,
-      fit: "contain",
-      preview,
-      production,
-      options: [
-        {
-          id: "none",
-          label: "None",
-          previewUrl:
-            "data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'/%3E",
-          productionAssetId: "preset_none_v1",
-          sourceWidthPx: 100,
-          sourceHeightPx: 100,
-        },
-      ],
-    };
-  }
-
-  if (type === "image_upload") {
-    return {
-      ...common,
-      type,
-      defaultOptionId: "",
-      allowUpload: true,
-      options: [],
-      accept: ["image/png", "image/jpeg"],
-      maxBytes: 20 * 1024 * 1024,
-      minDpi: 300,
-      fit: "contain",
-      monochromePreview: true,
-      productionMode: "monochrome",
-      requireArtworkRights: true,
-      preview,
-      production,
-    };
-  }
-
-  if (type === "checkbox") {
-    return { ...common, type, defaultValue: false };
-  }
-
-  return {
-    ...common,
-    type,
-    defaultValue: "option-1",
-    options: [{ value: "option-1", label: "Option 1" }],
-  };
-}
-
-function BlockEditor({
-  blocks,
-  selectedId,
-  onSelect,
-  onChange,
-}: {
-  blocks: CustomizationBlock[];
-  selectedId: string;
-  onSelect: (blockId: string) => void;
-  onChange: (blocks: CustomizationBlock[]) => void;
-}) {
-  return (
-    <div>
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <p className="text-sm font-semibold text-slate-900">Custom blocks</p>
-          <p className="mt-1 text-xs text-slate-500">Each block is one shopper-customizable area.</p>
-        </div>
-        <select
-          value=""
-          onChange={(event) => {
-            if (!event.target.value) return;
-            const block = createBlock(event.target.value as CustomizationBlock["type"], blocks.length + 1);
-            onChange([...blocks, block]);
-            onSelect(block.id);
-          }}
-          className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs font-semibold"
-        >
-          <option value="">+ Add block</option>
-          <option value="text_single">Single-line text</option>
-          <option value="text_multi">Multi-line text</option>
-          <option value="icon_picker">Icon picker</option>
-          <option value="image_upload">Artwork upload</option>
-          <option value="radio">Radio options</option>
-          <option value="color">Color options</option>
-          <option value="checkbox">Checkbox</option>
-        </select>
-      </div>
-
-      <div className="mt-4 flex flex-wrap gap-2">
-        {blocks.map((block) => (
-          <button
-            key={block.id}
-            type="button"
-            onClick={() => onSelect(block.id)}
-            className={[
-              "rounded-full border px-3 py-2 text-xs font-semibold",
-              selectedId === block.id
-                ? "border-amber-300 bg-amber-50 text-amber-900"
-                : "border-stone-200 text-slate-600",
-            ].join(" ")}
-          >
-            {block.label} · {block.type}
-            {block.hidden ? " · Hidden" : ""}
+      {layer.text.path.type === "circle_top" || layer.text.path.type === "circle_bottom" ? (
+        <NumberInput
+          label="Radius"
+          value={layer.text.path.radiusRatio}
+          onChange={(radiusRatio) =>
+            updateText(onUpdate, {
+              path: { type: layer.text.path.type as "circle_top" | "circle_bottom", radiusRatio },
+            })
+          }
+        />
+      ) : null}
+      {customPath ? (
+        <div className="space-y-2">
+          <button type="button" onClick={() => onPathEditingChange(!pathEditing)} className="rounded border px-3 py-2 text-sm">
+            {pathEditing ? "Done" : "Edit path"}
           </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function TextBlockSettings({
-  block,
-  onChange,
-}: {
-  block: TextSingleBlock | TextMultiBlock;
-  onChange: (block: TextSingleBlock | TextMultiBlock) => void;
-}) {
-  return (
-    <>
-      <div className="grid grid-cols-2 gap-3">
-        <NumberField
-          label="Max characters"
-          value={block.maxChars}
-          onChange={(maxChars) => onChange({ ...block, maxChars: Math.max(1, Math.round(maxChars)) })}
-        />
-        {block.type === "text_multi" ? (
-          <NumberField
-            label="Max lines"
-            value={block.maxLines}
-            onChange={(maxLines) => onChange({ ...block, maxLines: Math.max(1, Math.round(maxLines)) })}
-          />
-        ) : (
-          <label className="flex items-center gap-2 text-sm text-slate-700">
-            <input
-              type="checkbox"
-              checked={block.uppercase}
-              onChange={(event) => onChange({ ...block, uppercase: event.target.checked })}
-            />
-            Uppercase
-          </label>
-        )}
-      </div>
-      <Field
-        label="Default value"
-        value={block.defaultValue}
-        onChange={(defaultValue) => onChange({ ...block, defaultValue })}
-      />
-      <TextStyleSettings block={block} onChange={onChange} />
-    </>
-  );
-}
-
-function IconPickerSettings({
-  block,
-  onChange,
-}: {
-  block: IconPickerBlock;
-  onChange: (block: IconPickerBlock) => void;
-}) {
-  return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-3">
-        <NumberField
-          label="Max upload size (MB)"
-          value={Math.round((block.maxBytes ?? 20 * 1024 * 1024) / 1024 / 1024)}
-          onChange={(megabytes) =>
-            onChange({ ...block, maxBytes: Math.max(1, Math.round(megabytes)) * 1024 * 1024 })
-          }
-        />
-        <label className="flex items-center gap-2 text-sm text-slate-700">
-          <input
-            type="checkbox"
-            checked={block.allowUpload !== false}
-            onChange={(event) => onChange({ ...block, allowUpload: event.target.checked })}
-          />
-          Allow shopper upload
-        </label>
-      </div>
-      <MediaOptionEditor
-        title="Preset icons"
-        blockId={block.id}
-        defaultOptionId={block.defaultOptionId}
-        options={block.options}
-        onDefaultChange={(defaultOptionId) => onChange({ ...block, defaultOptionId })}
-        onChange={(options) => onChange({ ...block, options })}
-      />
-    </div>
-  );
-}
-
-function ImageUploadSettings({
-  block,
-  onChange,
-}: {
-  block: ImageUploadBlock;
-  onChange: (block: ImageUploadBlock) => void;
-}) {
-  return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-3">
-        <NumberField
-          label="Max size (MB)"
-          value={Math.round(block.maxBytes / 1024 / 1024)}
-          onChange={(megabytes) =>
-            onChange({ ...block, maxBytes: Math.max(1, Math.round(megabytes)) * 1024 * 1024 })
-          }
-        />
-        <label className="flex items-center gap-2 text-sm text-slate-700">
-          <input
-            type="checkbox"
-            checked={block.allowUpload !== false}
-            onChange={(event) => onChange({ ...block, allowUpload: event.target.checked })}
-          />
-          Allow shopper upload
-        </label>
-        <label className="flex items-center gap-2 text-sm text-slate-700">
-          <input
-            type="checkbox"
-            checked={block.monochromePreview}
-            onChange={(event) => onChange({ ...block, monochromePreview: event.target.checked })}
-          />
-          Monochrome preview
-        </label>
-        <label className="flex items-center gap-2 text-sm text-slate-700">
-          <input
-            type="checkbox"
-            checked={block.requireArtworkRights}
-            onChange={(event) => onChange({ ...block, requireArtworkRights: event.target.checked })}
-          />
-          Require artwork rights
-        </label>
-      </div>
-      <MediaOptionEditor
-        title="Preset images"
-        blockId={block.id}
-        defaultOptionId={block.defaultOptionId ?? ""}
-        options={block.options ?? []}
-        onDefaultChange={(defaultOptionId) => onChange({ ...block, defaultOptionId })}
-        onChange={(options) => onChange({ ...block, options })}
-      />
-    </div>
-  );
-}
-
-function MediaOptionEditor({
-  title,
-  blockId,
-  defaultOptionId,
-  options,
-  onDefaultChange,
-  onChange,
-}: {
-  title: string;
-  blockId: string;
-  defaultOptionId: string;
-  options: IconOption[];
-  onDefaultChange: (optionId: string) => void;
-  onChange: (options: IconOption[]) => void;
-}) {
-  return (
-    <div>
-      <div className="flex items-center justify-between">
-        <p className="text-sm font-medium text-slate-700">{title}</p>
-        <button
-          type="button"
-          onClick={() => {
-            const id = `option_${crypto.randomUUID()}`;
-            onChange([
-              ...options,
-              {
-                id,
-                label: `Option ${options.length + 1}`,
-                category: "",
-                previewUrl: "",
-                productionAssetId: `pending_${id}`,
-                sourceWidthPx: 1200,
-                sourceHeightPx: 1200,
-              },
-            ]);
-          }}
-          className="text-xs font-semibold text-amber-800"
-        >
-          + Add option
-        </button>
-      </div>
-      <div className="mt-3 space-y-3">
-        {options.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-stone-200 bg-stone-50 p-3 text-xs text-slate-500">
-            No preset options yet.
-          </div>
-        ) : null}
-        {options.map((option) => (
-          <div key={option.id} className="rounded-xl border border-stone-200 bg-white p-3">
-            <label className="flex items-center gap-2 text-xs font-semibold text-slate-700">
-              <input
-                type="radio"
-                name={`${blockId}-default`}
-                checked={defaultOptionId === option.id}
-                onChange={() => onDefaultChange(option.id)}
-              />
-              Default option
-            </label>
-            <div className="mt-2 space-y-2">
-              <Field
-                label="Option label"
-                value={option.label}
-                onChange={(label) =>
-                  onChange(options.map((entry) => (entry.id === option.id ? { ...entry, label } : entry)))
-                }
-              />
-              <Field
-                label="Category"
-                value={option.category ?? ""}
-                onChange={(category) =>
-                  onChange(options.map((entry) => (entry.id === option.id ? { ...entry, category } : entry)))
-                }
-              />
-              <Field
-                label="Preview/asset URL"
-                value={option.previewUrl}
-                onChange={(previewUrl) =>
-                  onChange(
-                    options.map((entry) =>
-                      entry.id === option.id
-                        ? { ...entry, previewUrl, productionAssetId: previewUrl || entry.productionAssetId }
-                        : entry,
-                    ),
-                  )
-                }
-              />
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function ChoiceSettings({
-  block,
-  onChange,
-}: {
-  block: ChoiceBlock;
-  onChange: (block: ChoiceBlock) => void;
-}) {
-  return (
-    <>
-      <Field
-        label="Default value"
-        value={block.defaultValue}
-        onChange={(defaultValue) => onChange({ ...block, defaultValue })}
-      />
-      <div className="space-y-2">
-        {block.options.map((option) => (
-          <Field
-            key={option.value}
-            label="Option label"
-            value={option.label}
-            onChange={(label) =>
-              onChange({
-                ...block,
-                options: block.options.map((entry) =>
-                  entry.value === option.value ? { ...entry, label } : entry,
-                ),
+          <button
+            type="button"
+            onClick={() =>
+              updateText(onUpdate, {
+                path: {
+                  ...customPath,
+                  points: [
+                    ...customPath.points,
+                    {
+                      id: createId("path_point"),
+                      xRatio: 0.5,
+                      yRatio: 0.5,
+                      inHandle: { xRatio: -0.08, yRatio: 0 },
+                      outHandle: { xRatio: 0.08, yRatio: 0 },
+                    },
+                  ],
+                },
               })
             }
-          />
-        ))}
-      </div>
-    </>
-  );
-}
-
-function TextStyleSettings({
-  block,
-  onChange,
-}: {
-  block: TextSingleBlock | TextMultiBlock;
-  onChange: (block: TextSingleBlock | TextMultiBlock) => void;
-}) {
-  return (
-    <div className="space-y-4 rounded-2xl bg-stone-50 p-4">
-      <div className="grid grid-cols-2 gap-3">
-        <StyleModeField
-          label="Color mode"
-          value={block.colorMode}
-          onChange={(colorMode) => onChange({ ...block, colorMode })}
-        />
-        <StyleModeField
-          label="Font family mode"
-          value={block.fontFamilyMode}
-          onChange={(fontFamilyMode) => onChange({ ...block, fontFamilyMode })}
-        />
-      </div>
-
-      {block.colorMode === "fixed" ? (
-        <label className="block text-sm font-medium text-slate-700">
-          Fixed color
-          <input
-            type="color"
-            value={block.color}
-            onChange={(event) => onChange({ ...block, color: event.target.value })}
-            className="mt-2 h-11 w-full rounded-2xl border border-stone-200 bg-white px-2 py-1"
-          />
-        </label>
-      ) : (
-        <ChoiceOptionEditor
-          label="Allowed colors"
-          options={block.colorOptions}
-          onChange={(colorOptions) => onChange({ ...block, colorOptions })}
-          swatches
-        />
-      )}
-
-      {block.fontFamilyMode === "fixed" ? (
-        <SelectField
-          label="Fixed font family"
-          value={block.fontId}
-          options={DEFAULT_FONT_FAMILY_OPTIONS}
-          onChange={(fontId) => onChange({ ...block, fontId })}
-        />
-      ) : (
-        <ChoiceOptionEditor
-          label="Allowed font families"
-          options={block.fontFamilyOptions}
-          onChange={(fontFamilyOptions) => onChange({ ...block, fontFamilyOptions })}
-        />
-      )}
-    </div>
-  );
-}
-
-function ConditionEditor({
-  block,
-  blocks,
-  onChange,
-}: {
-  block: CustomizationBlock;
-  blocks: CustomizationBlock[];
-  onChange: (visibleWhen?: CustomizationBlock["visibleWhen"]) => void;
-}) {
-  const candidates = blocks.filter(
-    (entry) =>
-      entry.order < block.order &&
-      (entry.type === "checkbox" ||
-        entry.type === "select" ||
-        entry.type === "radio" ||
-        entry.type === "color"),
-  ) as Array<ChoiceBlock | Extract<CustomizationBlock, { type: "checkbox" }>>;
-  const selectedSource =
-    candidates.find((entry) => entry.id === block.visibleWhen?.blockId) ?? null;
-
-  return (
-    <div className="space-y-3 rounded-2xl bg-stone-50 p-4">
-      <label className="block text-sm font-medium text-slate-700">
-        Visibility source
-        <select
-          value={block.visibleWhen?.blockId ?? ""}
-          onChange={(event) => {
-            const sourceId = event.target.value;
-            if (!sourceId) {
-              onChange(undefined);
-              return;
-            }
-            const source = candidates.find((entry) => entry.id === sourceId);
-            if (!source) return;
-            onChange({
-              blockId: source.id,
-              equals:
-                source.type === "checkbox"
-                  ? true
-                  : source.options[0]?.value ?? "",
-            });
-          }}
-          className="mt-2 w-full rounded-2xl border border-stone-200 bg-white px-4 py-3 outline-none"
-        >
-          <option value="">Always visible</option>
-          {candidates.map((entry) => (
-            <option key={entry.id} value={entry.id}>
-              {entry.label}
-            </option>
-          ))}
-        </select>
-      </label>
-
-      {selectedSource ? (
-        selectedSource.type === "checkbox" ? (
-          <SelectField
-            label="Show when"
-            value={String(block.visibleWhen?.equals ?? true)}
-            options={[
-              { value: "true", label: "Checked" },
-              { value: "false", label: "Unchecked" },
-            ]}
-            onChange={(value) =>
-              onChange({ blockId: selectedSource.id, equals: value === "true" })
-            }
-          />
-        ) : "options" in selectedSource ? (
-          <SelectField
-            label="Show when"
-            value={String(block.visibleWhen?.equals ?? selectedSource.options[0]?.value ?? "")}
-            options={selectedSource.options}
-            onChange={(value) => onChange({ blockId: selectedSource.id, equals: value })}
-          />
-        ) : null
+            className="ml-2 rounded border px-3 py-2 text-sm"
+          >
+            Add point
+          </button>
+          <p className="text-xs text-ui-fg-muted">Double click the canvas to add anchors. Drag anchors or blue handles to shape the path.</p>
+        </div>
       ) : null}
     </div>
   );
 }
 
-function StyleModeField({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: "fixed" | "user_selectable";
-  onChange: (value: "fixed" | "user_selectable") => void;
-}) {
-  return (
-    <label className="block text-sm font-medium text-slate-700">
-      {label}
-      <select
-        value={value}
-        onChange={(event) => onChange(event.target.value as "fixed" | "user_selectable")}
-        className="mt-2 w-full rounded-2xl border border-stone-200 bg-white px-4 py-3 outline-none"
-      >
-        <option value="fixed">Fixed</option>
-        <option value="user_selectable">User selectable</option>
-      </select>
-    </label>
-  );
+function LayerName({ layer, onUpdate }: { layer: CustomizationLayer; onUpdate: (updater: (layer: CustomizationLayer) => CustomizationLayer) => void }) {
+  return <Input value={layer.name} onChange={(name) => onUpdate((current) => ({ ...current, name }) as CustomizationLayer)} />;
 }
 
-function SelectField({
-  label,
-  value,
-  options,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  options: Array<{ value: string; label: string }>;
-  onChange: (value: string) => void;
-}) {
+function PanelTitle({ title, subtitle }: { title: string; subtitle: string }) {
   return (
-    <label className="block text-sm font-medium text-slate-700">
-      {label}
-      <select
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="mt-2 w-full rounded-2xl border border-stone-200 bg-white px-4 py-3 outline-none"
-      >
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
-    </label>
-  );
-}
-
-function ChoiceOptionEditor({
-  label,
-  options,
-  onChange,
-  swatches = false,
-}: {
-  label: string;
-  options: Array<{ value: string; label: string; swatch?: string }>;
-  onChange: (options: Array<{ value: string; label: string; swatch?: string }>) => void;
-  swatches?: boolean;
-}) {
-  return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <p className="text-sm font-medium text-slate-700">{label}</p>
-        <button
-          type="button"
-          onClick={() =>
-            onChange([
-              ...options,
-              {
-                value: swatches ? "#000000" : `option_${options.length + 1}`,
-                label: `Option ${options.length + 1}`,
-                swatch: swatches ? "#000000" : undefined,
-              },
-            ])
-          }
-          className="text-xs font-semibold text-amber-800"
-        >
-          + Add option
-        </button>
-      </div>
-      {options.map((option, index) => (
-        <div key={`${option.value}:${index}`} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] gap-3">
-          <Field
-            label="Label"
-            value={option.label}
-            onChange={(labelValue) =>
-              onChange(
-                options.map((entry, entryIndex) =>
-                  entryIndex === index ? { ...entry, label: labelValue } : entry,
-                ),
-              )
-            }
-          />
-          {swatches ? (
-            <label className="block text-sm font-medium text-slate-700">
-              Color
-              <input
-                type="color"
-                value={option.value}
-                onChange={(event) =>
-                  onChange(
-                    options.map((entry, entryIndex) =>
-                      entryIndex === index
-                        ? { ...entry, value: event.target.value, swatch: event.target.value }
-                        : entry,
-                    ),
-                  )
-                }
-                className="mt-2 h-11 w-full rounded-2xl border border-stone-200 bg-white px-2 py-1"
-              />
-            </label>
-          ) : (
-            <Field
-              label="Value"
-              value={option.value}
-              onChange={(nextValue) =>
-                onChange(
-                  options.map((entry, entryIndex) =>
-                    entryIndex === index ? { ...entry, value: nextValue } : entry,
-                  ),
-                )
-              }
-            />
-          )}
-          <button
-            type="button"
-            onClick={() => onChange(options.filter((_, entryIndex) => entryIndex !== index))}
-            className="self-end rounded-full border border-stone-300 px-3 py-2 text-xs font-semibold text-slate-700"
-          >
-            Remove
-          </button>
-        </div>
-      ))}
+    <div>
+      <p className="text-sm font-semibold text-ui-fg-base">{title}</p>
+      <p className="mt-1 text-xs text-ui-fg-muted">{subtitle}</p>
     </div>
   );
 }
 
-function ProductSelector({
-  value,
-  onChange,
-}: {
-  value: string;
-  onChange: (productId: string) => void;
-}) {
-  const [products, setProducts] = useState<Array<{ id: number; title: string; handle: string }>>([]);
-  const [loading, setLoading] = useState(true);
+function Input({ value, onChange, placeholder }: { value: string; onChange: (value: string) => void; placeholder?: string }) {
+  return <input value={value} placeholder={placeholder} onChange={(event) => onChange(event.target.value)} className="w-full rounded-md border border-ui-border-base px-2 py-1 text-sm" />;
+}
 
-  useEffect(() => {
-    fetch(`${BACKEND_URL}/api/products?limit=100`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (data && Array.isArray(data.items)) setProducts(data.items);
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
-
+function NumberInput({ label, value, onChange, disabled }: { label: string; value: number; onChange: (value: number) => void; disabled?: boolean }) {
   return (
-    <label className="block text-sm font-medium text-slate-700">
-      Product
-      <select
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="mt-2 w-full rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 outline-none focus:border-amber-400"
-      >
-        {loading ? (
-          <option value="">Loading...</option>
-        ) : products.length === 0 ? (
-          <option value="">No products found</option>
-        ) : (
-          products.map((product) => (
-            <option key={product.id} value={String(product.id)}>
-              {product.title} ({product.handle})
-            </option>
-          ))
-        )}
+    <label className="block text-xs font-medium text-ui-fg-muted">
+      {label}
+      <input type="number" disabled={disabled} value={Number.isFinite(value) ? value : 0} onChange={(event) => onChange(Number(event.target.value))} className="mt-1 w-full rounded-md border border-ui-border-base px-2 py-1 text-sm text-ui-fg-base disabled:bg-ui-bg-subtle" />
+    </label>
+  );
+}
+
+function Select({ label, value, options, onChange }: { label: string; value: string; options: string[]; onChange: (value: string) => void }) {
+  return (
+    <label className="block text-xs font-medium text-ui-fg-muted">
+      {label}
+      <select value={value} onChange={(event) => onChange(event.target.value)} className="mt-1 w-full rounded-md border border-ui-border-base px-2 py-1 text-sm text-ui-fg-base">
+        {options.map((option) => <option key={option} value={option}>{option}</option>)}
       </select>
     </label>
   );
 }
 
-function Field({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-}) {
+function BackgroundUpload({ onUpload, hidden }: { onUpload: (background: BackgroundAsset) => void; hidden?: boolean }) {
   return (
-    <label className="block text-sm font-medium text-slate-700">
-      {label}
-      <input
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="mt-2 w-full rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 outline-none focus:border-amber-400"
-      />
+    <label className={hidden ? "sr-only" : "inline-flex cursor-pointer rounded-md border border-ui-border-base px-3 py-2 text-sm"}>
+      {hidden ? "Upload" : "Upload / replace"}
+      <input type="file" accept="image/*" className="sr-only" onChange={(event) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+        void fileToBackground(file).then(onUpload);
+      }} />
     </label>
   );
 }
 
-function NumberField({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: number;
-  onChange: (value: number) => void;
-}) {
-  return (
-    <label className="block text-sm font-medium text-slate-700">
-      {label}
-      <input
-        type="number"
-        min="0"
-        step="0.1"
-        value={value}
-        onChange={(event) => onChange(numberValue(event.target.value, value))}
-        className="mt-2 w-full rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 outline-none focus:border-amber-400"
-      />
-    </label>
+function updateText(onUpdate: (updater: (layer: CustomizationLayer) => CustomizationLayer) => void, patch: Partial<TextEditorLayer["text"]>) {
+  onUpdate((current) => ({ ...current, text: { ...(current as TextEditorLayer).text, ...patch } }) as CustomizationLayer);
+}
+
+function updatePathHandle(
+  onUpdate: (updater: (layer: CustomizationLayer) => CustomizationLayer) => void,
+  pointId: string,
+  handle: "inHandle" | "outHandle",
+  xRatio: number,
+  yRatio: number,
+) {
+  onUpdate((current) =>
+    current.type === "text" && current.text.path.type === "custom"
+      ? {
+          ...current,
+          text: {
+            ...current.text,
+            path: {
+              ...current.text.path,
+              points: current.text.path.points.map((point) =>
+                point.id === pointId ? { ...point, [handle]: { xRatio, yRatio } } : point,
+              ),
+            },
+          },
+        }
+      : current,
   );
+}
+
+function defaultPath(type: TextPath["type"]): TextPath {
+  if (type === "arc_up") return { type, curveAmount: 0.35 };
+  if (type === "arc_down") return { type, curveAmount: 0.35 };
+  if (type === "circle_top") return { type, radiusRatio: 0.5 };
+  if (type === "circle_bottom") return { type, radiusRatio: 0.5 };
+  if (type === "custom") return { type, points: [] };
+  return { type: "straight" };
+}
+
+async function fileToBackground(file: File): Promise<BackgroundAsset> {
+  const previewUrl = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+  const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = previewUrl;
+  });
+  return {
+    assetId: createId("background"),
+    filename: file.name,
+    mimeType: file.type,
+    previewUrl,
+    widthPx: image.naturalWidth || 900,
+    heightPx: image.naturalHeight || 900,
+  };
+}
+
+function shapeLabel(shape: ShapeType) {
+  return shape.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function cssShapeClip(shape: ShapeType) {
+  if (shape === "circle") return "circle(50% at 50% 50%)";
+  if (shape === "ellipse") return "ellipse(50% 40% at 50% 50%)";
+  if (shape === "star") return "polygon(50% 0%, 61% 34%, 98% 35%, 68% 56%, 79% 91%, 50% 70%, 21% 91%, 32% 56%, 2% 35%, 39% 34%)";
+  if (shape === "heart") return "path('M 50 88 C 20 62 4 45 12 25 C 20 6 42 10 50 27 C 58 10 80 6 88 25 C 96 45 80 62 50 88 Z')";
+  return "inset(0)";
+}
+
+function handleStyle(handle: string): React.CSSProperties {
+  const base: React.CSSProperties = { transform: "translate(-50%, -50%)" };
+  const map: Record<string, React.CSSProperties> = {
+    nw: { left: 0, top: 0 },
+    n: { left: "50%", top: 0 },
+    ne: { left: "100%", top: 0 },
+    e: { left: "100%", top: "50%" },
+    se: { left: "100%", top: "100%" },
+    s: { left: "50%", top: "100%" },
+    sw: { left: 0, top: "100%" },
+    w: { left: 0, top: "50%" },
+    left: { left: 0, top: "50%" },
+    right: { left: "100%", top: "50%" },
+  };
+  return { ...base, ...map[handle] };
+}
+
+function resizeRect(rect: ReturnType<typeof layerGeometryToPixels>, handle: string, dx: number, dy: number, lockRatio: boolean) {
+  let xPx = rect.xPx;
+  let yPx = rect.yPx;
+  let widthPx = rect.widthPx;
+  let heightPx = rect.heightPx;
+  if (handle.includes("e") || handle === "right") widthPx += dx;
+  if (handle.includes("s")) heightPx += dy;
+  if (handle.includes("w") || handle === "left") {
+    xPx += dx;
+    widthPx -= dx;
+  }
+  if (handle.includes("n")) {
+    yPx += dy;
+    heightPx -= dy;
+  }
+  widthPx = Math.max(18, widthPx);
+  heightPx = Math.max(18, heightPx);
+  if (lockRatio && rect.widthPx > 0 && rect.heightPx > 0) {
+    const ratio = rect.heightPx / rect.widthPx;
+    heightPx = widthPx * ratio;
+  }
+  return { ...rect, xPx, yPx, widthPx, heightPx };
 }

@@ -112,6 +112,19 @@
 
 ### What's Done This Session
 
+- [x] Implemented OpenSpec change `customization-editor-ui-model` end to end across shared contracts, backend routes, admin editor, storefront runtime, and export paths.
+- [x] Replaced `packages/customization` block-only contract with editor-model `background`, `layers`, and `formFields`, including Text layer, Image Shape layer, form field, text path, style policy, geometry, crop, validation, text fitting, and shape helper coverage.
+- [x] Rewrote the admin customization template page as an editor workspace with top header, left rail (`Blocks`, `Layers`, `Form`, `Background`), central canvas, right inspector, preview dialog, layer/form separation, background upload/replace/remove, text/image-shape controls, delete undo, shortcuts, and custom path point editing.
+- [x] Updated storefront customization to consume editor-model fields/layers and render text plus clipped image shapes with upload crop controls.
+- [x] Updated backend customization routes to persist the editor model, validate publish/designs with the new shared contract, return public templates in the new shape, and export model-based SVG/PDF previews.
+- [x] Fixed the pre-existing `apps/backend/src/routes/product-assets.ts` recursive type annotation issue so `pnpm --filter backend check` and root `./init.sh` pass.
+- [x] Verified `pnpm --filter @trophy/customization test`, `pnpm --filter @trophy/customization check`, `pnpm --filter backend check`, `pnpm --filter backend build`, `pnpm --filter admin build`, `pnpm --filter router-cf build`, `pnpm --filter router-cf typecheck`, `openspec validate customization-editor-ui-model --strict`, and `./init.sh`.
+
+- [x] Completed the approved brainstorming/design pass for the new customization editor UI and model.
+- [x] Wrote and committed `docs/plans/2026-06-26-customization-editor-ui-model-design.md`.
+- [x] Created OpenSpec change `customization-editor-ui-model` with proposal, design, specs, and tasks.
+- [x] Verified the OpenSpec change with `openspec validate customization-editor-ui-model --strict`.
+
 - [x] Fixed variant media gallery backdrop closing: added `pointer-events-auto` to gallery overlay (Radix Dialog sets `pointer-events: none` on `<body>`), added `onClick` handler on backdrop to close gallery when clicking outside content.
 - [x] Fixed Escape key handling in gallery: capture-phase `keydown` listener closes gallery + `e.stopPropagation()`/`e.preventDefault()`, guarded FocusModal `onOpenChange` with `!variantGallery` check so Escape closes gallery first, second Escape closes FocusModal.
 - [x] Browser-verified both backdrop click and Escape behaviors on create-product page.
@@ -175,6 +188,20 @@
 
 ## Files Modified This Session
 
+- `packages/customization/src/index.ts` - replaced block-only shared contract with editor model, validation, fitting, crop, geometry, and runtime derivation helpers.
+- `packages/customization/src/index.test.ts` - replaced old block tests with editor-model coverage.
+- `apps/backend/src/routes/customizations.ts` - updated customization APIs, persistence serialization, validation, and preview exports for editor model.
+- `apps/backend/src/routes/product-assets.ts` - fixed pre-existing recursive route type annotation issue.
+- `apps/admin/src/CustomizationTemplatePage.tsx` - rebuilt admin customization editor UI around the new model.
+- `apps/storefront/app/components/CupCustomizer.tsx` - updated shopper customizer to use editor-model fields and layers.
+- `openspec/changes/customization-editor-ui-model/tasks.md` - marked implementation and verification tasks complete.
+- `docs/plans/2026-06-26-customization-editor-ui-model-design.md` - approved design for the new editor-style customization UI and replacement model.
+- `openspec/changes/customization-editor-ui-model/proposal.md` - OpenSpec proposal for the editor UI/model change.
+- `openspec/changes/customization-editor-ui-model/design.md` - OpenSpec technical design.
+- `openspec/changes/customization-editor-ui-model/specs/customization-editor-authoring/spec.md` - admin editor authoring requirements.
+- `openspec/changes/customization-editor-ui-model/specs/customization-editor-model/spec.md` - shared editor model requirements.
+- `openspec/changes/customization-editor-ui-model/tasks.md` - implementation checklist.
+
 - `apps/admin/src/CustomizationTemplatePage.tsx` - changed ProductSelector limit from 200 to 100 to match backend validation.
 - `apps/backend/src/lib/cors.ts` - added `PRODUCTS_CORS_POLICY` for admin cross-origin product API access.
 - `apps/backend/src/app.ts` - added `PRODUCTS_CORS_POLICY` import and CORS middleware for `/api/products/*`.
@@ -207,6 +234,12 @@
 
 ## Evidence of Completion
 
+- [x] Shared editor model: `pnpm --filter @trophy/customization test` and `pnpm --filter @trophy/customization check`
+- [x] Backend editor-model routes: `pnpm --filter backend check` and `pnpm --filter backend build`
+- [x] Admin editor UI: `pnpm --filter admin build`
+- [x] Storefront editor runtime: `pnpm --filter router-cf typecheck` and `pnpm --filter router-cf build`
+- [x] Customization editor UI/model OpenSpec: `openspec validate customization-editor-ui-model --strict`
+- [x] Full repo restartability: `./init.sh`
 - [x] Order UI Medusa refactor: `pnpm --filter admin build` and `./init.sh`
 - [x] Core tests: `pnpm --filter @trophy/customization test` and root `vp test` (4 tests pass)
 - [x] Local migration: `pnpm --filter backend db:migrate:local`

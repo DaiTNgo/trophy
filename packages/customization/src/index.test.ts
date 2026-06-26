@@ -2,115 +2,189 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_TEMPLATE,
   buildDesignFromForm,
-  calculateEffectiveDpi,
   createDefaultFormValues,
-  fitPreviewIntoBox,
-  fitSingleLineText,
-  getBlockPreviewRect,
+  fitTextToLayer,
   getCoverImageRect,
   getCropPanFromImagePosition,
-  limitTextBlockValue,
-  renderBlockSvg,
+  getOrderedFormFields,
+  getShapeClipPath,
+  getVisibleLayers,
+  layerGeometryToPixels,
+  normalizeTextPath,
+  pixelRectToLayerGeometry,
   validateCustomizationValues,
-  validateDesign,
-  type CustomizationDesign,
-  type TextSingleBlock,
+  validateTemplateForPublish,
+  type CustomizationTemplate,
+  type TextEditorLayer,
 } from "./index";
 
-const createDesign = (): CustomizationDesign => ({
-  id: "design_fixture",
-  productId: DEFAULT_TEMPLATE.productId,
-  templateId: DEFAULT_TEMPLATE.id,
-  templateRevision: DEFAULT_TEMPLATE.revision,
-  revision: 1,
-  status: "draft",
-  layers: [],
-});
-
-describe("block-only customization", () => {
-  it("creates defaults and renders fixed layers without shopper transforms", () => {
-    const values = createDefaultFormValues(DEFAULT_TEMPLATE);
-    const result = validateCustomizationValues({ template: DEFAULT_TEMPLATE, values });
-    expect(result.valid).toBe(false);
-    expect(result.issues.some((issue) => issue.blockId === "design_confirmation")).toBe(true);
-
-    values.design_confirmation = true;
-    const design = buildDesignFromForm({
-      template: DEFAULT_TEMPLATE,
-      values,
-      designId: "form_design",
-    });
-    expect(design.layers.some((layer) => layer.id === "badge_icon")).toBe(true);
-    expect(design.layers.find((layer) => layer.id === "line_1")?.blockId).toBe("line_1");
+describe("editor-model customization", () => {
+  it("separates visual layer stack from shopper form order", () => {
+    expect(getVisibleLayers(DEFAULT_TEMPLATE).map((layer) => layer.id)).toEqual([
+      "badge_shape",
+      "line_1",
+      "curved_name",
+    ]);
+    expect(getOrderedFormFields(DEFAULT_TEMPLATE).map((field) => field.layerId)).toEqual([
+      "line_1",
+      "badge_shape",
+      "curved_name",
+    ]);
   });
 
-  it("keeps single-line and multi-line text as distinct preview layer shapes", () => {
+  it("creates default values and derives runtime layers from linked fields", () => {
     const values = createDefaultFormValues(DEFAULT_TEMPLATE);
-    values.line_1 = { text: "Winner\n2026" };
-    values.line_2 = { text: "Line one\nLine two" };
-    values.design_confirmation = true;
-
-    const design = buildDesignFromForm({
-      template: DEFAULT_TEMPLATE,
-      values,
-      designId: "text_design",
-    });
-
-    const singleLayer = design.layers.find((layer) => layer.id === "line_1");
-    const multiLayer = design.layers.find((layer) => layer.id === "line_2");
-    expect(singleLayer?.type === "text" ? singleLayer.text : "").toBe("WINNER 2026");
-    expect(multiLayer?.type === "text" ? multiLayer.text : "").toBe("Line one\nLine two");
-  });
-
-  it("renders icon uploads and image preset choices from the same block value slot", () => {
-    const values = createDefaultFormValues(DEFAULT_TEMPLATE);
-    values.badge_icon = {
-      assetId: "uploaded_icon",
-      previewUrl: "https://example.com/icon.png",
-      sourceWidthPx: 1000,
-      sourceHeightPx: 1000,
-      cropScale: 1.25,
-      cropXRatio: 0.4,
-      cropYRatio: -0.2,
+    values.field_badge_shape = {
+      assetId: "uploaded_logo",
+      previewUrl: "https://example.com/logo.png",
+      sourceWidthPx: 1200,
+      sourceHeightPx: 900,
+      cropScale: 1.4,
+      cropXRatio: 0.25,
+      cropYRatio: -0.5,
     };
-    values.uploaded_logo = "preset-logo";
-    values.design_confirmation = true;
 
-    const template = {
+    const validation = validateCustomizationValues({ template: DEFAULT_TEMPLATE, values });
+    expect(validation.valid).toBe(true);
+
+    const design = buildDesignFromForm({
+      template: DEFAULT_TEMPLATE,
+      values,
+      designId: "design_fixture",
+    });
+    expect(design.layers.map((layer) => layer.layerId)).toEqual([
+      "badge_shape",
+      "line_1",
+      "curved_name",
+    ]);
+    const imageLayer = design.layers.find((layer) => layer.type === "image_shape");
+    expect(imageLayer?.type === "image_shape" ? imageLayer.cropScale : 0).toBe(1.4);
+  });
+
+  it("excludes hidden layers from form order, rendering, and required validation", () => {
+    const hiddenTemplate: CustomizationTemplate = {
       ...DEFAULT_TEMPLATE,
-      blocks: DEFAULT_TEMPLATE.blocks.map((block) =>
-        block.id === "uploaded_logo" && block.type === "image_upload"
-          ? {
-              ...block,
-              visibleWhen: undefined,
-              required: false,
-              defaultOptionId: "preset-logo",
-              options: [
-                {
-                  id: "preset-logo",
-                  label: "Preset logo",
-                  previewUrl: "https://example.com/logo.png",
-                  productionAssetId: "preset_logo",
-                  sourceWidthPx: 1200,
-                  sourceHeightPx: 800,
-                },
-              ],
-            }
-          : block.id === "design_style"
-            ? { ...block, defaultValue: "preset" }
-            : block,
+      layers: DEFAULT_TEMPLATE.layers.map((layer) =>
+        layer.id === "curved_name" ? { ...layer, hidden: true } : layer,
       ),
     };
+    const values = createDefaultFormValues(hiddenTemplate);
+    values.field_curved_name = { text: "" };
 
-    const design = buildDesignFromForm({ template, values, designId: "media_design" });
-    const uploadedLayer = design.layers.find((layer) => layer.blockId === "badge_icon");
-    expect(uploadedLayer?.assetId).toBe("uploaded_icon");
-    expect(uploadedLayer?.type === "image" ? uploadedLayer.cropScale : 0).toBe(1.25);
-    expect(uploadedLayer?.type === "image" ? uploadedLayer.cropXRatio : 0).toBe(0.4);
-    expect(design.layers.find((layer) => layer.blockId === "uploaded_logo")?.assetId).toBe("preset_logo");
+    expect(getOrderedFormFields(hiddenTemplate).map((field) => field.layerId)).not.toContain("curved_name");
+    expect(validateCustomizationValues({ template: hiddenTemplate, values }).valid).toBe(true);
+    expect(buildDesignFromForm({ template: hiddenTemplate, values }).layers.map((layer) => layer.layerId)).not.toContain(
+      "curved_name",
+    );
+  });
+});
+
+describe("publish validation", () => {
+  it("rejects templates without a background", () => {
+    const result = validateTemplateForPublish({ ...DEFAULT_TEMPLATE, background: null });
+    expect(result.valid).toBe(false);
+    expect(result.issues.map((issue) => issue.code)).toContain("BACKGROUND_REQUIRED");
   });
 
-  it("calculates cover crop geometry from frame and image dimensions", () => {
+  it("rejects invalid layer and field references", () => {
+    const result = validateTemplateForPublish({
+      ...DEFAULT_TEMPLATE,
+      formFields: [{ ...DEFAULT_TEMPLATE.formFields[0], layerId: "missing_layer" }],
+    });
+    expect(result.issues.map((issue) => issue.code)).toEqual(
+      expect.arrayContaining(["FIELD_LAYER_MISSING", "LAYER_FIELD_MISSING"]),
+    );
+  });
+
+  it("requires path text to be one line", () => {
+    const invalidTemplate: CustomizationTemplate = {
+      ...DEFAULT_TEMPLATE,
+      layers: DEFAULT_TEMPLATE.layers.map((layer) =>
+        layer.id === "curved_name" && layer.type === "text"
+          ? { ...layer, text: { ...layer.text, maxLines: 2 } }
+          : layer,
+      ),
+    };
+    expect(validateTemplateForPublish(invalidTemplate).issues.map((issue) => issue.code)).toContain(
+      "TEXT_PATH_REQUIRES_SINGLE_LINE",
+    );
+  });
+});
+
+describe("geometry helpers", () => {
+  it("converts between background pixels and normalized geometry", () => {
+    const background = DEFAULT_TEMPLATE.background;
+    if (!background) throw new Error("Missing background fixture");
+
+    const geometry = pixelRectToLayerGeometry({
+      xPx: 180,
+      yPx: 270,
+      widthPx: 360,
+      heightPx: 180,
+      background,
+    });
+    expect(geometry).toMatchObject({
+      xRatio: 0.4,
+      yRatio: 0.4,
+      widthRatio: 0.4,
+      heightRatio: 0.2,
+    });
+
+    const rect = layerGeometryToPixels({ geometry, background });
+    expect(rect.xPx).toBeCloseTo(180);
+    expect(rect.yPx).toBeCloseTo(270);
+    expect(rect.widthPx).toBeCloseTo(360);
+    expect(rect.heightPx).toBeCloseTo(180);
+  });
+});
+
+describe("text fitting and paths", () => {
+  const lineLayer = DEFAULT_TEMPLATE.layers.find((layer): layer is TextEditorLayer => layer.id === "line_1");
+  if (!lineLayer) throw new Error("Missing text fixture");
+
+  it("reduces font size to fit available width", () => {
+    const fitted = fitTextToLayer({
+      layer: lineLayer,
+      value: { text: "CHAMPION 2026" },
+      availableWidthPx: 100,
+      measure: (text, size) => text.length * size * 0.55,
+    });
+    expect(fitted.fontSizePt).toBeLessThan(lineLayer.text.maxFontSizePt);
+    expect(fitted.trimmed).toBe(false);
+  });
+
+  it("trims overflow silently at minimum font size", () => {
+    const fitted = fitTextToLayer({
+      layer: lineLayer,
+      value: { text: "THIS TEXT IS TOO LONG FOR THE AVAILABLE WIDTH" },
+      availableWidthPx: 30,
+      measure: (text, size) => text.length * size,
+    });
+    expect(fitted.fontSizePt).toBe(lineLayer.text.minFontSizePt);
+    expect(fitted.trimmed).toBe(true);
+    expect(fitted.text.length).toBeLessThan("THIS TEXT IS TOO LONG FOR THE AVAILABLE WIDTH".length);
+  });
+
+  it("normalizes custom Bezier paths", () => {
+    const path = normalizeTextPath({
+      type: "custom",
+      points: [
+        {
+          id: "p1",
+          xRatio: 2,
+          yRatio: -1,
+          outHandle: { xRatio: 2, yRatio: -2 },
+        },
+      ],
+    });
+    expect(path.type === "custom" ? path.points[0].xRatio : 0).toBe(1);
+    expect(path.type === "custom" ? path.points[0].yRatio : 0).toBe(0);
+    expect(path.type === "custom" ? path.points[0].outHandle?.xRatio : 0).toBe(1);
+  });
+});
+
+describe("image shape crop and clipping", () => {
+  it("calculates cover crop geometry with uniform scale and pan", () => {
     const rect = getCoverImageRect({
       sourceWidthPx: 2000,
       sourceHeightPx: 1000,
@@ -138,132 +212,10 @@ describe("block-only customization", () => {
     ).toEqual({ cropXRatio: 1, cropYRatio: 0 });
   });
 
-  it("limits multi-line text by configured characters and lines", () => {
-    const block = DEFAULT_TEMPLATE.blocks.find((entry) => entry.id === "line_2");
-    if (!block || block.type !== "text_multi") throw new Error("Missing multi-line fixture");
-
-    expect(limitTextBlockValue(block, "ONE\nTWO\nTHREE")).toBe("ONE\nTWO");
-    expect(limitTextBlockValue({ ...block, maxChars: 5 }, "123456")).toBe("12345");
-  });
-
-  it("ignores hidden upload requirements until upload mode is selected", () => {
-    const values = createDefaultFormValues(DEFAULT_TEMPLATE);
-    values.design_confirmation = true;
-    expect(validateCustomizationValues({ template: DEFAULT_TEMPLATE, values }).valid).toBe(true);
-
-    values.design_style = "upload";
-    const result = validateCustomizationValues({ template: DEFAULT_TEMPLATE, values });
-    expect(result.issues.map((issue) => issue.blockId)).toEqual(
-      expect.arrayContaining(["uploaded_logo", "artwork_rights"]),
-    );
-  });
-
-  it("excludes hidden blocks from validation and rendering", () => {
-    const hiddenTemplate = {
-      ...DEFAULT_TEMPLATE,
-      blocks: DEFAULT_TEMPLATE.blocks.map((block) =>
-        block.id === "line_1" ? { ...block, hidden: true } : block,
-      ),
-    };
-    const values = createDefaultFormValues(hiddenTemplate);
-    values.design_confirmation = true;
-    const design = buildDesignFromForm({
-      template: hiddenTemplate,
-      values,
-      designId: "hidden_design",
-    });
-    expect(design.layers.some((layer) => layer.blockId === "line_1")).toBe(false);
-  });
-});
-
-describe("fitSingleLineText", () => {
-  it("selects the largest size that fits without wrapping", () => {
-    const result = fitSingleLineText({
-      text: "CHAMPION 2026",
-      minFontSizePt: 8,
-      maxFontSizePt: 30,
-      availableWidth: 100,
-      measure: (text, size) => text.length * size * 0.5,
-    });
-
-    expect(result.fits).toBe(true);
-    expect(result.fontSizePt).toBeGreaterThan(14);
-    expect(result.fontSizePt).toBeLessThan(16);
-  });
-
-  it("normalizes pasted line breaks", () => {
-    const result = fitSingleLineText({
-      text: "WINNER\n2026",
-      minFontSizePt: 8,
-      maxFontSizePt: 20,
-      availableWidth: 200,
-      measure: (text, size) => text.length * size * 0.5,
-    });
-
-    expect(result.text).toBe("WINNER 2026");
-  });
-});
-
-describe("production geometry", () => {
-  it("rehydrates preview geometry from intrinsic image ratios", () => {
-    const preview = fitPreviewIntoBox({
-      intrinsicWidthPx: 2400,
-      intrinsicHeightPx: 3000,
-      maxWidthPx: 680,
-      maxHeightPx: 680,
-    });
-    expect(preview.widthPx).toBe(544);
-    expect(preview.heightPx).toBe(680);
-
-    const block = DEFAULT_TEMPLATE.blocks.find((entry) => entry.id === "line_1");
-    if (!block || block.type !== "text_single") throw new Error("Missing single-line block");
-
-    const rect = getBlockPreviewRect({
-      block,
-      previewWidthPx: preview.widthPx,
-      previewHeightPx: preview.heightPx,
-    });
-    expect(rect.widthPx).toBeGreaterThan(0);
-    expect(rect.xPx).toBeGreaterThan(0);
-    expect(rect.xPx + rect.widthPx).toBeLessThan(preview.widthPx);
-  });
-
-  it("calculates effective DPI from used pixels and physical size", () => {
-    expect(
-      calculateEffectiveDpi({
-        sourcePixels: 1200,
-        cropRatio: 0.5,
-        printedMillimetres: 50.8,
-      }),
-    ).toBe(300);
-  });
-
-  it("writes exact millimetre dimensions and metadata to SVG", () => {
-    const design = createDesign();
-    const lineBlock = DEFAULT_TEMPLATE.blocks.find((entry) => entry.id === "line_1") as TextSingleBlock;
-    design.layers.push({
-      id: "text_fixture",
-      blockId: "line_1",
-      type: "text",
-      xRatio: 0.5,
-      yRatio: 0.42,
-      rotationDeg: 0,
-      text: "WINNER",
-      fontId: lineBlock.fontId,
-      fontSizePt: 18,
-      color: lineBlock.color,
-      alignment: lineBlock.alignment,
-    });
-
-    const svg = renderBlockSvg({
-      template: DEFAULT_TEMPLATE,
-      design,
-      blockId: "line_1",
-    });
-
-    expect(svg).toContain('width="70mm"');
-    expect(svg).toContain('height="12mm"');
-    expect(svg).toContain("designRevision");
-    expect(validateDesign({ template: DEFAULT_TEMPLATE, design }).valid).toBe(true);
+  it("generates semantic clip paths for supported shapes", () => {
+    expect(getShapeClipPath({ shape: "rectangle", widthPx: 100, heightPx: 50 })).toContain("rect");
+    expect(getShapeClipPath({ shape: "circle", widthPx: 100, heightPx: 100 })).toContain("ellipse");
+    expect(getShapeClipPath({ shape: "star", widthPx: 100, heightPx: 100 })).toContain("polygon");
+    expect(getShapeClipPath({ shape: "heart", widthPx: 100, heightPx: 100 })).toContain("path");
   });
 });

@@ -1,5 +1,5 @@
 import { and, eq } from "drizzle-orm";
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import * as v from "valibot";
 import { getDb } from "../db/client";
 import { productAssets } from "../db/schema";
@@ -76,7 +76,7 @@ const readJpegDimensions = (bytes: Uint8Array) => {
 const readImageDimensions = (mimeType: string, bytes: Uint8Array) =>
   mimeType === "image/png" ? readPngDimensions(bytes) : readJpegDimensions(bytes);
 
-async function requireAdminSession(c: Parameters<typeof productAssetsRoute.post>[0]) {
+async function requireAdminSession(c: Context<AppEnv>) {
   const auth = getAuth(c.env);
   const session = await auth.api.getSession({
     headers: c.req.raw.headers,

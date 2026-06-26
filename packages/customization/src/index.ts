@@ -1,112 +1,23 @@
-export type ProductionMethod = "print" | "engrave";
-export type ColorMode = "rgb" | "cmyk" | "grayscale" | "monochrome";
+export type TemplateStatus = "draft" | "published";
+export type DesignStatus = "draft" | "validated" | "frozen";
+export type TextAlign = "left" | "center" | "right";
+export type ShapeType = "rectangle" | "circle" | "ellipse" | "rounded_rectangle" | "star" | "heart";
 
-export type PreviewBounds = {
+export type BackgroundAsset = {
+  assetId: string;
+  previewUrl: string;
+  filename?: string;
+  mimeType?: string;
+  widthPx: number;
+  heightPx: number;
+};
+
+export type LayerGeometry = {
   xRatio: number;
   yRatio: number;
   widthRatio: number;
-  heightRatio: number;
+  heightRatio?: number;
   rotationDeg: number;
-  zIndex: number;
-};
-
-export type ProductionBounds = {
-  widthMm: number;
-  heightMm: number;
-  safeMarginMm: number;
-  bleedMm: number;
-  method: ProductionMethod;
-  colorMode: ColorMode;
-  minImageDpi: number;
-};
-
-export type BlockCondition = {
-  blockId: string;
-  equals: string | boolean;
-};
-
-type BlockBase = {
-  id: string;
-  label: string;
-  helpText?: string;
-  hidden?: boolean;
-  required: boolean;
-  order: number;
-  visibleWhen?: BlockCondition;
-};
-
-type RenderableBlockBase = BlockBase & {
-  preview: PreviewBounds;
-  production: ProductionBounds;
-};
-
-export type TextSingleBlock = RenderableBlockBase & {
-  type: "text_single";
-  placeholder?: string;
-  defaultValue: string;
-  maxChars: number;
-  fontId: string;
-  minFontSizePt: number;
-  maxFontSizePt: number;
-  color: string;
-  alignment: "left" | "center" | "right";
-  uppercase: boolean;
-  colorMode: "fixed" | "user_selectable";
-  colorOptions: ChoiceOption[];
-  fontFamilyMode: "fixed" | "user_selectable";
-  fontFamilyOptions: ChoiceOption[];
-};
-
-export type TextMultiBlock = RenderableBlockBase & {
-  type: "text_multi";
-  placeholder?: string;
-  defaultValue: string;
-  maxChars: number;
-  maxLines: number;
-  fontId: string;
-  minFontSizePt: number;
-  maxFontSizePt: number;
-  color: string;
-  alignment: "left" | "center" | "right";
-  colorMode: "fixed" | "user_selectable";
-  colorOptions: ChoiceOption[];
-  fontFamilyMode: "fixed" | "user_selectable";
-  fontFamilyOptions: ChoiceOption[];
-};
-
-export type IconOption = {
-  id: string;
-  label: string;
-  category?: string;
-  previewUrl: string;
-  productionAssetId: string;
-  sourceWidthPx: number;
-  sourceHeightPx: number;
-};
-
-export type IconPickerBlock = RenderableBlockBase & {
-  type: "icon_picker";
-  defaultOptionId: string;
-  allowNone: boolean;
-  allowUpload?: boolean;
-  accept?: Array<"image/png" | "image/jpeg">;
-  maxBytes?: number;
-  fit: "contain" | "cover";
-  options: IconOption[];
-};
-
-export type ImageUploadBlock = RenderableBlockBase & {
-  type: "image_upload";
-  defaultOptionId?: string;
-  allowUpload?: boolean;
-  options?: IconOption[];
-  accept: Array<"image/png" | "image/jpeg">;
-  maxBytes: number;
-  minDpi: number;
-  fit: "contain" | "cover";
-  monochromePreview: boolean;
-  productionMode: "original" | "monochrome";
-  requireArtworkRights: boolean;
 };
 
 export type ChoiceOption = {
@@ -115,26 +26,96 @@ export type ChoiceOption = {
   swatch?: string;
 };
 
-export type ChoiceBlock = BlockBase & {
-  type: "select" | "radio" | "color";
-  defaultValue: string;
-  options: ChoiceOption[];
+export type TextColorPolicy =
+  | { mode: "fixed"; color: string }
+  | { mode: "shopper_selectable"; defaultColor: string; options: ChoiceOption[] };
+
+export type TextFontPolicy =
+  | { mode: "fixed"; fontId: string }
+  | { mode: "shopper_selectable"; defaultFontId: string; options: ChoiceOption[] };
+
+export type BezierPoint = {
+  id: string;
+  xRatio: number;
+  yRatio: number;
+  inHandle?: { xRatio: number; yRatio: number };
+  outHandle?: { xRatio: number; yRatio: number };
 };
 
-export type CheckboxBlock = BlockBase & {
-  type: "checkbox";
-  defaultValue: boolean;
+export type TextPath =
+  | { type: "straight" }
+  | { type: "arc_up"; curveAmount: number }
+  | { type: "arc_down"; curveAmount: number }
+  | { type: "circle_top"; radiusRatio: number }
+  | { type: "circle_bottom"; radiusRatio: number }
+  | { type: "custom"; points: BezierPoint[] };
+
+type LayerBase = {
+  id: string;
+  name: string;
+  hidden: boolean;
+  locked: boolean;
+  zIndex: number;
 };
 
-export type CustomizationBlock =
-  | TextSingleBlock
-  | TextMultiBlock
-  | IconPickerBlock
-  | ImageUploadBlock
-  | ChoiceBlock
-  | CheckboxBlock;
+export type TextEditorLayer = LayerBase & {
+  type: "text";
+  geometry: Omit<LayerGeometry, "heightRatio">;
+  text: {
+    sampleText: string;
+    maxLines: number;
+    minFontSizePt: number;
+    maxFontSizePt: number;
+    align: TextAlign;
+    colorPolicy: TextColorPolicy;
+    fontPolicy: TextFontPolicy;
+    path: TextPath;
+  };
+};
 
-export type UploadedMediaValue = {
+export type ImageShapeEditorLayer = LayerBase & {
+  type: "image_shape";
+  geometry: Required<LayerGeometry>;
+  shape: {
+    type: ShapeType;
+    lockAspectRatio: boolean;
+  };
+  upload: {
+    fit: "cover";
+    defaultCrop?: ImageCrop;
+  };
+};
+
+export type CustomizationLayer = TextEditorLayer | ImageShapeEditorLayer;
+
+export type CustomizationFormField = {
+  id: string;
+  layerId: string;
+  label: string;
+  helpText?: string;
+  placeholder?: string;
+  required: boolean;
+  order: number;
+};
+
+export type CustomizationTemplate = {
+  id: string;
+  productId: string;
+  name: string;
+  revision: number;
+  status: TemplateStatus;
+  background: BackgroundAsset | null;
+  layers: CustomizationLayer[];
+  formFields: CustomizationFormField[];
+};
+
+export type TextFieldValue = {
+  text: string;
+  color?: string;
+  fontId?: string;
+};
+
+export type ImageShapeFieldValue = {
   assetId: string;
   previewUrl: string;
   sourceWidthPx: number;
@@ -144,58 +125,41 @@ export type UploadedMediaValue = {
   cropYRatio?: number;
 };
 
-export type TextBlockValue = {
-  text: string;
-  color?: string;
-  fontId?: string;
-};
-
-export type CustomizationFieldValue = string | boolean | UploadedMediaValue | TextBlockValue | null;
+export type CustomizationFieldValue = TextFieldValue | ImageShapeFieldValue | null;
 export type CustomizationFormValues = Record<string, CustomizationFieldValue>;
 
-export type CustomizationTemplate = {
+export type RuntimeTextLayer = {
   id: string;
-  productId: string;
-  name: string;
-  revision: number;
-  status: "draft" | "published";
-  previewUrl: string;
-  previewWidthPx: number;
-  previewHeightPx: number;
-  blocks: CustomizationBlock[];
-};
-
-type LayerBase = {
-  id: string;
-  blockId: string;
-  xRatio: number;
-  yRatio: number;
-  rotationDeg: number;
-};
-
-export type TextLayer = LayerBase & {
+  layerId: string;
   type: "text";
   text: string;
   fontId: string;
   fontSizePt: number;
   color: string;
-  alignment: "left" | "center" | "right";
+  align: TextAlign;
+  path: TextPath;
+  geometry: Omit<LayerGeometry, "heightRatio">;
+  zIndex: number;
+  trimmed: boolean;
 };
 
-export type ImageLayer = LayerBase & {
-  type: "image";
+export type RuntimeImageShapeLayer = {
+  id: string;
+  layerId: string;
+  type: "image_shape";
   assetId: string;
   previewUrl: string;
   sourceWidthPx: number;
   sourceHeightPx: number;
-  widthRatio: number;
-  heightRatio: number;
-  cropScale?: number;
+  shape: ImageShapeEditorLayer["shape"];
+  geometry: Required<LayerGeometry>;
+  cropScale: number;
   cropXRatio: number;
   cropYRatio: number;
+  zIndex: number;
 };
 
-export type CustomizationLayer = TextLayer | ImageLayer;
+export type RuntimeLayer = RuntimeTextLayer | RuntimeImageShapeLayer;
 
 export type CustomizationDesign = {
   id: string;
@@ -203,51 +167,34 @@ export type CustomizationDesign = {
   templateId: string;
   templateRevision: number;
   revision: number;
-  status: "draft" | "validated" | "frozen";
-  values?: CustomizationFormValues;
-  layers: CustomizationLayer[];
+  status: DesignStatus;
+  values: CustomizationFormValues;
+  layers: RuntimeLayer[];
+};
+
+export type ImageCrop = {
+  scale: number;
+  xRatio: number;
+  yRatio: number;
 };
 
 export type ValidationIssue = {
-  code: "BLOCK_NOT_FOUND" | "TEXT_EMPTY" | "TEXT_DOES_NOT_FIT" | "IMAGE_DPI_LOW" | "IMAGE_ASSET_MISSING";
-  blockId: string;
-  layerId: string;
-  message: string;
-};
-
-export type FormValidationIssue = {
   code:
+    | "BACKGROUND_REQUIRED"
+    | "FIELD_LAYER_MISSING"
+    | "LAYER_FIELD_MISSING"
+    | "FONT_SIZE_RANGE_INVALID"
+    | "TEXT_PATH_REQUIRES_SINGLE_LINE"
+    | "STYLE_POLICY_INVALID"
     | "REQUIRED_VALUE_MISSING"
-    | "TEXT_TOO_LONG"
-    | "TOO_MANY_LINES"
     | "OPTION_NOT_ALLOWED"
-    | "UPLOAD_INVALID"
-    | "CONFIRMATION_REQUIRED";
-  blockId: string;
+    | "UPLOAD_INVALID";
+  layerId?: string;
+  fieldId?: string;
   message: string;
 };
 
 const presetSvg = (svg: string) => `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
-
-const defaultProduction = (overrides?: Partial<ProductionBounds>): ProductionBounds => ({
-  widthMm: 40,
-  heightMm: 20,
-  safeMarginMm: 2,
-  bleedMm: 1,
-  method: "engrave",
-  colorMode: "monochrome",
-  minImageDpi: 300,
-  ...overrides,
-});
-
-const transparentOption: IconOption = {
-  id: "none",
-  label: "No icon",
-  previewUrl: presetSvg(`<svg xmlns="http://www.w3.org/2000/svg" width="400" height="200"/>`),
-  productionAssetId: "preset_none_v1",
-  sourceWidthPx: 400,
-  sourceHeightPx: 200,
-};
 
 export const DEFAULT_TEXT_COLOR_OPTIONS: ChoiceOption[] = [
   { value: "#111111", label: "Black", swatch: "#111111" },
@@ -268,829 +215,141 @@ export const DEFAULT_TEMPLATE: CustomizationTemplate = {
   name: "Classic Trophy Cup",
   revision: 1,
   status: "published",
-  previewUrl:
-    "data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='900' height='900' viewBox='0 0 900 900'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' x2='1'%3E%3Cstop stop-color='%23f8d878'/%3E%3Cstop offset='.5' stop-color='%23fff5bf'/%3E%3Cstop offset='1' stop-color='%23b8862b'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='900' height='900' fill='%23f5f5f4'/%3E%3Cpath d='M300 150h300v130c0 150-65 250-150 270-85-20-150-120-150-270z' fill='url(%23g)' stroke='%23966f24' stroke-width='12'/%3E%3Cpath d='M300 190H190c0 130 35 205 145 220M600 190h110c0 130-35 205-145 220' fill='none' stroke='%23b8862b' stroke-width='38'/%3E%3Cpath d='M430 550h40v120h120v55H310v-55h120z' fill='url(%23g)' stroke='%23966f24' stroke-width='10'/%3E%3Crect x='270' y='725' width='360' height='90' rx='14' fill='%23292524'/%3E%3C/svg%3E",
-  previewWidthPx: 900,
-  previewHeightPx: 900,
-  blocks: [
+  background: {
+    assetId: "background_demo_cup",
+    filename: "classic-trophy-cup.svg",
+    mimeType: "image/svg+xml",
+    widthPx: 900,
+    heightPx: 900,
+    previewUrl: presetSvg(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="900" height="900" viewBox="0 0 900 900"><defs><linearGradient id="g" x1="0" x2="1"><stop stop-color="#f8d878"/><stop offset=".5" stop-color="#fff5bf"/><stop offset="1" stop-color="#b8862b"/></linearGradient></defs><rect width="900" height="900" fill="#f5f5f4"/><path d="M300 150h300v130c0 150-65 250-150 270-85-20-150-120-150-270z" fill="url(#g)" stroke="#966f24" stroke-width="12"/><path d="M300 190H190c0 130 35 205 145 220M600 190h110c0 130-35 205-145 220" fill="none" stroke="#b8862b" stroke-width="38"/><path d="M430 550h40v120h120v55H310v-55h120z" fill="url(#g)" stroke="#966f24" stroke-width="10"/><rect x="270" y="725" width="360" height="90" rx="14" fill="#292524"/></svg>`,
+    ),
+  },
+  layers: [
     {
-      id: "design_style",
-      type: "radio",
-      label: "Artwork source",
-      required: true,
-      order: 1,
-      defaultValue: "preset",
-      options: [
-        { value: "preset", label: "Choose an icon" },
-        { value: "upload", label: "Upload your own logo" },
-      ],
-    },
-    {
-      id: "badge_icon",
-      type: "icon_picker",
-      label: "Badge icon",
-      required: false,
-      order: 2,
-      visibleWhen: { blockId: "design_style", equals: "preset" },
-      defaultOptionId: "champion-star",
-      allowNone: true,
-      allowUpload: true,
-      accept: ["image/png", "image/jpeg"],
-      maxBytes: 20 * 1024 * 1024,
-      fit: "contain",
-      preview: {
-        xRatio: 0.4,
-        yRatio: 0.31,
-        widthRatio: 0.18,
-        heightRatio: 0.18,
-        rotationDeg: 0,
-        zIndex: 1,
-      },
-      production: defaultProduction({ widthMm: 22, heightMm: 22 }),
-      options: [
-        transparentOption,
-        {
-          id: "champion-star",
-          label: "Champion star",
-          category: "Awards",
-          previewUrl: presetSvg(
-            `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><path d="m100 8 23 62 66 3-52 41 18 65-55-36-55 36 18-65L11 73l66-3z" fill="#111827"/></svg>`,
-          ),
-          productionAssetId: "logo_champion_star_v1",
-          sourceWidthPx: 600,
-          sourceHeightPx: 600,
-        },
-        {
-          id: "victory-cup",
-          label: "Victory cup",
-          category: "Awards",
-          previewUrl: presetSvg(
-            `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><path d="M52 20h96v50c0 42-18 70-48 78-30-8-48-36-48-78zM52 38H20c0 38 14 58 43 64M148 38h32c0 38-14 58-43 64M90 148h20v22h34v18H56v-18h34z" fill="none" stroke="#111827" stroke-width="12"/></svg>`,
-          ),
-          productionAssetId: "logo_victory_cup_v1",
-          sourceWidthPx: 600,
-          sourceHeightPx: 600,
-        },
-      ],
-    },
-    {
-      id: "uploaded_logo",
-      type: "image_upload",
-      label: "Upload your logo",
-      helpText: "PNG or JPEG, up to 20 MB.",
-      required: true,
-      order: 3,
-      visibleWhen: { blockId: "design_style", equals: "upload" },
-      accept: ["image/png", "image/jpeg"],
-      allowUpload: true,
-      options: [],
-      maxBytes: 20 * 1024 * 1024,
-      minDpi: 300,
-      fit: "contain",
-      monochromePreview: true,
-      productionMode: "monochrome",
-      requireArtworkRights: true,
-      preview: {
-        xRatio: 0.4,
-        yRatio: 0.31,
-        widthRatio: 0.18,
-        heightRatio: 0.18,
-        rotationDeg: 0,
-        zIndex: 1,
-      },
-      production: defaultProduction({ widthMm: 22, heightMm: 22 }),
+      id: "badge_shape",
+      name: "Badge artwork",
+      type: "image_shape",
+      hidden: false,
+      locked: false,
+      zIndex: 1,
+      geometry: { xRatio: 0.5, yRatio: 0.31, widthRatio: 0.2, heightRatio: 0.2, rotationDeg: 0 },
+      shape: { type: "circle", lockAspectRatio: true },
+      upload: { fit: "cover", defaultCrop: { scale: 1, xRatio: 0, yRatio: 0 } },
     },
     {
       id: "line_1",
-      type: "text_single",
+      name: "Main engraving",
+      type: "text",
+      hidden: false,
+      locked: false,
+      zIndex: 2,
+      geometry: { xRatio: 0.5, yRatio: 0.43, widthRatio: 0.46, rotationDeg: 0 },
+      text: {
+        sampleText: "LEAGUE CHAMPION",
+        maxLines: 1,
+        minFontSizePt: 8,
+        maxFontSizePt: 18,
+        align: "center",
+        colorPolicy: { mode: "fixed", color: "#111111" },
+        fontPolicy: { mode: "fixed", fontId: "sans-bold" },
+        path: { type: "straight" },
+      },
+    },
+    {
+      id: "curved_name",
+      name: "Curved name",
+      type: "text",
+      hidden: false,
+      locked: false,
+      zIndex: 3,
+      geometry: { xRatio: 0.5, yRatio: 0.52, widthRatio: 0.42, rotationDeg: 0 },
+      text: {
+        sampleText: "ALEX MORGAN",
+        maxLines: 1,
+        minFontSizePt: 7,
+        maxFontSizePt: 16,
+        align: "center",
+        colorPolicy: {
+          mode: "shopper_selectable",
+          defaultColor: "#111111",
+          options: DEFAULT_TEXT_COLOR_OPTIONS,
+        },
+        fontPolicy: {
+          mode: "shopper_selectable",
+          defaultFontId: "sans-bold",
+          options: DEFAULT_FONT_FAMILY_OPTIONS,
+        },
+        path: { type: "arc_up", curveAmount: 0.35 },
+      },
+    },
+  ],
+  formFields: [
+    {
+      id: "field_badge_shape",
+      layerId: "badge_shape",
+      label: "Upload your logo",
+      helpText: "Your image will be clipped to the badge shape.",
+      required: false,
+      order: 2,
+    },
+    {
+      id: "field_line_1",
+      layerId: "line_1",
       label: "Line 1",
       placeholder: "LEAGUE CHAMPION",
       required: true,
-      order: 4,
-      defaultValue: "LEAGUE CHAMPION",
-      maxChars: 24,
-      fontId: "sans-bold",
-      minFontSizePt: 8,
-      maxFontSizePt: 18,
-      color: "#111111",
-      alignment: "center",
-      uppercase: true,
-      colorMode: "fixed",
-      colorOptions: [],
-      fontFamilyMode: "fixed",
-      fontFamilyOptions: [],
-      preview: {
-        xRatio: 0.5,
-        yRatio: 0.42,
-        widthRatio: 0.44,
-        heightRatio: 0.08,
-        rotationDeg: 0,
-        zIndex: 2,
-      },
-      production: defaultProduction({ widthMm: 70, heightMm: 12 }),
+      order: 1,
     },
     {
-      id: "line_2",
-      type: "text_multi",
-      label: "Award details",
-      placeholder: "Winner name\n2026",
-      required: false,
-      order: 5,
-      defaultValue: "ALEX MORGAN\n2026",
-      maxChars: 36,
-      maxLines: 2,
-      fontId: "sans-bold",
-      minFontSizePt: 7,
-      maxFontSizePt: 13,
-      color: "#111111",
-      alignment: "center",
-      colorMode: "fixed",
-      colorOptions: [],
-      fontFamilyMode: "fixed",
-      fontFamilyOptions: [],
-      preview: {
-        xRatio: 0.5,
-        yRatio: 0.5,
-        widthRatio: 0.44,
-        heightRatio: 0.14,
-        rotationDeg: 0,
-        zIndex: 2,
-      },
-      production: defaultProduction({ widthMm: 70, heightMm: 20 }),
-    },
-    {
-      id: "base_text",
-      type: "text_single",
-      label: "Base engraving",
-      placeholder: "CHAMPION 2026",
+      id: "field_curved_name",
+      layerId: "curved_name",
+      label: "Name",
+      placeholder: "ALEX MORGAN",
       required: true,
-      order: 6,
-      defaultValue: "CHAMPION 2026",
-      maxChars: 28,
-      fontId: "sans-bold",
-      minFontSizePt: 7,
-      maxFontSizePt: 20,
-      color: "#ffffff",
-      alignment: "center",
-      uppercase: true,
-      colorMode: "fixed",
-      colorOptions: [],
-      fontFamilyMode: "fixed",
-      fontFamilyOptions: [],
-      preview: {
-        xRatio: 0.5,
-        yRatio: 0.855,
-        widthRatio: 0.34,
-        heightRatio: 0.06,
-        rotationDeg: 0,
-        zIndex: 2,
-      },
-      production: defaultProduction({ widthMm: 80, heightMm: 18 }),
-    },
-    {
-      id: "artwork_rights",
-      type: "checkbox",
-      label: "I have the rights to use the uploaded artwork.",
-      required: true,
-      order: 7,
-      defaultValue: false,
-      visibleWhen: { blockId: "design_style", equals: "upload" },
-    },
-    {
-      id: "design_confirmation",
-      type: "checkbox",
-      label: "I reviewed the preview and confirm the design is correct.",
-      required: true,
-      order: 8,
-      defaultValue: false,
+      order: 3,
     },
   ],
 };
 
+export const clamp = (value: number, min: number, max: number) =>
+  Math.min(max, Math.max(min, Number.isFinite(value) ? value : min));
+
 export const normalizeSingleLine = (value: string) =>
   value.replace(/[\r\n]+/g, " ").replace(/\s+/g, " ").trim();
 
-export const fitSingleLineText = ({
-  text,
-  minFontSizePt,
-  maxFontSizePt,
-  availableWidth,
-  measure,
+export const normalizeCropScale = (value?: number) => clamp(value ?? 1, 1, 4);
+export const normalizeCropPan = (value?: number) => clamp(value ?? 0, -1, 1);
+
+export const isLayerVisible = (layer: CustomizationLayer) => !layer.hidden;
+
+export const getVisibleLayers = (template: CustomizationTemplate) =>
+  template.layers.filter(isLayerVisible).sort((a, b) => a.zIndex - b.zIndex);
+
+export const getOrderedFormFields = (template: CustomizationTemplate) => {
+  const visibleLayerIds = new Set(getVisibleLayers(template).map((layer) => layer.id));
+  return template.formFields
+    .filter((field) => visibleLayerIds.has(field.layerId))
+    .sort((a, b) => a.order - b.order);
+};
+
+export const getLayerById = (template: CustomizationTemplate, layerId: string) =>
+  template.layers.find((layer) => layer.id === layerId);
+
+export const getFormFieldForLayer = (template: CustomizationTemplate, layerId: string) =>
+  template.formFields.find((field) => field.layerId === layerId);
+
+export const layerGeometryToPixels = ({
+  geometry,
+  background,
 }: {
-  text: string;
-  minFontSizePt: number;
-  maxFontSizePt: number;
-  availableWidth: number;
-  measure: (value: string, fontSizePt: number) => number;
+  geometry: LayerGeometry;
+  background: Pick<BackgroundAsset, "widthPx" | "heightPx">;
 }) => {
-  const normalizedText = normalizeSingleLine(text);
-  if (!normalizedText) {
-    return { text: "", fontSizePt: maxFontSizePt, fits: false };
-  }
-
-  let low = minFontSizePt;
-  let high = maxFontSizePt;
-  let best: number | null = null;
-
-  for (let iteration = 0; iteration < 24 && low <= high; iteration += 1) {
-    const candidate = (low + high) / 2;
-    if (measure(normalizedText, candidate) <= availableWidth) {
-      best = candidate;
-      low = candidate + 0.05;
-    } else {
-      high = candidate - 0.05;
-    }
-  }
-
-  return {
-    text: normalizedText,
-    fontSizePt: Number((best ?? minFontSizePt).toFixed(2)),
-    fits: best !== null || measure(normalizedText, minFontSizePt) <= availableWidth,
-  };
-};
-
-export const calculateEffectiveDpi = ({
-  sourcePixels,
-  cropRatio,
-  printedMillimetres,
-}: {
-  sourcePixels: number;
-  cropRatio: number;
-  printedMillimetres: number;
-}) => {
-  if (sourcePixels <= 0 || cropRatio <= 0 || printedMillimetres <= 0) {
-    return 0;
-  }
-
-  return Math.floor((sourcePixels * Math.min(cropRatio, 1)) / (printedMillimetres / 25.4));
-};
-
-export const isBlockVisible = (block: CustomizationBlock, values: CustomizationFormValues) =>
-  !block.hidden && (!block.visibleWhen || values[block.visibleWhen.blockId] === block.visibleWhen.equals);
-
-const resolveOptionValue = (
-  options: ChoiceOption[],
-  selectedValue: string | undefined,
-  fallbackValue: string,
-) => {
-  if (selectedValue && options.some((option) => option.value === selectedValue)) {
-    return selectedValue;
-  }
-  return options.find((option) => option.value === fallbackValue)?.value ?? options[0]?.value ?? fallbackValue;
-};
-
-export const createDefaultTextValue = (
-  block: TextSingleBlock | TextMultiBlock,
-): TextBlockValue => ({
-  text: block.defaultValue,
-  color:
-    block.colorMode === "user_selectable"
-      ? resolveOptionValue(block.colorOptions, undefined, block.color)
-      : block.color,
-  fontId:
-    block.fontFamilyMode === "user_selectable"
-      ? resolveOptionValue(block.fontFamilyOptions, undefined, block.fontId)
-      : block.fontId,
-});
-
-export const getTextBlockValue = (
-  block: TextSingleBlock | TextMultiBlock,
-  value: CustomizationFieldValue | undefined,
-): TextBlockValue => {
-  if (value && typeof value === "object" && "text" in value) {
-    return {
-      text: typeof value.text === "string" ? value.text : "",
-      color:
-        typeof value.color === "string"
-          ? value.color
-          : createDefaultTextValue(block).color,
-      fontId:
-        typeof value.fontId === "string"
-          ? value.fontId
-          : createDefaultTextValue(block).fontId,
-    };
-  }
-
-  if (typeof value === "string") {
-    return {
-      ...createDefaultTextValue(block),
-      text: value,
-    };
-  }
-
-  return createDefaultTextValue(block);
-};
-
-export const hasRenderablePreview = (
-  block: CustomizationBlock,
-): block is TextSingleBlock | TextMultiBlock | IconPickerBlock | ImageUploadBlock =>
-  "preview" in block && "production" in block;
-
-export const createDefaultFormValues = (template: CustomizationTemplate) => {
-  const values: CustomizationFormValues = {};
-  for (const block of template.blocks) {
-    if (block.type === "text_single" || block.type === "text_multi") {
-      values[block.id] = createDefaultTextValue(block);
-    } else if (block.type === "icon_picker") {
-      values[block.id] = block.defaultOptionId;
-    } else if (block.type === "image_upload") {
-      values[block.id] = block.defaultOptionId && block.options?.some((option) => option.id === block.defaultOptionId)
-        ? block.defaultOptionId
-        : null;
-    } else {
-      values[block.id] = block.defaultValue;
-    }
-  }
-  return values;
-};
-
-export const limitTextBlockValue = (
-  block: TextSingleBlock | TextMultiBlock,
-  input: string,
-) => {
-  if (block.type === "text_single") {
-    const normalized = input.replace(/[\r\n]+/g, " ").slice(0, block.maxChars);
-    return block.uppercase ? normalized.toUpperCase() : normalized;
-  }
-
-  return input
-    .replace(/\r/g, "")
-    .split("\n")
-    .slice(0, block.maxLines)
-    .join("\n")
-    .slice(0, block.maxChars);
-};
-
-export const validateCustomizationValues = ({
-  template,
-  values,
-}: {
-  template: CustomizationTemplate;
-  values: CustomizationFormValues;
-}) => {
-  const issues: FormValidationIssue[] = [];
-
-  for (const block of template.blocks) {
-    if (!isBlockVisible(block, values)) continue;
-
-    const value = values[block.id];
-    if (block.type === "checkbox") {
-      if (block.required && value !== true) {
-        issues.push({
-          code: "CONFIRMATION_REQUIRED",
-          blockId: block.id,
-          message: `${block.label} must be confirmed.`,
-        });
-      }
-      continue;
-    }
-
-    if (block.type === "text_single" || block.type === "text_multi") {
-      const textValue = getTextBlockValue(block, value);
-      const text = textValue.text;
-      if (block.required && !text.trim()) {
-        issues.push({
-          code: "REQUIRED_VALUE_MISSING",
-          blockId: block.id,
-          message: `${block.label} is required.`,
-        });
-        continue;
-      }
-      if (text.length > block.maxChars) {
-        issues.push({
-          code: "TEXT_TOO_LONG",
-          blockId: block.id,
-          message: `${block.label} allows at most ${block.maxChars} characters.`,
-        });
-      }
-      if (block.type === "text_multi" && text.split(/\r?\n/).length > block.maxLines) {
-        issues.push({
-          code: "TOO_MANY_LINES",
-          blockId: block.id,
-          message: `${block.label} allows at most ${block.maxLines} lines.`,
-        });
-      }
-      if (
-        block.colorMode === "user_selectable" &&
-        !block.colorOptions.some((option) => option.value === textValue.color)
-      ) {
-        issues.push({
-          code: "OPTION_NOT_ALLOWED",
-          blockId: block.id,
-          message: `${block.label} contains an unavailable color.`,
-        });
-      }
-      if (
-        block.fontFamilyMode === "user_selectable" &&
-        !block.fontFamilyOptions.some((option) => option.value === textValue.fontId)
-      ) {
-        issues.push({
-          code: "OPTION_NOT_ALLOWED",
-          blockId: block.id,
-          message: `${block.label} contains an unavailable font family.`,
-        });
-      }
-    } else if (block.type === "icon_picker") {
-      if (block.required && (value === null || value === undefined || value === "")) {
-        issues.push({
-          code: "REQUIRED_VALUE_MISSING",
-          blockId: block.id,
-          message: `${block.label} is required.`,
-        });
-        continue;
-      }
-      if (value && typeof value === "object" && "assetId" in value) {
-        if (block.allowUpload === false || !value.assetId) {
-          issues.push({
-            code: "UPLOAD_INVALID",
-            blockId: block.id,
-            message: `${block.label} upload is invalid.`,
-          });
-        }
-        continue;
-      }
-      const optionId = typeof value === "string" ? value : "";
-      if (optionId && !block.options.some((option) => option.id === optionId)) {
-        issues.push({
-          code: "OPTION_NOT_ALLOWED",
-          blockId: block.id,
-          message: `${block.label} contains an unavailable option.`,
-        });
-      }
-    } else if (block.type === "image_upload") {
-      if (block.required && value == null) {
-        issues.push({
-          code: "REQUIRED_VALUE_MISSING",
-          blockId: block.id,
-          message: `${block.label} is required.`,
-        });
-        continue;
-      }
-      if (value !== null) {
-        if (typeof value === "string") {
-          if (!block.options?.some((option) => option.id === value)) {
-            issues.push({
-              code: "OPTION_NOT_ALLOWED",
-              blockId: block.id,
-              message: `${block.label} contains an unavailable option.`,
-            });
-          }
-        } else if (typeof value !== "object" || !("assetId" in value) || !value.assetId || block.allowUpload === false) {
-          issues.push({
-            code: "UPLOAD_INVALID",
-            blockId: block.id,
-            message: `${block.label} upload is invalid.`,
-          });
-        }
-      }
-    } else if (
-      (block.type === "select" || block.type === "radio" || block.type === "color") &&
-      typeof value === "string" &&
-      !block.options.some((option) => option.value === value)
-    ) {
-      issues.push({
-        code: "OPTION_NOT_ALLOWED",
-        blockId: block.id,
-        message: `${block.label} contains an unavailable option.`,
-      });
-    }
-    else if (block.required && (value === null || value === undefined || value === "")) {
-      issues.push({
-        code: "REQUIRED_VALUE_MISSING",
-        blockId: block.id,
-        message: `${block.label} is required.`,
-      });
-      continue;
-    }
-  }
-
-  return { valid: issues.length === 0, issues };
-};
-
-export const buildDesignFromForm = ({
-  template,
-  values,
-  designId = `design_${crypto.randomUUID()}`,
-}: {
-  template: CustomizationTemplate;
-  values: CustomizationFormValues;
-  designId?: string;
-}): CustomizationDesign => {
-  const layers: CustomizationLayer[] = [];
-
-  for (const block of [...template.blocks].sort((a, b) => a.order - b.order)) {
-    if (!isBlockVisible(block, values) || !hasRenderablePreview(block)) continue;
-
-    const value = values[block.id];
-    if (block.type === "text_single" || block.type === "text_multi") {
-      const textValue = getTextBlockValue(block, value);
-      const lines =
-        block.type === "text_single"
-          ? [normalizeSingleLine(block.uppercase ? textValue.text.toUpperCase() : textValue.text)]
-          : textValue.text
-              .replace(/\r/g, "")
-              .split("\n")
-              .slice(0, block.maxLines);
-      const visibleLines = lines.filter((line) => line.length > 0);
-      if (visibleLines.length === 0) continue;
-
-      if (block.type === "text_multi") {
-        const availableWidthMm = block.production.widthMm - block.production.safeMarginMm * 2;
-        const fittedLines = visibleLines.map((line) =>
-          fitSingleLineText({
-            text: line,
-            minFontSizePt: block.minFontSizePt,
-            maxFontSizePt: block.maxFontSizePt,
-            availableWidth: availableWidthMm,
-            measure: (text, size) => text.length * size * 0.3528 * 0.55,
-          }),
-        );
-        layers.push({
-          id: block.id,
-          blockId: block.id,
-          type: "text",
-          xRatio: block.preview.xRatio,
-          yRatio: block.preview.yRatio,
-          rotationDeg: block.preview.rotationDeg,
-          text: fittedLines.map((line) => line.text).join("\n"),
-          fontId:
-            block.fontFamilyMode === "user_selectable"
-              ? resolveOptionValue(block.fontFamilyOptions, textValue.fontId, block.fontId)
-              : block.fontId,
-          fontSizePt: Math.min(...fittedLines.map((line) => line.fontSizePt)),
-          color:
-            block.colorMode === "user_selectable"
-              ? resolveOptionValue(block.colorOptions, textValue.color, block.color)
-              : block.color,
-          alignment: block.alignment,
-        });
-        continue;
-      }
-
-      const line = visibleLines[0];
-      const availableWidthMm = block.production.widthMm - block.production.safeMarginMm * 2;
-      const fitted = fitSingleLineText({
-        text: line,
-        minFontSizePt: block.minFontSizePt,
-        maxFontSizePt: block.maxFontSizePt,
-        availableWidth: availableWidthMm,
-        measure: (text, size) => text.length * size * 0.3528 * 0.55,
-      });
-      layers.push({
-        id: block.id,
-        blockId: block.id,
-        type: "text",
-        xRatio: block.preview.xRatio,
-        yRatio: block.preview.yRatio,
-        rotationDeg: block.preview.rotationDeg,
-        text: fitted.text,
-        fontId:
-          block.fontFamilyMode === "user_selectable"
-            ? resolveOptionValue(block.fontFamilyOptions, textValue.fontId, block.fontId)
-            : block.fontId,
-        fontSizePt: fitted.fontSizePt,
-        color:
-          block.colorMode === "user_selectable"
-            ? resolveOptionValue(block.colorOptions, textValue.color, block.color)
-            : block.color,
-        alignment: block.alignment,
-      });
-      continue;
-    }
-
-    if (block.type === "icon_picker" && typeof value === "string" && value !== "none") {
-      const option = block.options.find((entry) => entry.id === value);
-      if (!option) continue;
-      layers.push({
-        id: block.id,
-        blockId: block.id,
-        type: "image",
-        xRatio: block.preview.xRatio,
-        yRatio: block.preview.yRatio,
-        rotationDeg: block.preview.rotationDeg,
-        assetId: option.productionAssetId,
-        previewUrl: option.previewUrl,
-        sourceWidthPx: option.sourceWidthPx,
-        sourceHeightPx: option.sourceHeightPx,
-        widthRatio: block.preview.widthRatio,
-        heightRatio: block.preview.heightRatio,
-        cropScale: 1,
-        cropXRatio: 0,
-        cropYRatio: 0,
-      });
-      continue;
-    }
-
-    if (block.type === "icon_picker" && value && typeof value === "object" && "assetId" in value) {
-      if (block.allowUpload === false) continue;
-      layers.push({
-        id: block.id,
-        blockId: block.id,
-        type: "image",
-        xRatio: block.preview.xRatio,
-        yRatio: block.preview.yRatio,
-        rotationDeg: block.preview.rotationDeg,
-        assetId: value.assetId,
-        previewUrl: value.previewUrl,
-        sourceWidthPx: value.sourceWidthPx,
-        sourceHeightPx: value.sourceHeightPx,
-        widthRatio: block.preview.widthRatio,
-        heightRatio: block.preview.heightRatio,
-        cropScale: normalizeCropScale(value.cropScale),
-        cropXRatio: normalizeCropPan(value.cropXRatio),
-        cropYRatio: normalizeCropPan(value.cropYRatio),
-      });
-      continue;
-    }
-
-    if (block.type === "image_upload" && typeof value === "string" && value !== "none") {
-      const option = block.options?.find((entry) => entry.id === value);
-      if (!option) continue;
-      layers.push({
-        id: block.id,
-        blockId: block.id,
-        type: "image",
-        xRatio: block.preview.xRatio,
-        yRatio: block.preview.yRatio,
-        rotationDeg: block.preview.rotationDeg,
-        assetId: option.productionAssetId,
-        previewUrl: option.previewUrl,
-        sourceWidthPx: option.sourceWidthPx,
-        sourceHeightPx: option.sourceHeightPx,
-        widthRatio: block.preview.widthRatio,
-        heightRatio: block.preview.heightRatio,
-        cropScale: 1,
-        cropXRatio: 0,
-        cropYRatio: 0,
-      });
-      continue;
-    }
-
-    if (block.type === "image_upload" && value && typeof value === "object" && "assetId" in value) {
-      if (block.allowUpload === false) continue;
-      layers.push({
-        id: block.id,
-        blockId: block.id,
-        type: "image",
-        xRatio: block.preview.xRatio,
-        yRatio: block.preview.yRatio,
-        rotationDeg: block.preview.rotationDeg,
-        assetId: value.assetId,
-        previewUrl: value.previewUrl,
-        sourceWidthPx: value.sourceWidthPx,
-        sourceHeightPx: value.sourceHeightPx,
-        widthRatio: block.preview.widthRatio,
-        heightRatio: block.preview.heightRatio,
-        cropScale: normalizeCropScale(value.cropScale),
-        cropXRatio: normalizeCropPan(value.cropXRatio),
-        cropYRatio: normalizeCropPan(value.cropYRatio),
-      });
-    }
-  }
-
-  return {
-    id: designId,
-    productId: template.productId,
-    templateId: template.id,
-    templateRevision: template.revision,
-    revision: 1,
-    status: "draft",
-    values,
-    layers,
-  };
-};
-
-export const validateDesign = ({
-  template,
-  design,
-  measureText,
-}: {
-  template: CustomizationTemplate;
-  design: CustomizationDesign;
-  measureText?: (text: string, fontSizePt: number, fontId: string) => number;
-}) => {
-  const issues: ValidationIssue[] = [];
-
-  const findBlock = (layerId: string, blockId: string) =>
-    template.blocks.find((block) => block.id === blockId || layerId.startsWith(`${block.id}:`));
-
-  for (const layer of design.layers) {
-    const block = findBlock(layer.id, layer.blockId);
-    if (!block || !hasRenderablePreview(block)) {
-      issues.push({
-        code: "BLOCK_NOT_FOUND",
-        blockId: layer.blockId,
-        layerId: layer.id,
-        message: "The customization block no longer exists.",
-      });
-      continue;
-    }
-
-    if (layer.type === "text") {
-      const textLines = layer.text
-        .replace(/\r/g, "")
-        .split("\n")
-        .map((line) => normalizeSingleLine(line))
-        .filter(Boolean);
-      if (textLines.length === 0) {
-        issues.push({
-          code: "TEXT_EMPTY",
-          blockId: block.id,
-          layerId: layer.id,
-          message: "Text cannot be empty.",
-        });
-        continue;
-      }
-
-      if (measureText) {
-        const availableWidthMm = block.production.widthMm - block.production.safeMarginMm * 2;
-        const exceedsWidth = textLines.some(
-          (line) => measureText(line, layer.fontSizePt, layer.fontId) > availableWidthMm,
-        );
-        if (exceedsWidth) {
-          issues.push({
-            code: "TEXT_DOES_NOT_FIT",
-            blockId: block.id,
-            layerId: layer.id,
-            message: "Text does not fit inside the block safe width.",
-          });
-        }
-      }
-      continue;
-    }
-
-    if (!layer.assetId || !layer.previewUrl) {
-      issues.push({
-        code: "IMAGE_ASSET_MISSING",
-        blockId: block.id,
-        layerId: layer.id,
-        message: "The original image asset is unavailable.",
-      });
-      continue;
-    }
-
-    const frameWidthPx = Math.max(1, layer.widthRatio * template.previewWidthPx);
-    const frameHeightPx = Math.max(1, layer.heightRatio * template.previewHeightPx);
-    const cropRect = getCoverImageRect({
-      sourceWidthPx: layer.sourceWidthPx,
-      sourceHeightPx: layer.sourceHeightPx,
-      frameWidthPx,
-      frameHeightPx,
-      cropScale: layer.cropScale,
-      cropXRatio: layer.cropXRatio,
-      cropYRatio: layer.cropYRatio,
-    });
-    const dpi = calculateEffectiveDpi({
-      sourcePixels: layer.sourceWidthPx,
-      cropRatio: frameWidthPx / cropRect.widthPx,
-      printedMillimetres: block.production.widthMm - block.production.safeMarginMm * 2,
-    });
-    if (dpi < block.production.minImageDpi) {
-      issues.push({
-        code: "IMAGE_DPI_LOW",
-        blockId: block.id,
-        layerId: layer.id,
-        message: `Image quality is ${dpi} DPI; ${block.production.minImageDpi} DPI is required.`,
-      });
-    }
-  }
-
-  return { valid: issues.length === 0, issues };
-};
-
-export const fitPreviewIntoBox = ({
-  intrinsicWidthPx,
-  intrinsicHeightPx,
-  maxWidthPx,
-  maxHeightPx,
-}: {
-  intrinsicWidthPx: number;
-  intrinsicHeightPx: number;
-  maxWidthPx: number;
-  maxHeightPx: number;
-}) => {
-  const safeWidth = intrinsicWidthPx > 0 ? intrinsicWidthPx : maxWidthPx;
-  const safeHeight = intrinsicHeightPx > 0 ? intrinsicHeightPx : maxHeightPx;
-  const scale = Math.min(maxWidthPx / safeWidth, maxHeightPx / safeHeight);
-  return {
-    widthPx: Math.round(safeWidth * scale),
-    heightPx: Math.round(safeHeight * scale),
-  };
-};
-
-export const getBlockPreviewRect = ({
-  block,
-  previewWidthPx,
-  previewHeightPx,
-}: {
-  block: TextSingleBlock | TextMultiBlock | IconPickerBlock | ImageUploadBlock;
-  previewWidthPx: number;
-  previewHeightPx: number;
-}) => {
-  const widthPx = block.preview.widthRatio * previewWidthPx;
-  const heightPx = block.preview.heightRatio * previewHeightPx;
-  const centerXPx = block.preview.xRatio * previewWidthPx;
-  const centerYPx = block.preview.yRatio * previewHeightPx;
+  const widthPx = geometry.widthRatio * background.widthPx;
+  const heightPx = (geometry.heightRatio ?? 0) * background.heightPx;
+  const centerXPx = geometry.xRatio * background.widthPx;
+  const centerYPx = geometry.yRatio * background.heightPx;
   return {
     xPx: centerXPx - widthPx / 2,
     yPx: centerYPx - heightPx / 2,
@@ -1098,26 +357,170 @@ export const getBlockPreviewRect = ({
     heightPx,
     centerXPx,
     centerYPx,
-    rotationDeg: block.preview.rotationDeg,
+    rotationDeg: geometry.rotationDeg,
   };
 };
 
-export type ImageCoverCrop = {
-  sourceWidthPx: number;
-  sourceHeightPx: number;
-  frameWidthPx: number;
-  frameHeightPx: number;
-  cropScale?: number;
-  cropXRatio?: number;
-  cropYRatio?: number;
+export const pixelRectToLayerGeometry = ({
+  xPx,
+  yPx,
+  widthPx,
+  heightPx,
+  rotationDeg = 0,
+  background,
+}: {
+  xPx: number;
+  yPx: number;
+  widthPx: number;
+  heightPx?: number;
+  rotationDeg?: number;
+  background: Pick<BackgroundAsset, "widthPx" | "heightPx">;
+}): LayerGeometry => ({
+  xRatio: background.widthPx > 0 ? (xPx + widthPx / 2) / background.widthPx : 0,
+  yRatio: background.heightPx > 0 ? (yPx + (heightPx ?? 0) / 2) / background.heightPx : 0,
+  widthRatio: background.widthPx > 0 ? widthPx / background.widthPx : 0,
+  heightRatio: heightPx === undefined || background.heightPx <= 0 ? undefined : heightPx / background.heightPx,
+  rotationDeg,
+});
+
+const resolveColor = (policy: TextColorPolicy, selected?: string) => {
+  if (policy.mode === "fixed") return policy.color;
+  if (selected && policy.options.some((option) => option.value === selected)) return selected;
+  return policy.defaultColor;
 };
 
-export const clamp = (value: number, min: number, max: number) =>
-  Math.min(max, Math.max(min, Number.isFinite(value) ? value : min));
+const resolveFont = (policy: TextFontPolicy, selected?: string) => {
+  if (policy.mode === "fixed") return policy.fontId;
+  if (selected && policy.options.some((option) => option.value === selected)) return selected;
+  return policy.defaultFontId;
+};
 
-export const normalizeCropScale = (value?: number) => clamp(value ?? 1, 1, 4);
+export const createDefaultTextValue = (layer: TextEditorLayer): TextFieldValue => ({
+  text: layer.text.sampleText,
+  color: resolveColor(layer.text.colorPolicy),
+  fontId: resolveFont(layer.text.fontPolicy),
+});
 
-export const normalizeCropPan = (value?: number) => clamp(value ?? 0, -1, 1);
+export const createDefaultFormValues = (template: CustomizationTemplate): CustomizationFormValues => {
+  const values: CustomizationFormValues = {};
+  for (const field of template.formFields) {
+    const layer = getLayerById(template, field.layerId);
+    if (!layer) continue;
+    values[field.id] = layer.type === "text" ? createDefaultTextValue(layer) : null;
+  }
+  return values;
+};
+
+const getTextValue = (layer: TextEditorLayer, value: CustomizationFieldValue | undefined): TextFieldValue => {
+  if (value && "text" in value) {
+    return {
+      text: typeof value.text === "string" ? value.text : "",
+      color: typeof value.color === "string" ? value.color : resolveColor(layer.text.colorPolicy),
+      fontId: typeof value.fontId === "string" ? value.fontId : resolveFont(layer.text.fontPolicy),
+    };
+  }
+  return createDefaultTextValue(layer);
+};
+
+export const normalizeBezierPoint = (point: BezierPoint): BezierPoint => ({
+  id: point.id,
+  xRatio: clamp(point.xRatio, 0, 1),
+  yRatio: clamp(point.yRatio, 0, 1),
+  inHandle: point.inHandle
+    ? { xRatio: clamp(point.inHandle.xRatio, -1, 1), yRatio: clamp(point.inHandle.yRatio, -1, 1) }
+    : undefined,
+  outHandle: point.outHandle
+    ? { xRatio: clamp(point.outHandle.xRatio, -1, 1), yRatio: clamp(point.outHandle.yRatio, -1, 1) }
+    : undefined,
+});
+
+export const normalizeTextPath = (path: TextPath): TextPath => {
+  if (path.type === "arc_up" || path.type === "arc_down") {
+    return { ...path, curveAmount: clamp(path.curveAmount, 0, 1) };
+  }
+  if (path.type === "circle_top" || path.type === "circle_bottom") {
+    return { ...path, radiusRatio: clamp(path.radiusRatio, 0.05, 2) };
+  }
+  if (path.type === "custom") {
+    return { ...path, points: path.points.map(normalizeBezierPoint) };
+  }
+  return path;
+};
+
+export const isPathText = (layer: TextEditorLayer) => layer.text.path.type !== "straight";
+
+export const estimatePresetPathLengthRatio = (path: TextPath) => {
+  if (path.type === "arc_up" || path.type === "arc_down") return 1 + clamp(path.curveAmount, 0, 1) * 0.25;
+  if (path.type === "circle_top" || path.type === "circle_bottom") return Math.PI * clamp(path.radiusRatio, 0.05, 2);
+  return 1;
+};
+
+export const fitTextToLayer = ({
+  layer,
+  value,
+  availableWidthPx,
+  measure,
+}: {
+  layer: TextEditorLayer;
+  value: TextFieldValue;
+  availableWidthPx: number;
+  measure?: (text: string, fontSizePt: number, fontId: string) => number;
+}) => {
+  const maxLines = isPathText(layer) ? 1 : Math.max(1, Math.round(layer.text.maxLines));
+  const lines = value.text
+    .replace(/\r/g, "")
+    .split("\n")
+    .slice(0, maxLines)
+    .map((line) => (maxLines === 1 ? normalizeSingleLine(line) : line.trim()))
+    .filter(Boolean);
+  const fontId = resolveFont(layer.text.fontPolicy, value.fontId);
+  const color = resolveColor(layer.text.colorPolicy, value.color);
+  const text = lines.join("\n");
+  const measureText = measure ?? ((line: string, size: number) => line.length * size * 0.55);
+  const pathMultiplier = estimatePresetPathLengthRatio(layer.text.path);
+  const width = Math.max(1, availableWidthPx * pathMultiplier);
+
+  const fitsAt = (fontSizePt: number, candidateText: string) =>
+    candidateText
+      .split("\n")
+      .every((line) => measureText(line, fontSizePt, fontId) <= width);
+
+  let low = layer.text.minFontSizePt;
+  let high = layer.text.maxFontSizePt;
+  let best = fitsAt(low, text) ? low : null;
+
+  for (let iteration = 0; iteration < 24 && low <= high; iteration += 1) {
+    const candidate = (low + high) / 2;
+    if (fitsAt(candidate, text)) {
+      best = candidate;
+      low = candidate + 0.05;
+    } else {
+      high = candidate - 0.05;
+    }
+  }
+
+  const fontSizePt = Number((best ?? layer.text.minFontSizePt).toFixed(2));
+  if (fitsAt(fontSizePt, text)) {
+    return { text, fontId, color, fontSizePt, align: layer.text.align, trimmed: false };
+  }
+
+  const fittedLines = text.split("\n").map((line) => {
+    let fitted = line;
+    while (fitted.length > 0 && measureText(fitted, fontSizePt, fontId) > width) {
+      fitted = fitted.slice(0, -1);
+    }
+    return fitted;
+  });
+
+  return {
+    text: fittedLines.join("\n"),
+    fontId,
+    color,
+    fontSizePt,
+    align: layer.text.align,
+    trimmed: true,
+  };
+};
 
 export const getCoverImageRect = ({
   sourceWidthPx,
@@ -1127,13 +530,20 @@ export const getCoverImageRect = ({
   cropScale,
   cropXRatio,
   cropYRatio,
-}: ImageCoverCrop) => {
+}: {
+  sourceWidthPx: number;
+  sourceHeightPx: number;
+  frameWidthPx: number;
+  frameHeightPx: number;
+  cropScale?: number;
+  cropXRatio?: number;
+  cropYRatio?: number;
+}) => {
   const safeSourceWidth = Math.max(1, sourceWidthPx);
   const safeSourceHeight = Math.max(1, sourceHeightPx);
   const safeFrameWidth = Math.max(1, frameWidthPx);
   const safeFrameHeight = Math.max(1, frameHeightPx);
-  const scale =
-    Math.max(safeFrameWidth / safeSourceWidth, safeFrameHeight / safeSourceHeight) *
+  const scale = Math.max(safeFrameWidth / safeSourceWidth, safeFrameHeight / safeSourceHeight) *
     normalizeCropScale(cropScale);
   const widthPx = safeSourceWidth * scale;
   const heightPx = safeSourceHeight * scale;
@@ -1173,88 +583,204 @@ export const getCropPanFromImagePosition = ({
   const overflowXPx = Math.max(0, imageWidthPx - frameWidthPx);
   const overflowYPx = Math.max(0, imageHeightPx - frameHeightPx);
   return {
-    cropXRatio:
-      overflowXPx > 0
-        ? clamp(((-frameWidthPx / 2 - imageXPx) / overflowXPx) * 2 - 1, -1, 1)
-        : 0,
-    cropYRatio:
-      overflowYPx > 0
-        ? clamp(((-frameHeightPx / 2 - imageYPx) / overflowYPx) * 2 - 1, -1, 1)
-        : 0,
+    cropXRatio: overflowXPx > 0 ? clamp(((-frameWidthPx / 2 - imageXPx) / overflowXPx) * 2 - 1, -1, 1) : 0,
+    cropYRatio: overflowYPx > 0 ? clamp(((-frameHeightPx / 2 - imageYPx) / overflowYPx) * 2 - 1, -1, 1) : 0,
   };
 };
 
-const escapeXml = (value: string) =>
-  value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&apos;");
-
-export const renderBlockSvg = ({
-  template,
-  design,
-  blockId,
+export const getShapeClipPath = ({
+  shape,
+  widthPx,
+  heightPx,
 }: {
-  template: CustomizationTemplate;
-  design: CustomizationDesign;
-  blockId: string;
+  shape: ShapeType;
+  widthPx: number;
+  heightPx: number;
 }) => {
-  const block = template.blocks.find((entry) => entry.id === blockId);
-  if (!block || !hasRenderablePreview(block)) {
-    throw new Error(`Unknown customization block: ${blockId}`);
+  const w = Math.max(1, widthPx);
+  const h = Math.max(1, heightPx);
+  if (shape === "circle" || shape === "ellipse") {
+    return `ellipse(${w / 2} ${h / 2} ${w / 2} ${h / 2})`;
+  }
+  if (shape === "rounded_rectangle") {
+    const radius = Math.min(w, h) * 0.12;
+    return `roundRect(0 0 ${w} ${h} ${radius})`;
+  }
+  if (shape === "star") {
+    const points = Array.from({ length: 10 }, (_, index) => {
+      const angle = -Math.PI / 2 + (index * Math.PI) / 5;
+      const radius = index % 2 === 0 ? 0.5 : 0.22;
+      return `${w / 2 + Math.cos(angle) * w * radius},${h / 2 + Math.sin(angle) * h * radius}`;
+    });
+    return `polygon(${points.join(" ")})`;
+  }
+  if (shape === "heart") {
+    return `path(M ${w / 2} ${h * 0.85} C ${w * 0.1} ${h * 0.55}, 0 ${h * 0.25}, ${w * 0.25} ${h * 0.12} C ${w * 0.4} 0, ${w / 2} ${h * 0.16}, ${w / 2} ${h * 0.28} C ${w / 2} ${h * 0.16}, ${w * 0.6} 0, ${w * 0.75} ${h * 0.12} C ${w} ${h * 0.25}, ${w * 0.9} ${h * 0.55}, ${w / 2} ${h * 0.85} Z)`;
+  }
+  return `rect(0 0 ${w} ${h})`;
+};
+
+export const validateTemplateForPublish = (template: CustomizationTemplate) => {
+  const issues: ValidationIssue[] = [];
+  if (!template.background) {
+    issues.push({ code: "BACKGROUND_REQUIRED", message: "A background image is required before publishing." });
   }
 
-  const safeX = block.production.safeMarginMm;
-  const safeY = block.production.safeMarginMm;
-  const safeWidth = block.production.widthMm - block.production.safeMarginMm * 2;
-  const safeHeight = block.production.heightMm - block.production.safeMarginMm * 2;
-  const layers = design.layers.filter((layer) => layer.blockId === block.id);
-  const body = layers
-    .map((layer) => {
-      const x = safeX + ((layer.xRatio - block.preview.xRatio) / block.preview.widthRatio + 0.5) * safeWidth;
-      const y = safeY + ((layer.yRatio - block.preview.yRatio) / block.preview.heightRatio + 0.5) * safeHeight;
+  const layerIds = new Set(template.layers.map((layer) => layer.id));
+  const fieldLayerIds = new Set(template.formFields.map((field) => field.layerId));
 
-      if (layer.type === "text") {
-        const anchor =
-          layer.alignment === "left" ? "start" : layer.alignment === "right" ? "end" : "middle";
-        const textLines = layer.text.replace(/\r/g, "").split("\n");
-        if (textLines.length > 1) {
-          const firstDy = -((textLines.length - 1) * 1.15) / 2;
-          const tspans = textLines
-            .map((line, index) => {
-              const dy = index === 0 ? `${firstDy}em` : "1.15em";
-              return `<tspan x="${x}" dy="${dy}">${escapeXml(line)}</tspan>`;
-            })
-            .join("");
-          return `<text x="${x}" y="${y}" font-family="sans-serif" font-size="${layer.fontSizePt}pt" text-anchor="${anchor}" dominant-baseline="middle" fill="${escapeXml(layer.color)}" transform="rotate(${layer.rotationDeg} ${x} ${y})">${tspans}</text>`;
-        }
-        return `<text x="${x}" y="${y}" font-family="sans-serif" font-size="${layer.fontSizePt}pt" text-anchor="${anchor}" dominant-baseline="middle" fill="${escapeXml(layer.color)}" transform="rotate(${layer.rotationDeg} ${x} ${y})">${escapeXml(layer.text)}</text>`;
-      }
-
-      const width = (layer.widthRatio / block.preview.widthRatio) * safeWidth;
-      const height = (layer.heightRatio / block.preview.heightRatio) * safeHeight;
-      const cropRect = getCoverImageRect({
-        sourceWidthPx: layer.sourceWidthPx,
-        sourceHeightPx: layer.sourceHeightPx,
-        frameWidthPx: width,
-        frameHeightPx: height,
-        cropScale: layer.cropScale,
-        cropXRatio: layer.cropXRatio,
-        cropYRatio: layer.cropYRatio,
+  for (const field of template.formFields) {
+    if (!layerIds.has(field.layerId)) {
+      issues.push({
+        code: "FIELD_LAYER_MISSING",
+        fieldId: field.id,
+        layerId: field.layerId,
+        message: `${field.label} references a missing layer.`,
       });
-      const clipId = `clip-${escapeXml(layer.id).replace(/[^a-zA-Z0-9_-]/g, "-")}`;
-      return `<g transform="rotate(${layer.rotationDeg} ${x} ${y})"><clipPath id="${clipId}"><rect x="${x - width / 2}" y="${y - height / 2}" width="${width}" height="${height}" /></clipPath><image clip-path="url(#${clipId})" href="${escapeXml(layer.previewUrl)}" x="${x + cropRect.xPx}" y="${y + cropRect.yPx}" width="${cropRect.widthPx}" height="${cropRect.heightPx}" preserveAspectRatio="none" /></g>`;
-    })
-    .join("");
+    }
+  }
 
-  return [
-    `<?xml version="1.0" encoding="UTF-8"?>`,
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${block.production.widthMm}mm" height="${block.production.heightMm}mm" viewBox="0 0 ${block.production.widthMm} ${block.production.heightMm}">`,
-    `<metadata>${escapeXml(JSON.stringify({ productId: design.productId, templateRevision: design.templateRevision, designRevision: design.revision, blockId }))}</metadata>`,
-    `<defs><clipPath id="block-clip"><rect width="${block.production.widthMm}" height="${block.production.heightMm}" /></clipPath></defs>`,
-    `<g clip-path="url(#block-clip)">${body}</g>`,
-    `</svg>`,
-  ].join("");
+  for (const layer of template.layers) {
+    if (!layer.hidden && !fieldLayerIds.has(layer.id)) {
+      issues.push({
+        code: "LAYER_FIELD_MISSING",
+        layerId: layer.id,
+        message: `${layer.name} needs a linked form field.`,
+      });
+    }
+    if (layer.type !== "text") continue;
+    if (layer.text.minFontSizePt > layer.text.maxFontSizePt) {
+      issues.push({
+        code: "FONT_SIZE_RANGE_INVALID",
+        layerId: layer.id,
+        message: `${layer.name} minimum font size must be less than maximum font size.`,
+      });
+    }
+    if (isPathText(layer) && layer.text.maxLines !== 1) {
+      issues.push({
+        code: "TEXT_PATH_REQUIRES_SINGLE_LINE",
+        layerId: layer.id,
+        message: `${layer.name} uses a text path and must be one line.`,
+      });
+    }
+    const colorPolicy = layer.text.colorPolicy;
+    if (
+      colorPolicy.mode === "shopper_selectable" &&
+      (colorPolicy.options.length === 0 ||
+        !colorPolicy.options.some((option) => option.value === colorPolicy.defaultColor))
+    ) {
+      issues.push({ code: "STYLE_POLICY_INVALID", layerId: layer.id, message: `${layer.name} has invalid color options.` });
+    }
+    const fontPolicy = layer.text.fontPolicy;
+    if (
+      fontPolicy.mode === "shopper_selectable" &&
+      (fontPolicy.options.length === 0 ||
+        !fontPolicy.options.some((option) => option.value === fontPolicy.defaultFontId))
+    ) {
+      issues.push({ code: "STYLE_POLICY_INVALID", layerId: layer.id, message: `${layer.name} has invalid font options.` });
+    }
+  }
+
+  return { valid: issues.length === 0, issues };
+};
+
+export const validateCustomizationValues = ({
+  template,
+  values,
+}: {
+  template: CustomizationTemplate;
+  values: CustomizationFormValues;
+}) => {
+  const issues: ValidationIssue[] = [];
+  for (const field of getOrderedFormFields(template)) {
+    const layer = getLayerById(template, field.layerId);
+    if (!layer) continue;
+    const value = values[field.id];
+    if (layer.type === "text") {
+      const textValue = getTextValue(layer, value);
+      if (field.required && !textValue.text.trim()) {
+        issues.push({ code: "REQUIRED_VALUE_MISSING", fieldId: field.id, layerId: layer.id, message: `${field.label} is required.` });
+      }
+      if (layer.text.colorPolicy.mode === "shopper_selectable" && !layer.text.colorPolicy.options.some((option) => option.value === textValue.color)) {
+        issues.push({ code: "OPTION_NOT_ALLOWED", fieldId: field.id, layerId: layer.id, message: `${field.label} contains an unavailable color.` });
+      }
+      if (layer.text.fontPolicy.mode === "shopper_selectable" && !layer.text.fontPolicy.options.some((option) => option.value === textValue.fontId)) {
+        issues.push({ code: "OPTION_NOT_ALLOWED", fieldId: field.id, layerId: layer.id, message: `${field.label} contains an unavailable font.` });
+      }
+    } else if (field.required && (!value || !("assetId" in value) || !value.assetId)) {
+      issues.push({ code: "REQUIRED_VALUE_MISSING", fieldId: field.id, layerId: layer.id, message: `${field.label} is required.` });
+    } else if (value && (!("assetId" in value) || !value.assetId)) {
+      issues.push({ code: "UPLOAD_INVALID", fieldId: field.id, layerId: layer.id, message: `${field.label} upload is invalid.` });
+    }
+  }
+  return { valid: issues.length === 0, issues };
+};
+
+export const buildDesignFromForm = ({
+  template,
+  values,
+  designId = `design_${crypto.randomUUID()}`,
+  measureText,
+}: {
+  template: CustomizationTemplate;
+  values: CustomizationFormValues;
+  designId?: string;
+  measureText?: (text: string, fontSizePt: number, fontId: string) => number;
+}): CustomizationDesign => {
+  const layers: RuntimeLayer[] = [];
+  const fieldsByLayerId = new Map(template.formFields.map((field) => [field.layerId, field]));
+  const background = template.background ?? { widthPx: 1, heightPx: 1 };
+
+  for (const layer of getVisibleLayers(template)) {
+    const field = fieldsByLayerId.get(layer.id);
+    if (!field) continue;
+    const value = values[field.id];
+    if (layer.type === "text") {
+      const fitted = fitTextToLayer({
+        layer,
+        value: getTextValue(layer, value),
+        availableWidthPx: layer.geometry.widthRatio * background.widthPx,
+        measure: measureText,
+      });
+      if (!fitted.text) continue;
+      layers.push({
+        id: layer.id,
+        layerId: layer.id,
+        type: "text",
+        geometry: layer.geometry,
+        zIndex: layer.zIndex,
+        path: normalizeTextPath(layer.text.path),
+        ...fitted,
+      });
+      continue;
+    }
+
+    if (!value || !("assetId" in value) || !value.assetId) continue;
+    layers.push({
+      id: layer.id,
+      layerId: layer.id,
+      type: "image_shape",
+      zIndex: layer.zIndex,
+      geometry: layer.geometry,
+      shape: layer.shape,
+      assetId: value.assetId,
+      previewUrl: value.previewUrl,
+      sourceWidthPx: value.sourceWidthPx,
+      sourceHeightPx: value.sourceHeightPx,
+      cropScale: normalizeCropScale(value.cropScale),
+      cropXRatio: normalizeCropPan(value.cropXRatio),
+      cropYRatio: normalizeCropPan(value.cropYRatio),
+    });
+  }
+
+  return {
+    id: designId,
+    productId: template.productId,
+    templateId: template.id,
+    templateRevision: template.revision,
+    revision: 1,
+    status: "draft",
+    values,
+    layers,
+  };
 };

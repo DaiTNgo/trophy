@@ -2,12 +2,30 @@
 
 ## Current Objective
 
-- Goal: fix variant media gallery modal interaction — backdrop click and Escape key should close gallery without closing FocusModal.
-- Current status: Done. Backdrop click closes gallery via `onClick` handler on gallery overlay (checks `e.target === e.currentTarget`). Escape closes gallery on first press (capture-phase `keydown` listener with `stopPropagation`/`preventDefault`), second Escape closes FocusModal (guarded `onOpenChange` with `!variantGallery` check). Browser-verified both flows.
+- Goal: redesign the admin customization editor as a Figma-style editor and replace the old block-only model with an editor model.
+- Current status: Implemented. Approved design is in `docs/plans/2026-06-26-customization-editor-ui-model-design.md`. OpenSpec change `customization-editor-ui-model` has proposal, design, specs, and tasks, and all implementation tasks are complete. Verification passes with shared package tests/check, backend check/build, admin build, storefront typecheck/build, `openspec validate customization-editor-ui-model --strict`, and `./init.sh`.
 - Local dev ports: admin `5174`, backend `8787`, storefront `5175` with matching preview ports.
 - Branch / commit: current working branch
 
 ## Completed This Session
+
+- [x] Implemented `customization-editor-ui-model` OpenSpec change across shared package, backend, admin, storefront, and exports.
+- [x] Replaced the shared customization contract with editor-model `background`, `layers`, and `formFields`.
+- [x] Added shared editor-model tests for layer stack vs form order, hidden layers, path line rules, silent text trim, image shape clipping helpers, and uniform crop metadata.
+- [x] Updated backend customization template APIs to persist/return editor-model payloads and validate publish/design submissions.
+- [x] Rebuilt admin customization authoring into an editor workspace with top header, vertical rail, canvas, inspector, preview dialog, background tab, layers tab, form tab, text/image-shape inspectors, delete undo, keyboard nudges, and custom path point editing.
+- [x] Updated storefront customization rendering to consume editor-model fields/layers with text fitting and clipped image-shape upload crop controls.
+- [x] Updated SVG/PDF preview exports to use editor-model runtime layers; SVG covers text paths, image shapes, clipping, and z-order.
+- [x] Fixed pre-existing backend typecheck issue in `apps/backend/src/routes/product-assets.ts`.
+- [x] Verified with `pnpm --filter @trophy/customization test`, `pnpm --filter @trophy/customization check`, `pnpm --filter backend check`, `pnpm --filter backend build`, `pnpm --filter admin build`, `pnpm --filter router-cf typecheck`, `pnpm --filter router-cf build`, `openspec validate customization-editor-ui-model --strict`, and `./init.sh`.
+
+- [x] Completed brainstorming/design for the editor UI: top header, left vertical rail (`Blocks`, `Layers`, `Form`, `Background`), central canvas, right selection inspector, and full-screen Preview dialog.
+- [x] Chose Approach B: replace the customization model fully with `background`, `layers`, and `formFields`.
+- [x] Documented Text behavior: max lines, min/max font size, horizontal-only resize, fixed or shopper-selectable color/font, alignment, preset/custom text paths, Bezier custom path editing, and silent overflow trim.
+- [x] Documented Image Shape behavior: rectangle/circle/ellipse/rounded rectangle/star/heart, fixed shape type after creation, aspect-ratio lock rules, cover-fit upload, shape clipping, pan, and uniform zoom only.
+- [x] Wrote and committed `docs/plans/2026-06-26-customization-editor-ui-model-design.md`.
+- [x] Created OpenSpec change `customization-editor-ui-model` with proposal, design, two capability specs, and implementation tasks.
+- [x] Verified `openspec validate customization-editor-ui-model --strict`.
 
 - [x] Fixed variant media gallery backdrop click: added `pointer-events-auto` to gallery overlay + `onClick` handler (`e.target === e.currentTarget`) to close gallery.
 - [x] Fixed Escape key: capture-phase `keydown` listener closes gallery + `stopPropagation`/`preventDefault`, guarded FocusModal `onOpenChange` with `!variantGallery` check. First Escape closes gallery, second Escape closes FocusModal.
