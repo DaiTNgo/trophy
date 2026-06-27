@@ -14,7 +14,7 @@ import {
   type TextEditorLayer,
   type VectorPoint,
 } from "@trophy/customization";
-import { BackgroundUpload, createId, cssShapeClip } from "./customization-template-ui";
+import { BackgroundUpload, createId, cssShapeClip, ShapeClipPaths } from "./customization-template-ui";
 
 const MIN_ZOOM = 0.05;
 const MAX_ZOOM = 2;
@@ -155,6 +155,7 @@ export function EditorCanvas({
           <button type="button" onClick={fitToView} className="rounded border border-ui-border-base px-2 py-1 text-sm">Fit</button>
         </div>
       </div>
+      <ShapeClipPaths layers={template.layers} />
       <div
         ref={workspaceRef}
         className={`relative min-h-0 flex-1 overflow-hidden ${mode === "view" ? "cursor-grab active:cursor-grabbing" : "cursor-default"}`}
@@ -435,7 +436,7 @@ function CanvasLayer({
       {layer.type === "text" ? (
         <EditorTextLayer layer={layer} widthPx={rect.widthPx} heightPx={h} pathEditing={editing && (pathEditing || (selected && closedTextPath))} />
       ) : (
-        <div className="h-full w-full bg-teal-500/10" style={{ borderRadius: layer.shape.type === "circle" ? "999px" : layer.shape.type === "rounded_rectangle" ? "12%" : undefined, clipPath: cssShapeClip(layer.shape.type, layer.shape.vectorPath) }} />
+        <div className="h-full w-full bg-teal-500/10" style={{ borderRadius: layer.shape.type === "circle" ? "999px" : layer.shape.type === "rounded_rectangle" ? "12%" : undefined, clipPath: cssShapeClip(layer.shape.type, layer.id) }} />
       )}
       {editing && pathEditing && layer.type === "text" && layer.text.path.type === "custom" ? (
         <PathPointOverlay

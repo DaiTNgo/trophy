@@ -1,4 +1,4 @@
-import { type BackgroundAsset, type ShapeType, vectorPointsToSvgPathD, type VectorPath } from "@trophy/customization";
+import { type BackgroundAsset, type ShapeType, vectorPointsToSvgPathD, type CustomizationLayer } from "@trophy/customization";
 import * as pdfjsLib from "pdfjs-dist";
 import pdfjsWorkerUrl from "pdfjs-dist/build/pdf.worker?url";
 
@@ -109,11 +109,34 @@ export function shapeLabel(shape: ShapeType) {
   return shape.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
-export function cssShapeClip(shape: ShapeType, vectorPath?: VectorPath) {
-  if (shape === "circle") return "circle(50% at 50% 50%)";
+export function cssShapeClip(shape: ShapeType, layerId?: string) {
+  if (shape === "circle") return "ellipse(50% 50% at 50% 50%)";
   if (shape === "ellipse") return "ellipse(50% 40% at 50% 50%)";
-  if (shape === "star") return "polygon(50% 0%, 61% 34%, 98% 35%, 68% 56%, 79% 91%, 50% 70%, 21% 91%, 32% 56%, 2% 35%, 39% 34%)";
-  if (shape === "heart") return "path('M 50 88 C 20 62 4 45 12 25 C 20 6 42 10 50 27 C 58 10 80 6 88 25 C 96 45 80 62 50 88 Z')";
-  if (shape === "vector" && vectorPath) return `path('${vectorPointsToSvgPathD(vectorPath.points, vectorPath.closed)}')`;
+  if (shape === "star") return "polygon(50.00% 0.00%, 62.93% 32.20%, 97.55% 34.55%, 70.92% 56.80%, 79.39% 90.45%, 50.00% 72.00%, 20.61% 90.45%, 29.08% 56.80%, 2.45% 34.55%, 37.07% 32.20%)";
+  if (shape === "heart") return "url(#clip-shape-heart)";
+  if (shape === "vector" && layerId) return `url(#clip-vector-${layerId})`;
   return "inset(0)";
+}
+
+
+export function ShapeClipPaths({ layers }: { layers?: CustomizationLayer[] }) {
+  return (
+    <svg width="0" height="0" className="absolute pointer-events-none">
+      <defs>
+        <clipPath id="clip-shape-heart" clipPathUnits="objectBoundingBox">
+          <path d="M 0.5 0.85 C 0.1 0.55 0 0.25 0.25 0.12 C 0.4 0 0.5 0.16 0.5 0.28 C 0.5 0.16 0.6 0 0.75 0.12 C 1 0.25 0.9 0.55 0.5 0.85 Z" />
+        </clipPath>
+        {layers?.map((layer) => {
+          if (layer.type === "image_shape" && layer.shape.type === "vector" && layer.shape.vectorPath) {
+            return (
+              <clipPath key={layer.id} id={`clip-vector-${layer.id}`} clipPathUnits="objectBoundingBox">
+                <path d={vectorPointsToSvgPathD(layer.shape.vectorPath.points, layer.shape.vectorPath.closed)} />
+              </clipPath>
+            );
+          }
+          return null;
+        })}
+      </defs>
+    </svg>
+  );
 }

@@ -23,7 +23,7 @@ import {
   serializeEditorModel,
   type StoredEditorModel,
 } from "./helpers";
-import { renderPdf, renderPreviewSvg } from "./render";
+import { renderPreviewSvg } from "./render";
 import {
   exportPayloadSchema,
   productParamsSchema,
@@ -289,18 +289,5 @@ export const customizationsRoute = new Hono<AppEnv>()
     return c.body(svg, 200, {
       "Content-Type": "image/svg+xml; charset=utf-8",
       "Content-Disposition": `attachment; filename="${parsed.output.layerId ?? design.id}.svg"`,
-    });
-  })
-  .post("/exports/pdf", async (c) => {
-    const parsed = await parseJson(c, validatePayloadSchema);
-    if (!parsed.success) return parsed.response;
-
-    const { result, design } = resolveAndValidateDesign(parsed.output.template, parsed.output.design);
-    if (!result.valid) return c.json(result, 422);
-
-    const body = await renderPdf(c.env, parsed.output.template, design);
-    return c.body(body, 200, {
-      "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="${design.id}.pdf"`,
     });
   });

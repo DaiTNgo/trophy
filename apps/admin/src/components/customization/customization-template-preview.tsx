@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { RotateCcw } from "lucide-react";
+import { Download, RotateCcw, Image as ImageIcon, CodeXml } from "lucide-react";
+import { toPng, toSvg } from "html-to-image";
 import {
   buildDesignFromForm,
   getOrderedFormFields,
@@ -15,7 +16,8 @@ import {
   type RuntimeTextLayer,
   type TextFieldValue,
 } from "@trophy/customization";
-import { createId, cssShapeClip, fileToBackground, Select } from "./customization-template-ui";
+import { createId, cssShapeClip, fileToBackground, Select, ShapeClipPaths } from "./customization-template-ui";
+import { exportVectorPdfClientSide } from "../../lib/pdf-export";
 
 type PreviewChange = (fieldId: string, value: TextFieldValue | ImageShapeFieldValue | null) => void;
 type PreviewMode = "edit" | "view";
@@ -83,14 +85,35 @@ export function PreviewDialog({
   onChange,
   onClose,
   onReset,
+  pendingPdfFile,
 }: {
   template: CustomizationTemplate;
   values: CustomizationFormValues;
   onChange: PreviewChange;
   onClose: () => void;
   onReset: () => void;
+  pendingPdfFile?: File | null;
 }) {
   const design = useMemo(() => buildDesignFromForm({ template, values, designId: "admin_preview" }), [template, values]);
+  const [isExporting, setIsExporting] = useState(false);
+
+  async function exportPdf() {
+    setIsExporting(true);
+    try {
+      const blob = await exportVectorPdfClientSide(template, design, pendingPdfFile ?? null);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${design.id}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error(error);
+      alert("Failed to export PDF");
+    } finally {
+      setIsExporting(false);
+    }
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex bg-black/40 p-3 md:p-8">
@@ -110,9 +133,14 @@ export function PreviewDialog({
               Close
             </button>
           </div>
-          <button type="button" onClick={onReset} className="mb-4 inline-flex items-center gap-2 rounded border px-3 py-2 text-sm">
-            <RotateCcw className="size-4" /> Reset preview data
-          </button>
+          <div className="mb-4 flex flex-wrap gap-2">
+            <button type="button" onClick={onReset} className="inline-flex items-center gap-2 rounded border px-3 py-2 text-sm">
+              <RotateCcw className="size-4" /> Reset data
+            </button>
+            <button type="button" onClick={exportPdf} disabled={isExporting} className="inline-flex items-center gap-2 rounded border px-3 py-2 text-sm disabled:opacity-50">
+              <Download className="size-4" /> {isExporting ? "Exporting..." : "Export PDF"}
+            </button>
+          </div>
           <div className="space-y-4">
             {getOrderedFormFields(template).map((field) => {
               const layer = template.layers.find((entry) => entry.id === field.layerId);
@@ -223,6 +251,7 @@ function PreviewCanvas({
         </div>
         <span className="text-xs text-ui-fg-muted">{mode === "edit" ? "Tap an image to edit crop" : "Drag to pan canvas"}</span>
       </div>
+      <ShapeClipPaths layers={template.layers} />
       <div
         ref={viewportRef}
         className={`relative min-h-0 flex-1 overflow-hidden ${mode === "view" ? "cursor-grab active:cursor-grabbing" : ""}`}
@@ -246,6 +275,7 @@ function PreviewCanvas({
         }}
       >
         <div
+          id="preview-design-container"
           className="absolute left-1/2 top-1/2 bg-white shadow"
           style={{
             width: width * scale,
@@ -311,7 +341,7 @@ function PreviewTextLayer({
     return (
       <div
         className="pointer-events-none absolute select-none overflow-hidden"
-        style={{ left, top, width: w * scale, height: textHeight * scale, color: layer.color, fontSize: layer.fontSizePt * scale, textAlign: layer.align === "justified" ? "justify" : layer.align }}
+        style={{ left, top, width: w * scale, height: textHeight * scale, color: layer.color, fontSize: layer.fontSizePt * scale, textAlign: layer.align === "justified" ? "justify" : layer.align, whiteSpace: "pre-wrap" }}
       >
         {layer.text}
       </div>
@@ -333,7 +363,7 @@ function PreviewTextLayer({
         <path id={pathId} d={pathD} />
       </defs>
       <text fontSize={layer.fontSizePt} fill={layer.color} textAnchor={pathAttrs.textAnchor} dominantBaseline="middle" textLength={pathAttrs.textLength} lengthAdjust={pathAttrs.lengthAdjust} wordSpacing={pathAttrs.wordSpacingPx ?? 0}>
-        <textPath href={`#${pathId}`} startOffset={pathAttrs.startOffset}>
+        <textPath id={`export-textpath-${layer.id}`} href={`#${pathId}`} startOffset={pathAttrs.startOffset}>
           {pathAttrs.dy ? <tspan dy={pathAttrs.dy}>{layer.text}</tspan> : layer.text}
         </textPath>
       </text>
@@ -374,7 +404,7 @@ function PreviewImageShapeLayer({
     cropXRatio: value.cropXRatio,
     cropYRatio: value.cropYRatio,
   });
-  const clipPath = cssShapeClip(layer.shape.type, layer.shape.type === "vector" ? layer.shape.vectorPath : undefined);
+  const clipPath = cssShapeClip(layer.shape.type, layer.id);
 
   function updateFromImageRect(next: { centerXPx: number; centerYPx: number; widthPx: number }) {
     onChange(fieldId, {

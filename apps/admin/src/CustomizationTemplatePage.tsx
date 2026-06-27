@@ -45,6 +45,7 @@ export default function CustomizationTemplatePage() {
     updateBackground,
     handlePreviewChange,
     resetPreviewValues,
+    pendingPdfFile,
   } = useTemplateEditor(editParam);
 
   return (
@@ -104,6 +105,7 @@ export default function CustomizationTemplatePage() {
         <PreviewDialog
           template={template}
           values={previewValues}
+          pendingPdfFile={pendingPdfFile}
           onChange={handlePreviewChange}
           onClose={() => setPreviewOpen(false)}
           onReset={resetPreviewValues}

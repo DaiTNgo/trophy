@@ -220,7 +220,7 @@ function PreviewText({ layer, width, height, scale }: { layer: Extract<RuntimeLa
           <path id={pathId} d={pathD} />
         </defs>
         <text fontSize={layer.fontSizePt} fill={layer.color} textAnchor={pathAttrs.textAnchor} dominantBaseline="middle" textLength={pathAttrs.textLength} lengthAdjust={pathAttrs.lengthAdjust} wordSpacing={pathAttrs.wordSpacingPx ?? 0}>
-          <textPath href={`#${pathId}`} startOffset={pathAttrs.startOffset}>
+          <textPath id={`export-textpath-${layer.id}`} href={`#${pathId}`} startOffset={pathAttrs.startOffset}>
             {pathAttrs.dy ? <tspan dy={pathAttrs.dy}>{layer.text}</tspan> : layer.text}
           </textPath>
         </text>
@@ -259,7 +259,7 @@ function PreviewImageShape({ layer, width, height, scale }: { layer: Extract<Run
         top: rect.yPx * scale,
         width: rect.widthPx * scale,
         height: rect.heightPx * scale,
-        clipPath: cssShapeClip(layer.shape.type, layer.shape.type === "vector" ? layer.shape.vectorPath : undefined),
+        clipPath: cssShapeClip(layer.shape.type, layer.id),
         transform: `rotate(${layer.geometry.rotationDeg}deg)`,
       }}
     >
@@ -433,11 +433,33 @@ function Panel({ title, description, children }: { title: string; description: s
   );
 }
 
-function cssShapeClip(shape: string, vectorPath?: { points: import("@trophy/customization").VectorPoint[]; closed: boolean }) {
-  if (shape === "circle") return "circle(50% at 50% 50%)";
+function cssShapeClip(shape: string, layerId?: string) {
+  if (shape === "circle") return "ellipse(50% 50% at 50% 50%)";
   if (shape === "ellipse") return "ellipse(50% 40% at 50% 50%)";
-  if (shape === "star") return "polygon(50% 0%, 61% 34%, 98% 35%, 68% 56%, 79% 91%, 50% 70%, 21% 91%, 32% 56%, 2% 35%, 39% 34%)";
-  if (shape === "heart") return "path('M 50 88 C 20 62 4 45 12 25 C 20 6 42 10 50 27 C 58 10 80 6 88 25 C 96 45 80 62 50 88 Z')";
-  if (shape === "vector" && vectorPath) return `path('${vectorPointsToSvgPathD(vectorPath.points, vectorPath.closed)}')`;
+  if (shape === "star") return "polygon(50.00% 0.00%, 62.93% 32.20%, 97.55% 34.55%, 70.92% 56.80%, 79.39% 90.45%, 50.00% 72.00%, 20.61% 90.45%, 29.08% 56.80%, 2.45% 34.55%, 37.07% 32.20%)";
+  if (shape === "heart") return "url(#clip-shape-heart)";
+  if (shape === "vector" && layerId) return `url(#clip-vector-${layerId})`;
   return "inset(0)";
+}
+
+function ShapeClipPaths({ layers }: { layers?: import("@trophy/customization").RuntimeLayer[] }) {
+  return (
+    <svg width="0" height="0" className="absolute pointer-events-none">
+      <defs>
+        <clipPath id="clip-shape-heart" clipPathUnits="objectBoundingBox">
+          <path d="M 0.5 0.85 C 0.1 0.55 0 0.25 0.25 0.12 C 0.4 0 0.5 0.16 0.5 0.28 C 0.5 0.16 0.6 0 0.75 0.12 C 1 0.25 0.9 0.55 0.5 0.85 Z" />
+        </clipPath>
+        {layers?.map((layer) => {
+          if (layer.type === "image_shape" && layer.shape.type === "vector" && layer.shape.vectorPath) {
+            return (
+              <clipPath key={layer.id} id={`clip-vector-${layer.id}`} clipPathUnits="objectBoundingBox">
+                <path d={vectorPointsToSvgPathD(layer.shape.vectorPath.points, layer.shape.vectorPath.closed)} />
+              </clipPath>
+            );
+          }
+          return null;
+        })}
+      </defs>
+    </svg>
+  );
 }

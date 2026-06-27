@@ -451,5 +451,6 @@ export function useTemplateEditor(editParam: string | null) {
     updateBackground,
     handlePreviewChange,
     resetPreviewValues,
+    pendingPdfFile,
   };
 }
