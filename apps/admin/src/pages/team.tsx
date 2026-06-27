@@ -5,6 +5,8 @@ import {
   Container,
   Heading,
   Text,
+  Input,
+  Label,
 } from "@medusajs/ui";
 import {
   KeyRound,
@@ -13,7 +15,6 @@ import {
   UserPlus,
   Users,
 } from "lucide-react";
-import { TextField } from "../components/ui/medusa";
 import { InlineError } from "../components/ui/medusa/inline-error";
 import { SuccessMessage } from "../components/ui/medusa/success-message";
 import { useAuth } from "../hooks/use-auth";
@@ -228,21 +229,43 @@ export function TeamPage() {
                 </Text>
               </div>
               <form className="flex flex-col gap-y-4" onSubmit={handleCreateUser} noValidate>
-                <TextField
-                  label="Username"
-                  name="team-username"
-                  value={inviteValues.username}
-                  error={inviteErrors.username}
-                  onChange={(value) => setInviteValues((current) => ({ ...current, username: value }))}
-                />
-                <TextField
-                  label="Temporary password"
-                  name="team-password"
-                  type="password"
-                  value={inviteValues.password}
-                  error={inviteErrors.password}
-                  onChange={(value) => setInviteValues((current) => ({ ...current, password: value }))}
-                />
+                <div className="flex flex-col gap-y-2">
+                  <Label htmlFor="team-username" className="text-ui-fg-base">
+                    Username
+                  </Label>
+                  <Input
+                    id="team-username"
+                    name="team-username"
+                    value={inviteValues.username}
+                    onChange={(e) =>
+                      setInviteValues((current) => ({ ...current, username: e.target.value }))
+                    }
+                  />
+                  {inviteErrors.username && (
+                    <Text size="small" className="text-ui-fg-error">
+                      {inviteErrors.username}
+                    </Text>
+                  )}
+                </div>
+                <div className="flex flex-col gap-y-2">
+                  <Label htmlFor="team-password" className="text-ui-fg-base">
+                    Temporary password
+                  </Label>
+                  <Input
+                    id="team-password"
+                    name="team-password"
+                    type="password"
+                    value={inviteValues.password}
+                    onChange={(e) =>
+                      setInviteValues((current) => ({ ...current, password: e.target.value }))
+                    }
+                  />
+                  {inviteErrors.password && (
+                    <Text size="small" className="text-ui-fg-error">
+                      {inviteErrors.password}
+                    </Text>
+                  )}
+                </div>
                 {inviteErrors.form ? <InlineError message={inviteErrors.form} /> : null}
                 <Button type="submit" disabled={isSubmitting} className="w-full">
                   <Plus className="h-4 w-4" />
@@ -322,19 +345,26 @@ export function TeamPage() {
                     </div>
 
                     <div className="mt-4 grid gap-3 md:grid-cols-[1fr_auto]">
-                      <TextField
-                        label="Temporary password"
-                        name={`reset-password-${account.id}`}
-                        type="password"
-                        value={resetPasswordByUserId[account.id] ?? ""}
-                        hint="Set a new temporary password, then share it directly with the admin."
-                        onChange={(value) =>
-                          setResetPasswordByUserId((current) => ({
-                            ...current,
-                            [account.id]: value,
-                          }))
-                        }
-                      />
+                      <div className="flex flex-col gap-y-2">
+                        <Label htmlFor={`reset-password-${account.id}`} className="text-ui-fg-base">
+                          Temporary password
+                        </Label>
+                        <Input
+                          id={`reset-password-${account.id}`}
+                          name={`reset-password-${account.id}`}
+                          type="password"
+                          value={resetPasswordByUserId[account.id] ?? ""}
+                          onChange={(e) =>
+                            setResetPasswordByUserId((current) => ({
+                              ...current,
+                              [account.id]: e.target.value,
+                            }))
+                          }
+                        />
+                        <Text size="small" className="text-ui-fg-subtle">
+                          Set a new temporary password, then share it directly with the admin.
+                        </Text>
+                      </div>
                       <div className="flex items-end">
                         <Button
                           type="button"

@@ -8,7 +8,10 @@ export const authClient = createAuthClient({
   basePath: "/api/admin/auth",
   plugins: [adminClient(), usernameClient()],
   fetchOptions: {
-    credentials: "include",
+    auth: {
+      type: "Bearer",
+      token: () => (typeof window !== 'undefined' ? localStorage.getItem("admin_auth_token") || "" : ""),
+    }
   },
 });
 

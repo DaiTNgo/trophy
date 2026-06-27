@@ -77,11 +77,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isAuthenticated: user !== null,
       user,
       login: async (username, password) => {
-        const { error } = await authClient.signIn.username({
+        const { data: signInData, error } = await authClient.signIn.username({
           username: normalizeUsername(username),
           password,
           rememberMe: true,
         });
+
+        if (signInData?.token) {
+          localStorage.setItem("admin_auth_token", signInData.token);
+        }
 
         if (error) {
           return {
@@ -93,6 +97,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const { data } = await authClient.getSession();
         if (!hasAdminAccess(data?.user.role)) {
           await authClient.signOut();
+          localStorage.removeItem("admin_auth_token");
           setUser(null);
           return {
             ok: false,
@@ -105,6 +110,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
       logout: async () => {
         await authClient.signOut();
+        localStorage.removeItem("admin_auth_token");
         setUser(null);
       },
       refreshSession: async () => {

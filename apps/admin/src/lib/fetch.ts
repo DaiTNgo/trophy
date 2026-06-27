@@ -37,5 +37,13 @@ export async function backendFetch(input: RequestInfo | URL, init?: RequestInit)
     }
   }
 
+  if (typeof window !== 'undefined') {
+    const token = localStorage.getItem('admin_auth_token');
+    if (token) {
+      requestInit.headers = new Headers(requestInit.headers);
+      requestInit.headers.set('Authorization', `Bearer ${token}`);
+    }
+  }
+
   return fetch(url, requestInit);
 }

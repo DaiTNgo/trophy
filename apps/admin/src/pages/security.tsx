@@ -3,10 +3,11 @@ import {
   Button,
   Container,
   Heading,
+  Input,
+  Label,
   Text,
 } from "@medusajs/ui";
 import { KeyRound, Save, User } from "lucide-react";
-import { TextField } from "../components/ui/medusa";
 import { InlineError } from "../components/ui/medusa/inline-error";
 import { SuccessMessage } from "../components/ui/medusa/success-message";
 import { useAuth } from "../hooks/use-auth";
@@ -122,30 +123,41 @@ export function SecurityPage() {
               </Text>
             </div>
             <form className="flex flex-col gap-y-4" onSubmit={handleSubmit} noValidate>
-              <TextField
-                label="Current password"
-                name="currentPassword"
-                type="password"
-                value={values.currentPassword}
-                error={errors.currentPassword}
-                onChange={(value) => setValues((current) => ({ ...current, currentPassword: value }))}
-              />
-              <TextField
-                label="New password"
-                name="newPassword"
-                type="password"
-                value={values.newPassword}
-                error={errors.newPassword}
-                onChange={(value) => setValues((current) => ({ ...current, newPassword: value }))}
-              />
-              <TextField
-                label="Confirm new password"
-                name="confirmPassword"
-                type="password"
-                value={values.confirmPassword}
-                error={errors.confirmPassword}
-                onChange={(value) => setValues((current) => ({ ...current, confirmPassword: value }))}
-              />
+              <div className="space-y-2">
+                <Label htmlFor="current-password" weight="plus">Current password</Label>
+                <Input
+                  id="current-password"
+                  name="currentPassword"
+                  type="password"
+                  value={values.currentPassword}
+                  onChange={(event) => setValues((current) => ({ ...current, currentPassword: event.target.value }))}
+                />
+                {errors.currentPassword ? <Text size="small" className="text-rose-700">{errors.currentPassword}</Text> : null}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="new-password" weight="plus">New password</Label>
+                <Input
+                  id="new-password"
+                  name="newPassword"
+                  type="password"
+                  value={values.newPassword}
+                  onChange={(event) => setValues((current) => ({ ...current, newPassword: event.target.value }))}
+                />
+                {errors.newPassword ? <Text size="small" className="text-rose-700">{errors.newPassword}</Text> : null}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="confirm-password" weight="plus">Confirm new password</Label>
+                <Input
+                  id="confirm-password"
+                  name="confirmPassword"
+                  type="password"
+                  value={values.confirmPassword}
+                  onChange={(event) => setValues((current) => ({ ...current, confirmPassword: event.target.value }))}
+                />
+                {errors.confirmPassword ? <Text size="small" className="text-rose-700">{errors.confirmPassword}</Text> : null}
+              </div>
 
               {errors.form ? <InlineError message={errors.form} /> : null}
               {message ? <SuccessMessage message={message} /> : null}
