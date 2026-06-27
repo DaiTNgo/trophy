@@ -298,7 +298,7 @@ export const customizationsRoute = new Hono<AppEnv>()
     const { result, design } = resolveAndValidateDesign(parsed.output.template, parsed.output.design);
     if (!result.valid) return c.json(result, 422);
 
-    const body = await renderPdf(parsed.output.template, design);
+    const body = await renderPdf(c.env, parsed.output.template, design);
     return c.body(body, 200, {
       "Content-Type": "application/pdf",
       "Content-Disposition": `attachment; filename="${design.id}.pdf"`,

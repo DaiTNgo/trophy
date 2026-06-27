@@ -47,7 +47,7 @@ export function EditorCanvas({
   onSelectLayer: (layerId: string) => void;
   onPathEditingLayerChange: (layerId: string) => void;
   onUpdateLayer: (layerId: string, updater: (layer: CustomizationLayer) => CustomizationLayer) => void;
-  onUploadBackground: (background: BackgroundAsset) => void;
+  onUploadBackground: (background: BackgroundAsset, file?: File) => void;
   onAddVectorPoint: (point: VectorPoint) => void;
   onUndoVectorPoint: () => void;
   onCloseVectorShape: () => void;

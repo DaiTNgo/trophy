@@ -38,6 +38,7 @@ export function useTemplateEditor(editParam: string | null) {
     field?: CustomizationFormField;
     selectedLayerId: string;
   } | null>(null);
+  const [pendingPdfFile, setPendingPdfFile] = useState<File | null>(null);
 
   useEffect(() => {
     if (!editParam || editParam === "new") return;
@@ -293,6 +294,41 @@ export function useTemplateEditor(editParam: string | null) {
   }
 
   async function publish() {
+    if (template.background?.pendingPdfUpload && pendingPdfFile) {
+      const formData = new FormData();
+      formData.append("file", pendingPdfFile);
+      const thumbnailRes = await fetch(template.background.previewUrl);
+      const thumbnailBlob = await thumbnailRes.blob();
+      formData.append("thumbnail", thumbnailBlob, "preview.png");
+
+      const uploadRes = await fetch(`${BACKEND_URL}/api/customizations/assets`, {
+        method: "POST",
+        headers: { "X-Upload-Token": `publish_${Date.now()}` },
+        body: formData,
+      });
+
+      if (!uploadRes.ok) {
+        setFlash("Failed to upload PDF background.");
+        return;
+      }
+      const data = (await uploadRes.json()) as { asset: { id: string; contentUrl: string; previewUrl?: string } };
+      updateTemplate((current) => ({
+        ...current,
+        background: current.background ? {
+          ...current.background,
+          pdfAssetId: data.asset.id,
+          previewUrl: data.asset.previewUrl ? `${BACKEND_URL}${data.asset.previewUrl}` : current.background.previewUrl,
+          pendingPdfUpload: false,
+        } : current.background,
+      }));
+      setPendingPdfFile(null);
+      // Let the state update, then publish in next effect or just use updated bg
+      // For simplicity, we just use the updated bg directly
+      template.background.pdfAssetId = data.asset.id;
+      template.background.previewUrl = data.asset.previewUrl ? `${BACKEND_URL}${data.asset.previewUrl}` : template.background.previewUrl;
+      template.background.pendingPdfUpload = false;
+    }
+
     const validation = validateTemplateForPublish(template);
     if (!validation.valid) {
       setFlash(validation.issues[0]?.message ?? "Template is invalid.");
@@ -306,7 +342,12 @@ export function useTemplateEditor(editParam: string | null) {
     setFlash(response.ok ? "Template published." : "Failed to publish template.");
   }
 
-  function updateBackground(background: BackgroundAsset) {
+  function updateBackground(background: BackgroundAsset, file?: File) {
+    if (file && file.type === "application/pdf") {
+      setPendingPdfFile(file);
+    } else {
+      setPendingPdfFile(null);
+    }
     updateTemplate((current) => ({ ...current, background }));
   }
 

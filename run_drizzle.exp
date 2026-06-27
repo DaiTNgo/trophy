@@ -1,0 +1,6 @@
+#!/usr/bin/expect
+set timeout -1
+spawn pnpm --filter backend db:generate
+expect "Is product_assets table created or renamed from another table?"
+send "\r"
+expect eof

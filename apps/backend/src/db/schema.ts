@@ -341,6 +341,9 @@ export const customizationAssets = sqliteTable("customization_assets", {
   widthPx: integer("width_px"),
   heightPx: integer("height_px"),
   byteSize: integer("byte_size").notNull(),
+  pageCount: integer("page_count"),
+  widthPt: real("width_pt"),
+  heightPt: real("height_pt"),
   createdAt: text("created_at")
     .notNull()
     .default(sql`CURRENT_TIMESTAMP`),

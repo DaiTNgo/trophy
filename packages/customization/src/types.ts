@@ -26,6 +26,9 @@ export type BackgroundAsset = {
   mimeType?: string;
   widthPx: number;
   heightPx: number;
+  pdfPageCount?: number;
+  pdfAssetId?: string;
+  pendingPdfUpload?: boolean;
 };
 
 export type LayerGeometry = {

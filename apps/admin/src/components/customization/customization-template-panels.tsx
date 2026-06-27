@@ -71,13 +71,14 @@ export function LeftPanel(props: {
   onUpdateTemplate: (updater: (current: CustomizationTemplate) => CustomizationTemplate) => void;
   onUpdateField: (fieldId: string, updater: (field: CustomizationFormField) => CustomizationFormField) => void;
   onDelete: () => void;
+  onUploadBackground: (background: import("@trophy/customization").BackgroundAsset, file?: File) => void;
 }) {
   return (
     <aside className="overflow-y-auto border-r border-ui-border-base p-4">
       {props.activeTab === "blocks" ? <BlocksPanel template={props.template} onAddText={props.onAddText} onAddTextOnPath={props.onAddTextOnPath} onAddShape={props.onAddShape} onDrawShape={props.onDrawShape} /> : null}
       {props.activeTab === "layers" ? <LayersPanel template={props.template} selectedLayerId={props.selectedLayerId} onSelectLayer={props.onSelectLayer} onUpdateTemplate={props.onUpdateTemplate} onDelete={props.onDelete} /> : null}
       {props.activeTab === "form" ? <FormPanel template={props.template} onSelectLayer={props.onSelectLayer} onUpdateField={props.onUpdateField} onUpdateTemplate={props.onUpdateTemplate} /> : null}
-      {props.activeTab === "background" ? <BackgroundPanel template={props.template} onUpdateTemplate={props.onUpdateTemplate} /> : null}
+      {props.activeTab === "background" ? <BackgroundPanel template={props.template} onUpdateTemplate={props.onUpdateTemplate} onUploadBackground={props.onUploadBackground} /> : null}
     </aside>
   );
 }
@@ -377,20 +378,25 @@ function getDropIndicator(id: string, target: DragTargetState | null, position: 
   };
 }
 
-function BackgroundPanel({ template, onUpdateTemplate }: { template: CustomizationTemplate; onUpdateTemplate: (updater: (current: CustomizationTemplate) => CustomizationTemplate) => void }) {
+function BackgroundPanel({ template, onUpdateTemplate, onUploadBackground }: { template: CustomizationTemplate; onUpdateTemplate: (updater: (current: CustomizationTemplate) => CustomizationTemplate) => void; onUploadBackground: (background: import("@trophy/customization").BackgroundAsset, file?: File) => void }) {
+  const background = template.background;
   return (
     <div className="space-y-4">
       <PanelTitle title="Background" subtitle="Single template coordinate image." />
-      {template.background ? (
+      {background ? (
         <div className="space-y-3">
-          <img src={template.background.previewUrl} alt="" className="aspect-video w-full rounded-md border object-contain" />
-          <p className="text-sm text-ui-fg-subtle">{template.background.filename ?? template.background.assetId}</p>
-          <p className="text-xs text-ui-fg-muted">{template.background.widthPx} x {template.background.heightPx}px</p>
+          <img src={background.previewUrl} alt="" className="aspect-video w-full rounded-md border object-contain" />
+          <p className="text-sm text-ui-fg-subtle">{background.filename ?? background.assetId}</p>
+          <p className="text-xs text-ui-fg-muted">{background.widthPx} x {background.heightPx}px</p>
         </div>
       ) : (
-        <p className="text-sm text-ui-fg-muted">No background uploaded.</p>
+        <BackgroundUpload onUpload={onUploadBackground} />
       )}
-      <BackgroundUpload onUpload={(background) => onUpdateTemplate((current) => ({ ...current, background }))} />
+      {background?.pendingPdfUpload ? (
+        <p className="mt-2 text-xs text-amber-600 bg-amber-50 p-2 rounded border border-amber-200">
+          PDF background will be uploaded when you publish the template.
+        </p>
+      ) : null}
       <button type="button" onClick={() => onUpdateTemplate((current) => ({ ...current, background: null }))} className="rounded-md border border-ui-border-base px-3 py-2 text-sm">
         Remove background
       </button>

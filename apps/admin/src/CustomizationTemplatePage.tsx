@@ -74,6 +74,7 @@ export default function CustomizationTemplatePage() {
           onUpdateTemplate={updateTemplate}
           onUpdateField={updateField}
           onDelete={deleteSelectedLayer}
+          onUploadBackground={updateBackground}
         />
         <EditorCanvas
           template={template}

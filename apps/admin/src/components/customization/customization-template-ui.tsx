@@ -1,4 +1,8 @@
 import { type BackgroundAsset, type ShapeType, vectorPointsToSvgPathD, type VectorPath } from "@trophy/customization";
+import * as pdfjsLib from "pdfjs-dist";
+import pdfjsWorkerUrl from "pdfjs-dist/build/pdf.worker?url";
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl;
 
 export type RailTab = "blocks" | "layers" | "form" | "background";
 
@@ -37,20 +41,48 @@ export function Select({ label, value, options, onChange }: { label: string; val
   );
 }
 
-export function BackgroundUpload({ onUpload, hidden }: { onUpload: (background: BackgroundAsset) => void; hidden?: boolean }) {
+export function BackgroundUpload({ onUpload, hidden }: { onUpload: (background: BackgroundAsset, file: File) => void; hidden?: boolean }) {
   return (
     <label className={hidden ? "sr-only" : "inline-flex cursor-pointer rounded-md border border-ui-border-base px-3 py-2 text-sm"}>
       {hidden ? "Upload" : "Upload / replace"}
-      <input type="file" accept="image/*" className="sr-only" onChange={(event) => {
+      <input type="file" accept="image/*,application/pdf" className="sr-only" onChange={(event) => {
         const file = event.target.files?.[0];
         if (!file) return;
-        void fileToBackground(file).then(onUpload);
+        void fileToBackground(file).then((bg) => onUpload(bg, file));
       }} />
     </label>
   );
 }
 
 export async function fileToBackground(file: File): Promise<BackgroundAsset> {
+  if (file.type === "application/pdf") {
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      const page = await pdf.getPage(1);
+      const viewport = page.getViewport({ scale: 2.0 });
+      const canvas = document.createElement("canvas");
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("Could not create canvas context");
+      await page.render({ canvasContext: ctx, viewport } as any).promise;
+      const previewUrl = canvas.toDataURL("image/png");
+      return {
+        assetId: createId("background"),
+        filename: file.name,
+        mimeType: file.type,
+        previewUrl,
+        widthPx: viewport.width / 2,
+        heightPx: viewport.height / 2,
+        pdfPageCount: pdf.numPages,
+        pendingPdfUpload: true,
+      };
+    } catch (e) {
+      throw new Error("Failed to read PDF file.");
+    }
+  }
+
   const previewUrl = await new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result));
