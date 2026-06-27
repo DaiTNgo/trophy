@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { FileImage } from "lucide-react";
 import {
   getVisibleLayers,
@@ -10,6 +10,14 @@ import {
   type TextEditorLayer,
 } from "@trophy/customization";
 import { BackgroundUpload, createId, cssShapeClip } from "./customization-template-ui";
+
+const MIN_ZOOM = 0.05;
+const MAX_ZOOM = 2;
+const ZOOM_STEP = 0.1;
+const FIT_PADDING_PX = 64;
+
+type CanvasMode = "edit" | "view";
+type PanState = { x: number; y: number };
 
 export function EditorCanvas({
   template,
@@ -28,8 +36,36 @@ export function EditorCanvas({
   onUpdateLayer: (layerId: string, updater: (layer: CustomizationLayer) => CustomizationLayer) => void;
   onUploadBackground: (background: BackgroundAsset) => void;
 }) {
+  const [mode, setMode] = useState<CanvasMode>("edit");
   const [zoom, setZoom] = useState(0.72);
+  const [pan, setPan] = useState<PanState>({ x: 0, y: 0 });
+  const [zoomInput, setZoomInput] = useState("72");
+  const workspaceRef = useRef<HTMLDivElement | null>(null);
+  const canvasRef = useRef<HTMLDivElement | null>(null);
+  const viewportDrag = useRef<{ x: number; y: number; pan: PanState } | null>(null);
   const background = template.background;
+
+  const setCommittedZoom = useCallback((nextZoom: number) => {
+    const clamped = clamp(nextZoom, MIN_ZOOM, MAX_ZOOM);
+    setZoom(clamped);
+    setZoomInput(String(Math.round(clamped * 100)));
+  }, []);
+
+  const fitToView = useCallback(() => {
+    if (!background || !workspaceRef.current) return;
+    const bounds = workspaceRef.current.getBoundingClientRect();
+    const availableWidth = Math.max(1, bounds.width - FIT_PADDING_PX);
+    const availableHeight = Math.max(1, bounds.height - FIT_PADDING_PX);
+    const nextZoom = Math.min(availableWidth / background.widthPx, availableHeight / background.heightPx);
+    setCommittedZoom(nextZoom);
+    setPan({ x: 0, y: 0 });
+  }, [background, setCommittedZoom]);
+
+  useEffect(() => {
+    if (!background) return;
+    fitToView();
+  }, [background?.previewUrl, background?.widthPx, background?.heightPx, fitToView]);
+
   if (!background) {
     return (
       <main className="flex items-center justify-center bg-ui-bg-subtle p-8">
@@ -41,57 +77,127 @@ export function EditorCanvas({
       </main>
     );
   }
-  const width = background.widthPx * zoom;
-  const height = background.heightPx * zoom;
+  function commitZoomInput() {
+    const parsed = Number.parseFloat(zoomInput.replace("%", ""));
+    if (!Number.isFinite(parsed)) {
+      setZoomInput(String(Math.round(zoom * 100)));
+      return;
+    }
+    setCommittedZoom(parsed / 100);
+  }
+
+  function startViewportPan(event: React.PointerEvent) {
+    if (mode !== "view") return;
+    viewportDrag.current = { x: event.clientX, y: event.clientY, pan };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+
+  function moveViewportPan(event: React.PointerEvent) {
+    if (!viewportDrag.current || mode !== "view") return;
+    setPan({
+      x: viewportDrag.current.pan.x + event.clientX - viewportDrag.current.x,
+      y: viewportDrag.current.pan.y + event.clientY - viewportDrag.current.y,
+    });
+  }
+
   return (
-    <main className="overflow-auto bg-ui-bg-subtle p-6">
-      <div className="mb-3 flex items-center gap-2">
-        <button type="button" onClick={() => setZoom((current) => Math.max(0.2, current - 0.1))} className="rounded border px-2 py-1 text-sm">-</button>
-        <button type="button" onClick={() => setZoom(0.72)} className="rounded border px-2 py-1 text-sm">Fit</button>
-        <button type="button" onClick={() => setZoom((current) => Math.min(2, current + 0.1))} className="rounded border px-2 py-1 text-sm">+</button>
-        <span className="text-xs text-ui-fg-muted">{Math.round(zoom * 100)}%</span>
+    <main className="flex min-h-0 flex-col bg-ui-bg-subtle">
+      <div className="flex h-12 items-center justify-between border-b border-ui-border-base bg-ui-bg-base px-4">
+        <div className="inline-flex rounded-md border border-ui-border-base bg-ui-bg-subtle p-0.5">
+          {(["edit", "view"] as const).map((entry) => (
+            <button
+              key={entry}
+              type="button"
+              onClick={() => setMode(entry)}
+              className={`rounded px-3 py-1 text-sm font-medium capitalize ${mode === entry ? "bg-ui-bg-base text-ui-fg-base shadow-sm" : "text-ui-fg-muted"}`}
+            >
+              {entry}
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-2">
+          <button type="button" onClick={() => setCommittedZoom(zoom - ZOOM_STEP)} className="rounded border border-ui-border-base px-2 py-1 text-sm">-</button>
+          <input
+            aria-label="Canvas zoom percentage"
+            value={zoomInput}
+            onChange={(event) => setZoomInput(event.target.value)}
+            onBlur={commitZoomInput}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") event.currentTarget.blur();
+              if (event.key === "Escape") {
+                setZoomInput(String(Math.round(zoom * 100)));
+                event.currentTarget.blur();
+              }
+            }}
+            className="h-8 w-16 rounded-md border border-ui-border-base bg-ui-bg-base px-2 text-right text-sm"
+          />
+          <span className="text-xs text-ui-fg-muted">%</span>
+          <button type="button" onClick={() => setCommittedZoom(zoom + ZOOM_STEP)} className="rounded border border-ui-border-base px-2 py-1 text-sm">+</button>
+          <button type="button" onClick={fitToView} className="rounded border border-ui-border-base px-2 py-1 text-sm">Fit</button>
+        </div>
       </div>
       <div
-        className="relative mx-auto bg-white shadow-lg"
-        style={{ width, height }}
-        onPointerDown={(event) => {
-          if (event.target === event.currentTarget) onSelectLayer("");
+        ref={workspaceRef}
+        className={`relative min-h-0 flex-1 overflow-hidden ${mode === "view" ? "cursor-grab active:cursor-grabbing" : "cursor-default"}`}
+        onPointerDown={startViewportPan}
+        onPointerMove={moveViewportPan}
+        onPointerUp={() => {
+          viewportDrag.current = null;
         }}
-        onDoubleClick={(event) => {
-          const layer = template.layers.find((entry) => entry.id === pathEditingLayerId);
-          if (!layer || layer.type !== "text" || layer.text.path.type !== "custom") return;
-          const bounds = event.currentTarget.getBoundingClientRect();
-          const xRatio = (event.clientX - bounds.left) / bounds.width;
-          const yRatio = (event.clientY - bounds.top) / bounds.height;
-          const rect = layerGeometryToPixels({ geometry: layer.geometry, background });
-          const point = {
-            id: createId("path_point"),
-            xRatio: Math.max(0, Math.min(1, (xRatio * background.widthPx - rect.xPx) / rect.widthPx)),
-            yRatio: Math.max(0, Math.min(1, (yRatio * background.heightPx - rect.yPx) / Math.max(1, layer.text.maxFontSizePt * layer.text.maxLines * 1.35))),
-            inHandle: { xRatio: -0.08, yRatio: 0 },
-            outHandle: { xRatio: 0.08, yRatio: 0 },
-          };
-          onUpdateLayer(layer.id, (current) =>
-            current.type === "text" && current.text.path.type === "custom"
-              ? { ...current, text: { ...current.text, path: { ...current.text.path, points: [...current.text.path.points, point] } } }
-              : current,
-          );
+        onPointerCancel={() => {
+          viewportDrag.current = null;
         }}
       >
-        <img src={background.previewUrl} alt="" className="absolute inset-0 h-full w-full select-none object-fill" draggable={false} />
-        {getVisibleLayers(template).map((layer) => (
-          <CanvasLayer
-            key={layer.id}
-            layer={layer}
-            background={background}
-            zoom={zoom}
-            selected={selectedLayerId === layer.id}
-            pathEditing={pathEditingLayerId === layer.id}
-            onSelect={() => onSelectLayer(layer.id)}
-            onEditPath={() => onPathEditingLayerChange(layer.id)}
-            onUpdate={(updater) => onUpdateLayer(layer.id, updater)}
-          />
-        ))}
+        <div
+          ref={canvasRef}
+          className={`absolute left-1/2 top-1/2 bg-white shadow-lg ${mode === "view" ? "pointer-events-none" : ""}`}
+          style={{
+            width: background.widthPx,
+            height: background.heightPx,
+            transform: `translate(calc(-50% + ${pan.x}px), calc(-50% + ${pan.y}px)) scale(${zoom})`,
+            transformOrigin: "center",
+          }}
+          onPointerDown={(event) => {
+            if (mode === "edit" && event.target === event.currentTarget) onSelectLayer("");
+          }}
+          onDoubleClick={(event) => {
+            if (mode !== "edit") return;
+            const layer = template.layers.find((entry) => entry.id === pathEditingLayerId);
+            if (!layer || layer.type !== "text" || layer.text.path.type !== "custom") return;
+            const bounds = event.currentTarget.getBoundingClientRect();
+            const xRatio = (event.clientX - bounds.left) / bounds.width;
+            const yRatio = (event.clientY - bounds.top) / bounds.height;
+            const rect = layerGeometryToPixels({ geometry: layer.geometry, background });
+            const point = {
+              id: createId("path_point"),
+              xRatio: Math.max(0, Math.min(1, (xRatio * background.widthPx - rect.xPx) / rect.widthPx)),
+              yRatio: Math.max(0, Math.min(1, (yRatio * background.heightPx - rect.yPx) / Math.max(1, layer.text.maxFontSizePt * layer.text.maxLines * 1.35))),
+              inHandle: { xRatio: -0.08, yRatio: 0 },
+              outHandle: { xRatio: 0.08, yRatio: 0 },
+            };
+            onUpdateLayer(layer.id, (current) =>
+              current.type === "text" && current.text.path.type === "custom"
+                ? { ...current, text: { ...current.text, path: { ...current.text.path, points: [...current.text.path.points, point] } } }
+                : current,
+            );
+          }}
+        >
+          <img src={background.previewUrl} alt="" className="pointer-events-none absolute inset-0 h-full w-full select-none object-fill" draggable={false} />
+          {getVisibleLayers(template).map((layer) => (
+            <CanvasLayer
+              key={layer.id}
+              layer={layer}
+              background={background}
+              zoom={zoom}
+              selected={selectedLayerId === layer.id}
+              pathEditing={pathEditingLayerId === layer.id}
+              editing={mode === "edit"}
+              onSelect={() => onSelectLayer(layer.id)}
+              onEditPath={() => onPathEditingLayerChange(layer.id)}
+              onUpdate={(updater) => onUpdateLayer(layer.id, updater)}
+            />
+          ))}
+        </div>
       </div>
     </main>
   );
@@ -103,6 +209,7 @@ function CanvasLayer({
   zoom,
   selected,
   pathEditing,
+  editing,
   onSelect,
   onEditPath,
   onUpdate,
@@ -112,6 +219,7 @@ function CanvasLayer({
   zoom: number;
   selected: boolean;
   pathEditing: boolean;
+  editing: boolean;
   onSelect: () => void;
   onEditPath: () => void;
   onUpdate: (updater: (layer: CustomizationLayer) => CustomizationLayer) => void;
@@ -122,13 +230,13 @@ function CanvasLayer({
   const top = layer.type === "text" ? layer.geometry.yRatio * background.heightPx - h / 2 : rect.yPx;
   const drag = useRef<{ x: number; y: number; rect: typeof rect } | null>(null);
   function startDrag(event: React.PointerEvent) {
-    if (layer.locked) return;
+    if (!editing || layer.locked) return;
     onSelect();
     drag.current = { x: event.clientX, y: event.clientY, rect };
     event.currentTarget.setPointerCapture(event.pointerId);
   }
   function move(event: React.PointerEvent) {
-    if (!drag.current || layer.locked) return;
+    if (!editing || !drag.current || layer.locked) return;
     const dx = (event.clientX - drag.current.x) / zoom;
     const dy = (event.clientY - drag.current.y) / zoom;
     const geometry = pixelRectToLayerGeometry({
@@ -144,10 +252,10 @@ function CanvasLayer({
     <div
       className={`absolute ${selected ? "ring-2 ring-ui-fg-interactive" : "ring-1 ring-teal-500/70"} ${layer.locked ? "cursor-not-allowed" : "cursor-move"}`}
       style={{
-        left: rect.xPx * zoom,
-        top: top * zoom,
-        width: rect.widthPx * zoom,
-        height: h * zoom,
+        left: rect.xPx,
+        top,
+        width: rect.widthPx,
+        height: h,
         transform: `rotate(${layer.geometry.rotationDeg}deg)`,
         zIndex: layer.zIndex,
       }}
@@ -157,7 +265,7 @@ function CanvasLayer({
         drag.current = null;
       }}
       onDoubleClick={(event) => {
-        if (layer.type === "text" && layer.text.path.type === "custom") {
+        if (editing && layer.type === "text" && layer.text.path.type === "custom") {
           event.stopPropagation();
           onEditPath();
         }
@@ -170,13 +278,13 @@ function CanvasLayer({
       ) : (
         <div className="h-full w-full bg-teal-500/10" style={{ borderRadius: layer.shape.type === "circle" ? "999px" : layer.shape.type === "rounded_rectangle" ? "12%" : undefined, clipPath: cssShapeClip(layer.shape.type) }} />
       )}
-      {pathEditing && layer.type === "text" && layer.text.path.type === "custom" ? (
+      {editing && pathEditing && layer.type === "text" && layer.text.path.type === "custom" ? (
         <PathPointOverlay
           layer={layer}
           onUpdate={onUpdate}
         />
       ) : null}
-      {selected && !layer.locked ? <ResizeHandles layer={layer} background={background} zoom={zoom} onUpdate={onUpdate} /> : null}
+      {editing && selected && !layer.locked ? <ResizeHandles layer={layer} background={background} zoom={zoom} onUpdate={onUpdate} /> : null}
     </div>
   );
 }
@@ -390,4 +498,8 @@ function resizeRect(rect: ReturnType<typeof layerGeometryToPixels>, handle: stri
     heightPx = widthPx * ratio;
   }
   return { ...rect, xPx, yPx, widthPx, heightPx };
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
 }
