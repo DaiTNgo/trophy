@@ -12,6 +12,7 @@ export type VectorPoint = {
   yRatio: number;
   inHandle?: { xRatio: number; yRatio: number };
   outHandle?: { xRatio: number; yRatio: number };
+  cornerRadius?: number;
 };
 
 export type VectorPath = {

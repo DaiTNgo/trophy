@@ -218,6 +218,29 @@ export function useTemplateEditor(editParam: string | null) {
   function closeVectorShape() {
     if (!template.background || pendingVectorPoints.length < 3) return;
     const id = createId("image_shape");
+    
+    // Calculate bounding box of pendingVectorPoints
+    let minX = 1, minY = 1, maxX = 0, maxY = 0;
+    pendingVectorPoints.forEach(p => {
+      if (p.xRatio < minX) minX = p.xRatio;
+      if (p.xRatio > maxX) maxX = p.xRatio;
+      if (p.yRatio < minY) minY = p.yRatio;
+      if (p.yRatio > maxY) maxY = p.yRatio;
+    });
+    
+    // Calculate layer geometry
+    const widthRatio = Math.max(0.01, maxX - minX);
+    const heightRatio = Math.max(0.01, maxY - minY);
+    const xRatio = minX + widthRatio / 2;
+    const yRatio = minY + heightRatio / 2;
+    
+    // Normalize points to layer bounds (0 to 1)
+    const normalizedPoints = pendingVectorPoints.map(p => ({
+      ...p,
+      xRatio: (p.xRatio - minX) / widthRatio,
+      yRatio: (p.yRatio - minY) / heightRatio,
+    }));
+    
     addLayer(
       {
         id,
@@ -226,8 +249,8 @@ export function useTemplateEditor(editParam: string | null) {
         hidden: false,
         locked: false,
         zIndex: maxZ(template.layers) + 1,
-        geometry: { xRatio: 0.5, yRatio: 0.5, widthRatio: 0.2, heightRatio: 0.2, rotationDeg: 0 },
-        shape: { type: "vector", lockAspectRatio: true, vectorPath: { points: pendingVectorPoints, closed: true } },
+        geometry: { xRatio, yRatio, widthRatio, heightRatio, rotationDeg: 0 },
+        shape: { type: "vector", lockAspectRatio: true, vectorPath: { points: normalizedPoints, closed: true } },
         upload: { fit: "cover", defaultCrop: { scale: 1, xRatio: 0, yRatio: 0 } },
       },
       {
@@ -241,6 +264,46 @@ export function useTemplateEditor(editParam: string | null) {
     );
     setIsDrawing(false);
     setPendingVectorPoints([]);
+  }
+
+  function addPolygon(sides: number | any = 6) {
+    if (!template.background) return;
+    const actualSides = typeof sides === "number" ? sides : 6;
+    const id = createId("image_shape");
+    // Generate a regular polygon with `actualSides` vertices centered at (0.5, 0.5) with radius 0.4
+    const radius = 0.4;
+    const cx = 0.5;
+    const cy = 0.5;
+    const polygonPoints: VectorPoint[] = Array.from({ length: actualSides }, (_, i) => {
+      const angle = -Math.PI / 2 + (i * 2 * Math.PI) / actualSides;
+      return {
+        id: createId("vector_point"),
+        type: "corner" as const,
+        xRatio: cx + Math.cos(angle) * radius,
+        yRatio: cy + Math.sin(angle) * radius,
+      };
+    });
+    addLayer(
+      {
+        id,
+        name: `Polygon (${sides})`,
+        type: "image_shape",
+        hidden: false,
+        locked: false,
+        zIndex: maxZ(template.layers) + 1,
+        geometry: { xRatio: 0.5, yRatio: 0.5, widthRatio: 0.25, heightRatio: 0.25, rotationDeg: 0 },
+        shape: { type: "vector", lockAspectRatio: false, vectorPath: { points: polygonPoints, closed: true } },
+        upload: { fit: "cover", defaultCrop: { scale: 1, xRatio: 0, yRatio: 0 } },
+      },
+      {
+        id: createId("field"),
+        layerId: id,
+        label: "Upload image",
+        helpText: "Your image will be clipped to the polygon shape.",
+        required: false,
+        order: template.formFields.length + 1,
+      },
+    );
   }
 
   function deleteSelectedLayer() {
@@ -443,6 +506,7 @@ export function useTemplateEditor(editParam: string | null) {
     addTextLayer,
     addTextOnPathLayer,
     addImageShape,
+    addPolygon,
     startDrawMode,
     cancelDrawMode,
     addVectorPoint,

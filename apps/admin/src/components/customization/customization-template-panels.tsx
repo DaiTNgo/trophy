@@ -26,6 +26,7 @@ import {
   EyeOff,
   FileImage,
   GripVertical,
+  Hexagon,
   Layers,
   Lock,
   PanelRight,
@@ -99,6 +100,7 @@ export function LeftPanel(props: {
   onAddText: () => void;
   onAddTextOnPath: () => void;
   onAddShape: (shape: ShapeType) => void;
+  onAddPolygon: () => void;
   onDrawShape: () => void;
   onSelectLayer: (layerId: string) => void;
   onUpdateTemplate: (
@@ -122,6 +124,7 @@ export function LeftPanel(props: {
           onAddText={props.onAddText}
           onAddTextOnPath={props.onAddTextOnPath}
           onAddShape={props.onAddShape}
+          onAddPolygon={props.onAddPolygon}
           onDrawShape={props.onDrawShape}
         />
       ) : null}
@@ -158,12 +161,14 @@ function BlocksPanel({
   onAddText,
   onAddTextOnPath,
   onAddShape,
+  onAddPolygon,
   onDrawShape,
 }: {
   template: CustomizationTemplate;
   onAddText: () => void;
   onAddTextOnPath: () => void;
   onAddShape: (shape: ShapeType) => void;
+  onAddPolygon: () => void;
   onDrawShape: () => void;
 }) {
   const disabled = !template.background;
@@ -215,6 +220,14 @@ function BlocksPanel({
           className="flex w-full items-center gap-3 rounded-md border border-dashed border-ui-border-base px-3 py-2 text-sm text-ui-fg-muted disabled:opacity-40"
         >
           <Shapes className="size-4" /> Draw shape
+        </button>
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={onAddPolygon}
+          className="flex w-full items-center gap-3 rounded-md border border-ui-border-base px-3 py-2 text-sm disabled:opacity-40"
+        >
+          <Hexagon className="size-4" /> Add Polygon
         </button>
       </div>
     </div>

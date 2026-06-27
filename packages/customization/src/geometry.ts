@@ -3,8 +3,8 @@ import type { BackgroundAsset, LayerGeometry, ShapeType, VectorPoint } from "./t
 export const clamp = (value: number, min: number, max: number) =>
   Math.min(max, Math.max(min, Number.isFinite(value) ? value : min));
 
-export const normalizeCropScale = (value?: number) => clamp(value ?? 1, 1, 4);
-export const normalizeCropPan = (value?: number) => clamp(value ?? 0, -1, 1);
+export const normalizeCropScale = (value?: number) => Math.max(0.02, Number.isFinite(value) ? value! : 1);
+export const normalizeCropPan = (value?: number) => Number.isFinite(value) ? value! : 0;
 
 export const layerGeometryToPixels = ({
   geometry,
@@ -150,30 +150,103 @@ export const getShapeClipPath = ({
 
 export const vectorPointsToSvgPathD = (points: VectorPoint[], closed: boolean) => {
   if (points.length === 0) return "";
+
+  const n = points.length;
+  // Pre-compute effective corner radius for each point
+  const effectiveRadius: number[] = points.map((p, i) => {
+    const r = p.cornerRadius ?? 0;
+    if (r <= 0 || p.type === "smooth") return 0;
+    
+    const prev = closed ? points[(i - 1 + n) % n] : points[i - 1];
+    const next = closed ? points[(i + 1) % n] : points[i + 1];
+    
+    // Disable corner radius if adjacent segments are bezier curves
+    if (prev && (prev.outHandle || p.inHandle)) return 0;
+    if (next && (p.outHandle || next.inHandle)) return 0;
+
+    let maxR = r;
+    if (prev) {
+      const segLen = Math.hypot(p.xRatio - prev.xRatio, p.yRatio - prev.yRatio);
+      maxR = Math.min(maxR, segLen / 2);
+    }
+    if (next) {
+      const segLen = Math.hypot(next.xRatio - p.xRatio, next.yRatio - p.yRatio);
+      maxR = Math.min(maxR, segLen / 2);
+    }
+    return Math.max(0, maxR);
+  });
+
+  function lerp(from: VectorPoint, to: VectorPoint, dist: number) {
+    const segLen = Math.hypot(to.xRatio - from.xRatio, to.yRatio - from.yRatio);
+    if (segLen === 0) return { x: from.xRatio, y: from.yRatio };
+    const t = dist / segLen;
+    return { x: from.xRatio + (to.xRatio - from.xRatio) * t, y: from.yRatio + (to.yRatio - from.yRatio) * t };
+  }
+
   const parts: string[] = [];
-  parts.push(`M ${points[0]!.xRatio} ${points[0]!.yRatio}`);
-  for (let i = 1; i < points.length; i++) {
+  const firstRadius = effectiveRadius[0]!;
+
+  // Determine start point
+  if (firstRadius > 0 && closed && n > 1) {
+    // Start at the exit point of the first corner's arc (towards point 1)
+    const startPt = lerp(points[0]!, points[1]!, firstRadius);
+    parts.push(`M ${startPt.x} ${startPt.y}`);
+  } else {
+    parts.push(`M ${points[0]!.xRatio} ${points[0]!.yRatio}`);
+  }
+
+  for (let i = 1; i < n; i++) {
     const prev = points[i - 1]!;
     const curr = points[i]!;
     const prevOut = prev.outHandle;
     const currIn = curr.inHandle;
-    if (prevOut && currIn) {
-      parts.push(
-        `C ${prev.xRatio + prevOut.xRatio} ${prev.yRatio + prevOut.yRatio} ${curr.xRatio + currIn.xRatio} ${curr.yRatio + currIn.yRatio} ${curr.xRatio} ${curr.yRatio}`,
-      );
+    const rCurr = effectiveRadius[i]!;
+
+    if (prevOut || currIn) {
+      const cp1x = prev.xRatio + (prevOut?.xRatio ?? 0);
+      const cp1y = prev.yRatio + (prevOut?.yRatio ?? 0);
+      const cp2x = curr.xRatio + (currIn?.xRatio ?? 0);
+      const cp2y = curr.yRatio + (currIn?.yRatio ?? 0);
+      parts.push(`C ${cp1x} ${cp1y} ${cp2x} ${cp2y} ${curr.xRatio} ${curr.yRatio}`);
     } else {
-      parts.push(`L ${curr.xRatio} ${curr.yRatio}`);
+      const endPt = rCurr > 0 ? lerp(curr, prev, rCurr) : { x: curr.xRatio, y: curr.yRatio };
+      
+      // If we are at i=1 and not closed, and prev had radius, we started at M prev.
+      // So we just draw L endPt. The start of the line is naturally connected.
+      parts.push(`L ${endPt.x} ${endPt.y}`);
+
+      if (rCurr > 0) {
+        const nextIdx = i + 1 < n ? i + 1 : (closed ? 0 : -1);
+        if (nextIdx >= 0) {
+          const next = points[nextIdx]!;
+          const exitPt = lerp(curr, next, rCurr);
+          parts.push(`Q ${curr.xRatio} ${curr.yRatio} ${exitPt.x} ${exitPt.y}`);
+        }
+      }
     }
   }
-  if (closed && points.length > 2) {
+
+  if (closed && n > 2) {
     const first = points[0]!;
-    const last = points[points.length - 1]!;
+    const last = points[n - 1]!;
     const lastOut = last.outHandle;
     const firstIn = first.inHandle;
-    if (lastOut && firstIn) {
-      parts.push(
-        `C ${last.xRatio + lastOut.xRatio} ${last.yRatio + lastOut.yRatio} ${first.xRatio + firstIn.xRatio} ${first.yRatio + firstIn.yRatio} ${first.xRatio} ${first.yRatio}`,
-      );
+    const rFirst = effectiveRadius[0]!;
+
+    if (lastOut || firstIn) {
+      const cp1x = last.xRatio + (lastOut?.xRatio ?? 0);
+      const cp1y = last.yRatio + (lastOut?.yRatio ?? 0);
+      const cp2x = first.xRatio + (firstIn?.xRatio ?? 0);
+      const cp2y = first.yRatio + (firstIn?.yRatio ?? 0);
+      parts.push(`C ${cp1x} ${cp1y} ${cp2x} ${cp2y} ${first.xRatio} ${first.yRatio}`);
+    } else {
+      const endPt = rFirst > 0 ? lerp(first, last, rFirst) : { x: first.xRatio, y: first.yRatio };
+      parts.push(`L ${endPt.x} ${endPt.y}`);
+      if (rFirst > 0) {
+        const secondPt = points[1]!;
+        const exitPt = lerp(first, secondPt, rFirst);
+        parts.push(`Q ${first.xRatio} ${first.yRatio} ${exitPt.x} ${exitPt.y}`);
+      }
     }
     parts.push("Z");
   }

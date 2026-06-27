@@ -26,7 +26,7 @@
 	},
 	"vars": {
 		"ADMIN_APP_ORIGIN": "https://trophy-admin.pages.dev",
-		"BETTER_AUTH_URL": "https://backend.dai-ngo.workers.dev/",
+		"BETTER_AUTH_URL": "https://backend.dai-ngo.workers.dev",
 		"BETTER_AUTH_SECRET": "daingo7211@!"
 	}
 }

@@ -78,6 +78,23 @@ function getFreeImageRect({
   };
 }
 
+let measureSpan: HTMLSpanElement | null = null;
+function measureTextDOM(text: string, fontSizePt: number, fontId: string): number {
+  if (typeof window === "undefined" || !document.body) return text.length * fontSizePt * 0.55;
+  if (!measureSpan) {
+    measureSpan = document.createElement("span");
+    measureSpan.style.position = "absolute";
+    measureSpan.style.visibility = "hidden";
+    measureSpan.style.whiteSpace = "pre";
+    measureSpan.style.pointerEvents = "none";
+    document.body.appendChild(measureSpan);
+  }
+  measureSpan.style.fontFamily = `"${fontId}", sans-serif`;
+  measureSpan.style.fontSize = `${fontSizePt}px`;
+  measureSpan.textContent = text;
+  return measureSpan.getBoundingClientRect().width;
+}
+
 export function PreviewDialog({
   template,
   values,
@@ -93,7 +110,7 @@ export function PreviewDialog({
   onReset: () => void;
   pendingPdfFile?: File | null;
 }) {
-  const design = useMemo(() => buildDesignFromForm({ template, values, designId: "admin_preview" }), [template, values]);
+  const design = useMemo(() => buildDesignFromForm({ template, values, designId: "admin_preview", measureText: measureTextDOM }), [template, values]);
   const [isExporting, setIsExporting] = useState(false);
 
   async function exportPdf() {
@@ -186,6 +203,10 @@ function PreviewCanvas({
   const height = background?.heightPx ?? 900;
   const scale = zoom;
   const fieldsByLayerId = new Map(template.formFields.map((field) => [field.layerId, field]));
+  const activePointers = useRef<Map<number, { x: number; y: number }>>(new Map());
+  const initialPinchDist = useRef<number | null>(null);
+  const initialPinchZoom = useRef<number>(zoom);
+
   const setCommittedZoom = useCallback((nextZoom: number) => {
     const clamped = Math.min(MAX_PREVIEW_ZOOM, Math.max(MIN_PREVIEW_ZOOM, nextZoom));
     setZoom(clamped);
@@ -256,23 +277,53 @@ function PreviewCanvas({
       <div
         ref={viewportRef}
         className={`relative min-h-0 flex-1 overflow-hidden ${mode === "view" ? "cursor-grab active:cursor-grabbing" : ""}`}
+        style={{ touchAction: mode === "view" ? "none" : "auto" }}
         onPointerDown={(event) => {
           if (mode !== "view") return;
-          viewportDrag.current = { x: event.clientX, y: event.clientY, pan };
+          activePointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+          if (activePointers.current.size === 1) {
+            viewportDrag.current = { x: event.clientX, y: event.clientY, pan };
+          } else if (activePointers.current.size === 2) {
+            const pts = Array.from(activePointers.current.values());
+            initialPinchDist.current = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+            initialPinchZoom.current = zoom;
+          }
           event.currentTarget.setPointerCapture(event.pointerId);
         }}
         onPointerMove={(event) => {
-          if (mode !== "view" || !viewportDrag.current) return;
-          setPan({
-            x: viewportDrag.current.pan.x + event.clientX - viewportDrag.current.x,
-            y: viewportDrag.current.pan.y + event.clientY - viewportDrag.current.y,
-          });
+          if (mode !== "view") return;
+          if (activePointers.current.has(event.pointerId)) {
+            activePointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+          }
+
+          if (activePointers.current.size === 2 && initialPinchDist.current !== null) {
+            const pts = Array.from(activePointers.current.values());
+            const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+            const scaleFactor = dist / initialPinchDist.current;
+            setCommittedZoom(initialPinchZoom.current * scaleFactor);
+          } else if (activePointers.current.size === 1 && viewportDrag.current) {
+            setPan({
+              x: viewportDrag.current.pan.x + event.clientX - viewportDrag.current.x,
+              y: viewportDrag.current.pan.y + event.clientY - viewportDrag.current.y,
+            });
+          }
         }}
-        onPointerUp={() => {
-          viewportDrag.current = null;
+        onPointerUp={(event) => {
+          activePointers.current.delete(event.pointerId);
+          if (activePointers.current.size < 2) {
+            initialPinchDist.current = null;
+          }
+          if (activePointers.current.size === 1) {
+            const pt = Array.from(activePointers.current.values())[0];
+            viewportDrag.current = { x: pt.x, y: pt.y, pan };
+          } else if (activePointers.current.size === 0) {
+            viewportDrag.current = null;
+          }
         }}
-        onPointerCancel={() => {
-          viewportDrag.current = null;
+        onPointerCancel={(event) => {
+          activePointers.current.delete(event.pointerId);
+          if (activePointers.current.size < 2) initialPinchDist.current = null;
+          if (activePointers.current.size === 0) viewportDrag.current = null;
         }}
       >
         <FontLoader layers={design.layers} />
@@ -342,8 +393,8 @@ function PreviewTextLayer({
   if (layer.path.type === "straight") {
     return (
       <div
-        className="pointer-events-none absolute select-none overflow-hidden"
-        style={{ left, top, width: w * scale, height: textHeight * scale, color: layer.color, fontSize: layer.fontSizePt * scale, fontFamily: layer.fontId, textAlign: layer.align === "justified" ? "justify" : layer.align, whiteSpace: "pre-wrap" }}
+        className="pointer-events-none absolute select-none overflow-visible"
+        style={{ left, top, width: w * scale, height: textHeight * scale, lineHeight: 1.35, color: layer.color, fontSize: layer.fontSizePt * scale, fontFamily: layer.fontId, textAlign: layer.align === "justified" ? "justify" : layer.align, whiteSpace: "pre-wrap" }}
       >
         {layer.text}
       </div>
@@ -542,15 +593,18 @@ function PreviewImageShapeLayer({
               key={corner}
               type="button"
               aria-label={`Resize image ${corner}`}
-              className="absolute size-4 rounded-full border border-ui-bg-base bg-ui-fg-interactive shadow md:size-3"
+              className="absolute flex size-10 items-center justify-center md:size-6"
               style={{
                 left: (corner === "nw" || corner === "sw" ? imageRect.xPx : imageRect.xPx + imageRect.widthPx) * scale,
                 top: (corner === "nw" || corner === "ne" ? imageRect.yPx : imageRect.yPx + imageRect.heightPx) * scale,
                 transform: "translate(-50%, -50%)",
                 cursor: corner === "nw" || corner === "se" ? "nwse-resize" : "nesw-resize",
+                touchAction: "none",
               }}
               onPointerDown={(event) => startResize(event, corner)}
-            />
+            >
+              <span className="size-4 rounded-full border border-ui-bg-base bg-ui-fg-interactive shadow md:size-3" />
+            </button>
           ))}
           <div
             className="pointer-events-none absolute border border-ui-fg-interactive/70"
@@ -635,9 +689,17 @@ function PreviewField({
         }}
       />
       {imageValue ? (
-        <button type="button" onClick={() => onChange({ ...imageValue, cropScale: 1, cropXRatio: 0, cropYRatio: 0 })} className="rounded border border-ui-border-base px-3 py-2 text-sm">
-          Reset crop
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button type="button" onClick={() => onChange({ ...imageValue, cropScale: Math.max(MIN_FREE_IMAGE_SCALE, (imageValue.cropScale ?? 1) / 1.1) })} className="rounded border border-ui-border-base px-3 py-2 text-sm">
+            - Zoom
+          </button>
+          <button type="button" onClick={() => onChange({ ...imageValue, cropScale: (imageValue.cropScale ?? 1) * 1.1 })} className="rounded border border-ui-border-base px-3 py-2 text-sm">
+            + Zoom
+          </button>
+          <button type="button" onClick={() => onChange({ ...imageValue, cropScale: 1, cropXRatio: 0, cropYRatio: 0 })} className="rounded border border-ui-border-base px-3 py-2 text-sm">
+            Reset crop
+          </button>
+        </div>
       ) : null}
     </div>
   );

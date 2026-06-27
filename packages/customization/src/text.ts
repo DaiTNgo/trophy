@@ -354,7 +354,8 @@ export const fitTextToLayer = ({
     }
   }
 
-  const fontSizePt = Number((best ?? layer.text.minFontSizePt).toFixed(2));
+  const exactFontSize = best ?? layer.text.minFontSizePt;
+  const fontSizePt = Math.floor(exactFontSize * 100) / 100;
   if (fitsAt(fontSizePt, text)) {
     return { text, fontId, color, fontSizePt, align: layer.text.align, trimmed: false };
   }

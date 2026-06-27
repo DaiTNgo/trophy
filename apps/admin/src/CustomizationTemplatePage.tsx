@@ -33,6 +33,7 @@ export default function CustomizationTemplatePage() {
     addTextLayer,
     addTextOnPathLayer,
     addImageShape,
+    addPolygon,
     startDrawMode,
     cancelDrawMode,
     addVectorPoint,
@@ -70,6 +71,7 @@ export default function CustomizationTemplatePage() {
           onAddText={addTextLayer}
           onAddTextOnPath={addTextOnPathLayer}
           onAddShape={addImageShape}
+          onAddPolygon={addPolygon}
           onDrawShape={startDrawMode}
           onSelectLayer={setSelectedLayerId}
           onUpdateTemplate={updateTemplate}

@@ -145,6 +145,11 @@ function VectorPointsTable({
               <NumberInput label="X" value={Math.round(point.xRatio * 1000) / 1000} onChange={(xRatio) => updatePoint(index, (p) => ({ ...p, xRatio }))} />
               <NumberInput label="Y" value={Math.round(point.yRatio * 1000) / 1000} onChange={(yRatio) => updatePoint(index, (p) => ({ ...p, yRatio }))} />
             </div>
+            {point.type === "corner" && (
+              <div className="mt-1 grid grid-cols-1 gap-1">
+                <NumberInput label="Corner Radius" value={point.cornerRadius ?? 0} onChange={(cornerRadius) => updatePoint(index, (p) => ({ ...p, cornerRadius: Math.max(0, cornerRadius) }))} />
+              </div>
+            )}
             {point.type === "smooth" && (
               <div className="mt-1 grid grid-cols-2 gap-1">
                 <NumberInput label="In X" value={Math.round((point.inHandle?.xRatio ?? 0) * 1000) / 1000} onChange={(xRatio) => updatePoint(index, (p) => ({ ...p, inHandle: { xRatio, yRatio: p.inHandle?.yRatio ?? 0 } }))} />
