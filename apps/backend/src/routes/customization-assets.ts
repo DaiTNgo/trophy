@@ -12,7 +12,6 @@ import {
 import type { AppEnv } from "../lib/env";
 import { readImageDimensions } from "../lib/image-dimensions";
 import { jsonError, parseParams } from "../lib/validation";
-import { PDFDocument } from "pdf-lib";
 
 export const customizationAssetsRoute = new Hono<AppEnv>()
   .post("/", async (c) => {
@@ -22,6 +21,9 @@ export const customizationAssetsRoute = new Hono<AppEnv>()
 
     let buffer: ArrayBuffer;
     let previewBuffer: ArrayBuffer | undefined;
+    let pdfWidth: number | undefined;
+    let pdfHeight: number | undefined;
+    let pdfPageCount: number | undefined;
 
     if (isMultipart) {
       const body = await c.req.parseBody();
@@ -35,6 +37,17 @@ export const customizationAssetsRoute = new Hono<AppEnv>()
       const thumbnail = body["thumbnail"];
       if (thumbnail instanceof File) {
         previewBuffer = await thumbnail.arrayBuffer();
+      }
+
+      const w = body["width"];
+      const h = body["height"];
+      const p = body["pageCount"];
+      if (typeof w === "string" && typeof h === "string") {
+        pdfWidth = Number(w);
+        pdfHeight = Number(h);
+      }
+      if (typeof p === "string") {
+        pdfPageCount = Number(p);
       }
     } else {
       buffer = await c.req.arrayBuffer();
@@ -58,16 +71,11 @@ export const customizationAssetsRoute = new Hono<AppEnv>()
     let pageCount: number | undefined;
 
     if (mimeType === "application/pdf") {
-      try {
-        const pdfDoc = await PDFDocument.load(bytes, { ignoreEncryption: true });
-        const pages = pdfDoc.getPages();
-        pageCount = pages.length;
-        if (pageCount > 0) {
-          const { width, height } = pages[0].getSize();
-          dimensions = { width, height };
-        }
-      } catch (e) {
-        return jsonError(c, 422, "Invalid PDF file");
+      if (pdfWidth && pdfHeight) {
+        dimensions = { width: pdfWidth, height: pdfHeight };
+        pageCount = pdfPageCount;
+      } else {
+        return jsonError(c, 422, "Missing PDF dimensions in upload request");
       }
     } else {
       dimensions = readImageDimensions(mimeType, bytes);

@@ -1,10 +1,12 @@
 import { betterAuth } from 'better-auth/minimal'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
-import { admin, username } from 'better-auth/plugins'
+import { admin } from 'better-auth/plugins/admin'
+import { username } from 'better-auth/plugins/username'
 import { adminAc, userAc } from 'better-auth/plugins/admin/access'
 import { getDb } from '../db/client'
 import * as schema from '../db/schema'
 import type { AppBindings } from './env'
+import { getAppCorsOrigins } from './cors'
 
 export const AUTH_BASE_PATH = '/api/admin/auth'
 
@@ -21,17 +23,6 @@ type AuthSettings = {
   secret: string
 }
 
-function splitOrigins(value: string | undefined) {
-  if (!value) {
-    return []
-  }
-
-  return value
-    .split(',')
-    .map((origin) => origin.trim())
-    .filter(Boolean)
-}
-
 export function getAuthSettings(bindings: Partial<AppBindings>): AuthSettings {
   return {
     baseUrl: bindings.BETTER_AUTH_URL
@@ -40,15 +31,7 @@ export function getAuthSettings(bindings: Partial<AppBindings>): AuthSettings {
           allowedHosts: ['127.0.0.1:*', 'localhost:*', '[::1]:*'],
           fallback: DEFAULT_AUTH_BASE_URL
         },
-    trustedOrigins: Array.from(
-      new Set([
-        ...splitOrigins(bindings.ADMIN_APP_ORIGIN),
-        'http://127.0.0.1:5173',
-        'http://localhost:5173',
-        'http://localhost:5174',
-        'http://127.0.0.1:5174'
-      ])
-    ),
+    trustedOrigins: getAppCorsOrigins(bindings),
     secret:
       bindings.BETTER_AUTH_SECRET ||
       'replace-this-local-dev-secret-with-a-real-value'
@@ -73,6 +56,15 @@ export function getAuth(bindings: AppBindings) {
       enabled: true,
       disableSignUp: true,
       minPasswordLength: 8
+    },
+    advanced: {
+      crossSubDomainCookies: {
+        enabled: true // Hỗ trợ share cookie giữa api.domain.com và admin.domain.com
+      },
+      defaultCookieAttributes: {
+        sameSite: 'none', // Bắt buộc cho Cross-Origin (backend & frontend khác domain)
+        secure: true // Bắt buộc đi kèm với sameSite: none trên production
+      }
     },
     plugins: [
       username(),

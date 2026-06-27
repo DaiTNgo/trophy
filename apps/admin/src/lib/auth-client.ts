@@ -1,13 +1,10 @@
 import { adminClient } from "better-auth/client/plugins";
 import { usernameClient } from "better-auth/client/plugins";
 import { createAuthClient } from "better-auth/react";
-
-const backendBaseUrl =
-  (import.meta.env.VITE_BACKEND_URL as string | undefined)?.replace(/\/$/, "") ||
-  "http://localhost:8787";
+import { backendFetch, BACKEND_URL } from "./fetch";
 
 export const authClient = createAuthClient({
-  baseURL: backendBaseUrl,
+  baseURL: BACKEND_URL,
   basePath: "/api/admin/auth",
   plugins: [adminClient(), usernameClient()],
   fetchOptions: {
@@ -19,7 +16,7 @@ export async function bootstrapFirstAdmin(input: {
   username: string;
   password: string;
 }) {
-  const response = await fetch(`${backendBaseUrl}/api/admin/bootstrap`, {
+  const response = await backendFetch(`/api/admin/bootstrap`, {
     method: "POST",
     credentials: "include",
     headers: {
@@ -43,7 +40,7 @@ export async function createAdminAccount(input: {
   username: string;
   password: string;
 }) {
-  const response = await fetch(`${backendBaseUrl}/api/admin/accounts/create`, {
+  const response = await backendFetch(`/api/admin/accounts/create`, {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },

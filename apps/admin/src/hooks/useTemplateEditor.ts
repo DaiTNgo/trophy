@@ -17,7 +17,7 @@ import {
 } from "@trophy/customization";
 import { createId, shapeLabel, type RailTab } from "../components/customization/customization-template-ui";
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL ?? "http://localhost:8787";
+import { backendFetch, BACKEND_URL } from "../lib/fetch";
 
 const maxZ = (layers: CustomizationLayer[]) => Math.max(0, ...layers.map((layer) => layer.zIndex));
 
@@ -46,9 +46,9 @@ export function useTemplateEditor(editParam: string | null) {
     let active = true;
     async function loadTemplate() {
       const endpoint = /^\d+$/.test(target)
-        ? `${BACKEND_URL}/api/customizations/templates/product/${target}`
-        : `${BACKEND_URL}/api/customizations/templates/${target}`;
-      const response = await fetch(endpoint);
+        ? `/api/customizations/templates/product/${target}`
+        : `/api/customizations/templates/${target}`;
+      const response = await backendFetch(endpoint);
       if (!response.ok) return;
       const data = (await response.json()) as { template: CustomizationTemplate };
       if (!active) return;
@@ -272,7 +272,7 @@ export function useTemplateEditor(editParam: string | null) {
   }
 
   async function saveDraft() {
-    const response = await fetch(`${BACKEND_URL}/api/customizations/templates`, {
+    const response = await backendFetch(`/api/customizations/templates`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -301,7 +301,11 @@ export function useTemplateEditor(editParam: string | null) {
       const thumbnailBlob = await thumbnailRes.blob();
       formData.append("thumbnail", thumbnailBlob, "preview.png");
 
-      const uploadRes = await fetch(`${BACKEND_URL}/api/customizations/assets`, {
+      if (template.background.widthPx) formData.append("width", String(template.background.widthPx));
+      if (template.background.heightPx) formData.append("height", String(template.background.heightPx));
+      if (template.background.pdfPageCount) formData.append("pageCount", String(template.background.pdfPageCount));
+
+      const uploadRes = await backendFetch(`/api/customizations/assets`, {
         method: "POST",
         headers: { "X-Upload-Token": `publish_${Date.now()}` },
         body: formData,
@@ -336,7 +340,7 @@ export function useTemplateEditor(editParam: string | null) {
     }
     const saved = await saveDraft();
     if (!saved) return;
-    const response = await fetch(`${BACKEND_URL}/api/customizations/templates/${saved.id}/publish`, {
+    const response = await backendFetch(`/api/customizations/templates/${saved.id}/publish`, {
       method: "POST",
     });
     setFlash(response.ok ? "Template published." : "Failed to publish template.");

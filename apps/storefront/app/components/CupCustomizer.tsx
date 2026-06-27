@@ -166,6 +166,29 @@ export default function CupCustomizer({ template: templateProp }: { template?: C
   );
 }
 
+import { FONT_FILES } from "@trophy/customization";
+
+function FontLoader({ layers }: { layers: RuntimeLayer[] }) {
+  const fontIds = Array.from(new Set(layers.filter((l): l is Extract<RuntimeLayer, { type: "text" }> => l.type === "text" && !!l.fontId).map(l => l.fontId)));
+
+  return (
+    <>
+      {fontIds.map((fontId) => {
+        const file = FONT_FILES[fontId];
+        if (!file) return null;
+        return (
+          <style key={fontId} dangerouslySetInnerHTML={{ __html: `
+            @font-face {
+              font-family: '${fontId}';
+              src: url('${BACKEND_URL}/fonts/${file}') format('truetype');
+            }
+          `}} />
+        );
+      })}
+    </>
+  );
+}
+
 function PreviewCanvas({ template, layers }: { template: CustomizationTemplate; layers: RuntimeLayer[] }) {
   const background = template.background;
   const width = background?.widthPx ?? 900;
@@ -174,6 +197,7 @@ function PreviewCanvas({ template, layers }: { template: CustomizationTemplate; 
 
   return (
     <div className="overflow-auto rounded-[28px] bg-stone-100 p-4">
+      <FontLoader layers={layers} />
       <div className="relative mx-auto bg-white shadow" style={{ width: width * scale, height: height * scale }}>
         {background ? <img src={background.previewUrl} alt="" className="absolute inset-0 h-full w-full object-fill" /> : null}
         {[...layers].sort((a, b) => a.zIndex - b.zIndex).map((layer) => {
@@ -219,7 +243,7 @@ function PreviewText({ layer, width, height, scale }: { layer: Extract<RuntimeLa
         <defs>
           <path id={pathId} d={pathD} />
         </defs>
-        <text fontSize={layer.fontSizePt} fill={layer.color} textAnchor={pathAttrs.textAnchor} dominantBaseline="middle" textLength={pathAttrs.textLength} lengthAdjust={pathAttrs.lengthAdjust} wordSpacing={pathAttrs.wordSpacingPx ?? 0}>
+        <text fontSize={layer.fontSizePt} fontFamily={layer.fontId} fill={layer.color} textAnchor={pathAttrs.textAnchor} dominantBaseline="middle" textLength={pathAttrs.textLength} lengthAdjust={pathAttrs.lengthAdjust} wordSpacing={pathAttrs.wordSpacingPx ?? 0}>
           <textPath id={`export-textpath-${layer.id}`} href={`#${pathId}`} startOffset={pathAttrs.startOffset}>
             {pathAttrs.dy ? <tspan dy={pathAttrs.dy}>{layer.text}</tspan> : layer.text}
           </textPath>
@@ -237,6 +261,7 @@ function PreviewText({ layer, width, height, scale }: { layer: Extract<RuntimeLa
         width: layerWidthPx * scale,
         color: layer.color,
         fontSize: layer.fontSizePt * scale,
+        fontFamily: layer.fontId,
         textAlign: layer.align === "justified" ? "justify" : layer.align,
         transform: `translate(-50%, -50%) rotate(${layer.geometry.rotationDeg}deg)`,
       }}

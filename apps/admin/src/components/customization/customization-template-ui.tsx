@@ -1,12 +1,45 @@
-import { type BackgroundAsset, type ShapeType, vectorPointsToSvgPathD, type CustomizationLayer } from "@trophy/customization";
+import { type BackgroundAsset, type ShapeType, vectorPointsToSvgPathD, type CustomizationLayer, FONT_FILES } from "@trophy/customization";
 import * as pdfjsLib from "pdfjs-dist";
 import pdfjsWorkerUrl from "pdfjs-dist/build/pdf.worker?url";
+import { useMemo } from "react";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl;
 
 export type RailTab = "blocks" | "layers" | "form" | "background";
 
 export const createId = (prefix: string) => `${prefix}_${crypto.randomUUID()}`;
+
+export function FontLoader({ layers }: { layers: CustomizationLayer[] | any[] }) {
+  const fontIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const layer of layers) {
+      if (layer.type === "text") {
+        const fontId = layer.fontId || (layer.text?.fontPolicy?.mode === "fixed" ? layer.text.fontPolicy.fontId : layer.text?.fontPolicy?.defaultFontId);
+        if (fontId) ids.add(fontId);
+      }
+    }
+    return Array.from(ids);
+  }, [layers]);
+
+  const backendUrl = import.meta.env.VITE_BACKEND_URL ?? "http://localhost:8787";
+
+  return (
+    <>
+      {fontIds.map((fontId) => {
+        const file = FONT_FILES[fontId];
+        if (!file) return null;
+        return (
+          <style key={fontId} dangerouslySetInnerHTML={{ __html: `
+            @font-face {
+              font-family: '${fontId}';
+              src: url('${backendUrl}/fonts/${file}') format('truetype');
+            }
+          `}} />
+        );
+      })}
+    </>
+  );
+}
 
 export function PanelTitle({ title, subtitle }: { title: string; subtitle: string }) {
   return (

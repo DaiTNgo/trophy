@@ -12,8 +12,7 @@ type TemplateListItem = {
   blockCount: number;
   createdAt: string;
 };
-
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL ?? "http://localhost:8787";
+import { backendFetch } from "./lib/fetch";
 
 export default function CustomizationTemplateListPage() {
   const navigate = useNavigate();
@@ -25,7 +24,7 @@ export default function CustomizationTemplateListPage() {
     let active = true;
     async function load() {
       try {
-        const response = await fetch(`${BACKEND_URL}/api/customizations/templates`);
+        const response = await backendFetch(`/api/customizations/templates`);
         if (!response.ok) {
           throw new Error(`Server returned ${response.status}`);
         }

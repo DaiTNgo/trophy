@@ -19,7 +19,6 @@ import {
   ChevronLeft,
   ChevronRight,
   ExternalLink,
-  EyeOff,
   Loader2,
   Trash2,
   Upload,
@@ -27,6 +26,7 @@ import {
 } from "lucide-react";
 import { startTransition, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router";
+
 import { CategoryMultiSelect } from "../components/ui/medusa/category-multiselect";
 import { InlineError } from "../components/ui/medusa/inline-error";
 import { useCatalog } from "../hooks/use-catalog";
@@ -53,6 +53,7 @@ import type {
   ProductVariantMedia,
 } from "../types";
 import { ProductsListPage } from "./products-list";
+import {Adjustments} from '@medusajs/icons'
 
 const defaultCreateProductValues: CreateProductFormValues = {
   title: "",
@@ -1136,7 +1137,7 @@ export function CreateProductPage() {
                     <DropdownMenu>
                       <DropdownMenu.Trigger asChild>
                         <Button variant="secondary" size="small">
-                          <EyeOff className="size-4" />
+                          <Adjustments className="size-4" />
                           Views
                         </Button>
                       </DropdownMenu.Trigger>

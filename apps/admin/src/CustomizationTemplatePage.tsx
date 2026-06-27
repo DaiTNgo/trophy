@@ -49,7 +49,7 @@ export default function CustomizationTemplatePage() {
   } = useTemplateEditor(editParam);
 
   return (
-    <section className="flex min-h-[calc(100vh-96px)] flex-col overflow-hidden rounded-xl border border-ui-border-base bg-ui-bg-base shadow-sm">
+    <section className="flex h-[calc(100vh-96px)] flex-col overflow-hidden rounded-xl border border-ui-border-base bg-ui-bg-base shadow-sm">
       <EditorHeader template={template} onSave={() => void saveDraft()} onPublish={() => void publish()} onPreview={() => setPreviewOpen(true)} />
       {flash ? (
         <div className="flex items-center justify-between border-b border-ui-border-base bg-ui-bg-subtle px-4 py-2 text-sm text-ui-fg-subtle">

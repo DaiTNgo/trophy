@@ -1,6 +1,7 @@
 import { betterAuth } from 'better-auth/minimal'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
-import { admin, username } from 'better-auth/plugins'
+import { admin } from 'better-auth/plugins/admin'
+import { username } from 'better-auth/plugins/username'
 import { adminAc, userAc } from 'better-auth/plugins/admin/access'
 import * as schema from '../db/schema'
 import { AUTH_BASE_PATH } from './auth'

@@ -29,7 +29,7 @@ import {
 import fontkit from "@pdf-lib/fontkit";
 import { layerGeometryToPixels } from "@trophy/customization";
 import type { CustomizationDesign, CustomizationTemplate, VectorPath } from "@trophy/customization";
-import { getEmbeddedFont } from "./pdf-fonts";
+import { loadFontBytes } from "./pdf-fonts";
 import { drawStraightText } from "./pdf-text-straight";
 
 // ─── image loading ────────────────────────────────────────────────────────────
@@ -215,8 +215,16 @@ export const exportVectorPdfClientSide = async (
   const pdf = await PDFDocument.create();
   pdf.registerFontkit(fontkit);
 
-  // Stable key for per-document font cache (use document's internal id)
-  const docKey = design.id;
+  const embeddedFontCache = new Map<string, any>();
+
+  const getEmbeddedFont = async (fontId: string) => {
+    if (embeddedFontCache.has(fontId)) return embeddedFontCache.get(fontId);
+    const bytes = await loadFontBytes(fontId);
+    if (!bytes) return null;
+    const embedded = await pdf.embedFont(bytes);
+    embeddedFontCache.set(fontId, embedded);
+    return embedded;
+  };
 
   const designWidth  = template.background?.widthPx  ?? 900;
   const designHeight = template.background?.heightPx ?? 900;
@@ -335,7 +343,7 @@ export const exportVectorPdfClientSide = async (
 
       if (layer.path.type === "straight") {
         // ── straight text: pdf-lib native (true vector) ──────────────────────
-        const embeddedFont = await getEmbeddedFont(pdf, layer.fontId, docKey);
+        const embeddedFont = await getEmbeddedFont(layer.fontId);
         if (!embeddedFont) {
           if (rotDeg !== 0) page.pushOperators(popGraphicsState());
           continue;
@@ -360,7 +368,7 @@ export const exportVectorPdfClientSide = async (
           continue;
         }
 
-        const embeddedFont = await getEmbeddedFont(pdf, layer.fontId, docKey);
+        const embeddedFont = await getEmbeddedFont(layer.fontId);
         if (!embeddedFont) {
           if (rotDeg !== 0) page.pushOperators(popGraphicsState());
           continue;

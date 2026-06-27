@@ -15,6 +15,12 @@ export const DEFAULT_FONT_FAMILY_OPTIONS: ChoiceOption[] = [
   { value: "script-elegant", label: "Script Elegant" },
 ];
 
+export const FONT_FILES: Record<string, string> = {
+  "sans-bold": "SansBold.ttf",
+  "serif-display": "SerifDisplay.ttf",
+  "script-elegant": "ScriptElegant.ttf",
+};
+
 export const DEFAULT_TEMPLATE: CustomizationTemplate = {
   id: "template_demo_cup",
   productId: "prod_trophy_cup",

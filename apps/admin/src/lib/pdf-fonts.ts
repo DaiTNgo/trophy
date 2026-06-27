@@ -1,5 +1,3 @@
-import { PDFDocument } from "pdf-lib";
-
 
 // ─── font file map ────────────────────────────────────────────────────────────
 // Admin-managed: users select from pre-approved fonts; no custom uploads.
@@ -27,24 +25,6 @@ export async function loadFontBytes(fontId: string): Promise<Uint8Array | null> 
   return bytes;
 }
 
-// ─── pdf-lib embedded font cache ─────────────────────────────────────────────
-
-// Keyed by `${pdfDocId}:${fontId}` — each PDFDocument needs its own embed.
-const embeddedFontCache = new Map<string, Awaited<ReturnType<PDFDocument["embedFont"]>>>();
-
-export async function getEmbeddedFont(
-  pdf: PDFDocument,
-  fontId: string,
-  docKey: string,
-): Promise<Awaited<ReturnType<PDFDocument["embedFont"]>> | null> {
-  const cacheKey = `${docKey}:${fontId}`;
-  if (embeddedFontCache.has(cacheKey)) return embeddedFontCache.get(cacheKey)!;
-  const bytes = await loadFontBytes(fontId);
-  if (!bytes) return null;
-  const embedded = await pdf.embedFont(bytes);
-  embeddedFontCache.set(cacheKey, embedded);
-  return embedded;
-}
 
 // ─── CSS font-face URL (for SVG-based fallback if ever needed) ────────────────
 

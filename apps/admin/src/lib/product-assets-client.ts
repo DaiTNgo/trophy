@@ -1,8 +1,6 @@
 import type { ProductVariantMedia } from "../types";
 
-const backendBaseUrl =
-  (import.meta.env.VITE_BACKEND_URL as string | undefined)?.replace(/\/$/, "") ||
-  "http://localhost:8787";
+import { backendFetch, BACKEND_URL } from "./fetch";
 
 type ProductAssetResponse = {
   asset?: {
@@ -22,14 +20,14 @@ function normalizeContentUrl(contentUrl: string) {
     return contentUrl;
   }
 
-  return `${backendBaseUrl}${contentUrl.startsWith("/") ? contentUrl : `/${contentUrl}`}`;
+  return `${BACKEND_URL}${contentUrl.startsWith("/") ? contentUrl : `/${contentUrl}`}`;
 }
 
 export async function uploadProductVariantMedia(file: File): Promise<ProductVariantMedia> {
   const formData = new FormData();
   formData.append("file", file);
 
-  const response = await fetch(`${backendBaseUrl}/api/products/assets`, {
+  const response = await backendFetch(`/api/products/assets`, {
     method: "POST",
     credentials: "include",
     body: formData,
@@ -47,7 +45,7 @@ export async function uploadProductVariantMedia(file: File): Promise<ProductVari
 }
 
 export async function deleteProductVariantMedia(assetId: string) {
-  const response = await fetch(`${backendBaseUrl}/api/products/assets/${assetId}/delete`, {
+  const response = await backendFetch(`/api/products/assets/${assetId}/delete`, {
     method: "POST",
     credentials: "include",
   });

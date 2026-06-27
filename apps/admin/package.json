@@ -1,5 +1,5 @@
 {
-  "name": "admin",
+  "name": "@trophy/admin",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -7,11 +7,14 @@
     "dev": "vp dev",
     "build": "tsc -b && vp build",
     "lint": "vp lint .",
+    "analyze": "ANALYZE_BUNDLE=1 vp build",
+    "deploy": "vp build && npx wrangler pages deploy dist --project-name trophy-admin --branch main",
     "preview": "vp preview"
   },
   "dependencies": {
     "@atlaskit/pragmatic-drag-and-drop": "^2.0.1",
     "@atlaskit/pragmatic-drag-and-drop-hitbox": "^2.0.0",
+    "@medusajs/icons": "^2.17.1",
     "@medusajs/ui": "^4.1.16",
     "@pdf-lib/fontkit": "^1.1.1",
     "@trophy/customization": "workspace:*",
@@ -35,6 +38,7 @@
     "autoprefixer": "^10.4.20",
     "globals": "^17.6.0",
     "postcss": "^8.5.3",
+    "rollup-plugin-visualizer": "^6.0.5",
     "tailwindcss": "^3.4.17",
     "tailwindcss-animate": "^1.0.7",
     "typescript": "~6.0.3",

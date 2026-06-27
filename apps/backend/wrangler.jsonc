@@ -1,25 +1,32 @@
 {
-  "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "backend",
-  "compatibility_date": "2026-06-22",
-  "compatibility_flags": ["nodejs_compat"],
-  "main": "./src/index.ts",
-  "d1_databases": [
-    {
-      "binding": "DB",
-      "database_name": "backend",
-      "database_id": "00000000-0000-0000-0000-000000000000",
-      "migrations_dir": "./drizzle",
-    },
-  ],
-  "r2_buckets": [
-    {
-      "binding": "CUSTOMIZATION_ASSETS",
-      "bucket_name": "trophy-customization-assets-local",
-    },
-  ],
-  "assets": {
-    "directory": "./fonts",
-    "binding": "ASSETS"
-  }
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "backend",
+	"compatibility_date": "2026-06-22",
+	"compatibility_flags": [
+		"nodejs_compat"
+	],
+	"main": "./src/index.ts",
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "backend",
+			"database_id": "4908176f-f95b-4e77-aced-0aeb464b8466",
+			"migrations_dir": "./drizzle"
+		},
+	],
+	"r2_buckets": [
+		{
+			"binding": "CUSTOMIZATION_ASSETS",
+			"bucket_name": "backend",
+		},
+	],
+	"assets": {
+		"directory": "./fonts",
+		"binding": "ASSETS"
+	},
+	"vars": {
+		"ADMIN_APP_ORIGIN": "https://trophy-admin.pages.dev",
+		"BETTER_AUTH_URL": "https://backend.dai-ngo.workers.dev/",
+		"BETTER_AUTH_SECRET": "daingo7211@!"
+	}
 }

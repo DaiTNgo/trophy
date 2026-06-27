@@ -1,15 +1,13 @@
-import { cloudflare } from '@cloudflare/vite-plugin'
-import { defineConfig } from 'vite'
+import { cloudflare } from "@cloudflare/vite-plugin";
+import { defineConfig } from "vite";
 import {
-  buildBackendAllowedOrigins,
+  getAppCorsOrigins,
   CUSTOMIZATION_CORS_POLICY,
   SESSION_CORS_POLICY,
-} from './src/lib/cors'
+} from "./src/lib/cors";
+import { visualizer } from "rollup-plugin-visualizer";
 
-const devAllowedOrigins = buildBackendAllowedOrigins([
-  process.env.ADMIN_APP_ORIGIN,
-  process.env.STOREFRONT_APP_ORIGIN,
-])
+const devAllowedOrigins = getAppCorsOrigins(process.env as any);
 
 export default defineConfig({
   server: {
@@ -36,5 +34,16 @@ export default defineConfig({
     port: 8788,
     strictPort: true,
   },
-  plugins: [cloudflare()]
-})
+  plugins: [
+    cloudflare(),
+    process.env.ANALYZE_BUNDLE === "1"
+      ? visualizer({
+          filename: "dist/bundle-report.html",
+          template: "treemap",
+          gzipSize: true,
+          brotliSize: true,
+          open: false,
+        })
+      : null,
+  ],
+});

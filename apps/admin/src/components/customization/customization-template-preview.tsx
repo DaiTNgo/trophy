@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Download, RotateCcw, Image as ImageIcon, CodeXml } from "lucide-react";
-import { toPng, toSvg } from "html-to-image";
+import { Download, RotateCcw } from "lucide-react";
 import {
   buildDesignFromForm,
   getOrderedFormFields,
@@ -16,7 +15,7 @@ import {
   type RuntimeTextLayer,
   type TextFieldValue,
 } from "@trophy/customization";
-import { createId, cssShapeClip, fileToBackground, Select, ShapeClipPaths } from "./customization-template-ui";
+import { createId, cssShapeClip, fileToBackground, FontLoader, Select, ShapeClipPaths } from "./customization-template-ui";
 import { exportVectorPdfClientSide } from "../../lib/pdf-export";
 
 type PreviewChange = (fieldId: string, value: TextFieldValue | ImageShapeFieldValue | null) => void;
@@ -162,6 +161,8 @@ export function PreviewDialog({
   );
 }
 
+
+
 function PreviewCanvas({
   template,
   design,
@@ -274,6 +275,7 @@ function PreviewCanvas({
           viewportDrag.current = null;
         }}
       >
+        <FontLoader layers={design.layers} />
         <div
           id="preview-design-container"
           className="absolute left-1/2 top-1/2 bg-white shadow"
@@ -341,7 +343,7 @@ function PreviewTextLayer({
     return (
       <div
         className="pointer-events-none absolute select-none overflow-hidden"
-        style={{ left, top, width: w * scale, height: textHeight * scale, color: layer.color, fontSize: layer.fontSizePt * scale, textAlign: layer.align === "justified" ? "justify" : layer.align, whiteSpace: "pre-wrap" }}
+        style={{ left, top, width: w * scale, height: textHeight * scale, color: layer.color, fontSize: layer.fontSizePt * scale, fontFamily: layer.fontId, textAlign: layer.align === "justified" ? "justify" : layer.align, whiteSpace: "pre-wrap" }}
       >
         {layer.text}
       </div>
@@ -362,7 +364,7 @@ function PreviewTextLayer({
       <defs>
         <path id={pathId} d={pathD} />
       </defs>
-      <text fontSize={layer.fontSizePt} fill={layer.color} textAnchor={pathAttrs.textAnchor} dominantBaseline="middle" textLength={pathAttrs.textLength} lengthAdjust={pathAttrs.lengthAdjust} wordSpacing={pathAttrs.wordSpacingPx ?? 0}>
+      <text fontSize={layer.fontSizePt} fontFamily={layer.fontId} fill={layer.color} textAnchor={pathAttrs.textAnchor} dominantBaseline="middle" textLength={pathAttrs.textLength} lengthAdjust={pathAttrs.lengthAdjust} wordSpacing={pathAttrs.wordSpacingPx ?? 0}>
         <textPath id={`export-textpath-${layer.id}`} href={`#${pathId}`} startOffset={pathAttrs.startOffset}>
           {pathAttrs.dy ? <tspan dy={pathAttrs.dy}>{layer.text}</tspan> : layer.text}
         </textPath>

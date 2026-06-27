@@ -14,7 +14,7 @@ import {
   type TextEditorLayer,
   type VectorPoint,
 } from "@trophy/customization";
-import { BackgroundUpload, createId, cssShapeClip, ShapeClipPaths } from "./customization-template-ui";
+import { BackgroundUpload, createId, cssShapeClip, ShapeClipPaths, FontLoader } from "./customization-template-ui";
 
 const MIN_ZOOM = 0.05;
 const MAX_ZOOM = 2;
@@ -156,6 +156,7 @@ export function EditorCanvas({
         </div>
       </div>
       <ShapeClipPaths layers={template.layers} />
+      <FontLoader layers={template.layers} />
       <div
         ref={workspaceRef}
         className={`relative min-h-0 flex-1 overflow-hidden ${mode === "view" ? "cursor-grab active:cursor-grabbing" : "cursor-default"}`}
@@ -466,7 +467,10 @@ function EditorTextLayer({
 }) {
   if (layer.text.path.type === "straight") {
     return (
-      <div className="pointer-events-none flex h-full select-none items-center justify-center overflow-hidden bg-teal-500/10 text-center text-xs font-medium text-teal-900">
+      <div 
+        className="pointer-events-none flex h-full select-none items-center justify-center overflow-hidden bg-teal-500/10 text-center text-xs font-medium text-teal-900"
+        style={{ fontFamily: layer.text.fontPolicy?.mode === "fixed" ? layer.text.fontPolicy.fontId : layer.text.fontPolicy?.defaultFontId }}
+      >
         {layer.text.sampleText}
       </div>
     );
@@ -487,7 +491,7 @@ function EditorTextLayer({
       <defs>
         <path id={pathId} d={pathD} />
       </defs>
-      <text fontSize={Math.max(8, layer.text.maxFontSizePt)} fontWeight={600} fill="rgb(19 78 74)" textAnchor={pathAttrs.textAnchor} dominantBaseline="middle" textLength={pathAttrs.textLength} lengthAdjust={pathAttrs.lengthAdjust} wordSpacing={pathAttrs.wordSpacingPx ?? 0}>
+      <text fontSize={Math.max(8, layer.text.maxFontSizePt)} fontFamily={layer.text.fontPolicy?.mode === "fixed" ? layer.text.fontPolicy.fontId : layer.text.fontPolicy?.defaultFontId} fontWeight={600} fill="rgb(19 78 74)" textAnchor={pathAttrs.textAnchor} dominantBaseline="middle" textLength={pathAttrs.textLength} lengthAdjust={pathAttrs.lengthAdjust} wordSpacing={pathAttrs.wordSpacingPx ?? 0}>
         <textPath href={`#${pathId}`} startOffset={pathAttrs.startOffset}>
           {pathAttrs.dy ? <tspan dy={pathAttrs.dy}>{layer.text.sampleText}</tspan> : layer.text.sampleText}
         </textPath>
