@@ -21,27 +21,56 @@ Add PDF file upload support for the customization template background and produc
 
 ## Background Upload
 
-### Flow
+Design principle: background files stay local during draft editing. Only at publish time are assets uploaded to R2 and persisted server-side. This matches the existing image background behavior (data URL in `blocksJson`).
+
+### Draft Flow (Admin Editor)
 
 1. Admin drags or selects a `.pdf` file in the Background tab or editor drop zone.
-2. `BackgroundUpload` posts the file to `POST /api/customizations/assets` (existing endpoint, extended).
-3. Backend validates: MIME `application/pdf`, max 20 MB. Returns 415/413 on failure.
-4. Backend loads the PDF with `pdf-lib`, reads:
-   - Page count
-   - First page media box (`width` and `height` in points)
-   - Renders page 0 to a PNG buffer via `pdfDoc.embedPng(...)` → save as thumbnail
-5. Backend stores:
-   - Original PDF → R2: `uploads/{ownerKey}/{id}/original.pdf`
-   - PNG thumbnail → R2: `uploads/{ownerKey}/{id}/preview.png`
-   - Metadata → `customizationAssets` table: `mimeType=application/pdf`, `pageCount`, `widthPt`, `heightPt`, `previewWidthPx`, `previewHeightPx`
-6. Backend returns asset metadata including: `id`, `previewObjectKey`, `pageCount`, `widthPt`, `heightPt`, `previewWidthPx`, `previewHeightPx`.
-7. Admin creates `BackgroundAsset` from response:
-   - `assetId` = asset ID
-   - `previewUrl` = thumbnail GET URL
-   - `pdfAssetId` = asset ID
-   - `mimeType` = `application/pdf`
-   - `widthPx` = `previewWidthPx`
-   - `heightPx` = `previewHeightPx`
+2. Browser reads the file as `ArrayBuffer`.
+3. Browser uses `pdfjs-dist` to render page 0 to a `<canvas>` element:
+   - Sets canvas dimensions to match the PDF page size (in points at 72 DPI).
+   - Renders page 0 onto the canvas.
+4. Canvas exports to PNG data URL via `canvas.toDataURL("image/png")`.
+5. PDF metadata extracted from pdf.js: `numPages`, first page `widthPt`/`heightPt`.
+6. Browser creates `BackgroundAsset` — all local, no server call:
+   - `assetId` = generated client-side ID (temp)
+   - `previewUrl` = PNG data URL (from canvas)
+   - `filename` = original file name
+   - `mimeType` = `"application/pdf"`
+   - `widthPx` = canvas width (≈ page width in points at 72 DPI)
+   - `heightPx` = canvas height (≈ page height in points at 72 DPI)
+   - `pdfPageCount` = `numPages`
+   - `pendingPdfUpload` = `true` (flag: still needs upload)
+7. The original PDF `ArrayBuffer` is held in the admin editor's local state (template draft).
+8. Canvas preview works immediately via the PNG data URL — no server round-trip.
+
+### Save (Draft)
+
+When saving a draft template:
+- `background.previewUrl` is the PNG data URL (stored inline in `blocksJson` as JSON).
+- The PDF file bytes are NOT uploaded — they are held in local editor state.
+- Reloading a draft: the admin sees the PNG thumbnail but cannot export until the template is published (because the original PDF is not on the server yet).
+
+### Publish Flow
+
+1. Admin clicks Publish.
+2. Admin editor collects all pending file uploads (background PDF + any uploaded image shape assets that are still local).
+3. Upload PDF to `POST /api/customizations/assets`:
+   - Sends the original PDF bytes.
+   - Also sends the PNG thumbnail data URL (backend stores both).
+4. Backend validates MIME `application/pdf`, max 20 MB.
+5. Backend reads PDF metadata via `pdf-lib`: `pageCount`, `widthPt`, `heightPt` from first page media box.
+6. Backend stores:
+   - Original PDF → R2: `uploads/{ownerKey}/{assetId}/original.pdf`
+   - PNG thumbnail → R2: `uploads/{ownerKey}/{assetId}/preview.png` (derived from the data URL sent by client)
+   - Metadata → `customizationAssets` table
+7. Backend returns permanent asset metadata.
+8. Admin updates `BackgroundAsset`:
+   - `assetId` updated to server-assigned ID
+   - `previewUrl` updated to R2 GET URL
+   - `pdfAssetId` set to server asset ID
+   - `pendingPdfUpload` = `false`
+9. Template is saved to DB with the updated `BackgroundAsset`.
 
 ### Changes to BackgroundAsset (shared)
 
@@ -56,72 +85,63 @@ type BackgroundAsset = {
   heightPx: number;
   pdfPageCount?: number;
   pdfAssetId?: string;
+  pendingPdfUpload?: boolean;  // true if PDF bytes not yet uploaded
 };
 ```
 
-### Existing image upload behavior
+### Existing image background behavior (unchanged)
 
-Unchanged. PNG/JPEG files still upload, store in R2, and create a `BackgroundAsset` with `mimeType: "image/png"` (no `pdfAssetId`).
+Image backgrounds stay local in draft (data URL in `previewUrl`, stored inline in `blocksJson`). At publish time the PNG/JPEG is uploaded to R2 the same way as the PDF. This is consistent behavior — all background types follow the same publish-time upload pattern.
 
-## Background Upload Endpoint Changes
+## Background Upload At Publish Time
 
-### `POST /api/customizations/assets`
+### `POST /api/customizations/assets` (extended)
 
-Accept new MIME type: `application/pdf`.
+Used only at publish time, not during draft editing. Accept new MIME type: `application/pdf`.
 
 ```ts
 const allowedMimeTypes = new Set(["image/png", "image/jpeg", "application/pdf"]);
 ```
 
-PDF handling:
+Request accepts multipart or sequential uploads:
+1. Original PDF bytes → stored as `original.pdf` in R2.
+2. PNG thumbnail (generated client-side) → stored as `preview.png` in R2.
+
+Backend PDF handling:
 - Skip binary dimension parsing (existing PNG/JPEG header logic does not apply).
-- Use `pdf-lib` to load the PDF document: `PDFDocument.load(bytes)`.
+- Use `pdf-lib` to validate the PDF: `PDFDocument.load(bytes)`.
 - Read first page: `doc.getPage(0)` → `{ width, height }` in points.
-  - Points are the native PDF unit. These become `widthPt` and `heightPt`.
-- Render thumbnail: create a new `PDFDocument`, embed page 0, then save and pass the PDF bytes through a PNG encoder. Alternative: use `page.getWidth()`/`page.getHeight()` directly and produce an in-memory PNG via a canvas-like approach.
-  - Since Cloudflare Workers have no canvas API, the thumbnail approach needs care. Options:
-    a. `pdf-lib` can embed a page into another document, but cannot directly rasterize to PNG.
-    b. Use the **SVG export thumbnail approach**: Render the page to a very simple PDF that only contains the page, then accept that the "thumbnail" is actually a low-resolution embedded preview.
-    c. Use **Cloudflare Browser Rendering** to render PDF → PNG (heavy, requires binding).
-    d. Use a **server-side canvas polyfill** (`@napi-rs/canvas` not available in Workers).
-    e. **Simplest: keep a data URL thumbnail from the browser.** The browser can render the PDF to canvas using `pdf.js` and send both the PDF file and the generated PNG thumbnail to the backend in one request.
-- **Recommended approach**: client-side PDF → PNG via `pdf.js` in the browser at upload time. The admin's browser generates the PNG thumbnail and sends both files (original PDF + thumbnail) to the backend. This avoids server-side PDF rasterization entirely.
-- Fallback: if no thumbnail is provided (e.g., API-only upload), backend can store a placeholder or use the `widthPt`/`heightPt` as the preview dimensions.
+- Points are the native PDF unit (1 pt = 1/72 inch). These become `widthPt` and `heightPt`.
+- Store the PNG thumbnail bytes as-is (generated client-side, no backend rasterization needed).
 
 ### Response format
 
 ```ts
 {
-  // existing fields for images
   id: string;
   objectKey: string;
-  previewObjectKey: string;
+  previewObjectKey: string;  // thumbnail key
   mimeType: string;
-  widthPx: number;      // from thumbnail or 0 for PDF-only uploads
-  heightPx: number;     // from thumbnail or 0 for PDF-only uploads
+  widthPx: number;           // thumbnail pixel width
+  heightPx: number;          // thumbnail pixel height
   byteSize: number;
-  // new fields for PDF
-  pageCount?: number;
-  widthPt?: number;     // PDF media box width in points
-  heightPt?: number;    // PDF media box height in points
+  pageCount: number;         // PDF page count
+  widthPt: number;           // PDF media box width in points
+  heightPt: number;          // PDF media box height in points
 }
 ```
 
-## Admin Client-Side PDF To PNG Thumbnail
+## Admin: PDF To PNG Thumbnail (Client-Side)
 
-When an admin uploads a PDF:
+When an admin uploads a PDF in the editor:
 
-1. Read the PDF file as ArrayBuffer.
-2. Use `pdfjs-dist` (already supported in modern browsers or via dynamic import) to render page 0 to a `<canvas>` element.
-3. Export canvas to PNG Blob via `canvas.toBlob()`.
-4. Upload both the original PDF and the PNG thumbnail to the backend in a single request (multipart or sequential).
-5. The backend stores both and returns the asset metadata.
+1. Read the PDF file as `ArrayBuffer`.
+2. Use `pdfjs-dist` (dynamic import, admin app only) to render page 0 to a `<canvas>` element.
+3. Export canvas to PNG data URL via `canvas.toDataURL("image/png")`.
+4. Store the data URL as `background.previewUrl` — no server call.
+5. Hold the original PDF `ArrayBuffer` in local editor state for later publish-time upload.
 
-If `pdfjs-dist` is too heavy, the alternative is to send the PDF to the backend and generate the thumbnail on the backend:
-- Backend loads the PDF, renders page 0 as a full embedded page in a new PDF, then uses `pdf-lib` to produce a small-page-size PDF that serves as the "thumbnail" (not a raster PNG but a small vector preview). The frontend can render this small PDF into an `<iframe>` or embed it.
-- This is less ideal for the admin canvas preview which expects an `<img>` tag.
-
-**Decision**: Use `pdfjs-dist` client-side for thumbnail generation. Bundle size impact is acceptable for the admin app (not loaded on storefront). The thumbnail is a small PNG (max 1200px wide).
+The PNG thumbnail is small (≤ 1200px wide) to keep the `blocksJson` size manageable during draft editing.
 
 ## Admin Editor UI
 
@@ -130,15 +150,30 @@ If `pdfjs-dist` is too heavy, the alternative is to send the PDF to the backend 
 No layout changes. The existing `BackgroundUpload` component:
 - Accepts `accept="image/*,application/pdf"`.
 - `fileToBackground()` detects PDF by MIME type.
-- For PDF: renders thumbnail via `pdf.js` → canvas → blob → upload PDF + thumbnail to backend → receives asset metadata → creates `BackgroundAsset` with `pdfAssetId`.
-- For image: existing behavior (local data URL only, no upload).
+- For PDF: renders thumbnail locally via `pdfjs-dist` → canvas → data URL → creates `BackgroundAsset` with `pendingPdfUpload: true`. Original PDF bytes held in local state.
+- For image: existing behavior (local data URL only, `pendingPdfUpload: false`).
 - Preview on canvas: unchanged — still uses `<img src={background.previewUrl}>`.
 
-### Save And Load
+### Save (Draft)
 
-- `background.previewUrl` points to the PNG thumbnail (R2 GET URL or data URL for local images).
-- `background.pdfAssetId` is persisted in `blocksJson` as part of the template.
-- When loading a template with a PDF background, the canvas renders the PNG thumbnail — no special handling needed.
+- `background.previewUrl` is a data URL (stored inline in `blocksJson`).
+- `background.pdfAssetId` is null/empty (not uploaded yet).
+- `background.pendingPdfUpload` = `true` (if PDF).
+- The template can be saved as a draft. Canvas preview works from the data URL.
+
+### Load (Draft)
+
+- Canvas renders the PNG thumbnail via the stored data URL.
+- If `pendingPdfUpload` is true, the original PDF file bytes are NOT available (they were only in memory). The admin sees the thumbnail but cannot export until publish re-uploads the PDF.
+
+### Publish
+
+- Admin clicks Publish.
+- Background uploads to R2 (see "Background Upload At Publish Time" above).
+- `background.previewUrl` updated to R2 GET URL.
+- `background.pdfAssetId` set to the R2-stored asset ID.
+- `background.pendingPdfUpload` = `false`.
+- Template saved to DB.
 
 ## Vector PDF Export
 
@@ -229,14 +264,17 @@ ALTER TABLE customizationAssets ADD COLUMN height_pt REAL;
 | Case | Handling |
 |------|----------|
 | PDF with no media box | Default to A4 (595.28 x 841.89 pt) |
-| PDF > 20 MB | Reject with 413 |
-| PDF thumbnail generation fails | Return error to admin; allow retry |
+| PDF > 20 MB | Reject with 413 at publish time |
+| PDF thumbnail generation fails in browser | Show error toast; allow retry |
+| PDF thumbnail in data URL makes blocksJson large | Accept for draft; published template replaces data URL with R2 URL |
+| Draft saved before publish — PDF bytes lost | On load, `pendingPdfUpload` is true. Admin sees thumbnail but must re-upload PDF to publish |
 | Export with missing PDF in R2 | Fallback to raster background (embed PNG thumbnail) |
 | Export with no background | Return validation error |
 | Font file not found | Fallback to Helvetica for that text layer |
 | Different PDF page size vs preview dimensions | Use PDF page dimensions as canonical; thumbnail may be scaled |
-| Upload PDF, replace with image | Background becomes image type; PDF not removed from R2 (orphan) |
-| Upload image, replace with PDF | Background becomes PDF type; previous image not removed from R2 (orphan) |
+| Upload PDF (draft), replace with image | `BackgroundAsset` becomes PNG type; previous PDF bytes discarded (no server orphan) |
+| Upload image (draft), replace with PDF | `BackgroundAsset` becomes PDF type; previous image bytes discarded |
+| Background changed between draft save and publish | Publish always uploads the current file |
 
 ## Testing
 
@@ -247,7 +285,7 @@ ALTER TABLE customizationAssets ADD COLUMN height_pt REAL;
 ### Backend
 
 - `POST /api/customizations/assets` with `.pdf` → returns 200 with `pageCount`, `widthPt`, `heightPt`.
-- `POST /api/customizations/assets` with `.pdf` → thumbnail generated and stored.
+- `POST /api/customizations/assets` with `.pdf` + PNG thumbnail → both stored in R2.
 - `POST /api/customizations/assets` with non-PDF non-image → 415.
 - `POST /api/customizations/assets` with file > 20 MB → 413.
 - `POST /api/customizations/exports/pdf` with PDF background → returns valid PDF (1 page, vector content).
@@ -259,10 +297,12 @@ ALTER TABLE customizationAssets ADD COLUMN height_pt REAL;
 
 ### Admin (browser)
 
-- Upload `.pdf` file → thumbnail visible on canvas.
-- Upload `.pdf` → save template → reload → thumbnail still visible.
-- Upload `.pdf` → replace with `.png` → image visible.
-- Upload `.png` → replace with `.pdf` → thumbnail visible.
+- Upload `.pdf` file → thumbnail visible on canvas (data URL).
+- Upload `.pdf` → save draft → reload → `pendingPdfUpload` is true, thumbnail still visible.
+- Upload `.pdf` → save draft → publish → PDF uploaded to R2 → `pendingPdfUpload` = false.
+- Upload `.pdf` → save draft → reload without publishing → `pendingPdfUpload` still true.
+- Upload `.pdf` → replace with `.png` → image visible, `pendingPdfUpload` cleared.
+- Upload `.png` → replace with `.pdf` → thumbnail visible, `pendingPdfUpload` set.
 
 ## Verification Plan
 

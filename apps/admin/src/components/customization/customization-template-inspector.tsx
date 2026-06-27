@@ -8,6 +8,7 @@ import {
   type ImageShapeEditorLayer,
   type TextEditorLayer,
   type TextPath,
+  type VectorPoint,
 } from "@trophy/customization";
 import { Input, NumberInput, PanelTitle, Select, createId, shapeLabel } from "./customization-template-ui";
 
@@ -92,11 +93,67 @@ function ImageShapeInspector({ template, layer, onUpdate }: { template: Customiz
       <LayerName layer={layer} onUpdate={onUpdate} />
       <PositionFields template={template} layer={layer} onUpdate={onUpdate} />
       <p className="text-sm text-ui-fg-subtle">Shape: {shapeLabel(layer.shape.type)}</p>
-      <label className="flex items-center gap-2 text-sm">
-        <input type="checkbox" checked={layer.shape.lockAspectRatio} onChange={(event) => onUpdate((current) => ({ ...current, shape: { ...(current as ImageShapeEditorLayer).shape, lockAspectRatio: event.target.checked } }) as CustomizationLayer)} />
-        Lock aspect ratio
-      </label>
-      <p className="text-xs text-ui-fg-muted">Uploads use cover fit and clip to this shape. Shape type is fixed after creation.</p>
+      {layer.shape.type === "vector" && layer.shape.vectorPath ? (
+        <VectorPointsTable
+          vectorPath={layer.shape.vectorPath}
+          onChange={(vectorPath) => onUpdate((current) => ({ ...current, shape: { ...(current as ImageShapeEditorLayer).shape, vectorPath } }) as CustomizationLayer)}
+        />
+      ) : (
+        <>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={layer.shape.lockAspectRatio} onChange={(event) => onUpdate((current) => ({ ...current, shape: { ...(current as ImageShapeEditorLayer).shape, lockAspectRatio: event.target.checked } }) as CustomizationLayer)} />
+            Lock aspect ratio
+          </label>
+          <p className="text-xs text-ui-fg-muted">Uploads use cover fit and clip to this shape. Shape type is fixed after creation.</p>
+        </>
+      )}
+    </div>
+  );
+}
+
+function VectorPointsTable({
+  vectorPath,
+  onChange,
+}: {
+  vectorPath: import("@trophy/customization").VectorPath;
+  onChange: (path: import("@trophy/customization").VectorPath) => void;
+}) {
+  function updatePoint(index: number, updater: (p: VectorPoint) => VectorPoint) {
+    const next = [...vectorPath.points];
+    next[index] = updater(next[index]!);
+    onChange({ ...vectorPath, points: next });
+  }
+
+  return (
+    <div className="space-y-2">
+      <p className="text-xs font-medium uppercase text-ui-fg-muted">Vector Points</p>
+      <div className="max-h-48 space-y-2 overflow-y-auto">
+        {vectorPath.points.map((point, index) => (
+          <div key={point.id} className="rounded border border-ui-border-base p-2">
+            <div className="mb-1 flex items-center justify-between">
+              <span className="text-xs font-medium">Point {index + 1}</span>
+              <select
+                value={point.type}
+                onChange={(e) => updatePoint(index, (p) => ({ ...p, type: e.target.value as "corner" | "smooth", ...(e.target.value === "corner" ? { inHandle: undefined, outHandle: undefined } : { inHandle: { xRatio: -0.08, yRatio: 0 }, outHandle: { xRatio: 0.08, yRatio: 0 } }) }))}
+                className="rounded border border-ui-border-base px-1 py-0.5 text-xs"
+              >
+                <option value="corner">Corner</option>
+                <option value="smooth">Smooth</option>
+              </select>
+            </div>
+            <div className="grid grid-cols-2 gap-1">
+              <NumberInput label="X" value={Math.round(point.xRatio * 1000) / 1000} onChange={(xRatio) => updatePoint(index, (p) => ({ ...p, xRatio }))} />
+              <NumberInput label="Y" value={Math.round(point.yRatio * 1000) / 1000} onChange={(yRatio) => updatePoint(index, (p) => ({ ...p, yRatio }))} />
+            </div>
+            {point.type === "smooth" && (
+              <div className="mt-1 grid grid-cols-2 gap-1">
+                <NumberInput label="In X" value={Math.round((point.inHandle?.xRatio ?? 0) * 1000) / 1000} onChange={(xRatio) => updatePoint(index, (p) => ({ ...p, inHandle: { xRatio, yRatio: p.inHandle?.yRatio ?? 0 } }))} />
+                <NumberInput label="In Y" value={Math.round((point.inHandle?.yRatio ?? 0) * 1000) / 1000} onChange={(yRatio) => updatePoint(index, (p) => ({ ...p, inHandle: { xRatio: p.inHandle?.xRatio ?? 0, yRatio } }))} />
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

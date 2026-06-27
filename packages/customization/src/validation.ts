@@ -102,17 +102,4 @@ export const validateCustomizationValues = ({
   return { valid: issues.length === 0, issues };
 };
 
-const ALLOWED_SVG_COMMANDS = new Set(["M", "L", "C", "Q", "A", "Z", "z", "H", "V", "S", "T"]);
 
-export const validateSvgPathData = (d: string): { valid: boolean; error?: string } => {
-  if (!d || d.length > 5000) {
-    return { valid: false, error: d?.length > 5000 ? "Path data exceeds 5000 character limit." : "Path data is empty." };
-  }
-  const commands = d.match(/[A-Za-z]/g) ?? [];
-  for (const cmd of commands) {
-    if (!ALLOWED_SVG_COMMANDS.has(cmd)) {
-      return { valid: false, error: `Unsupported SVG command: ${cmd}` };
-    }
-  }
-  return { valid: true };
-};

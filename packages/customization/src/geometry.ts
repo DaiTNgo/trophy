@@ -1,4 +1,4 @@
-import type { BackgroundAsset, LayerGeometry, ShapeType } from "./types";
+import type { BackgroundAsset, LayerGeometry, ShapeType, VectorPoint } from "./types";
 
 export const clamp = (value: number, min: number, max: number) =>
   Math.min(max, Math.max(min, Number.isFinite(value) ? value : min));
@@ -148,21 +148,34 @@ export const getShapeClipPath = ({
   return `rect(0 0 ${w} ${h})`;
 };
 
-export const getCustomSvgClipPath = (svgPathData: string, widthPx: number, heightPx: number) => {
-  const w = Math.max(1, widthPx);
-  const h = Math.max(1, heightPx);
-  const tokens = svgPathData.match(/[A-Za-z]|[+-]?\d*\.?\d+/g) ?? [];
-  let index = 0;
-  const out: string[] = [];
-  while (index < tokens.length) {
-    const token = tokens[index++];
-    if (/[A-Za-z]/.test(token)) {
-      out.push(token);
+export const vectorPointsToSvgPathD = (points: VectorPoint[], closed: boolean) => {
+  if (points.length === 0) return "";
+  const parts: string[] = [];
+  parts.push(`M ${points[0]!.xRatio} ${points[0]!.yRatio}`);
+  for (let i = 1; i < points.length; i++) {
+    const prev = points[i - 1]!;
+    const curr = points[i]!;
+    const prevOut = prev.outHandle;
+    const currIn = curr.inHandle;
+    if (prevOut && currIn) {
+      parts.push(
+        `C ${prev.xRatio + prevOut.xRatio} ${prev.yRatio + prevOut.yRatio} ${curr.xRatio + currIn.xRatio} ${curr.yRatio + currIn.yRatio} ${curr.xRatio} ${curr.yRatio}`,
+      );
     } else {
-      const x = parseFloat(token);
-      const y = parseFloat(tokens[index++] ?? "0");
-      out.push(`${(x / 100) * w}`, `${(y / 100) * h}`);
+      parts.push(`L ${curr.xRatio} ${curr.yRatio}`);
     }
   }
-  return `path(${out.join(" ")})`;
+  if (closed && points.length > 2) {
+    const first = points[0]!;
+    const last = points[points.length - 1]!;
+    const lastOut = last.outHandle;
+    const firstIn = first.inHandle;
+    if (lastOut && firstIn) {
+      parts.push(
+        `C ${last.xRatio + lastOut.xRatio} ${last.yRatio + lastOut.yRatio} ${first.xRatio + firstIn.xRatio} ${first.yRatio + firstIn.yRatio} ${first.xRatio} ${first.yRatio}`,
+      );
+    }
+    parts.push("Z");
+  }
+  return parts.join(" ");
 };

@@ -6,11 +6,13 @@ import {
   getTextPathSvgD,
   layerGeometryToPixels,
   pixelRectToLayerGeometry,
+  vectorPointsToSvgPathD,
   type BackgroundAsset,
   type CustomizationLayer,
   type CustomizationTemplate,
-  type CustomShape,
+  type ImageShapeEditorLayer,
   type TextEditorLayer,
+  type VectorPoint,
 } from "@trophy/customization";
 import { BackgroundUpload, createId, cssShapeClip } from "./customization-template-ui";
 
@@ -26,20 +28,30 @@ export function EditorCanvas({
   template,
   selectedLayerId,
   pathEditingLayerId,
-  customShapesMap,
+  isDrawing,
+  pendingVectorPoints,
   onSelectLayer,
   onPathEditingLayerChange,
   onUpdateLayer,
   onUploadBackground,
+  onAddVectorPoint,
+  onUndoVectorPoint,
+  onCloseVectorShape,
+  onCancelDraw,
 }: {
   template: CustomizationTemplate;
   selectedLayerId: string;
   pathEditingLayerId: string;
-  customShapesMap: Map<string, CustomShape>;
+  isDrawing: boolean;
+  pendingVectorPoints: VectorPoint[];
   onSelectLayer: (layerId: string) => void;
   onPathEditingLayerChange: (layerId: string) => void;
   onUpdateLayer: (layerId: string, updater: (layer: CustomizationLayer) => CustomizationLayer) => void;
   onUploadBackground: (background: BackgroundAsset) => void;
+  onAddVectorPoint: (point: VectorPoint) => void;
+  onUndoVectorPoint: () => void;
+  onCloseVectorShape: () => void;
+  onCancelDraw: () => void;
 }) {
   const [mode, setMode] = useState<CanvasMode>("edit");
   const [zoom, setZoom] = useState(0.72);
@@ -48,6 +60,8 @@ export function EditorCanvas({
   const workspaceRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const viewportDrag = useRef<{ x: number; y: number; pan: PanState } | null>(null);
+  const drawDragRef = useRef<{ startX: number; startY: number; startXRatio: number; startYRatio: number; moved: boolean } | null>(null);
+  const [drawDragPreview, setDrawDragPreview] = useState<{ xRatio: number; yRatio: number } | null>(null);
   const background = template.background;
 
   const setCommittedZoom = useCallback((nextZoom: number) => {
@@ -155,7 +169,7 @@ export function EditorCanvas({
       >
         <div
           ref={canvasRef}
-          className={`absolute left-1/2 top-1/2 bg-white shadow-lg ${mode === "view" ? "pointer-events-none" : ""}`}
+          className={`absolute left-1/2 top-1/2 bg-white shadow-lg ${mode === "view" ? "pointer-events-none" : ""} ${isDrawing ? "cursor-crosshair" : ""}`}
           style={{
             width: background.widthPx,
             height: background.heightPx,
@@ -163,9 +177,70 @@ export function EditorCanvas({
             transformOrigin: "center",
           }}
           onPointerDown={(event) => {
+            if (isDrawing) {
+              event.preventDefault();
+              const bounds = event.currentTarget.getBoundingClientRect();
+              const xRatio = Math.max(0, Math.min(1, (event.clientX - bounds.left) / bounds.width));
+              const yRatio = Math.max(0, Math.min(1, (event.clientY - bounds.top) / bounds.height));
+              drawDragRef.current = { startX: event.clientX, startY: event.clientY, startXRatio: xRatio, startYRatio: yRatio, moved: false };
+              event.currentTarget.setPointerCapture(event.pointerId);
+              return;
+            }
             if (mode === "edit" && event.target === event.currentTarget) onSelectLayer("");
           }}
+          onPointerMove={(event) => {
+            if (isDrawing && drawDragRef.current) {
+              const dx = event.clientX - drawDragRef.current.startX;
+              const dy = event.clientY - drawDragRef.current.startY;
+              if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+                drawDragRef.current.moved = true;
+                const bounds = event.currentTarget.getBoundingClientRect();
+                setDrawDragPreview({
+                  xRatio: Math.max(0, Math.min(1, (event.clientX - bounds.left) / bounds.width)),
+                  yRatio: Math.max(0, Math.min(1, (event.clientY - bounds.top) / bounds.height)),
+                });
+              }
+              return;
+            }
+          }}
+          onPointerCancel={() => {
+            if (isDrawing && drawDragRef.current) {
+              drawDragRef.current = null;
+              setDrawDragPreview(null);
+            }
+          }}
+          onPointerUp={(event) => {
+            if (isDrawing && drawDragRef.current) {
+              event.preventDefault();
+              const bounds = event.currentTarget.getBoundingClientRect();
+              const xRatio = Math.max(0, Math.min(1, (event.clientX - bounds.left) / bounds.width));
+              const yRatio = Math.max(0, Math.min(1, (event.clientY - bounds.top) / bounds.height));
+              if (drawDragRef.current.moved) {
+                const dragXRatio = xRatio - drawDragRef.current.startXRatio;
+                const dragYRatio = yRatio - drawDragRef.current.startYRatio;
+                onAddVectorPoint({
+                  id: createId("vector_point"),
+                  type: "smooth",
+                  xRatio: drawDragRef.current.startXRatio,
+                  yRatio: drawDragRef.current.startYRatio,
+                  inHandle: { xRatio: -dragXRatio * 0.5, yRatio: -dragYRatio * 0.5 },
+                  outHandle: { xRatio: dragXRatio * 0.5, yRatio: dragYRatio * 0.5 },
+                });
+              } else {
+                onAddVectorPoint({
+                  id: createId("vector_point"),
+                  type: "corner",
+                  xRatio,
+                  yRatio,
+                });
+              }
+              drawDragRef.current = null;
+              setDrawDragPreview(null);
+              return;
+            }
+          }}
           onDoubleClick={(event) => {
+            if (isDrawing) return;
             if (mode !== "edit") return;
             const layer = template.layers.find((entry) => entry.id === pathEditingLayerId);
             if (!layer || layer.type !== "text" || layer.text.path.type !== "custom") return;
@@ -188,16 +263,64 @@ export function EditorCanvas({
           }}
         >
           <img src={background.previewUrl} alt="" className="pointer-events-none absolute inset-0 h-full w-full select-none object-fill" draggable={false} />
+          {isDrawing && pendingVectorPoints.length > 0 ? (
+            <svg className="pointer-events-none absolute inset-0 h-full w-full">
+              <path
+                d={vectorPointsToSvgPathD(pendingVectorPoints, false)}
+                fill="rgba(0,0,0,0.08)"
+                stroke="#6366f1"
+                strokeWidth="2"
+                strokeDasharray="4 3"
+              />
+              {drawDragPreview && pendingVectorPoints.length > 0 ? (
+                <line
+                  x1={`${pendingVectorPoints[pendingVectorPoints.length - 1]!.xRatio * 100}%`}
+                  y1={`${pendingVectorPoints[pendingVectorPoints.length - 1]!.yRatio * 100}%`}
+                  x2={`${drawDragPreview.xRatio * 100}%`}
+                  y2={`${drawDragPreview.yRatio * 100}%`}
+                  stroke="#6366f1"
+                  strokeWidth="1"
+                  strokeDasharray="3 2"
+                />
+              ) : null}
+              {pendingVectorPoints.map((p) => (
+                <circle key={p.id} cx={`${p.xRatio * 100}%`} cy={`${p.yRatio * 100}%`} r="4" fill="#6366f1" />
+              ))}
+              {pendingVectorPoints.length >= 3 ? (
+                <circle
+                  cx={`${pendingVectorPoints[0]!.xRatio * 100}%`}
+                  cy={`${pendingVectorPoints[0]!.yRatio * 100}%`}
+                  r="6"
+                  fill="none"
+                  stroke="#22c55e"
+                  strokeWidth="2"
+                  strokeDasharray="3 2"
+                  className="cursor-pointer pointer-events-auto"
+                  onPointerDown={(e) => {
+                    e.stopPropagation();
+                    onCloseVectorShape();
+                  }}
+                />
+              ) : null}
+            </svg>
+          ) : null}
+          {isDrawing ? (
+            <VectorDrawOverlay
+              pointCount={pendingVectorPoints.length}
+              onUndo={onUndoVectorPoint}
+              onClose={onCloseVectorShape}
+              onCancel={onCancelDraw}
+            />
+          ) : null}
           {getVisibleLayers(template).map((layer) => (
             <CanvasLayer
               key={layer.id}
               layer={layer}
               background={background}
               zoom={zoom}
-              selected={selectedLayerId === layer.id}
+              selected={selectedLayerId === layer.id && !isDrawing}
               pathEditing={pathEditingLayerId === layer.id}
-              editing={mode === "edit"}
-              customShapesMap={customShapesMap}
+              editing={mode === "edit" && !isDrawing}
               onSelect={() => onSelectLayer(layer.id)}
               onEditPath={() => onPathEditingLayerChange(layer.id)}
               onUpdate={(updater) => onUpdateLayer(layer.id, updater)}
@@ -209,6 +332,27 @@ export function EditorCanvas({
   );
 }
 
+function VectorDrawOverlay({
+  pointCount,
+  onUndo,
+  onClose,
+  onCancel,
+}: {
+  pointCount: number;
+  onUndo: () => void;
+  onClose: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <div className="absolute left-1/2 top-4 z-10 flex -translate-x-1/2 items-center gap-3 rounded-lg border border-ui-border-base bg-ui-bg-base px-4 py-2 shadow-lg">
+      <span className="text-sm text-ui-fg-muted">{pointCount} point{pointCount !== 1 ? "s" : ""}</span>
+      <button type="button" onClick={onUndo} disabled={pointCount === 0} className="rounded border border-ui-border-base px-3 py-1 text-sm disabled:opacity-40">Undo</button>
+      <button type="button" onClick={onClose} disabled={pointCount < 3} className="rounded bg-ui-fg-interactive px-3 py-1 text-sm text-ui-fg-on-color disabled:opacity-40">Close Shape</button>
+      <button type="button" onClick={onCancel} className="rounded border border-ui-border-base px-3 py-1 text-sm">Cancel</button>
+    </div>
+  );
+}
+
 function CanvasLayer({
   layer,
   background,
@@ -216,7 +360,6 @@ function CanvasLayer({
   selected,
   pathEditing,
   editing,
-  customShapesMap,
   onSelect,
   onEditPath,
   onUpdate,
@@ -227,7 +370,6 @@ function CanvasLayer({
   selected: boolean;
   pathEditing: boolean;
   editing: boolean;
-  customShapesMap: Map<string, CustomShape>;
   onSelect: () => void;
   onEditPath: () => void;
   onUpdate: (updater: (layer: CustomizationLayer) => CustomizationLayer) => void;
@@ -293,7 +435,7 @@ function CanvasLayer({
       {layer.type === "text" ? (
         <EditorTextLayer layer={layer} widthPx={rect.widthPx} heightPx={h} pathEditing={editing && (pathEditing || (selected && closedTextPath))} />
       ) : (
-        <div className="h-full w-full bg-teal-500/10" style={{ borderRadius: layer.shape.type === "circle" ? "999px" : layer.shape.type === "rounded_rectangle" ? "12%" : undefined, clipPath: cssShapeClip(layer.shape.type, layer.shape.customShapeId ? customShapesMap.get(layer.shape.customShapeId)?.svgPathData : undefined) }} />
+        <div className="h-full w-full bg-teal-500/10" style={{ borderRadius: layer.shape.type === "circle" ? "999px" : layer.shape.type === "rounded_rectangle" ? "12%" : undefined, clipPath: cssShapeClip(layer.shape.type, layer.shape.vectorPath) }} />
       )}
       {editing && pathEditing && layer.type === "text" && layer.text.path.type === "custom" ? (
         <PathPointOverlay
@@ -302,7 +444,10 @@ function CanvasLayer({
         />
       ) : null}
       {editing && selected && layer.type === "text" && layer.text.path.type === "closed_ellipse" ? <ClosedEllipsePathOverlay layer={layer} onUpdate={onUpdate} /> : null}
-      {editing && selected && !layer.locked ? <ResizeHandles layer={layer} background={background} zoom={zoom} onUpdate={onUpdate} /> : null}
+      {editing && selected && layer.type === "image_shape" && layer.shape.type === "vector" && layer.shape.vectorPath ? (
+        <VectorPointOverlay layer={layer} onUpdate={onUpdate} />
+      ) : null}
+      {editing && selected && !layer.locked && !(layer.type === "image_shape" && layer.shape.type === "vector") ? <ResizeHandles layer={layer} background={background} zoom={zoom} onUpdate={onUpdate} /> : null}
     </div>
   );
 }
@@ -458,6 +603,291 @@ function PathHandle({
       }}
     />
   );
+}
+
+function VectorPointOverlay({
+  layer,
+  onUpdate,
+}: {
+  layer: ImageShapeEditorLayer;
+  onUpdate: (updater: (layer: CustomizationLayer) => CustomizationLayer) => void;
+}) {
+  const vectorPath = layer.shape.vectorPath;
+  if (!vectorPath) return null;
+  const [selectedPointId, setSelectedPointId] = useState<string | null>(null);
+  const points = vectorPath.points;
+  const selectedPoint = points.find((p) => p.id === selectedPointId) ?? null;
+
+  return (
+    <>
+      {/* Connection lines */}
+      <svg className="pointer-events-none absolute inset-0 h-full w-full">
+        {points.map((point, i) => {
+          if (i === 0) return null;
+          const prev = points[i - 1]!;
+          const prevOut = prev.outHandle;
+          const currIn = point.inHandle;
+          const x1 = prev.xRatio * 100;
+          const y1 = prev.yRatio * 100;
+          const x2 = point.xRatio * 100;
+          const y2 = point.yRatio * 100;
+          if (prevOut && currIn) {
+            return (
+              <path
+                key={`${prev.id}-${point.id}`}
+                d={`M ${x1} ${y1} C ${(prev.xRatio + prevOut.xRatio) * 100} ${(prev.yRatio + prevOut.yRatio) * 100} ${(point.xRatio + currIn.xRatio) * 100} ${(point.yRatio + currIn.yRatio) * 100} ${x2} ${y2}`}
+                fill="none"
+                stroke="#6366f1"
+                strokeWidth="1.5"
+              />
+            );
+          }
+          return (
+            <line
+              key={`${prev.id}-${point.id}`}
+              x1={`${x1}%`}
+              y1={`${y1}%`}
+              x2={`${x2}%`}
+              y2={`${y2}%`}
+              stroke="#6366f1"
+              strokeWidth="1.5"
+            />
+          );
+        })}
+        {vectorPath.closed && points.length > 2 ? (
+          <line
+            x1={`${points[points.length - 1]!.xRatio * 100}%`}
+            y1={`${points[points.length - 1]!.yRatio * 100}%`}
+            x2={`${points[0]!.xRatio * 100}%`}
+            y2={`${points[0]!.yRatio * 100}%`}
+            stroke="#6366f1"
+            strokeWidth="1"
+            strokeDasharray="4 3"
+          />
+        ) : null}
+      </svg>
+      {/* Point circles */}
+      {points.map((point) => (
+        <VectorPointHandle
+          key={point.id}
+          point={point}
+          isSelected={selectedPointId === point.id}
+          onSelect={() => setSelectedPointId(point.id)}
+          onDrag={(xRatio, yRatio) => {
+            onUpdate((current) =>
+              current.type === "image_shape" && current.shape.vectorPath
+                ? {
+                    ...current,
+                    shape: {
+                      ...current.shape,
+                      vectorPath: {
+                        ...current.shape.vectorPath,
+                        points: current.shape.vectorPath.points.map((p) =>
+                          p.id === point.id ? { ...p, xRatio, yRatio } : p,
+                        ),
+                      },
+                    },
+                  }
+                : current,
+            );
+          }}
+          onDoubleClick={() => {
+            onUpdate((current) =>
+              current.type === "image_shape" && current.shape.vectorPath
+                ? {
+                    ...current,
+                    shape: {
+                      ...current.shape,
+                      vectorPath: {
+                        ...current.shape.vectorPath,
+                        points: current.shape.vectorPath.points.map((p) => {
+                          if (p.id !== point.id) return p;
+                          if (p.type === "corner") {
+                            return { ...p, type: "smooth", inHandle: { xRatio: -0.08, yRatio: 0 }, outHandle: { xRatio: 0.08, yRatio: 0 } };
+                          }
+                          return { ...p, type: "corner", inHandle: undefined, outHandle: undefined };
+                        }),
+                      },
+                    },
+                  }
+                : current,
+            );
+          }}
+          onDelete={() => {
+            onUpdate((current) =>
+              current.type === "image_shape" && current.shape.vectorPath
+                ? {
+                    ...current,
+                    shape: {
+                      ...current.shape,
+                      vectorPath: {
+                        ...current.shape.vectorPath,
+                        points: current.shape.vectorPath.points.filter((p) => p.id !== point.id),
+                      },
+                    },
+                  }
+                : current,
+            );
+          }}
+        />
+      ))}
+      {/* Handle lines */}
+      {selectedPoint?.type === "smooth" && selectedPoint.inHandle ? (
+        <VectorHandleLine point={selectedPoint} handle="in" onUpdate={onUpdate} />
+      ) : null}
+      {selectedPoint?.type === "smooth" && selectedPoint.outHandle ? (
+        <VectorHandleLine point={selectedPoint} handle="out" onUpdate={onUpdate} />
+      ) : null}
+    </>
+  );
+}
+
+function VectorPointHandle({
+  point,
+  isSelected,
+  onSelect,
+  onDrag,
+  onDoubleClick,
+  onDelete,
+}: {
+  point: VectorPoint;
+  isSelected: boolean;
+  onSelect: () => void;
+  onDrag: (xRatio: number, yRatio: number) => void;
+  onDoubleClick: () => void;
+  onDelete: () => void;
+}) {
+  const dragRef = useRef<{ startX: number; startY: number; xRatio: number; yRatio: number } | null>(null);
+
+  useKeyboardDelete(onDelete, isSelected);
+
+  return (
+    <button
+      type="button"
+      className={`absolute z-10 size-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow-sm ${isSelected ? "bg-indigo-500" : "bg-indigo-300"}`}
+      style={{ left: `${point.xRatio * 100}%`, top: `${point.yRatio * 100}%` }}
+      onPointerDown={(event) => {
+        event.stopPropagation();
+        onSelect();
+        const target = event.currentTarget.parentElement as HTMLElement | null;
+        if (!target) return;
+        const bounds = target.getBoundingClientRect();
+        dragRef.current = { startX: event.clientX, startY: event.clientY, xRatio: point.xRatio, yRatio: point.yRatio };
+        // Need pointer capture to get move events on the parent
+        const move = (pointer: PointerEvent) => {
+          if (!dragRef.current) return;
+          const dx = (pointer.clientX - dragRef.current.startX) / bounds.width;
+          const dy = (pointer.clientY - dragRef.current.startY) / bounds.height;
+          onDrag(
+            Math.max(0, Math.min(1, dragRef.current.xRatio + dx)),
+            Math.max(0, Math.min(1, dragRef.current.yRatio + dy)),
+          );
+        };
+        const stop = () => {
+          dragRef.current = null;
+          window.removeEventListener("pointermove", move);
+          window.removeEventListener("pointerup", stop);
+        };
+        window.addEventListener("pointermove", move);
+        window.addEventListener("pointerup", stop);
+      }}
+      onDoubleClick={(event) => {
+        event.stopPropagation();
+        onDoubleClick();
+      }}
+    />
+  );
+}
+
+function VectorHandleLine({
+  point,
+  handle,
+  onUpdate,
+}: {
+  point: VectorPoint;
+  handle: "in" | "out";
+  onUpdate: (updater: (layer: CustomizationLayer) => CustomizationLayer) => void;
+}) {
+  const handleData = handle === "in" ? point.inHandle : point.outHandle;
+  if (!handleData) return null;
+  const hx = point.xRatio + handleData.xRatio;
+  const hy = point.yRatio + handleData.yRatio;
+
+  return (
+    <>
+      <div
+        className="pointer-events-none absolute h-px bg-sky-400"
+        style={{
+          left: `${Math.min(point.xRatio, hx) * 100}%`,
+          top: `${Math.min(point.yRatio, hy) * 100}%`,
+          width: `${Math.abs(point.xRatio - hx) * 100}%`,
+          transform: `rotate(${(Math.atan2(point.yRatio - hy, point.xRatio - hx) * 180) / Math.PI}deg)`,
+          transformOrigin: "0 0",
+        }}
+      />
+      <button
+        type="button"
+        className="absolute z-10 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white bg-sky-400 shadow-sm"
+        style={{ left: `${hx * 100}%`, top: `${hy * 100}%` }}
+        onPointerDown={(event) => {
+          event.stopPropagation();
+          const target = event.currentTarget.parentElement as HTMLElement | null;
+          if (!target) return;
+          const bounds = target.getBoundingClientRect();
+          const startX = event.clientX;
+          const startY = event.clientY;
+          const startHx = handleData.xRatio;
+          const startHy = handleData.yRatio;
+          function move(pointer: PointerEvent) {
+            const dx = (pointer.clientX - startX) / bounds.width;
+            const dy = (pointer.clientY - startY) / bounds.height;
+            const newHx = startHx + dx;
+            const newHy = startHy + dy;
+            onUpdate((current) =>
+              current.type === "image_shape" && current.shape.vectorPath
+                ? {
+                    ...current,
+                    shape: {
+                      ...current.shape,
+                      vectorPath: {
+                        ...current.shape.vectorPath,
+                        points: current.shape.vectorPath.points.map((p) =>
+                          p.id === point.id ? { ...p, [handle === "in" ? "inHandle" : "outHandle"]: { xRatio: newHx, yRatio: newHy } } : p,
+                        ),
+                      },
+                    },
+                  }
+                : current,
+            );
+          }
+          function stop() {
+            window.removeEventListener("pointermove", move);
+            window.removeEventListener("pointerup", stop);
+          }
+          window.addEventListener("pointermove", move);
+          window.addEventListener("pointerup", stop);
+        }}
+      />
+    </>
+  );
+}
+
+function useKeyboardDelete(onDelete: () => void, enabled: boolean) {
+  const ref = useRef(onDelete);
+  ref.current = onDelete;
+  useEffect(() => {
+    if (!enabled) return;
+    function handler(event: KeyboardEvent) {
+      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
+      if (event.key === "Delete" || event.key === "Backspace") {
+        event.preventDefault();
+        event.stopPropagation();
+        ref.current();
+      }
+    }
+    window.addEventListener("keydown", handler, true);
+    return () => window.removeEventListener("keydown", handler, true);
+  }, [enabled]);
 }
 
 function ClosedEllipsePathOverlay({

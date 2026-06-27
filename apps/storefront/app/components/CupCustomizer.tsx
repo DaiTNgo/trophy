@@ -7,6 +7,7 @@ import {
   getOrderedFormFields,
   layerGeometryToPixels,
   validateCustomizationValues,
+  vectorPointsToSvgPathD,
   type CustomizationFieldValue,
   type CustomizationFormField,
   type CustomizationFormValues,
@@ -258,7 +259,7 @@ function PreviewImageShape({ layer, width, height, scale }: { layer: Extract<Run
         top: rect.yPx * scale,
         width: rect.widthPx * scale,
         height: rect.heightPx * scale,
-        clipPath: cssShapeClip(layer.shape.type),
+        clipPath: cssShapeClip(layer.shape.type, layer.shape.type === "vector" ? layer.shape.vectorPath : undefined),
         transform: `rotate(${layer.geometry.rotationDeg}deg)`,
       }}
     >
@@ -432,11 +433,11 @@ function Panel({ title, description, children }: { title: string; description: s
   );
 }
 
-function cssShapeClip(shape: string, svgPathData?: string) {
+function cssShapeClip(shape: string, vectorPath?: { points: import("@trophy/customization").VectorPoint[]; closed: boolean }) {
   if (shape === "circle") return "circle(50% at 50% 50%)";
   if (shape === "ellipse") return "ellipse(50% 40% at 50% 50%)";
   if (shape === "star") return "polygon(50% 0%, 61% 34%, 98% 35%, 68% 56%, 79% 91%, 50% 70%, 21% 91%, 32% 56%, 2% 35%, 39% 34%)";
   if (shape === "heart") return "path('M 50 88 C 20 62 4 45 12 25 C 20 6 42 10 50 27 C 58 10 80 6 88 25 C 96 45 80 62 50 88 Z')";
-  if (shape === "custom_svg" && svgPathData) return `path('${svgPathData}')`;
+  if (shape === "vector" && vectorPath) return `path('${vectorPointsToSvgPathD(vectorPath.points, vectorPath.closed)}')`;
   return "inset(0)";
 }

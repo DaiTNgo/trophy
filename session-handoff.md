@@ -2,35 +2,31 @@
 
 ## Current Objective
 
-- Goal: let admin operators create custom shapes (SVG upload, polygon draw) beyond the 6 built-in shapes for image shape layers.
-- Current status: Implemented. `CustomShape` type + `custom_svg` ShapeType, `customization_shapes` D1 table, CRUD API, `ShapeLibraryDialog` with SVG upload, polygon draw, library grid, admin editor canvas/preview resolves clip-path via shapes map. Storefront CSS ready for future `custom_svg` support. `konva`/`react-konva` removed from both admin and storefront deps. Design doc at `docs/plans/2026-06-27-custom-shapes-library-design.md`.
+- Goal: replace shared custom-shapes-library with per-template vector drawing tool (corner + smooth Bézier points) so admins can draw custom clip shapes directly on the editor canvas.
+- Current status: Implemented. VectorPointType/VectorPoint/VectorPath types + "vector" ShapeType, removed CustomShape/"custom_svg"/customization_shapes table/shapes API/ShapeLibraryDialog/useShapeLibrary. Draw mode: click-to-add-corner and click-drag-for-smooth points with VectorDrawOverlay. Edit mode: point-drag, handle-drag, double-click toggle, keyboard delete. Inspector table. Vector data stored in blocksJson as `shape.vectorPath` — no new DB tables. Old design doc at `docs/plans/2026-06-27-custom-shapes-library-design.md` deleted.
 - Local dev ports: admin `5174`, backend `8787`, storefront `5173` with matching preview ports.
-- Branch / commit: current working branch
-- Local dev ports: admin `5174`, backend `8787`, storefront `5175` with matching preview ports.
 - Branch / commit: current working branch
 
 ## Completed This Session
 
-- [x] Removed unused `konva`/`react-konva` from admin and storefront package.json; `pnpm install` clean.
-- [x] Completed brainstorming/design for custom shapes library.
-- [x] Wrote `docs/plans/2026-06-27-custom-shapes-library-design.md`.
-- [x] Added `CustomShape` type, `custom_svg` to `ShapeType`, `customShapeId` to image layer shape.
-- [x] Added `getCustomSvgClipPath()`, `validateSvgPathData()` to shared package.
-- [x] Added `customization_shapes` D1 table in schema.
-- [x] Added `GET/POST/DELETE /api/customizations/shapes` API.
-- [x] Added SVG path scaling (`scaleSvgPath`) to backend SVG export.
-- [x] Built `ShapeLibraryDialog` (SVG upload, polygon draw, library grid).
-- [x] Built `PolygonDrawTool` click-to-define polygon vertices.
-- [x] Built `useShapeLibrary` hook (fetch/create/delete).
-- [x] Updated admin LeftPanel Blocks tab with custom shapes section + "Create custom shape" button.
-- [x] Updated `EditorCanvas` and `PreviewDialog` to resolve `custom_svg` via `customShapesMap`.
-- [x] Updated `cssShapeClip()` for `custom_svg` support.
-- [x] Verified: `pnpm --filter customization test`, `pnpm --filter admin build`, `pnpm --filter backend check`.
+- [x] Added VectorPointType/VectorPoint/VectorPath types, "vector" to ShapeType; removed CustomShape/"custom_svg"/customShapeId.
+- [x] Added vectorPointsToSvgPathD() to shared geometry; removed getCustomSvgClipPath() and validateSvgPathData().
+- [x] Removed customization_shapes D1 table from schema, shapes CRUD API route, shape schemas.
+- [x] Removed ShapeLibraryDialog, useShapeLibrary, shapes route file.
+- [x] Implemented draw mode: click-to-add-corner, click-drag-for-smooth with Bézier handles, floating VectorDrawOverlay (Undo/Close/Cancel), live SVG preview with drag line.
+- [x] Added VectorPointOverlay with point-drag, handle-drag, double-click toggle, keyboard delete (only selected point).
+- [x] Added VectorPointsTable inspector panel for manual numeric editing.
+- [x] Updated cssShapeClip/shapeClipSvg for "vector" in admin, storefront, backend.
+- [x] Updated PreviewDialog, useTemplateEditor, CanvasLayer, panels for vector mode.
+- [x] Fixed useKeyboardDelete to only fire for selected point.
+- [x] Deleted `docs/plans/2026-06-27-custom-shapes-library-design.md`.
+- [x] Verified: `pnpm --filter customization test`, `pnpm --filter admin build`, `pnpm --filter backend check`, `pnpm --filter router-cf typecheck`.
 - [x] Tightened admin Preview Image Shape upload crop interaction: drag pans directly on canvas, wheel/trackpad zoom scales around the pointer, and preview rendering uses the current uploaded image URL/dimensions. Verified with `pnpm --filter admin build`.
 - [x] Updated admin Preview Image Shape crop interaction with four corner resize handles, unconstrained movement, scale below cover-fit, and shape-only clipping. Verified with `pnpm --filter admin build`.
 - [x] Made admin Preview background and text layers non-selectable/non-interactive so image crop blocks remain clickable during editing. Verified with `pnpm --filter admin build`.
 - [x] Added admin Preview Edit/View modes: selected uploaded images show crop handles only in Edit mode, while View mode pans the canvas. Mobile uses the same mode switch with larger selected handles. Verified with `pnpm --filter admin build`.
 - [x] Added admin Preview viewport zoom controls (`-`, percentage input, `+`, `Fit`) matching the admin editor pattern. Zoom/pan is view-only and does not mutate crop values. Verified with `pnpm --filter admin build`.
+- [x] Added `@atlaskit/pragmatic-drag-and-drop` and `@atlaskit/pragmatic-drag-and-drop-hitbox` to admin, then implemented drag-handle sorting for customization Layers and Form rows with insertion indicators showing the destination position. Verified with `pnpm --filter customization test`, `pnpm --filter admin build`, and `./init.sh`.
 
 - [x] Implemented `customization-editor-ui-model` OpenSpec change across shared package, backend, admin, storefront, and exports.
 - [x] Implemented `customization-editor-canvas-viewport` OpenSpec change in the admin customization canvas.
@@ -243,8 +239,8 @@ Customization verification on 2026-06-22:
 2. Read `feature_list.json` and `progress.md`.
 3. Review this handoff.
 4. Continue the customization production path: draft/freeze validation, export jobs, production font handling.
-5. Storefront `custom_svg` clip-path support still needs the shapes map passed to `CupCustomizer` from the route loader — currently falls back to `inset(0)` for custom shapes.
+5. Browser-verify the full vector shape lifecycle on the admin editor: draw shape → see preview SVG → close path → see layer in canvas → edit points (drag/toggle/delete) → re-render.
 
 ## Recommended Next Step
 
-- Wire the shapes map into the storefront route loader and pass it to `CupCustomizer` so shopper previews also render custom shapes correctly. Then pick next item from feature_list.json.
+- Browser-test the vector drawing tool on the admin customization editor. Start by loading an existing template, clicking "Draw shape", adding points on the canvas (click for corner, click-drag for smooth), closing the path, and verifying the clip shape appears on the layer. Then edit points via the overlay handles and inspector table. Fix any interaction issues found.

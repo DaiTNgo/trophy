@@ -346,16 +346,6 @@ export const customizationAssets = sqliteTable("customization_assets", {
     .default(sql`CURRENT_TIMESTAMP`),
 });
 
-export const customizationShapes = sqliteTable("customization_shapes", {
-  id: text("id").primaryKey(),
-  name: text("name").notNull(),
-  svgPathData: text("svg_path_data").notNull(),
-  type: text("type").notNull().default("svg_upload"),
-  createdAt: text("created_at")
-    .notNull()
-    .default(sql`CURRENT_TIMESTAMP`),
-});
-
 export const customizationExports = sqliteTable(
   "customization_exports",
   {

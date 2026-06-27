@@ -10,10 +10,10 @@ import {
   type CustomizationFormValues,
   type CustomizationLayer,
   type CustomizationTemplate,
-  type CustomShape,
   type ImageShapeFieldValue,
   type ShapeType,
   type TextFieldValue,
+  type VectorPoint,
 } from "@trophy/customization";
 import { createId, shapeLabel, type RailTab } from "../components/customization/customization-template-ui";
 
@@ -28,6 +28,8 @@ export function useTemplateEditor(editParam: string | null) {
   const [flash, setFlash] = useState("");
   const [previewOpen, setPreviewOpen] = useState(false);
   const [pathEditingLayerId, setPathEditingLayerId] = useState("");
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [pendingVectorPoints, setPendingVectorPoints] = useState<VectorPoint[]>([]);
   const [previewValues, setPreviewValues] = useState<CustomizationFormValues>(() =>
     createDefaultFormValues(DEFAULT_TEMPLATE),
   );
@@ -193,19 +195,38 @@ export function useTemplateEditor(editParam: string | null) {
     );
   }
 
-  function addCustomShape(customShape: CustomShape) {
+  function startDrawMode() {
     if (!template.background) return;
+    setIsDrawing(true);
+    setPendingVectorPoints([]);
+  }
+
+  function cancelDrawMode() {
+    setIsDrawing(false);
+    setPendingVectorPoints([]);
+  }
+
+  function addVectorPoint(point: VectorPoint) {
+    setPendingVectorPoints((prev) => [...prev, point]);
+  }
+
+  function undoVectorPoint() {
+    setPendingVectorPoints((prev) => prev.slice(0, -1));
+  }
+
+  function closeVectorShape() {
+    if (!template.background || pendingVectorPoints.length < 3) return;
     const id = createId("image_shape");
     addLayer(
       {
         id,
-        name: customShape.name,
+        name: "Vector shape",
         type: "image_shape",
         hidden: false,
         locked: false,
         zIndex: maxZ(template.layers) + 1,
         geometry: { xRatio: 0.5, yRatio: 0.5, widthRatio: 0.2, heightRatio: 0.2, rotationDeg: 0 },
-        shape: { type: "custom_svg", lockAspectRatio: true, customShapeId: customShape.id },
+        shape: { type: "vector", lockAspectRatio: true, vectorPath: { points: pendingVectorPoints, closed: true } },
         upload: { fit: "cover", defaultCrop: { scale: 1, xRatio: 0, yRatio: 0 } },
       },
       {
@@ -217,6 +238,8 @@ export function useTemplateEditor(editParam: string | null) {
         order: template.formFields.length + 1,
       },
     );
+    setIsDrawing(false);
+    setPendingVectorPoints([]);
   }
 
   function deleteSelectedLayer() {
@@ -295,6 +318,18 @@ export function useTemplateEditor(editParam: string | null) {
         undoDelete();
         return;
       }
+      if (isDrawing) {
+        if (event.key === "Escape") {
+          cancelDrawMode();
+          return;
+        }
+        if (event.key === "z" && (event.metaKey || event.ctrlKey)) {
+          event.preventDefault();
+          undoVectorPoint();
+          return;
+        }
+        return;
+      }
       if (event.key === "Delete" || event.key === "Backspace") {
         event.preventDefault();
         deleteSelectedLayer();
@@ -350,6 +385,8 @@ export function useTemplateEditor(editParam: string | null) {
     previewValues,
     deleted,
     selectedLayer,
+    isDrawing,
+    pendingVectorPoints,
     setSelectedLayerId,
     setActiveTab,
     setFlash,
@@ -361,7 +398,11 @@ export function useTemplateEditor(editParam: string | null) {
     addTextLayer,
     addTextOnPathLayer,
     addImageShape,
-    addCustomShape,
+    startDrawMode,
+    cancelDrawMode,
+    addVectorPoint,
+    undoVectorPoint,
+    closeVectorShape,
     deleteSelectedLayer,
     undoDelete,
     saveDraft,

@@ -9,7 +9,6 @@ import {
   type CustomizationFormField,
   type CustomizationFormValues,
   type CustomizationLayer,
-  type CustomShape,
   type CustomizationTemplate,
   type ImageShapeFieldValue,
   type RuntimeImageShapeLayer,
@@ -81,14 +80,12 @@ function getFreeImageRect({
 export function PreviewDialog({
   template,
   values,
-  customShapesMap,
   onChange,
   onClose,
   onReset,
 }: {
   template: CustomizationTemplate;
   values: CustomizationFormValues;
-  customShapesMap: Map<string, CustomShape>;
   onChange: PreviewChange;
   onClose: () => void;
   onReset: () => void;
@@ -103,7 +100,6 @@ export function PreviewDialog({
             template={template}
             design={design}
             values={values}
-            customShapesMap={customShapesMap}
             onChange={onChange}
           />
         </div>
@@ -142,13 +138,11 @@ function PreviewCanvas({
   template,
   design,
   values,
-  customShapesMap,
   onChange,
 }: {
   template: CustomizationTemplate;
   design: ReturnType<typeof buildDesignFromForm>;
   values: CustomizationFormValues;
-  customShapesMap: Map<string, CustomShape>;
   onChange: PreviewChange;
 }) {
   const [mode, setMode] = useState<PreviewMode>("edit");
@@ -284,7 +278,6 @@ function PreviewCanvas({
                 scale={scale}
                 mode={mode}
                 selected={selectedFieldId === field.id}
-                customShapesMap={customShapesMap}
                 onSelect={() => setSelectedFieldId(field.id)}
                 onChange={onChange}
               />
@@ -357,7 +350,6 @@ function PreviewImageShapeLayer({
   scale,
   mode,
   selected,
-  customShapesMap,
   onSelect,
   onChange,
 }: {
@@ -369,7 +361,6 @@ function PreviewImageShapeLayer({
   scale: number;
   mode: PreviewMode;
   selected: boolean;
-  customShapesMap: Map<string, CustomShape>;
   onSelect: () => void;
   onChange: PreviewChange;
 }) {
@@ -383,7 +374,7 @@ function PreviewImageShapeLayer({
     cropXRatio: value.cropXRatio,
     cropYRatio: value.cropYRatio,
   });
-  const clipPath = cssShapeClip(layer.shape.type, layer.shape.customShapeId ? customShapesMap.get(layer.shape.customShapeId)?.svgPathData : undefined);
+  const clipPath = cssShapeClip(layer.shape.type, layer.shape.type === "vector" ? layer.shape.vectorPath : undefined);
 
   function updateFromImageRect(next: { centerXPx: number; centerYPx: number; widthPx: number }) {
     onChange(fieldId, {

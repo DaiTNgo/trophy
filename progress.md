@@ -3,7 +3,7 @@
 ## Current State
 
 **Last Updated:** 2026-06-27
-**Session ID:** custom-shapes-library
+**Session ID:** vector-shape-editor
 **Active Feature:** `feat-006 - Cup Customization And Production Artwork`
 
 ## Status
@@ -132,6 +132,7 @@
 - [x] Made admin Preview background and text layers non-selectable and non-interactive so image crop blocks remain clickable while editing. Verified with `pnpm --filter admin build`.
 - [x] Added admin Preview Edit/View modes: image crop handles show only after selecting an uploaded image in Edit mode, and View mode pans the preview canvas. Mobile uses the same explicit mode switch plus larger selected handles. Verified with `pnpm --filter admin build`.
 - [x] Added admin Preview viewport zoom controls (`-`, percentage input, `+`, `Fit`) matching the admin editor pattern. Zoom and pan are view-only and do not mutate crop values. Verified with `pnpm --filter admin build`.
+- [x] Added Atlassian Pragmatic Drag and Drop sorting to admin customization Layers and Form panels with drag handles, closest-edge insertion lines, and visible destination position labels. Verified with `pnpm --filter customization test`, `pnpm --filter admin build`, and `./init.sh`.
 - [x] Created OpenSpec change `customization-text-on-closed-path` for Figma-like closed ellipse Text on path authoring from the Blocks panel.
 - [x] Captured the approved scope: closed circle/oval path only, no open arc, no Pen mode, one-line text, inspector-only text editing, canvas resize/start/flip handles, and runtime/export parity.
 - [x] Verified the OpenSpec with `openspec validate customization-text-on-closed-path --strict`.
@@ -158,46 +159,38 @@
 
 ### What's Done This Session
 
-- [x] Removed unused `konva` and `react-konva` dependencies from `apps/admin/package.json` and `apps/storefront/package.json`.
-- [x] Completed brainstorming/design for custom shapes library feature.
-- [x] Wrote design doc `docs/plans/2026-06-27-custom-shapes-library-design.md`.
-- [x] Added `CustomShape` type and `custom_svg` to `ShapeType` in shared package.
-- [x] Added `customShapeId` to `ImageShapeEditorLayer.shape`.
-- [x] Added `getCustomSvgClipPath()` scaling function and `validateSvgPathData()` to shared package.
-- [x] Added `customization_shapes` D1 table to Drizzle schema.
-- [x] Added shapes CRUD API routes (`GET/POST/DELETE /api/customizations/shapes`).
-- [x] Added SVG path scaling in backend SVG export (`scaleSvgPath`, `shapeClipSvg` custom_svg support).
-- [x] Built `ShapeLibraryDialog` component with upload SVG, polygon draw tool, and library grid.
-- [x] Built `PolygonDrawTool` click-to-define polygon vertices on mini canvas.
-- [x] Built `useShapeLibrary` hook for fetching/creating/deleting custom shapes.
-- [x] Updated admin `LeftPanel` Blocks tab to show custom shapes section and "Create custom shape" button.
-- [x] Updated `EditorCanvas` and `PreviewDialog` to resolve `custom_svg` clip-paths via `customShapesMap`.
-- [x] Updated `cssShapeClip()` to support `custom_svg` with `svgPathData`.
-- [x] Updated storefront's `cssShapeClip()` for future custom_svg support.
-- [x] Verified with `pnpm --filter customization test`, `pnpm --filter admin build`, `pnpm --filter backend check`.
+- [x] Replaced shared custom-shapes-library with per-template vector drawing tool.
+- [x] Added VectorPointType/VectorPoint/VectorPath types and "vector" ShapeType; removed CustomShape/"custom_svg"/customShapeId.
+- [x] Removed customization_shapes D1 table, shapes CRUD API route, ShapeLibraryDialog, useShapeLibrary.
+- [x] Removed getCustomSvgClipPath() and validateSvgPathData() from shared package.
+- [x] Added vectorPointsToSvgPathD() to shared package geometry.
+- [x] Implemented draw mode with click-to-add-corner and click-drag-for-smooth Bézier points.
+- [x] Added floating VectorDrawOverlay (Undo, Close Shape, Cancel buttons).
+- [x] Added live SVG path preview during drawing with drag-to-add-smooth-point line preview.
+- [x] Added VectorPointOverlay with point-drag, Bézier handle drag, double-click corner↔smooth toggle, keyboard delete (selected point only via enabled guard).
+- [x] Added VectorPointsTable inspector panel for manual numeric point editing.
+- [x] Updated cssShapeClip/shapeClipSvg for "vector" in admin, storefront, and backend.
+- [x] Updated PreviewDialog to remove customShapesMap.
+- [x] Used pointer capture for draw mode to prevent interference with viewport pan.
+- [x] Removed old design doc at docs/plans/2026-06-27-custom-shapes-library-design.md.
+- [x] Verified with pnpm --filter customization test, pnpm --filter admin build, pnpm --filter backend check, pnpm --filter router-cf typecheck.
+- [x] Fixed useKeyboardDelete to only fire for the selected point.
 
 ### What's In Progress
 
+- [ ] Drawing mode currently only supports corner+smooth point creation at click location; click-drag creates smooth points with handles in drag direction. No open-arc or Pen mode.
+- [ ] Vector point editing (drag points, handles, toggle, delete) added but needs end-to-end browser verification.
 - [ ] Finish the remaining feat-006 production path on top of the block-only model.
-- [ ] Variant media server-side delete is still not wired up (`deleteProductVariantMedia` is exported from client but never called — only local state removal).
-  - Details: asset validation hardening, authoritative draft/freeze flow, export profiles/jobs, and production-font-quality output are still incomplete.
-  - Blockers: environment-specific D1 IDs and production font assets are still not finalized.
-
-- [ ] Admin management page expansion.
-  - Details: auth, team access control, create product, product detail, order detail, and a Medusa-like shell/navigation now run inside a real session-backed admin shell, but `collections` and `categories` still stop at placeholder index pages.
-  - Blockers: taxonomy and merchandising pages now exist in navigation, but they still need real page behaviors and data wiring.
-
+- [ ] Variant media server-side delete is still not wired up.
+- [ ] Admin management page expansion: auth, team access control, create product, product detail, order detail, and a Medusa-like shell/navigation now run inside a real session-backed admin shell, but `collections` and `categories` still stop at placeholder index pages.
 - [ ] Connect admin and storefront editors to the backend instead of local/default fixtures.
-- [ ] Complete admin visibility-condition authoring and production asset upload/revision selection for preset options.
 - [ ] Add staging/production Wrangler environment blocks after their D1 database IDs are available.
-- [ ] Replace approximate browser metrics and standard PDF font output with approved font revisions, OpenType glyph paths, and custom PDF font embedding.
-- [ ] Complete crop parity and persisted deterministic export jobs.
 
 ### What's Next
 
-1. Run the local customization migration path again against the current workspace and add backend contract/export verification for the block-only routes.
-2. Finish backend-backed draft validation/freeze/export-job flow for customization.
-3. Replace scaffold PDF/text output with approved production-font handling and tighter asset validation.
+1. Browser-verify the full vector shape lifecycle: draw shape → see preview → close path → see layer → edit points → re-render.
+2. Continue backend-backed draft validation/freeze/export-job flow for customization.
+3. Remove old Konva dependencies if not already done.
 
 ## Blockers / Risks
 

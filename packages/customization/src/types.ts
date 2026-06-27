@@ -1,14 +1,22 @@
 export type TemplateStatus = "draft" | "published";
 export type DesignStatus = "draft" | "validated" | "frozen";
 export type TextAlign = "left" | "center" | "right" | "justified";
-export type ShapeType = "rectangle" | "circle" | "ellipse" | "rounded_rectangle" | "star" | "heart" | "custom_svg";
+export type ShapeType = "rectangle" | "circle" | "ellipse" | "rounded_rectangle" | "star" | "heart" | "vector";
 
-export type CustomShape = {
+export type VectorPointType = "corner" | "smooth";
+
+export type VectorPoint = {
   id: string;
-  name: string;
-  svgPathData: string;
-  type: "svg_upload" | "polygon";
-  createdAt: string;
+  type: VectorPointType;
+  xRatio: number;
+  yRatio: number;
+  inHandle?: { xRatio: number; yRatio: number };
+  outHandle?: { xRatio: number; yRatio: number };
+};
+
+export type VectorPath = {
+  points: VectorPoint[];
+  closed: boolean;
 };
 
 export type BackgroundAsset = {
@@ -99,7 +107,7 @@ export type ImageShapeEditorLayer = LayerBase & {
   shape: {
     type: ShapeType;
     lockAspectRatio: boolean;
-    customShapeId?: string;
+    vectorPath?: VectorPath;
   };
   upload: {
     fit: "cover";
