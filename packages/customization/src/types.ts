@@ -1,0 +1,195 @@
+export type TemplateStatus = "draft" | "published";
+export type DesignStatus = "draft" | "validated" | "frozen";
+export type TextAlign = "left" | "center" | "right";
+export type ShapeType = "rectangle" | "circle" | "ellipse" | "rounded_rectangle" | "star" | "heart";
+
+export type BackgroundAsset = {
+  assetId: string;
+  previewUrl: string;
+  filename?: string;
+  mimeType?: string;
+  widthPx: number;
+  heightPx: number;
+};
+
+export type LayerGeometry = {
+  xRatio: number;
+  yRatio: number;
+  widthRatio: number;
+  heightRatio?: number;
+  rotationDeg: number;
+};
+
+export type ChoiceOption = {
+  value: string;
+  label: string;
+  swatch?: string;
+};
+
+export type TextColorPolicy =
+  | { mode: "fixed"; color: string }
+  | { mode: "shopper_selectable"; defaultColor: string; options: ChoiceOption[] };
+
+export type TextFontPolicy =
+  | { mode: "fixed"; fontId: string }
+  | { mode: "shopper_selectable"; defaultFontId: string; options: ChoiceOption[] };
+
+export type BezierPoint = {
+  id: string;
+  xRatio: number;
+  yRatio: number;
+  inHandle?: { xRatio: number; yRatio: number };
+  outHandle?: { xRatio: number; yRatio: number };
+};
+
+export type TextPath =
+  | { type: "straight" }
+  | { type: "arc_up"; curveAmount: number }
+  | { type: "arc_down"; curveAmount: number }
+  | { type: "circle_top"; radiusRatio: number }
+  | { type: "circle_bottom"; radiusRatio: number }
+  | { type: "custom"; points: BezierPoint[] };
+
+type LayerBase = {
+  id: string;
+  name: string;
+  hidden: boolean;
+  locked: boolean;
+  zIndex: number;
+};
+
+export type TextEditorLayer = LayerBase & {
+  type: "text";
+  geometry: Omit<LayerGeometry, "heightRatio">;
+  text: {
+    sampleText: string;
+    maxLines: number;
+    minFontSizePt: number;
+    maxFontSizePt: number;
+    align: TextAlign;
+    colorPolicy: TextColorPolicy;
+    fontPolicy: TextFontPolicy;
+    path: TextPath;
+  };
+};
+
+export type ImageShapeEditorLayer = LayerBase & {
+  type: "image_shape";
+  geometry: Required<LayerGeometry>;
+  shape: {
+    type: ShapeType;
+    lockAspectRatio: boolean;
+  };
+  upload: {
+    fit: "cover";
+    defaultCrop?: ImageCrop;
+  };
+};
+
+export type CustomizationLayer = TextEditorLayer | ImageShapeEditorLayer;
+
+export type CustomizationFormField = {
+  id: string;
+  layerId: string;
+  label: string;
+  helpText?: string;
+  placeholder?: string;
+  required: boolean;
+  order: number;
+};
+
+export type CustomizationTemplate = {
+  id: string;
+  productId: string;
+  name: string;
+  revision: number;
+  status: TemplateStatus;
+  background: BackgroundAsset | null;
+  layers: CustomizationLayer[];
+  formFields: CustomizationFormField[];
+};
+
+export type TextFieldValue = {
+  text: string;
+  color?: string;
+  fontId?: string;
+};
+
+export type ImageShapeFieldValue = {
+  assetId: string;
+  previewUrl: string;
+  sourceWidthPx: number;
+  sourceHeightPx: number;
+  cropScale?: number;
+  cropXRatio?: number;
+  cropYRatio?: number;
+};
+
+export type CustomizationFieldValue = TextFieldValue | ImageShapeFieldValue | null;
+export type CustomizationFormValues = Record<string, CustomizationFieldValue>;
+
+export type RuntimeTextLayer = {
+  id: string;
+  layerId: string;
+  type: "text";
+  text: string;
+  fontId: string;
+  fontSizePt: number;
+  color: string;
+  align: TextAlign;
+  path: TextPath;
+  geometry: Omit<LayerGeometry, "heightRatio">;
+  zIndex: number;
+  trimmed: boolean;
+};
+
+export type RuntimeImageShapeLayer = {
+  id: string;
+  layerId: string;
+  type: "image_shape";
+  assetId: string;
+  previewUrl: string;
+  sourceWidthPx: number;
+  sourceHeightPx: number;
+  shape: ImageShapeEditorLayer["shape"];
+  geometry: Required<LayerGeometry>;
+  cropScale: number;
+  cropXRatio: number;
+  cropYRatio: number;
+  zIndex: number;
+};
+
+export type RuntimeLayer = RuntimeTextLayer | RuntimeImageShapeLayer;
+
+export type CustomizationDesign = {
+  id: string;
+  productId: string;
+  templateId: string;
+  templateRevision: number;
+  revision: number;
+  status: DesignStatus;
+  values: CustomizationFormValues;
+  layers: RuntimeLayer[];
+};
+
+export type ImageCrop = {
+  scale: number;
+  xRatio: number;
+  yRatio: number;
+};
+
+export type ValidationIssue = {
+  code:
+    | "BACKGROUND_REQUIRED"
+    | "FIELD_LAYER_MISSING"
+    | "LAYER_FIELD_MISSING"
+    | "FONT_SIZE_RANGE_INVALID"
+    | "TEXT_PATH_REQUIRES_SINGLE_LINE"
+    | "STYLE_POLICY_INVALID"
+    | "REQUIRED_VALUE_MISSING"
+    | "OPTION_NOT_ALLOWED"
+    | "UPLOAD_INVALID";
+  layerId?: string;
+  fieldId?: string;
+  message: string;
+};

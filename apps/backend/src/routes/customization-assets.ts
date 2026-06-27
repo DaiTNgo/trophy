@@ -1,79 +1,17 @@
 import { eq } from "drizzle-orm";
 import { Hono } from "hono";
-import * as v from "valibot";
 import { getDb } from "../db/client";
 import { customizationAssets } from "../db/schema";
+import {
+  allowedMimeTypes,
+  assetParamsSchema,
+  cleanOwnerKey,
+  extensionForMimeType,
+  MAX_ASSET_BYTES,
+} from "../lib/asset-utils";
 import type { AppEnv } from "../lib/env";
+import { readImageDimensions } from "../lib/image-dimensions";
 import { jsonError, parseParams } from "../lib/validation";
-
-const MAX_ASSET_BYTES = 20 * 1024 * 1024;
-const allowedMimeTypes = new Set(["image/png", "image/jpeg"]);
-
-const assetParamsSchema = v.object({
-  id: v.pipe(v.string(), v.uuid()),
-});
-
-const cleanOwnerKey = (value: string) =>
-  value
-    .trim()
-    .replace(/[^a-zA-Z0-9_-]/g, "")
-    .slice(0, 120);
-
-const extensionForMimeType = (mimeType: string) => (mimeType === "image/png" ? "png" : "jpg");
-
-const readPngDimensions = (bytes: Uint8Array) => {
-  if (
-    bytes.length < 24 ||
-    bytes[0] !== 0x89 ||
-    bytes[1] !== 0x50 ||
-    bytes[2] !== 0x4e ||
-    bytes[3] !== 0x47
-  ) {
-    return null;
-  }
-
-  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  return { width: view.getUint32(16), height: view.getUint32(20) };
-};
-
-const readJpegDimensions = (bytes: Uint8Array) => {
-  if (bytes.length < 4 || bytes[0] !== 0xff || bytes[1] !== 0xd8) {
-    return null;
-  }
-
-  let offset = 2;
-  while (offset + 8 < bytes.length) {
-    if (bytes[offset] !== 0xff) {
-      offset += 1;
-      continue;
-    }
-
-    const marker = bytes[offset + 1];
-    if (marker === undefined || marker === 0xd9 || marker === 0xda) {
-      break;
-    }
-
-    const segmentLength = (bytes[offset + 2]! << 8) | bytes[offset + 3]!;
-    if (segmentLength < 2 || offset + segmentLength + 2 > bytes.length) {
-      return null;
-    }
-
-    const isStartOfFrame = marker >= 0xc0 && marker <= 0xcf && ![0xc4, 0xc8, 0xcc].includes(marker);
-    if (isStartOfFrame) {
-      return {
-        height: (bytes[offset + 5]! << 8) | bytes[offset + 6]!,
-        width: (bytes[offset + 7]! << 8) | bytes[offset + 8]!,
-      };
-    }
-
-    offset += segmentLength + 2;
-  }
-
-  return null;
-};
-
-const readImageDimensions = (mimeType: string, bytes: Uint8Array) =>
-  mimeType === "image/png" ? readPngDimensions(bytes) : readJpegDimensions(bytes);
 
 export const customizationAssetsRoute = new Hono<AppEnv>()
   .post("/", async (c) => {
