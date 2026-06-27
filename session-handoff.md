@@ -3,7 +3,7 @@
 ## Current Objective
 
 - Goal: redesign the admin customization editor as a Figma-style editor and replace the old block-only model with an editor model.
-- Current status: Implemented. Approved design is in `docs/plans/2026-06-26-customization-editor-ui-model-design.md`. OpenSpec change `customization-editor-ui-model` has proposal, design, specs, and tasks, and all implementation tasks are complete. Follow-up OpenSpec change `customization-editor-canvas-viewport` is also implemented, adding admin canvas `Edit` / `View` modes, direct zoom percentage entry, computed `Fit` focus, and View-mode panning. Verification passes with shared package tests/check, backend check/build, admin build, storefront typecheck/build, `openspec validate customization-editor-ui-model --strict`, `openspec validate customization-editor-canvas-viewport --strict`, and `./init.sh`.
+- Current status: Implemented. Approved design is in `docs/plans/2026-06-26-customization-editor-ui-model-design.md`. OpenSpec change `customization-editor-ui-model` has proposal, design, specs, and tasks, and all implementation tasks are complete. Follow-up OpenSpec change `customization-editor-canvas-viewport` is also implemented, adding admin canvas `Edit` / `View` modes, direct zoom percentage entry, computed `Fit` focus, and View-mode panning. Text layer canvas sample text is now preview-only/non-selectable so dragging text layers does not highlight text; text editing remains inspector-only. Text layer movement now uses pointer-down geometry snapshots to avoid drift/jumps during re-render. Verification passes with shared package tests/check, backend check/build, admin build, storefront typecheck/build, `openspec validate customization-editor-ui-model --strict`, `openspec validate customization-editor-canvas-viewport --strict`, and `./init.sh`.
 - Local dev ports: admin `5174`, backend `8787`, storefront `5175` with matching preview ports.
 - Branch / commit: current working branch
 
@@ -15,6 +15,7 @@
 - [x] Replaced the read-only zoom label with direct percentage input plus synchronized zoom buttons.
 - [x] Changed `Fit` from a fixed zoom value to viewport-measured focus that recenters the background canvas.
 - [x] Verified the viewport change with `pnpm --filter admin build`, `openspec validate customization-editor-canvas-viewport --strict`, and `./init.sh`.
+- [x] Fixed Text layer drag interaction by making canvas sample text non-selectable and pointer-transparent, then fixed text movement drift by using pointer-down geometry snapshots; verified with `pnpm --filter admin build` and `./init.sh`.
 - [x] Replaced the shared customization contract with editor-model `background`, `layers`, and `formFields`.
 - [x] Added shared editor-model tests for layer stack vs form order, hidden layers, path line rules, silent text trim, image shape clipping helpers, and uniform crop metadata.
 - [x] Updated backend customization template APIs to persist/return editor-model payloads and validate publish/design submissions.

@@ -228,11 +228,18 @@ function CanvasLayer({
   const textHeight = layer.type === "text" ? layer.text.maxLines * layer.text.maxFontSizePt * 1.35 : rect.heightPx;
   const h = layer.type === "text" ? textHeight : rect.heightPx;
   const top = layer.type === "text" ? layer.geometry.yRatio * background.heightPx - h / 2 : rect.yPx;
-  const drag = useRef<{ x: number; y: number; rect: typeof rect } | null>(null);
+  const drag = useRef<{ x: number; y: number; xPx: number; yPx: number; widthPx: number; heightPx: number } | null>(null);
   function startDrag(event: React.PointerEvent) {
     if (!editing || layer.locked) return;
     onSelect();
-    drag.current = { x: event.clientX, y: event.clientY, rect };
+    drag.current = {
+      x: event.clientX,
+      y: event.clientY,
+      xPx: rect.xPx,
+      yPx: top,
+      widthPx: rect.widthPx,
+      heightPx: h,
+    };
     event.currentTarget.setPointerCapture(event.pointerId);
   }
   function move(event: React.PointerEvent) {
@@ -240,17 +247,17 @@ function CanvasLayer({
     const dx = (event.clientX - drag.current.x) / zoom;
     const dy = (event.clientY - drag.current.y) / zoom;
     const geometry = pixelRectToLayerGeometry({
-      xPx: drag.current.rect.xPx + dx,
-      yPx: (layer.type === "text" ? top : drag.current.rect.yPx) + dy,
-      widthPx: drag.current.rect.widthPx,
-      heightPx: layer.type === "image_shape" ? drag.current.rect.heightPx : undefined,
+      xPx: drag.current.xPx + dx,
+      yPx: drag.current.yPx + dy,
+      widthPx: drag.current.widthPx,
+      heightPx: layer.type === "image_shape" ? drag.current.heightPx : undefined,
       background,
     });
     onUpdate((current) => ({ ...current, geometry: current.type === "text" ? { ...geometry, heightRatio: undefined } : { ...geometry, heightRatio: geometry.heightRatio ?? 0.1 } }) as CustomizationLayer);
   }
   return (
     <div
-      className={`absolute ${selected ? "ring-2 ring-ui-fg-interactive" : "ring-1 ring-teal-500/70"} ${layer.locked ? "cursor-not-allowed" : "cursor-move"}`}
+      className={`absolute select-none ${selected ? "ring-2 ring-ui-fg-interactive" : "ring-1 ring-teal-500/70"} ${layer.locked ? "cursor-not-allowed" : "cursor-move"}`}
       style={{
         left: rect.xPx,
         top,
@@ -272,7 +279,7 @@ function CanvasLayer({
       }}
     >
       {layer.type === "text" ? (
-        <div className="flex h-full items-center justify-center overflow-hidden bg-teal-500/10 text-center text-xs font-medium text-teal-900">
+        <div className="pointer-events-none flex h-full select-none items-center justify-center overflow-hidden bg-teal-500/10 text-center text-xs font-medium text-teal-900">
           {layer.text.sampleText}
         </div>
       ) : (

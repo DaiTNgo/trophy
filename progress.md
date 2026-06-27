@@ -117,6 +117,9 @@
 - [x] Added Figma-like canvas controls: `Edit` / `View` modes, direct zoom percentage input, computed `Fit` focus, and View-mode drag panning without mutating template geometry.
 - [x] Preserved Edit-mode layer selection, move, resize, lock behavior, and custom path editing while gating viewport panning to View mode.
 - [x] Verified the canvas viewport change with `pnpm --filter admin build`, `openspec validate customization-editor-canvas-viewport --strict`, and `./init.sh`.
+- [x] Fixed Text layer dragging so sample text on the canvas is preview-only/non-selectable and text content remains inspector-only.
+- [x] Fixed Text layer movement drift by storing pointer-down geometry snapshots for layer drag instead of mixing live derived text top with pointer deltas after re-render.
+- [x] Verified the Text layer drag fixes with `pnpm --filter admin build` and `./init.sh`.
 - [x] Replaced `packages/customization` block-only contract with editor-model `background`, `layers`, and `formFields`, including Text layer, Image Shape layer, form field, text path, style policy, geometry, crop, validation, text fitting, and shape helper coverage.
 - [x] Rewrote the admin customization template page as an editor workspace with top header, left rail (`Blocks`, `Layers`, `Form`, `Background`), central canvas, right inspector, preview dialog, layer/form separation, background upload/replace/remove, text/image-shape controls, delete undo, shortcuts, and custom path point editing.
 - [x] Updated storefront customization to consume editor-model fields/layers and render text plus clipped image shapes with upload crop controls.
@@ -241,6 +244,7 @@
 - [x] Shared editor model: `pnpm --filter @trophy/customization test` and `pnpm --filter @trophy/customization check`
 - [x] Backend editor-model routes: `pnpm --filter backend check` and `pnpm --filter backend build`
 - [x] Admin editor UI: `pnpm --filter admin build`
+- [x] Admin Text layer drag fix: `pnpm --filter admin build`
 - [x] Admin canvas viewport OpenSpec: `openspec validate customization-editor-canvas-viewport --strict`
 - [x] Storefront editor runtime: `pnpm --filter router-cf typecheck` and `pnpm --filter router-cf build`
 - [x] Customization editor UI/model OpenSpec: `openspec validate customization-editor-ui-model --strict`
