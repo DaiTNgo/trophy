@@ -1,7 +1,15 @@
 export type TemplateStatus = "draft" | "published";
 export type DesignStatus = "draft" | "validated" | "frozen";
-export type TextAlign = "left" | "center" | "right";
-export type ShapeType = "rectangle" | "circle" | "ellipse" | "rounded_rectangle" | "star" | "heart";
+export type TextAlign = "left" | "center" | "right" | "justified";
+export type ShapeType = "rectangle" | "circle" | "ellipse" | "rounded_rectangle" | "star" | "heart" | "custom_svg";
+
+export type CustomShape = {
+  id: string;
+  name: string;
+  svgPathData: string;
+  type: "svg_upload" | "polygon";
+  createdAt: string;
+};
 
 export type BackgroundAsset = {
   assetId: string;
@@ -48,7 +56,19 @@ export type TextPath =
   | { type: "arc_down"; curveAmount: number }
   | { type: "circle_top"; radiusRatio: number }
   | { type: "circle_bottom"; radiusRatio: number }
-  | { type: "custom"; points: BezierPoint[] };
+  | { type: "custom"; points: BezierPoint[] }
+  | {
+      type: "closed_ellipse";
+      bounds: {
+        xRatio: number;
+        yRatio: number;
+        widthRatio: number;
+        heightRatio: number;
+      };
+      startAngleDeg: number;
+      direction: "clockwise" | "counterclockwise";
+      placement: "over_path" | "below_path" | "in_path";
+    };
 
 type LayerBase = {
   id: string;
@@ -60,7 +80,7 @@ type LayerBase = {
 
 export type TextEditorLayer = LayerBase & {
   type: "text";
-  geometry: Omit<LayerGeometry, "heightRatio">;
+  geometry: LayerGeometry;
   text: {
     sampleText: string;
     maxLines: number;
@@ -79,6 +99,7 @@ export type ImageShapeEditorLayer = LayerBase & {
   shape: {
     type: ShapeType;
     lockAspectRatio: boolean;
+    customShapeId?: string;
   };
   upload: {
     fit: "cover";
@@ -138,7 +159,7 @@ export type RuntimeTextLayer = {
   color: string;
   align: TextAlign;
   path: TextPath;
-  geometry: Omit<LayerGeometry, "heightRatio">;
+  geometry: LayerGeometry;
   zIndex: number;
   trimmed: boolean;
 };
@@ -188,7 +209,8 @@ export type ValidationIssue = {
     | "STYLE_POLICY_INVALID"
     | "REQUIRED_VALUE_MISSING"
     | "OPTION_NOT_ALLOWED"
-    | "UPLOAD_INVALID";
+    | "UPLOAD_INVALID"
+    | "SHAPE_REFERENCE_MISSING";
   layerId?: string;
   fieldId?: string;
   message: string;

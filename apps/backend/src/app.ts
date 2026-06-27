@@ -15,6 +15,7 @@ import { adminBootstrapRoute } from "./routes/admin-bootstrap";
 import { customizationAssetsRoute } from "./routes/customization-assets";
 import { productAssetsRoute } from "./routes/product-assets";
 import { customizationsRoute } from "./routes/customizations";
+import { shapesRoute } from "./routes/customizations/shapes";
 import { productMetadataRoute } from "./routes/product-metadata";
 import { productsRoute } from "./routes/products";
 import { samplesRoute } from "./routes/samples";
@@ -140,6 +141,7 @@ export const routes = app
   .route("/admin/accounts", adminAccountsRoute)
   .route("/customizations/assets", customizationAssetsRoute)
   .route("/customizations", customizationsRoute)
+  .route("/customizations/shapes", shapesRoute)
   .route("/products/assets", productAssetsRoute)
   .route("/product-metadata", productMetadataRoute)
   .route("/products", productsRoute)

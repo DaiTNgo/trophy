@@ -1,15 +1,21 @@
+import { useState } from "react";
 import { ArrowLeft, Save } from "lucide-react";
 import { Link, useSearchParams } from "react-router";
 import { type CustomizationTemplate } from "@trophy/customization";
 import { useTemplateEditor } from "./hooks/useTemplateEditor";
+import { useShapeLibrary } from "./hooks/useShapeLibrary";
 import { EditorCanvas } from "./components/customization/customization-template-editor";
 import { Inspector } from "./components/customization/customization-template-inspector";
 import { LeftPanel, Rail } from "./components/customization/customization-template-panels";
 import { PreviewDialog } from "./components/customization/customization-template-preview";
+import { ShapeLibraryDialog } from "./components/customization/shape-library-dialog";
 
 export default function CustomizationTemplatePage() {
   const [searchParams] = useSearchParams();
   const editParam = searchParams.get("edit");
+  const [shapeLibraryOpen, setShapeLibraryOpen] = useState(false);
+  const { shapes, shapesMap, createShape, deleteShape } = useShapeLibrary();
+
   const {
     template,
     selectedLayerId,
@@ -28,7 +34,9 @@ export default function CustomizationTemplatePage() {
     updateLayer,
     updateField,
     addTextLayer,
+    addTextOnPathLayer,
     addImageShape,
+    addCustomShape,
     deleteSelectedLayer,
     undoDelete,
     saveDraft,
@@ -57,8 +65,12 @@ export default function CustomizationTemplatePage() {
           activeTab={activeTab}
           template={template}
           selectedLayerId={selectedLayerId}
+          customShapes={shapes}
           onAddText={addTextLayer}
+          onAddTextOnPath={addTextOnPathLayer}
           onAddShape={addImageShape}
+          onAddCustomShape={addCustomShape}
+          onOpenShapeLibrary={() => setShapeLibraryOpen(true)}
           onSelectLayer={setSelectedLayerId}
           onUpdateTemplate={updateTemplate}
           onUpdateField={updateField}
@@ -68,6 +80,7 @@ export default function CustomizationTemplatePage() {
           template={template}
           selectedLayerId={selectedLayerId}
           pathEditingLayerId={pathEditingLayerId}
+          customShapesMap={shapesMap}
           onSelectLayer={setSelectedLayerId}
           onPathEditingLayerChange={setPathEditingLayerId}
           onUpdateLayer={updateLayer}
@@ -86,11 +99,23 @@ export default function CustomizationTemplatePage() {
         <PreviewDialog
           template={template}
           values={previewValues}
+          customShapesMap={shapesMap}
           onChange={handlePreviewChange}
           onClose={() => setPreviewOpen(false)}
           onReset={resetPreviewValues}
         />
       ) : null}
+      <ShapeLibraryDialog
+        open={shapeLibraryOpen}
+        onOpenChange={setShapeLibraryOpen}
+        shapes={shapes}
+        onSelect={(shape) => {
+          addCustomShape(shape);
+          setShapeLibraryOpen(false);
+        }}
+        onCreate={createShape}
+        onDelete={deleteShape}
+      />
     </section>
   );
 }

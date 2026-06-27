@@ -66,6 +66,7 @@ function TextInspector({
   onPathEditingChange: (active: boolean) => void;
   onUpdate: (updater: (layer: CustomizationLayer) => CustomizationLayer) => void;
 }) {
+  const isClosedPath = layer.text.path.type === "closed_ellipse";
   return (
     <div className="space-y-5">
       <PanelTitle title="Text" subtitle={layer.name} />
@@ -73,10 +74,10 @@ function TextInspector({
       <PositionFields template={template} layer={layer} onUpdate={onUpdate} textOnly />
       <Input value={layer.text.sampleText} onChange={(sampleText) => onUpdate((current) => ({ ...current, text: { ...(current as TextEditorLayer).text, sampleText } }) as CustomizationLayer)} />
       <div className="grid grid-cols-2 gap-2">
-        <NumberInput label="Max lines" value={layer.text.maxLines} onChange={(maxLines) => updateText(onUpdate, { maxLines: layer.text.path.type === "straight" ? Math.max(1, Math.round(maxLines)) : 1 })} />
+        <NumberInput label="Max lines" value={isClosedPath ? 1 : layer.text.maxLines} disabled={isClosedPath} onChange={(maxLines) => updateText(onUpdate, { maxLines: layer.text.path.type === "straight" ? Math.max(1, Math.round(maxLines)) : 1 })} />
         <NumberInput label="Min font" value={layer.text.minFontSizePt} onChange={(minFontSizePt) => updateText(onUpdate, { minFontSizePt })} />
         <NumberInput label="Max font" value={layer.text.maxFontSizePt} onChange={(maxFontSizePt) => updateText(onUpdate, { maxFontSizePt })} />
-        <Select label="Align" value={layer.text.align} options={["left", "center", "right"]} onChange={(align) => updateText(onUpdate, { align: align as TextEditorLayer["text"]["align"] })} />
+        <Select label="Align" value={layer.text.align} options={["left", "center", "right", "justified"]} onChange={(align) => updateText(onUpdate, { align: align as TextEditorLayer["text"]["align"] })} />
       </div>
       <TextStyleControls layer={layer} onUpdate={onUpdate} />
       <TextPathControls layer={layer} pathEditing={pathEditing} onPathEditingChange={onPathEditingChange} onUpdate={onUpdate} />
@@ -104,17 +105,18 @@ function PositionFields({ template, layer, onUpdate, textOnly }: { template: Cus
   const background = template.background;
   if (!background) return null;
   const rect = layerGeometryToPixels({ geometry: layer.geometry, background });
+  const closedTextPath = layer.type === "text" && layer.text.path.type === "closed_ellipse";
   const updateRect = (next: Partial<typeof rect>) => {
     const merged = { ...rect, ...next };
-    const geometry = pixelRectToLayerGeometry({ ...merged, heightPx: textOnly ? undefined : merged.heightPx, background });
-    onUpdate((current) => ({ ...current, geometry: current.type === "text" ? { ...geometry, heightRatio: undefined } : { ...geometry, heightRatio: geometry.heightRatio ?? 0.1 } }) as CustomizationLayer);
+    const geometry = pixelRectToLayerGeometry({ ...merged, heightPx: textOnly && !closedTextPath ? undefined : merged.heightPx, background });
+    onUpdate((current) => ({ ...current, geometry: current.type === "text" ? { ...geometry, heightRatio: closedTextPath ? geometry.heightRatio ?? 0.1 : undefined } : { ...geometry, heightRatio: geometry.heightRatio ?? 0.1 } }) as CustomizationLayer);
   };
   return (
     <div className="grid grid-cols-2 gap-2">
       <NumberInput label="X" value={Math.round(rect.xPx)} onChange={(xPx) => updateRect({ xPx })} />
       <NumberInput label="Y" value={Math.round(rect.yPx)} onChange={(yPx) => updateRect({ yPx })} />
       <NumberInput label="W" value={Math.round(rect.widthPx)} onChange={(widthPx) => updateRect({ widthPx })} />
-      <NumberInput label="H" value={Math.round(textOnly && layer.type === "text" ? layer.text.maxLines * layer.text.maxFontSizePt * 1.35 : rect.heightPx)} disabled={textOnly} onChange={(heightPx) => updateRect({ heightPx })} />
+      <NumberInput label="H" value={Math.round(textOnly && layer.type === "text" && !closedTextPath ? layer.text.maxLines * layer.text.maxFontSizePt * 1.35 : rect.heightPx)} disabled={textOnly && !closedTextPath} onChange={(heightPx) => updateRect({ heightPx })} />
     </div>
   );
 }
@@ -139,10 +141,11 @@ function TextPathControls({
   onPathEditingChange: (active: boolean) => void;
   onUpdate: (updater: (layer: CustomizationLayer) => CustomizationLayer) => void;
 }) {
+  const closedPath = layer.text.path.type === "closed_ellipse" ? layer.text.path : null;
   const customPath = layer.text.path.type === "custom" ? layer.text.path : null;
   return (
     <div className="space-y-2">
-      <Select label="Text path" value={layer.text.path.type} options={["straight", "arc_up", "arc_down", "circle_top", "circle_bottom", "custom"]} onChange={(type) => {
+      <Select label="Text path" value={layer.text.path.type} options={["straight", "closed_ellipse"]} onChange={(type) => {
         const path = defaultPath(type as TextPath["type"]);
         updateText(onUpdate, { path, maxLines: type === "straight" ? layer.text.maxLines : 1 });
       }} />
@@ -167,6 +170,38 @@ function TextPathControls({
             })
           }
         />
+      ) : null}
+      {closedPath ? (
+        <div className="space-y-2">
+          <NumberInput
+            label="Start angle"
+            value={Math.round(closedPath.startAngleDeg)}
+            onChange={(startAngleDeg) =>
+              updateText(onUpdate, {
+                path: { ...closedPath, startAngleDeg },
+                maxLines: 1,
+              })
+            }
+          />
+          <label className="block text-xs font-medium text-ui-fg-muted">
+            Placement
+            <select
+              value={closedPath.placement}
+              onChange={(event) =>
+                updateText(onUpdate, {
+                  path: { ...closedPath, placement: event.target.value as typeof closedPath.placement },
+                  maxLines: 1,
+                })
+              }
+              className="mt-1 w-full rounded-md border border-ui-border-base px-2 py-1 text-sm text-ui-fg-base"
+            >
+              <option value="over_path">Text over path</option>
+              <option value="below_path">Text below path</option>
+              <option value="in_path">Text in path</option>
+            </select>
+          </label>
+          <p className="text-xs text-ui-fg-muted">Text follows a closed oval path. Drag the oval handles on the canvas to resize it.</p>
+        </div>
       ) : null}
       {customPath ? (
         <div className="space-y-2">
@@ -217,5 +252,14 @@ function defaultPath(type: TextPath["type"]): TextPath {
   if (type === "circle_top") return { type, radiusRatio: 0.5 };
   if (type === "circle_bottom") return { type, radiusRatio: 0.5 };
   if (type === "custom") return { type, points: [] };
+  if (type === "closed_ellipse") {
+    return {
+      type,
+      bounds: { xRatio: 0.5, yRatio: 0.5, widthRatio: 1, heightRatio: 1 },
+      startAngleDeg: 180,
+      direction: "clockwise",
+      placement: "over_path",
+    };
+  }
   return { type: "straight" };
 }

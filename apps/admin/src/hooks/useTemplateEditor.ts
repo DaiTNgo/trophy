@@ -10,6 +10,7 @@ import {
   type CustomizationFormValues,
   type CustomizationLayer,
   type CustomizationTemplate,
+  type CustomShape,
   type ImageShapeFieldValue,
   type ShapeType,
   type TextFieldValue,
@@ -125,6 +126,47 @@ export function useTemplateEditor(editParam: string | null) {
     );
   }
 
+  function addTextOnPathLayer() {
+    if (!template.background) return;
+    const id = createId("text_path");
+    addLayer(
+      {
+        id,
+        name: "Text on path",
+        type: "text",
+        hidden: false,
+        locked: false,
+        zIndex: maxZ(template.layers) + 1,
+        geometry: { xRatio: 0.5, yRatio: 0.5, widthRatio: 0.34, heightRatio: 0.18, rotationDeg: 0 },
+        text: {
+          sampleText: "YOUR TEXT",
+          maxLines: 1,
+          minFontSizePt: 8,
+          maxFontSizePt: 20,
+          align: "center",
+          colorPolicy: { mode: "fixed", color: "#111111" },
+          fontPolicy: { mode: "fixed", fontId: "sans-bold" },
+          path: {
+            type: "closed_ellipse",
+            bounds: { xRatio: 0.5, yRatio: 0.5, widthRatio: 1, heightRatio: 1 },
+            startAngleDeg: 180,
+            direction: "clockwise",
+            placement: "over_path",
+          },
+        },
+      },
+      {
+        id: createId("field"),
+        layerId: id,
+        label: "Text on path",
+        placeholder: "YOUR TEXT",
+        required: true,
+        order: template.formFields.length + 1,
+      },
+    );
+    setPathEditingLayerId(id);
+  }
+
   function addImageShape(shape: ShapeType) {
     if (!template.background) return;
     const id = createId("image_shape");
@@ -138,6 +180,32 @@ export function useTemplateEditor(editParam: string | null) {
         zIndex: maxZ(template.layers) + 1,
         geometry: { xRatio: 0.5, yRatio: 0.5, widthRatio: 0.2, heightRatio: 0.2, rotationDeg: 0 },
         shape: { type: shape, lockAspectRatio: ["circle", "star", "heart"].includes(shape) },
+        upload: { fit: "cover", defaultCrop: { scale: 1, xRatio: 0, yRatio: 0 } },
+      },
+      {
+        id: createId("field"),
+        layerId: id,
+        label: "Upload image",
+        helpText: "Your image will be clipped to the selected shape.",
+        required: false,
+        order: template.formFields.length + 1,
+      },
+    );
+  }
+
+  function addCustomShape(customShape: CustomShape) {
+    if (!template.background) return;
+    const id = createId("image_shape");
+    addLayer(
+      {
+        id,
+        name: customShape.name,
+        type: "image_shape",
+        hidden: false,
+        locked: false,
+        zIndex: maxZ(template.layers) + 1,
+        geometry: { xRatio: 0.5, yRatio: 0.5, widthRatio: 0.2, heightRatio: 0.2, rotationDeg: 0 },
+        shape: { type: "custom_svg", lockAspectRatio: true, customShapeId: customShape.id },
         upload: { fit: "cover", defaultCrop: { scale: 1, xRatio: 0, yRatio: 0 } },
       },
       {
@@ -254,10 +322,10 @@ export function useTemplateEditor(editParam: string | null) {
         };
         const geometry = pixelRectToLayerGeometry({
           ...next,
-          heightPx: layer.type === "image_shape" ? next.heightPx : undefined,
+          heightPx: layer.type === "image_shape" || (layer.type === "text" && layer.text.path.type === "closed_ellipse") ? next.heightPx : undefined,
           background,
         });
-        return { ...layer, geometry: layer.type === "text" ? { ...geometry, heightRatio: undefined } : { ...geometry, heightRatio: geometry.heightRatio ?? 0.1 } } as CustomizationLayer;
+        return { ...layer, geometry: layer.type === "text" ? { ...geometry, heightRatio: layer.text.path.type === "closed_ellipse" ? geometry.heightRatio ?? 0.1 : undefined } : { ...geometry, heightRatio: geometry.heightRatio ?? 0.1 } } as CustomizationLayer;
       });
     }
     window.addEventListener("keydown", onKeyDown);
@@ -291,7 +359,9 @@ export function useTemplateEditor(editParam: string | null) {
     updateLayer,
     updateField,
     addTextLayer,
+    addTextOnPathLayer,
     addImageShape,
+    addCustomShape,
     deleteSelectedLayer,
     undoDelete,
     saveDraft,

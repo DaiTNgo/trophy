@@ -2,11 +2,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { FileImage } from "lucide-react";
 import {
   getVisibleLayers,
+  getTextPathRenderAttributes,
+  getTextPathSvgD,
   layerGeometryToPixels,
   pixelRectToLayerGeometry,
   type BackgroundAsset,
   type CustomizationLayer,
   type CustomizationTemplate,
+  type CustomShape,
   type TextEditorLayer,
 } from "@trophy/customization";
 import { BackgroundUpload, createId, cssShapeClip } from "./customization-template-ui";
@@ -23,6 +26,7 @@ export function EditorCanvas({
   template,
   selectedLayerId,
   pathEditingLayerId,
+  customShapesMap,
   onSelectLayer,
   onPathEditingLayerChange,
   onUpdateLayer,
@@ -31,6 +35,7 @@ export function EditorCanvas({
   template: CustomizationTemplate;
   selectedLayerId: string;
   pathEditingLayerId: string;
+  customShapesMap: Map<string, CustomShape>;
   onSelectLayer: (layerId: string) => void;
   onPathEditingLayerChange: (layerId: string) => void;
   onUpdateLayer: (layerId: string, updater: (layer: CustomizationLayer) => CustomizationLayer) => void;
@@ -192,6 +197,7 @@ export function EditorCanvas({
               selected={selectedLayerId === layer.id}
               pathEditing={pathEditingLayerId === layer.id}
               editing={mode === "edit"}
+              customShapesMap={customShapesMap}
               onSelect={() => onSelectLayer(layer.id)}
               onEditPath={() => onPathEditingLayerChange(layer.id)}
               onUpdate={(updater) => onUpdateLayer(layer.id, updater)}
@@ -210,6 +216,7 @@ function CanvasLayer({
   selected,
   pathEditing,
   editing,
+  customShapesMap,
   onSelect,
   onEditPath,
   onUpdate,
@@ -220,13 +227,15 @@ function CanvasLayer({
   selected: boolean;
   pathEditing: boolean;
   editing: boolean;
+  customShapesMap: Map<string, CustomShape>;
   onSelect: () => void;
   onEditPath: () => void;
   onUpdate: (updater: (layer: CustomizationLayer) => CustomizationLayer) => void;
 }) {
   const rect = layerGeometryToPixels({ geometry: layer.geometry, background });
+  const closedTextPath = layer.type === "text" && layer.text.path.type === "closed_ellipse";
   const textHeight = layer.type === "text" ? layer.text.maxLines * layer.text.maxFontSizePt * 1.35 : rect.heightPx;
-  const h = layer.type === "text" ? textHeight : rect.heightPx;
+  const h = closedTextPath ? Math.max(18, rect.heightPx) : layer.type === "text" ? textHeight : rect.heightPx;
   const top = layer.type === "text" ? layer.geometry.yRatio * background.heightPx - h / 2 : rect.yPx;
   const drag = useRef<{ x: number; y: number; xPx: number; yPx: number; widthPx: number; heightPx: number } | null>(null);
   function startDrag(event: React.PointerEvent) {
@@ -250,10 +259,13 @@ function CanvasLayer({
       xPx: drag.current.xPx + dx,
       yPx: drag.current.yPx + dy,
       widthPx: drag.current.widthPx,
-      heightPx: layer.type === "image_shape" ? drag.current.heightPx : undefined,
+      heightPx: drag.current.heightPx,
       background,
     });
-    onUpdate((current) => ({ ...current, geometry: current.type === "text" ? { ...geometry, heightRatio: undefined } : { ...geometry, heightRatio: geometry.heightRatio ?? 0.1 } }) as CustomizationLayer);
+    onUpdate((current) => {
+      const keepTextHeight = current.type === "text" && current.text.path.type === "closed_ellipse";
+      return { ...current, geometry: current.type === "text" ? { ...geometry, heightRatio: keepTextHeight ? geometry.heightRatio ?? 0.1 : undefined } : { ...geometry, heightRatio: geometry.heightRatio ?? 0.1 } } as CustomizationLayer;
+    });
   }
   return (
     <div
@@ -279,11 +291,9 @@ function CanvasLayer({
       }}
     >
       {layer.type === "text" ? (
-        <div className="pointer-events-none flex h-full select-none items-center justify-center overflow-hidden bg-teal-500/10 text-center text-xs font-medium text-teal-900">
-          {layer.text.sampleText}
-        </div>
+        <EditorTextLayer layer={layer} widthPx={rect.widthPx} heightPx={h} pathEditing={editing && (pathEditing || (selected && closedTextPath))} />
       ) : (
-        <div className="h-full w-full bg-teal-500/10" style={{ borderRadius: layer.shape.type === "circle" ? "999px" : layer.shape.type === "rounded_rectangle" ? "12%" : undefined, clipPath: cssShapeClip(layer.shape.type) }} />
+        <div className="h-full w-full bg-teal-500/10" style={{ borderRadius: layer.shape.type === "circle" ? "999px" : layer.shape.type === "rounded_rectangle" ? "12%" : undefined, clipPath: cssShapeClip(layer.shape.type, layer.shape.customShapeId ? customShapesMap.get(layer.shape.customShapeId)?.svgPathData : undefined) }} />
       )}
       {editing && pathEditing && layer.type === "text" && layer.text.path.type === "custom" ? (
         <PathPointOverlay
@@ -291,8 +301,52 @@ function CanvasLayer({
           onUpdate={onUpdate}
         />
       ) : null}
+      {editing && selected && layer.type === "text" && layer.text.path.type === "closed_ellipse" ? <ClosedEllipsePathOverlay layer={layer} onUpdate={onUpdate} /> : null}
       {editing && selected && !layer.locked ? <ResizeHandles layer={layer} background={background} zoom={zoom} onUpdate={onUpdate} /> : null}
     </div>
+  );
+}
+
+function EditorTextLayer({
+  layer,
+  widthPx,
+  heightPx,
+  pathEditing,
+}: {
+  layer: TextEditorLayer;
+  widthPx: number;
+  heightPx: number;
+  pathEditing: boolean;
+}) {
+  if (layer.text.path.type === "straight") {
+    return (
+      <div className="pointer-events-none flex h-full select-none items-center justify-center overflow-hidden bg-teal-500/10 text-center text-xs font-medium text-teal-900">
+        {layer.text.sampleText}
+      </div>
+    );
+  }
+
+  const pathId = `editor_text_path_${layer.id}`;
+  const textWidthPx = layer.text.sampleText.length * Math.max(8, layer.text.maxFontSizePt) * 0.55;
+  const wordCount = layer.text.sampleText.trim() ? layer.text.sampleText.trim().split(/\s+/).length : 0;
+  const pathAttrs = getTextPathRenderAttributes({ path: layer.text.path, align: layer.text.align, widthPx, heightPx, textWidthPx, charCount: layer.text.sampleText.length, wordCount });
+  const renderPath = pathAttrs.pathStartAngleDeg != null
+    ? { ...layer.text.path, startAngleDeg: pathAttrs.pathStartAngleDeg }
+    : layer.text.path;
+  const pathD = getTextPathSvgD({ path: renderPath, widthPx, heightPx });
+
+  return (
+    <svg className="pointer-events-none h-full w-full select-none overflow-visible bg-teal-500/10" viewBox={`0 0 ${widthPx} ${heightPx}`}>
+      <path d={pathD} fill="none" stroke={pathEditing ? "rgb(245 158 11)" : "transparent"} strokeWidth={pathEditing ? 1 : 0} />
+      <defs>
+        <path id={pathId} d={pathD} />
+      </defs>
+      <text fontSize={Math.max(8, layer.text.maxFontSizePt)} fontWeight={600} fill="rgb(19 78 74)" textAnchor={pathAttrs.textAnchor} dominantBaseline="middle" textLength={pathAttrs.textLength} lengthAdjust={pathAttrs.lengthAdjust} wordSpacing={pathAttrs.wordSpacingPx ?? 0}>
+        <textPath href={`#${pathId}`} startOffset={pathAttrs.startOffset}>
+          {pathAttrs.dy ? <tspan dy={pathAttrs.dy}>{layer.text.sampleText}</tspan> : layer.text.sampleText}
+        </textPath>
+      </text>
+    </svg>
   );
 }
 
@@ -406,8 +460,56 @@ function PathHandle({
   );
 }
 
+function ClosedEllipsePathOverlay({
+  layer,
+  onUpdate,
+}: {
+  layer: TextEditorLayer;
+  onUpdate: (updater: (layer: CustomizationLayer) => CustomizationLayer) => void;
+}) {
+  if (layer.text.path.type !== "closed_ellipse") return null;
+  const path = layer.text.path;
+  const angle = (path.startAngleDeg * Math.PI) / 180;
+  const xRatio = path.bounds.xRatio + (Math.cos(angle) * path.bounds.widthRatio) / 2;
+  const yRatio = path.bounds.yRatio + (Math.sin(angle) * path.bounds.heightRatio) / 2;
+
+  return (
+    <button
+      type="button"
+      title="Text start position"
+      className="absolute size-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-amber-500 shadow"
+      style={{ left: `${xRatio * 100}%`, top: `${yRatio * 100}%` }}
+      onPointerDown={(event) => {
+        event.stopPropagation();
+        const target = event.currentTarget.parentElement as HTMLElement | null;
+        if (!target) return;
+        const bounds = target.getBoundingClientRect();
+        function move(pointer: PointerEvent) {
+          const x = (pointer.clientX - bounds.left) / bounds.width;
+          const y = (pointer.clientY - bounds.top) / bounds.height;
+          const dx = x - path.bounds.xRatio;
+          const dy = y - path.bounds.yRatio;
+          const startAngleDeg = (Math.atan2(dy, dx) * 180) / Math.PI;
+          onUpdate((current) =>
+            current.type === "text" && current.text.path.type === "closed_ellipse"
+              ? { ...current, text: { ...current.text, path: { ...current.text.path, startAngleDeg } } }
+              : current,
+          );
+        }
+        function stop() {
+          window.removeEventListener("pointermove", move);
+          window.removeEventListener("pointerup", stop);
+        }
+        window.addEventListener("pointermove", move);
+        window.addEventListener("pointerup", stop);
+      }}
+    />
+  );
+}
+
 function ResizeHandles({ layer, background, zoom, onUpdate }: { layer: CustomizationLayer; background: BackgroundAsset; zoom: number; onUpdate: (updater: (layer: CustomizationLayer) => CustomizationLayer) => void }) {
-  const handles = layer.type === "text" ? ["left", "right"] : layer.shape.lockAspectRatio ? ["nw", "ne", "sw", "se"] : ["nw", "n", "ne", "e", "se", "s", "sw", "w"];
+  const closedTextPath = layer.type === "text" && layer.text.path.type === "closed_ellipse";
+  const handles = layer.type === "text" ? (closedTextPath ? ["nw", "n", "ne", "e", "se", "s", "sw", "w"] : ["left", "right"]) : layer.shape.lockAspectRatio ? ["nw", "ne", "sw", "se"] : ["nw", "n", "ne", "e", "se", "s", "sw", "w"];
   return (
     <>
       {handles.map((handle) => (
@@ -425,8 +527,11 @@ function ResizeHandles({ layer, background, zoom, onUpdate }: { layer: Customiza
               const dx = (pointer.clientX - startX) / zoom;
               const dy = (pointer.clientY - startY) / zoom;
               const next = resizeRect(start, handle, dx, dy, layer.type === "image_shape" && layer.shape.lockAspectRatio);
-              const geometry = pixelRectToLayerGeometry({ ...next, heightPx: layer.type === "image_shape" ? next.heightPx : undefined, background });
-              onUpdate((current) => ({ ...current, geometry: current.type === "text" ? { ...geometry, heightRatio: undefined } : { ...geometry, heightRatio: geometry.heightRatio ?? 0.1 } }) as CustomizationLayer);
+              const geometry = pixelRectToLayerGeometry({ ...next, heightPx: layer.type === "image_shape" || closedTextPath ? next.heightPx : undefined, background });
+              onUpdate((current) => {
+                const keepTextHeight = current.type === "text" && current.text.path.type === "closed_ellipse";
+                return { ...current, geometry: current.type === "text" ? { ...geometry, heightRatio: keepTextHeight ? geometry.heightRatio ?? 0.1 : undefined } : { ...geometry, heightRatio: geometry.heightRatio ?? 0.1 } } as CustomizationLayer;
+              });
             }
             function stop() {
               window.removeEventListener("pointermove", move);

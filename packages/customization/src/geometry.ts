@@ -147,3 +147,22 @@ export const getShapeClipPath = ({
   }
   return `rect(0 0 ${w} ${h})`;
 };
+
+export const getCustomSvgClipPath = (svgPathData: string, widthPx: number, heightPx: number) => {
+  const w = Math.max(1, widthPx);
+  const h = Math.max(1, heightPx);
+  const tokens = svgPathData.match(/[A-Za-z]|[+-]?\d*\.?\d+/g) ?? [];
+  let index = 0;
+  const out: string[] = [];
+  while (index < tokens.length) {
+    const token = tokens[index++];
+    if (/[A-Za-z]/.test(token)) {
+      out.push(token);
+    } else {
+      const x = parseFloat(token);
+      const y = parseFloat(tokens[index++] ?? "0");
+      out.push(`${(x / 100) * w}`, `${(y / 100) * h}`);
+    }
+  }
+  return `path(${out.join(" ")})`;
+};

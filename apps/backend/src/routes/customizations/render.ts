@@ -1,4 +1,6 @@
+import { getTextPathRenderAttributes, getTextPathSvgD } from "@trophy/customization";
 import type { CustomizationDesign, CustomizationTemplate } from "@trophy/customization";
+import type { CustomShape } from "@trophy/customization";
 import { PDFDocument, StandardFonts, grayscale } from "pdf-lib";
 
 const escapeXml = (value: string) =>
@@ -42,6 +44,11 @@ const textPathD = (layer: Extract<CustomizationDesign["layers"][number], { type:
       })
       .join(" ");
   }
+  if (path.type === "closed_ellipse") {
+    const h = Math.max(1, (layer.geometry.heightRatio ?? layer.geometry.widthRatio) * height);
+    const localD = getTextPathSvgD({ path, widthPx: w, heightPx: h });
+    return localD.replace(/([MLACQ])\s*/g, "$1 ");
+  }
   return `M ${cx - w / 2} ${cy} L ${cx + w / 2} ${cy}`;
 };
 
@@ -51,12 +58,14 @@ const shapeClipSvg = ({
   y,
   width,
   height,
+  svgPathData,
 }: {
   shape: string;
   x: number;
   y: number;
   width: number;
   height: number;
+  svgPathData?: string;
 }) => {
   if (shape === "circle" || shape === "ellipse") {
     return `<ellipse cx="${x + width / 2}" cy="${y + height / 2}" rx="${width / 2}" ry="${height / 2}" />`;
@@ -76,7 +85,30 @@ const shapeClipSvg = ({
   if (shape === "heart") {
     return `<path d="M ${x + width / 2} ${y + height * 0.85} C ${x + width * 0.1} ${y + height * 0.55}, ${x} ${y + height * 0.25}, ${x + width * 0.25} ${y + height * 0.12} C ${x + width * 0.4} ${y}, ${x + width / 2} ${y + height * 0.16}, ${x + width / 2} ${y + height * 0.28} C ${x + width / 2} ${y + height * 0.16}, ${x + width * 0.6} ${y}, ${x + width * 0.75} ${y + height * 0.12} C ${x + width} ${y + height * 0.25}, ${x + width * 0.9} ${y + height * 0.55}, ${x + width / 2} ${y + height * 0.85} Z" />`;
   }
+  if (shape === "custom_svg" && svgPathData) {
+    const scaled = scaleSvgPath(svgPathData, width, height);
+    return `<path d="${scaled}" />`;
+  }
   return `<rect x="${x}" y="${y}" width="${width}" height="${height}" />`;
+};
+
+const scaleSvgPath = (svgPathData: string, widthPx: number, heightPx: number) => {
+  const w = Math.max(1, widthPx);
+  const h = Math.max(1, heightPx);
+  const tokens = svgPathData.match(/[A-Za-z]|[+-]?\d*\.?\d+/g) ?? [];
+  let index = 0;
+  const out: string[] = [];
+  while (index < tokens.length) {
+    const token = tokens[index++];
+    if (/[A-Za-z]/.test(token)) {
+      out.push(token);
+    } else {
+      const x = parseFloat(token);
+      const y = parseFloat(tokens[index++] ?? "0");
+      out.push(`${(x / 100) * w}`, `${(y / 100) * h}`);
+    }
+  }
+  return out.join(" ");
 };
 
 const parseDataUrl = (value: string) => {
@@ -103,7 +135,7 @@ const readImageBytes = async (url: string) => {
   };
 };
 
-export const renderPreviewSvg = (template: CustomizationTemplate, design: CustomizationDesign) => {
+export const renderPreviewSvg = (template: CustomizationTemplate, design: CustomizationDesign, customShapes?: Map<string, CustomShape>) => {
   const width = template.background?.widthPx ?? 900;
   const height = template.background?.heightPx ?? 900;
   const layers = [...design.layers].sort((a, b) => a.zIndex - b.zIndex);
@@ -112,11 +144,28 @@ export const renderPreviewSvg = (template: CustomizationTemplate, design: Custom
       if (layer.type === "text") {
         const x = layer.geometry.xRatio * width;
         const y = layer.geometry.yRatio * height;
-        const anchor = layer.align === "left" ? "start" : layer.align === "right" ? "end" : "middle";
+        const anchor = layer.align === "left" || layer.align === "justified" ? "start" : layer.align === "right" ? "end" : "middle";
         if (layer.path.type !== "straight") {
           const pathId = `path-${escapeXml(layer.id).replace(/[^a-zA-Z0-9_-]/g, "-")}`;
-          const startOffset = layer.align === "left" ? "0%" : layer.align === "right" ? "100%" : "50%";
-          return `<path id="${pathId}" d="${textPathD(layer, width, height)}" fill="none" /><text font-size="${layer.fontSizePt}" text-anchor="${anchor}" fill="${escapeXml(layer.color)}"><textPath href="#${pathId}" startOffset="${startOffset}">${escapeXml(layer.text)}</textPath></text>`;
+          if (layer.path.type === "closed_ellipse") {
+            const frameWidth = layer.geometry.widthRatio * width;
+            const frameHeight = Math.max(1, (layer.geometry.heightRatio ?? layer.geometry.widthRatio) * height);
+            const x0 = layer.geometry.xRatio * width - frameWidth / 2;
+            const y0 = layer.geometry.yRatio * height - frameHeight / 2;
+            const textWidthPx = layer.text.length * layer.fontSizePt * 0.55;
+            const wordCount = layer.text.trim() ? layer.text.trim().split(/\s+/).length : 0;
+            const pathAttrs = getTextPathRenderAttributes({ path: layer.path, align: layer.align, widthPx: frameWidth, heightPx: frameHeight, textWidthPx, charCount: layer.text.length, wordCount });
+            const textLength = pathAttrs.textLength ? ` textLength="${pathAttrs.textLength}" lengthAdjust="${pathAttrs.lengthAdjust}"` : "";
+            const textBody = pathAttrs.dy ? `<tspan dy="${pathAttrs.dy}">${escapeXml(layer.text)}</tspan>` : escapeXml(layer.text);
+            const renderLayer = pathAttrs.pathStartAngleDeg != null
+              ? { ...layer, path: { ...layer.path, startAngleDeg: pathAttrs.pathStartAngleDeg } as typeof layer.path }
+              : layer;
+            const wordSpacing = pathAttrs.wordSpacingPx != null ? ` word-spacing="${pathAttrs.wordSpacingPx}"` : "";
+            return `<g transform="translate(${x0} ${y0})"><path id="${pathId}" d="${textPathD(renderLayer, width, height)}" fill="none" /><text font-size="${layer.fontSizePt}" text-anchor="${pathAttrs.textAnchor}" fill="${escapeXml(layer.color)}"${textLength}${wordSpacing}><textPath href="#${pathId}" startOffset="${pathAttrs.startOffset}">${textBody}</textPath></text></g>`;
+          }
+          const pathAttrs = getTextPathRenderAttributes({ path: layer.path, align: layer.align, widthPx: layer.geometry.widthRatio * width, heightPx: layer.fontSizePt * Math.max(1, layer.text.split("\n").length) * 1.35 });
+          const textLength = pathAttrs.textLength ? ` textLength="${pathAttrs.textLength}" lengthAdjust="${pathAttrs.lengthAdjust}"` : "";
+          return `<path id="${pathId}" d="${textPathD(layer, width, height)}" fill="none" /><text font-size="${layer.fontSizePt}" text-anchor="${pathAttrs.textAnchor}" fill="${escapeXml(layer.color)}"${textLength}><textPath href="#${pathId}" startOffset="${pathAttrs.startOffset}">${escapeXml(layer.text)}</textPath></text>`;
         }
         return `<text x="${x}" y="${y}" font-size="${layer.fontSizePt}" text-anchor="${anchor}" dominant-baseline="middle" fill="${escapeXml(layer.color)}" transform="rotate(${layer.geometry.rotationDeg} ${x} ${y})">${escapeXml(layer.text)}</text>`;
       }
@@ -125,7 +174,10 @@ export const renderPreviewSvg = (template: CustomizationTemplate, design: Custom
       const x = layer.geometry.xRatio * width - frameWidth / 2;
       const y = layer.geometry.yRatio * height - frameHeight / 2;
       const clipId = `clip-${escapeXml(layer.id).replace(/[^a-zA-Z0-9_-]/g, "-")}`;
-      return `<clipPath id="${clipId}">${shapeClipSvg({ shape: layer.shape.type, x, y, width: frameWidth, height: frameHeight })}</clipPath><image clip-path="url(#${clipId})" href="${escapeXml(layer.previewUrl)}" x="${x}" y="${y}" width="${frameWidth}" height="${frameHeight}" preserveAspectRatio="xMidYMid slice" />`;
+      const svgPathData = layer.shape.type === "custom_svg" && layer.shape.customShapeId
+        ? customShapes?.get(layer.shape.customShapeId)?.svgPathData
+        : undefined;
+      return `<clipPath id="${clipId}">${shapeClipSvg({ shape: layer.shape.type, x, y, width: frameWidth, height: frameHeight, svgPathData })}</clipPath><image clip-path="url(#${clipId})" href="${escapeXml(layer.previewUrl)}" x="${x}" y="${y}" width="${frameWidth}" height="${frameHeight}" preserveAspectRatio="xMidYMid slice" />`;
     })
     .join("");
   return `<?xml version="1.0" encoding="UTF-8"?><svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">${template.background ? `<image href="${escapeXml(template.background.previewUrl)}" x="0" y="0" width="${width}" height="${height}" />` : ""}${body}</svg>`;

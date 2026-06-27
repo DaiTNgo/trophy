@@ -77,10 +77,11 @@ export function shapeLabel(shape: ShapeType) {
   return shape.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
-export function cssShapeClip(shape: ShapeType) {
+export function cssShapeClip(shape: ShapeType, svgPathData?: string) {
   if (shape === "circle") return "circle(50% at 50% 50%)";
   if (shape === "ellipse") return "ellipse(50% 40% at 50% 50%)";
   if (shape === "star") return "polygon(50% 0%, 61% 34%, 98% 35%, 68% 56%, 79% 91%, 50% 70%, 21% 91%, 32% 56%, 2% 35%, 39% 34%)";
   if (shape === "heart") return "path('M 50 88 C 20 62 4 45 12 25 C 20 6 42 10 50 27 C 58 10 80 6 88 25 C 96 45 80 62 50 88 Z')";
+  if (shape === "custom_svg" && svgPathData) return `path('${svgPathData}')`;
   return "inset(0)";
 }

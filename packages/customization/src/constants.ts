@@ -69,7 +69,7 @@ export const DEFAULT_TEMPLATE: CustomizationTemplate = {
       hidden: false,
       locked: false,
       zIndex: 3,
-      geometry: { xRatio: 0.5, yRatio: 0.52, widthRatio: 0.42, rotationDeg: 0 },
+      geometry: { xRatio: 0.5, yRatio: 0.52, widthRatio: 0.42, heightRatio: 0.16, rotationDeg: 0 },
       text: {
         sampleText: "ALEX MORGAN",
         maxLines: 1,
@@ -86,7 +86,13 @@ export const DEFAULT_TEMPLATE: CustomizationTemplate = {
           defaultFontId: "sans-bold",
           options: DEFAULT_FONT_FAMILY_OPTIONS,
         },
-        path: { type: "arc_up", curveAmount: 0.35 },
+        path: {
+          type: "closed_ellipse",
+          bounds: { xRatio: 0.5, yRatio: 0.5, widthRatio: 1, heightRatio: 1 },
+          startAngleDeg: 180,
+          direction: "clockwise",
+          placement: "over_path",
+        },
       },
     },
   ],

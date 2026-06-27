@@ -2,6 +2,8 @@ import {
   DEFAULT_TEMPLATE,
   buildDesignFromForm,
   createDefaultFormValues,
+  getTextPathRenderAttributes,
+  getTextPathSvgD,
   getOrderedFormFields,
   layerGeometryToPixels,
   validateCustomizationValues,
@@ -185,19 +187,56 @@ function PreviewCanvas({ template, layers }: { template: CustomizationTemplate; 
 }
 
 function PreviewText({ layer, width, height, scale }: { layer: Extract<RuntimeLayer, { type: "text" }>; width: number; height: number; scale: number }) {
-  const left = layer.geometry.xRatio * width * scale;
-  const top = layer.geometry.yRatio * height * scale;
-  const layerWidth = layer.geometry.widthRatio * width * scale;
+  const closedTextPath = layer.path.type === "closed_ellipse";
+  const layerWidthPx = layer.geometry.widthRatio * width;
+  const layerHeightPx = closedTextPath
+    ? Math.max(1, (layer.geometry.heightRatio ?? layer.geometry.widthRatio) * height)
+    : layer.fontSizePt * Math.max(1, layer.text.split("\n").length) * 1.35;
+  const left = (layer.geometry.xRatio * width - layerWidthPx / 2) * scale;
+  const top = (layer.geometry.yRatio * height - layerHeightPx / 2) * scale;
+  if (layer.path.type !== "straight") {
+    const pathId = `storefront_text_path_${layer.id}`;
+    const textWidthPx = layer.text.length * layer.fontSizePt * 0.55;
+    const wordCount = layer.text.trim() ? layer.text.trim().split(/\s+/).length : 0;
+    const pathAttrs = getTextPathRenderAttributes({ path: layer.path, align: layer.align, widthPx: layerWidthPx, heightPx: layerHeightPx, textWidthPx, charCount: layer.text.length, wordCount });
+    const renderPath = pathAttrs.pathStartAngleDeg != null
+      ? { ...layer.path, startAngleDeg: pathAttrs.pathStartAngleDeg }
+      : layer.path;
+    const pathD = getTextPathSvgD({ path: renderPath, widthPx: layerWidthPx, heightPx: layerHeightPx });
+    return (
+      <svg
+        className="absolute overflow-visible"
+        style={{
+          left,
+          top,
+          width: layerWidthPx * scale,
+          height: layerHeightPx * scale,
+          transform: `rotate(${layer.geometry.rotationDeg}deg)`,
+        }}
+        viewBox={`0 0 ${layerWidthPx} ${layerHeightPx}`}
+      >
+        <defs>
+          <path id={pathId} d={pathD} />
+        </defs>
+        <text fontSize={layer.fontSizePt} fill={layer.color} textAnchor={pathAttrs.textAnchor} dominantBaseline="middle" textLength={pathAttrs.textLength} lengthAdjust={pathAttrs.lengthAdjust} wordSpacing={pathAttrs.wordSpacingPx ?? 0}>
+          <textPath href={`#${pathId}`} startOffset={pathAttrs.startOffset}>
+            {pathAttrs.dy ? <tspan dy={pathAttrs.dy}>{layer.text}</tspan> : layer.text}
+          </textPath>
+        </text>
+      </svg>
+    );
+  }
+
   return (
     <div
       className="absolute -translate-x-1/2 -translate-y-1/2 overflow-hidden whitespace-pre-line text-center font-semibold"
       style={{
-        left,
-        top,
-        width: layerWidth,
+        left: layer.geometry.xRatio * width * scale,
+        top: layer.geometry.yRatio * height * scale,
+        width: layerWidthPx * scale,
         color: layer.color,
         fontSize: layer.fontSizePt * scale,
-        textAlign: layer.align,
+        textAlign: layer.align === "justified" ? "justify" : layer.align,
         transform: `translate(-50%, -50%) rotate(${layer.geometry.rotationDeg}deg)`,
       }}
     >
@@ -281,13 +320,14 @@ function TextField({
   onChange: (value: TextFieldValue) => void;
 }) {
   const textValue = value && "text" in value ? value : { text: "" };
+  const pathText = layer.text.path.type !== "straight";
   return (
     <div className="space-y-3">
       <textarea
-        rows={layer.text.maxLines}
+        rows={pathText ? 1 : layer.text.maxLines}
         value={textValue.text}
         placeholder={field.placeholder}
-        onChange={(event) => onChange({ ...textValue, text: event.target.value })}
+        onChange={(event) => onChange({ ...textValue, text: pathText ? event.target.value.replace(/\s*\n+\s*/g, " ") : event.target.value })}
         className="w-full resize-none rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm outline-none focus:border-amber-400"
       />
       {layer.text.colorPolicy.mode === "shopper_selectable" ? (
@@ -392,10 +432,11 @@ function Panel({ title, description, children }: { title: string; description: s
   );
 }
 
-function cssShapeClip(shape: string) {
+function cssShapeClip(shape: string, svgPathData?: string) {
   if (shape === "circle") return "circle(50% at 50% 50%)";
   if (shape === "ellipse") return "ellipse(50% 40% at 50% 50%)";
   if (shape === "star") return "polygon(50% 0%, 61% 34%, 98% 35%, 68% 56%, 79% 91%, 50% 70%, 21% 91%, 32% 56%, 2% 35%, 39% 34%)";
   if (shape === "heart") return "path('M 50 88 C 20 62 4 45 12 25 C 20 6 42 10 50 27 C 58 10 80 6 88 25 C 96 45 80 62 50 88 Z')";
+  if (shape === "custom_svg" && svgPathData) return `path('${svgPathData}')`;
   return "inset(0)";
 }

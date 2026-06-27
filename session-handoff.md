@@ -2,12 +2,35 @@
 
 ## Current Objective
 
-- Goal: redesign the admin customization editor as a Figma-style editor and replace the old block-only model with an editor model.
-- Current status: Implemented. Approved design is in `docs/plans/2026-06-26-customization-editor-ui-model-design.md`. OpenSpec change `customization-editor-ui-model` has proposal, design, specs, and tasks, and all implementation tasks are complete. Follow-up OpenSpec change `customization-editor-canvas-viewport` is also implemented, adding admin canvas `Edit` / `View` modes, direct zoom percentage entry, computed `Fit` focus, and View-mode panning. Text layer canvas sample text is now preview-only/non-selectable so dragging text layers does not highlight text; text editing remains inspector-only. Text layer movement now uses pointer-down geometry snapshots to avoid drift/jumps during re-render. Verification passes with shared package tests/check, backend check/build, admin build, storefront typecheck/build, `openspec validate customization-editor-ui-model --strict`, `openspec validate customization-editor-canvas-viewport --strict`, and `./init.sh`.
+- Goal: let admin operators create custom shapes (SVG upload, polygon draw) beyond the 6 built-in shapes for image shape layers.
+- Current status: Implemented. `CustomShape` type + `custom_svg` ShapeType, `customization_shapes` D1 table, CRUD API, `ShapeLibraryDialog` with SVG upload, polygon draw, library grid, admin editor canvas/preview resolves clip-path via shapes map. Storefront CSS ready for future `custom_svg` support. `konva`/`react-konva` removed from both admin and storefront deps. Design doc at `docs/plans/2026-06-27-custom-shapes-library-design.md`.
+- Local dev ports: admin `5174`, backend `8787`, storefront `5173` with matching preview ports.
+- Branch / commit: current working branch
 - Local dev ports: admin `5174`, backend `8787`, storefront `5175` with matching preview ports.
 - Branch / commit: current working branch
 
 ## Completed This Session
+
+- [x] Removed unused `konva`/`react-konva` from admin and storefront package.json; `pnpm install` clean.
+- [x] Completed brainstorming/design for custom shapes library.
+- [x] Wrote `docs/plans/2026-06-27-custom-shapes-library-design.md`.
+- [x] Added `CustomShape` type, `custom_svg` to `ShapeType`, `customShapeId` to image layer shape.
+- [x] Added `getCustomSvgClipPath()`, `validateSvgPathData()` to shared package.
+- [x] Added `customization_shapes` D1 table in schema.
+- [x] Added `GET/POST/DELETE /api/customizations/shapes` API.
+- [x] Added SVG path scaling (`scaleSvgPath`) to backend SVG export.
+- [x] Built `ShapeLibraryDialog` (SVG upload, polygon draw, library grid).
+- [x] Built `PolygonDrawTool` click-to-define polygon vertices.
+- [x] Built `useShapeLibrary` hook (fetch/create/delete).
+- [x] Updated admin LeftPanel Blocks tab with custom shapes section + "Create custom shape" button.
+- [x] Updated `EditorCanvas` and `PreviewDialog` to resolve `custom_svg` via `customShapesMap`.
+- [x] Updated `cssShapeClip()` for `custom_svg` support.
+- [x] Verified: `pnpm --filter customization test`, `pnpm --filter admin build`, `pnpm --filter backend check`.
+- [x] Tightened admin Preview Image Shape upload crop interaction: drag pans directly on canvas, wheel/trackpad zoom scales around the pointer, and preview rendering uses the current uploaded image URL/dimensions. Verified with `pnpm --filter admin build`.
+- [x] Updated admin Preview Image Shape crop interaction with four corner resize handles, unconstrained movement, scale below cover-fit, and shape-only clipping. Verified with `pnpm --filter admin build`.
+- [x] Made admin Preview background and text layers non-selectable/non-interactive so image crop blocks remain clickable during editing. Verified with `pnpm --filter admin build`.
+- [x] Added admin Preview Edit/View modes: selected uploaded images show crop handles only in Edit mode, while View mode pans the canvas. Mobile uses the same mode switch with larger selected handles. Verified with `pnpm --filter admin build`.
+- [x] Added admin Preview viewport zoom controls (`-`, percentage input, `+`, `Fit`) matching the admin editor pattern. Zoom/pan is view-only and does not mutate crop values. Verified with `pnpm --filter admin build`.
 
 - [x] Implemented `customization-editor-ui-model` OpenSpec change across shared package, backend, admin, storefront, and exports.
 - [x] Implemented `customization-editor-canvas-viewport` OpenSpec change in the admin customization canvas.
@@ -15,7 +38,12 @@
 - [x] Replaced the read-only zoom label with direct percentage input plus synchronized zoom buttons.
 - [x] Changed `Fit` from a fixed zoom value to viewport-measured focus that recenters the background canvas.
 - [x] Verified the viewport change with `pnpm --filter admin build`, `openspec validate customization-editor-canvas-viewport --strict`, and `./init.sh`.
-- [x] Fixed Text layer drag interaction by making canvas sample text non-selectable and pointer-transparent, then fixed text movement drift by using pointer-down geometry snapshots; verified with `pnpm --filter admin build` and `./init.sh`.
+- [x] Fixed Text layer drag interaction by making canvas sample text non-selectable and pointer-transparent, then fixed text movement drift and center-Y conversion by using pointer-down geometry snapshots plus derived text height; verified with `pnpm --filter admin build` and `./init.sh`.
+- [x] Implemented admin Preview image crop editing for Image Shape uploads: direct drag-to-pan, wheel/trackpad uniform zoom, reset crop, and shared cover-crop math; removed explicit Zoom, Pan X, and Pan Y controls; verified with `pnpm --filter admin build` and `./init.sh`.
+- [x] Implemented Text Path rendering in admin editor and admin Preview with shared `getTextPathSvgD`; verified with `pnpm --filter @trophy/customization test`, `pnpm --filter @trophy/customization check`, `pnpm --filter admin build`, and `./init.sh`.
+- [x] Created OpenSpec change `customization-text-on-closed-path` for closed ellipse Text on path authoring; validated with `openspec validate customization-text-on-closed-path --strict`.
+- [x] Implemented OpenSpec change `customization-text-on-closed-path`; all 22 tasks complete. Added shared `closed_ellipse` model/helpers/tests, admin `Text on path` creation + closed ellipse canvas controls, admin Preview/storefront/backend SVG rendering parity, and verified with shared package test/check, admin build, storefront typecheck/build, backend check/build, OpenSpec strict validation, and `./init.sh`.
+- [x] Follow-up fixed Text on path alignment/placement: left/center/right now anchor at the start-angle handle, justified stretches around the full ellipse, and inspector placement options are `Text over path`, `Text below path`, and `Text in path`. Shared render attributes now drive admin editor, admin Preview, storefront, and backend SVG export. Verified with shared package test/check, admin build, storefront typecheck/build, backend check/build, OpenSpec strict validation, and `./init.sh`.
 - [x] Replaced the shared customization contract with editor-model `background`, `layers`, and `formFields`.
 - [x] Added shared editor-model tests for layer stack vs form order, hidden layers, path line rules, silent text trim, image shape clipping helpers, and uniform crop metadata.
 - [x] Updated backend customization template APIs to persist/return editor-model payloads and validate publish/design submissions.
@@ -215,7 +243,8 @@ Customization verification on 2026-06-22:
 2. Read `feature_list.json` and `progress.md`.
 3. Review this handoff.
 4. Continue the customization production path: draft/freeze validation, export jobs, production font handling.
+5. Storefront `custom_svg` clip-path support still needs the shapes map passed to `CupCustomizer` from the route loader — currently falls back to `inset(0)` for custom shapes.
 
 ## Recommended Next Step
 
-- Gallery interaction is now working (backdrop click + Escape). No pending gallery work. Pick next item from feature_list.json.
+- Wire the shapes map into the storefront route loader and pass it to `CupCustomizer` so shopper previews also render custom shapes correctly. Then pick next item from feature_list.json.

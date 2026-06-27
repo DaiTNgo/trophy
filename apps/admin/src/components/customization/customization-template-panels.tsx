@@ -9,6 +9,7 @@ import {
   Lock,
   PanelRight,
   Plus,
+  CircleDashed,
   Shapes,
   Trash2,
   Type,
@@ -17,6 +18,7 @@ import {
 import {
   type CustomizationFormField,
   type CustomizationTemplate,
+  type CustomShape,
   type ShapeType,
 } from "@trophy/customization";
 import { PanelTitle, Input, BackgroundUpload, shapeLabel, type RailTab } from "./customization-template-ui";
@@ -54,8 +56,12 @@ export function LeftPanel(props: {
   activeTab: RailTab;
   template: CustomizationTemplate;
   selectedLayerId: string;
+  customShapes: CustomShape[];
   onAddText: () => void;
+  onAddTextOnPath: () => void;
   onAddShape: (shape: ShapeType) => void;
+  onAddCustomShape: (shape: CustomShape) => void;
+  onOpenShapeLibrary: () => void;
   onSelectLayer: (layerId: string) => void;
   onUpdateTemplate: (updater: (current: CustomizationTemplate) => CustomizationTemplate) => void;
   onUpdateField: (fieldId: string, updater: (field: CustomizationFormField) => CustomizationFormField) => void;
@@ -63,7 +69,7 @@ export function LeftPanel(props: {
 }) {
   return (
     <aside className="overflow-y-auto border-r border-ui-border-base p-4">
-      {props.activeTab === "blocks" ? <BlocksPanel template={props.template} onAddText={props.onAddText} onAddShape={props.onAddShape} /> : null}
+      {props.activeTab === "blocks" ? <BlocksPanel template={props.template} customShapes={props.customShapes} onAddText={props.onAddText} onAddTextOnPath={props.onAddTextOnPath} onAddShape={props.onAddShape} onAddCustomShape={props.onAddCustomShape} onOpenShapeLibrary={props.onOpenShapeLibrary} /> : null}
       {props.activeTab === "layers" ? <LayersPanel template={props.template} selectedLayerId={props.selectedLayerId} onSelectLayer={props.onSelectLayer} onUpdateTemplate={props.onUpdateTemplate} onDelete={props.onDelete} /> : null}
       {props.activeTab === "form" ? <FormPanel template={props.template} onSelectLayer={props.onSelectLayer} onUpdateField={props.onUpdateField} onUpdateTemplate={props.onUpdateTemplate} /> : null}
       {props.activeTab === "background" ? <BackgroundPanel template={props.template} onUpdateTemplate={props.onUpdateTemplate} /> : null}
@@ -71,13 +77,16 @@ export function LeftPanel(props: {
   );
 }
 
-function BlocksPanel({ template, onAddText, onAddShape }: { template: CustomizationTemplate; onAddText: () => void; onAddShape: (shape: ShapeType) => void }) {
+function BlocksPanel({ template, customShapes, onAddText, onAddTextOnPath, onAddShape, onAddCustomShape, onOpenShapeLibrary }: { template: CustomizationTemplate; customShapes: CustomShape[]; onAddText: () => void; onAddTextOnPath: () => void; onAddShape: (shape: ShapeType) => void; onAddCustomShape: (shape: CustomShape) => void; onOpenShapeLibrary: () => void }) {
   const disabled = !template.background;
   return (
     <div className="space-y-4">
       <PanelTitle title="Blocks" subtitle={disabled ? "Upload a background before creating blocks." : "Create text or image shape layers."} />
       <button type="button" disabled={disabled} onClick={onAddText} className="flex w-full items-center gap-3 rounded-md border border-ui-border-base px-3 py-2 text-sm disabled:opacity-40">
         <Type className="size-4" /> Text
+      </button>
+      <button type="button" disabled={disabled} onClick={onAddTextOnPath} className="flex w-full items-center gap-3 rounded-md border border-ui-border-base px-3 py-2 text-sm disabled:opacity-40">
+        <CircleDashed className="size-4" /> Text on path
       </button>
       <div className="space-y-2">
         <p className="text-xs font-medium uppercase text-ui-fg-muted">Image Shapes</p>
@@ -87,6 +96,22 @@ function BlocksPanel({ template, onAddText, onAddShape }: { template: Customizat
           </button>
         ))}
       </div>
+      {customShapes.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-xs font-medium uppercase text-ui-fg-muted">Custom Shapes</p>
+          {customShapes.map((shape) => (
+            <button key={shape.id} type="button" disabled={disabled} onClick={() => onAddCustomShape(shape)} className="flex w-full items-center gap-3 rounded-md border border-ui-border-base px-3 py-2 text-sm disabled:opacity-40">
+              <svg viewBox="0 0 100 100" className="size-4 shrink-0">
+                <path d={shape.svgPathData} fill="currentColor" />
+              </svg>
+              {shape.name}
+            </button>
+          ))}
+        </div>
+      )}
+      <button type="button" disabled={disabled} onClick={onOpenShapeLibrary} className="flex w-full items-center gap-3 rounded-md border border-dashed border-ui-border-base px-3 py-2 text-sm text-ui-fg-muted disabled:opacity-40">
+        <Plus className="size-4" /> Create custom shape
+      </button>
     </div>
   );
 }

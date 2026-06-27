@@ -32,6 +32,7 @@ export const buildDesignFromForm = ({
         layer,
         value: getTextValue(layer, value),
         availableWidthPx: layer.geometry.widthRatio * background.widthPx,
+        availableHeightPx: (layer.geometry.heightRatio ?? layer.geometry.widthRatio) * background.heightPx,
         measure: measureText,
       });
       if (!fitted.text) continue;

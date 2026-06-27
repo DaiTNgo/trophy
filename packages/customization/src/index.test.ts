@@ -8,6 +8,9 @@ import {
   getCropPanFromImagePosition,
   getOrderedFormFields,
   getShapeClipPath,
+  getTextPathLengthPx,
+  getTextPathRenderAttributes,
+  getTextPathSvgD,
   getVisibleLayers,
   layerGeometryToPixels,
   normalizeTextPath,
@@ -180,6 +183,111 @@ describe("text fitting and paths", () => {
     expect(path.type === "custom" ? path.points[0].xRatio : 0).toBe(1);
     expect(path.type === "custom" ? path.points[0].yRatio : 0).toBe(0);
     expect(path.type === "custom" ? path.points[0].outHandle?.xRatio : 0).toBe(1);
+  });
+
+  it("builds SVG path data for text paths", () => {
+    expect(getTextPathSvgD({ path: { type: "arc_up", curveAmount: 0.5 }, widthPx: 200, heightPx: 60 })).toContain("Q 100");
+    expect(getTextPathSvgD({ path: { type: "circle_bottom", radiusRatio: 0.5 }, widthPx: 200, heightPx: 60 })).toContain("A 100 100");
+    expect(
+      getTextPathSvgD({
+        path: {
+          type: "closed_ellipse",
+          bounds: { xRatio: 0.5, yRatio: 0.5, widthRatio: 1, heightRatio: 0.8 },
+          startAngleDeg: 180,
+          direction: "clockwise",
+          placement: "over_path",
+        },
+        widthPx: 240,
+        heightPx: 120,
+      }),
+    ).toContain("A 120 48 0 1 1");
+    expect(
+      getTextPathSvgD({
+        path: {
+          type: "custom",
+          points: [
+            { id: "p1", xRatio: 0, yRatio: 0.5, outHandle: { xRatio: 0.25, yRatio: -0.25 } },
+            { id: "p2", xRatio: 1, yRatio: 0.5, inHandle: { xRatio: -0.25, yRatio: -0.25 } },
+          ],
+        },
+        widthPx: 200,
+        heightPx: 60,
+      }),
+    ).toContain("C 50 15 150 15 200 30");
+  });
+
+  it("normalizes closed ellipse text paths and fits against path length", () => {
+    const path = normalizeTextPath({
+      type: "closed_ellipse",
+      bounds: { xRatio: 2, yRatio: -1, widthRatio: 3, heightRatio: 0 },
+      startAngleDeg: 180,
+      direction: "sideways" as "clockwise",
+      placement: "below_path",
+    });
+    expect(path.type === "closed_ellipse" ? path.bounds : null).toEqual({
+      xRatio: 1,
+      yRatio: 0,
+      widthRatio: 1,
+      heightRatio: 0.05,
+    });
+
+    const closedLayer: TextEditorLayer = {
+      ...lineLayer,
+      geometry: { ...lineLayer.geometry, heightRatio: 0.2 },
+      text: {
+        ...lineLayer.text,
+        path: {
+          type: "closed_ellipse",
+          bounds: { xRatio: 0.5, yRatio: 0.5, widthRatio: 1, heightRatio: 1 },
+          startAngleDeg: 180,
+          direction: "clockwise",
+          placement: "over_path",
+        },
+      },
+    };
+    expect(getTextPathLengthPx({ path: closedLayer.text.path, widthPx: 200, heightPx: 100 })).toBeGreaterThan(450);
+    const fitted = fitTextToLayer({
+      layer: closedLayer,
+      value: { text: "AAA\nBBB" },
+      availableWidthPx: 200,
+      availableHeightPx: 100,
+      measure: (text, size) => text.length * size,
+    });
+    expect(fitted.text).toBe("AAA");
+    expect(fitted.trimmed).toBe(false);
+  });
+
+  it("anchors closed ellipse path alignment at the start angle", () => {
+    const closedPath = {
+      type: "closed_ellipse" as const,
+      bounds: { xRatio: 0.5, yRatio: 0.5, widthRatio: 1, heightRatio: 1 },
+      startAngleDeg: 90,
+      direction: "clockwise" as const,
+      placement: "over_path" as const,
+    };
+    expect(getTextPathRenderAttributes({ path: closedPath, align: "left", widthPx: 200, heightPx: 200 })).toMatchObject({
+      textAnchor: "start",
+      startOffset: "0",
+    });
+    expect(getTextPathRenderAttributes({ path: closedPath, align: "center", widthPx: 200, heightPx: 200, textWidthPx: 100 })).toMatchObject({
+      textAnchor: "middle",
+      startOffset: "50%",
+      pathStartAngleDeg: -90,
+    });
+    expect(getTextPathRenderAttributes({ path: closedPath, align: "right", widthPx: 200, heightPx: 200, textWidthPx: 100 })).toMatchObject({
+      textAnchor: "start",
+      startOffset: "0",
+      pathStartAngleDeg: expect.any(Number),
+    });
+    const justified = getTextPathRenderAttributes({ path: closedPath, align: "justified", widthPx: 200, heightPx: 200, textWidthPx: 100, charCount: 5 });
+    expect(justified.textAnchor).toBe("start");
+    expect(justified.startOffset).toBe("0");
+    expect(justified.textLength).toBeCloseTo(522.7, 1);
+    expect(justified.lengthAdjust).toBe("spacing");
+
+    const multiWord = getTextPathRenderAttributes({ path: closedPath, align: "justified", widthPx: 200, heightPx: 200, textWidthPx: 100, charCount: 5, wordCount: 3 });
+    expect(multiWord.wordSpacingPx).toBeCloseTo(176.1, 1);
+    expect(multiWord.textLength).toBeUndefined();
   });
 });
 

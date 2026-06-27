@@ -35,3 +35,11 @@ export const templateParamsSchema = v.object({ id: identifier });
 export const productParamsSchema = v.object({
   productId: v.pipe(v.string(), v.transform(Number), v.number(), v.integer(), v.minValue(1)),
 });
+
+export const shapeCreateSchema = v.object({
+  name: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(120)),
+  svgPathData: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(5000)),
+  type: v.optional(v.picklist(["svg_upload", "polygon"]), "svg_upload"),
+});
+
+export const shapeDeleteParamsSchema = v.object({ id: identifier });

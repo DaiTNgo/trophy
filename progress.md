@@ -2,8 +2,8 @@
 
 ## Current State
 
-**Last Updated:** 2026-06-25
-**Session ID:** customization-fix
+**Last Updated:** 2026-06-27
+**Session ID:** custom-shapes-library
 **Active Feature:** `feat-006 - Cup Customization And Production Artwork`
 
 ## Status
@@ -119,7 +119,27 @@
 - [x] Verified the canvas viewport change with `pnpm --filter admin build`, `openspec validate customization-editor-canvas-viewport --strict`, and `./init.sh`.
 - [x] Fixed Text layer dragging so sample text on the canvas is preview-only/non-selectable and text content remains inspector-only.
 - [x] Fixed Text layer movement drift by storing pointer-down geometry snapshots for layer drag instead of mixing live derived text top with pointer deltas after re-render.
+- [x] Fixed Text layer drag center-Y conversion so the clicked text remains under the pointer while text height stays derived and is not persisted.
 - [x] Verified the Text layer drag fixes with `pnpm --filter admin build` and `./init.sh`.
+- [x] Implemented admin Preview image crop editing for Image Shape uploads: direct drag-to-pan inside clipped shapes, uniform zoom range control, pan range controls, reset crop, and shared cover-crop math.
+- [x] Removed explicit Preview crop options for Zoom, Pan X, and Pan Y; crop editing is now direct on canvas with drag-to-pan and wheel/trackpad uniform zoom.
+- [x] Verified the admin Preview image crop editing pass with `pnpm --filter admin build` and `./init.sh`.
+- [x] Implemented Text Path rendering for admin editor and admin Preview with shared SVG path generation for preset and custom Bezier paths.
+- [x] Added shared test coverage for `getTextPathSvgD`.
+- [x] Verified Text Path rendering with `pnpm --filter @trophy/customization test`, `pnpm --filter @trophy/customization check`, `pnpm --filter admin build`, and `./init.sh`.
+- [x] Fixed admin Preview Image Shape upload crop interaction so uploaded images are manipulated directly on the preview canvas: drag pans the image, wheel/trackpad zoom scales around the pointer, and rendering uses the current uploaded image dimensions/URL instead of stale layer data. Verified with `pnpm --filter admin build`.
+- [x] Updated admin Preview Image Shape crop interaction to support unconstrained movement, scale below cover-fit, four corner resize handles, and shape-only clipping when the image exceeds the shape. Verified with `pnpm --filter admin build`.
+- [x] Made admin Preview background and text layers non-selectable and non-interactive so image crop blocks remain clickable while editing. Verified with `pnpm --filter admin build`.
+- [x] Added admin Preview Edit/View modes: image crop handles show only after selecting an uploaded image in Edit mode, and View mode pans the preview canvas. Mobile uses the same explicit mode switch plus larger selected handles. Verified with `pnpm --filter admin build`.
+- [x] Added admin Preview viewport zoom controls (`-`, percentage input, `+`, `Fit`) matching the admin editor pattern. Zoom and pan are view-only and do not mutate crop values. Verified with `pnpm --filter admin build`.
+- [x] Created OpenSpec change `customization-text-on-closed-path` for Figma-like closed ellipse Text on path authoring from the Blocks panel.
+- [x] Captured the approved scope: closed circle/oval path only, no open arc, no Pen mode, one-line text, inspector-only text editing, canvas resize/start/flip handles, and runtime/export parity.
+- [x] Verified the OpenSpec with `openspec validate customization-text-on-closed-path --strict`.
+- [x] Implemented OpenSpec change `customization-text-on-closed-path` end to end: shared `closed_ellipse` path model/helpers/tests, admin Blocks `Text on path` creation, inspector Start angle/Flip controls, canvas ellipse resize/start handle editing, admin Preview/storefront/backend SVG rendering parity, and all 22 OpenSpec tasks complete.
+- [x] Verified closed ellipse Text on path with `pnpm --filter @trophy/customization test`, `pnpm --filter @trophy/customization check`, `pnpm --filter admin build`, `pnpm --filter router-cf typecheck`, `pnpm --filter router-cf build`, `pnpm --filter backend check`, `pnpm --filter backend build`, `openspec validate customization-text-on-closed-path --strict`, and `./init.sh`.
+- [x] Fixed closed ellipse Text on path alignment semantics to match the start-angle handle: left/center/right now anchor at `startAngle`, justified stretches around the full ellipse path, and placement options are `Text over path`, `Text below path`, and `Text in path`.
+- [x] Centralized path render attributes in `packages/customization` so admin editor, admin Preview, storefront, and backend SVG export share `textAnchor`, `startOffset`, `textLength`, and baseline offset behavior.
+- [x] Verified the alignment/placement fix with `pnpm --filter @trophy/customization test`, `pnpm --filter @trophy/customization check`, `pnpm --filter admin build`, `pnpm --filter router-cf typecheck`, `pnpm --filter router-cf build`, `pnpm --filter backend check`, `pnpm --filter backend build`, `openspec validate customization-text-on-closed-path --strict`, and `./init.sh`.
 - [x] Replaced `packages/customization` block-only contract with editor-model `background`, `layers`, and `formFields`, including Text layer, Image Shape layer, form field, text path, style policy, geometry, crop, validation, text fitting, and shape helper coverage.
 - [x] Rewrote the admin customization template page as an editor workspace with top header, left rail (`Blocks`, `Layers`, `Form`, `Background`), central canvas, right inspector, preview dialog, layer/form separation, background upload/replace/remove, text/image-shape controls, delete undo, shortcuts, and custom path point editing.
 - [x] Updated storefront customization to consume editor-model fields/layers and render text plus clipped image shapes with upload crop controls.
@@ -135,6 +155,26 @@
 - [x] Fixed variant media gallery backdrop closing: added `pointer-events-auto` to gallery overlay (Radix Dialog sets `pointer-events: none` on `<body>`), added `onClick` handler on backdrop to close gallery when clicking outside content.
 - [x] Fixed Escape key handling in gallery: capture-phase `keydown` listener closes gallery + `e.stopPropagation()`/`e.preventDefault()`, guarded FocusModal `onOpenChange` with `!variantGallery` check so Escape closes gallery first, second Escape closes FocusModal.
 - [x] Browser-verified both backdrop click and Escape behaviors on create-product page.
+
+### What's Done This Session
+
+- [x] Removed unused `konva` and `react-konva` dependencies from `apps/admin/package.json` and `apps/storefront/package.json`.
+- [x] Completed brainstorming/design for custom shapes library feature.
+- [x] Wrote design doc `docs/plans/2026-06-27-custom-shapes-library-design.md`.
+- [x] Added `CustomShape` type and `custom_svg` to `ShapeType` in shared package.
+- [x] Added `customShapeId` to `ImageShapeEditorLayer.shape`.
+- [x] Added `getCustomSvgClipPath()` scaling function and `validateSvgPathData()` to shared package.
+- [x] Added `customization_shapes` D1 table to Drizzle schema.
+- [x] Added shapes CRUD API routes (`GET/POST/DELETE /api/customizations/shapes`).
+- [x] Added SVG path scaling in backend SVG export (`scaleSvgPath`, `shapeClipSvg` custom_svg support).
+- [x] Built `ShapeLibraryDialog` component with upload SVG, polygon draw tool, and library grid.
+- [x] Built `PolygonDrawTool` click-to-define polygon vertices on mini canvas.
+- [x] Built `useShapeLibrary` hook for fetching/creating/deleting custom shapes.
+- [x] Updated admin `LeftPanel` Blocks tab to show custom shapes section and "Create custom shape" button.
+- [x] Updated `EditorCanvas` and `PreviewDialog` to resolve `custom_svg` clip-paths via `customShapesMap`.
+- [x] Updated `cssShapeClip()` to support `custom_svg` with `svgPathData`.
+- [x] Updated storefront's `cssShapeClip()` for future custom_svg support.
+- [x] Verified with `pnpm --filter customization test`, `pnpm --filter admin build`, `pnpm --filter backend check`.
 
 ### What's In Progress
 
@@ -245,6 +285,10 @@
 - [x] Backend editor-model routes: `pnpm --filter backend check` and `pnpm --filter backend build`
 - [x] Admin editor UI: `pnpm --filter admin build`
 - [x] Admin Text layer drag fix: `pnpm --filter admin build`
+- [x] Admin Preview image crop editing: `pnpm --filter admin build`
+- [x] Admin Text Path rendering: `pnpm --filter @trophy/customization test`, `pnpm --filter @trophy/customization check`, and `pnpm --filter admin build`
+- [x] Closed ellipse Text on path OpenSpec: `openspec validate customization-text-on-closed-path --strict`
+- [x] Closed ellipse Text on path implementation: `pnpm --filter @trophy/customization test`, `pnpm --filter @trophy/customization check`, `pnpm --filter admin build`, `pnpm --filter router-cf typecheck`, `pnpm --filter router-cf build`, `pnpm --filter backend check`, `pnpm --filter backend build`, `openspec validate customization-text-on-closed-path --strict`, and `./init.sh`
 - [x] Admin canvas viewport OpenSpec: `openspec validate customization-editor-canvas-viewport --strict`
 - [x] Storefront editor runtime: `pnpm --filter router-cf typecheck` and `pnpm --filter router-cf build`
 - [x] Customization editor UI/model OpenSpec: `openspec validate customization-editor-ui-model --strict`
