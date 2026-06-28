@@ -48,7 +48,7 @@ export type ChoiceOption = {
 
 export type TextColorPolicy =
   | { mode: "fixed"; color: string }
-  | { mode: "shopper_selectable"; defaultColor: string; options: ChoiceOption[] };
+  | { mode: "shopper_selectable"; defaultColor: string; options: ChoiceOption[]; allowCustomColor?: boolean };
 
 export type TextFontPolicy =
   | { mode: "fixed"; fontId: string }

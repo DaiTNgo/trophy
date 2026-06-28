@@ -306,8 +306,10 @@ export function useTemplateEditor(editParam: string | null) {
     );
   }
 
-  function deleteSelectedLayer() {
-    const layer = selectedLayer;
+  function deleteSelectedLayer(id?: string) {
+    const layerIdToDelete = typeof id === "string" ? id : selectedLayer?.id;
+    if (!layerIdToDelete) return;
+    const layer = template.layers.find((entry) => entry.id === layerIdToDelete);
     if (!layer) return;
     const field = template.formFields.find((entry) => entry.layerId === layer.id);
     setDeleted({ layer, field, selectedLayerId });
@@ -316,7 +318,9 @@ export function useTemplateEditor(editParam: string | null) {
       layers: current.layers.filter((entry) => entry.id !== layer.id),
       formFields: current.formFields.filter((entry) => entry.layerId !== layer.id),
     }));
-    setSelectedLayerId("");
+    if (selectedLayerId === layer.id) {
+      setSelectedLayerId("");
+    }
     setFlash(`Deleted "${layer.name}".`);
   }
 

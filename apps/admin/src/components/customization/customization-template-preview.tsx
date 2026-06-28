@@ -646,12 +646,62 @@ function PreviewField({
           rows={pathText ? 1 : layer.text.maxLines}
         />
         {layer.text.colorPolicy.mode === "shopper_selectable" ? (
-          <Select
-            label="Color"
-            value={textValue.color ?? layer.text.colorPolicy.defaultColor}
-            options={layer.text.colorPolicy.options.map((option) => option.value)}
-            onChange={(color) => onChange({ ...textValue, color })}
-          />
+          (() => {
+            const policy = layer.text.colorPolicy as Extract<typeof layer.text.colorPolicy, { mode: "shopper_selectable" }>;
+            const currentColor = textValue.color ?? policy.defaultColor;
+            const isPreset = policy.options.some((o) => o.value === currentColor);
+            
+            return (
+              <div>
+                <label className="mb-2 block text-xs font-medium text-ui-fg-muted">Color</label>
+                <div className="flex flex-wrap items-center gap-2">
+                  {policy.options.map((option, index) => {
+                    const isSelected = currentColor === option.value;
+                    return (
+                      <button
+                        key={index}
+                        type="button"
+                        title={option.label || option.value}
+                        className={`size-8 rounded-full border shadow-sm transition-transform ${
+                          isSelected ? "ring-2 ring-ui-fg-interactive ring-offset-1" : "border-ui-border-base hover:scale-110"
+                        }`}
+                        style={{ backgroundColor: option.value }}
+                        onClick={() => onChange({ ...textValue, color: option.value })}
+                      />
+                    );
+                  })}
+                  {policy.allowCustomColor ? (
+                    <div className="ml-1 flex items-center gap-2 border-l border-ui-border-base pl-3">
+                      <div className="relative group" title="Pick custom color">
+                        <input
+                          type="color"
+                          value={currentColor}
+                          onChange={(e) => onChange({ ...textValue, color: e.target.value })}
+                          className="absolute inset-0 size-8 cursor-pointer opacity-0 z-10"
+                        />
+                        <div 
+                          className={`size-8 rounded-full border shadow-sm transition-transform group-hover:scale-110 ${
+                            !isPreset
+                              ? "ring-2 ring-ui-fg-interactive ring-offset-1 border-transparent"
+                              : "border-ui-border-base border-dashed bg-ui-bg-subtle"
+                          }`}
+                          style={{ 
+                            backgroundColor: !isPreset ? currentColor : "transparent"
+                          }}
+                        >
+                          {isPreset && (
+                            <div className="flex size-full items-center justify-center pointer-events-none">
+                              <span className="text-xl leading-none font-medium text-ui-fg-muted mb-0.5">+</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            );
+          })()
         ) : null}
         {layer.text.fontPolicy.mode === "shopper_selectable" ? (
           <Select

@@ -14,7 +14,10 @@ import { normalizeSingleLine, getLayerById } from "./template";
 
 const resolveColor = (policy: TextColorPolicy, selected?: string) => {
   if (policy.mode === "fixed") return policy.color;
-  if (selected && policy.options.some((option) => option.value === selected)) return selected;
+  if (selected) {
+    if (policy.allowCustomColor) return selected;
+    if (policy.options.some((option) => option.value === selected)) return selected;
+  }
   return policy.defaultColor;
 };
 

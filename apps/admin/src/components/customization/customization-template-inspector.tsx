@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   DEFAULT_FONT_FAMILY_OPTIONS,
   DEFAULT_TEXT_COLOR_OPTIONS,
@@ -7,7 +8,6 @@ import {
   type CustomizationTemplate,
   type ImageShapeEditorLayer,
   type TextEditorLayer,
-  type TextPath,
   type VectorPoint,
 } from "@trophy/customization";
 import { Input, NumberInput, PanelTitle, Select, createId, shapeLabel } from "./customization-template-ui";
@@ -184,9 +184,93 @@ function PositionFields({ template, layer, onUpdate, textOnly }: { template: Cus
 }
 
 function TextStyleControls({ layer, onUpdate }: { layer: TextEditorLayer; onUpdate: (updater: (layer: CustomizationLayer) => CustomizationLayer) => void }) {
+  const [pendingColor, setPendingColor] = useState("#2563eb");
+
   return (
     <div className="space-y-2">
       <Select label="Color mode" value={layer.text.colorPolicy.mode} options={["fixed", "shopper_selectable"]} onChange={(mode) => updateText(onUpdate, { colorPolicy: mode === "fixed" ? { mode: "fixed", color: "#111111" } : { mode: "shopper_selectable", defaultColor: "#111111", options: DEFAULT_TEXT_COLOR_OPTIONS } })} />
+      {layer.text.colorPolicy.mode === "fixed" && (
+        <div className="flex items-center gap-2">
+          <input
+            type="color"
+            value={layer.text.colorPolicy.color}
+            onChange={(e) => updateText(onUpdate, { colorPolicy: { mode: "fixed", color: e.target.value } })}
+            className="h-8 w-8 cursor-pointer rounded border border-ui-border-base bg-transparent p-0"
+          />
+          <input
+            type="text"
+            value={layer.text.colorPolicy.color}
+            onChange={(e) => updateText(onUpdate, { colorPolicy: { mode: "fixed", color: e.target.value } })}
+            className="flex-1 rounded-md border border-ui-border-base px-2 py-1 text-sm"
+          />
+        </div>
+      )}
+      {layer.text.colorPolicy.mode === "shopper_selectable" && (
+        <div className="space-y-3 rounded-md border border-ui-border-base bg-ui-bg-subtle p-3">
+          <div>
+            <p className="mb-2 text-xs font-medium text-ui-fg-muted">Preset Colors</p>
+            <div className="flex flex-wrap gap-2">
+              {layer.text.colorPolicy.options.map((option, index) => (
+                <div key={index} className="group relative">
+                  <button
+                    type="button"
+                    title={option.label || option.value}
+                    className={`size-6 rounded-full border ${layer.text.colorPolicy.mode === "shopper_selectable" && layer.text.colorPolicy.defaultColor === option.value ? "ring-2 ring-ui-fg-interactive ring-offset-1" : "border-ui-border-base"}`}
+                    style={{ backgroundColor: option.value }}
+                    onClick={() => updateText(onUpdate, { colorPolicy: { ...(layer.text.colorPolicy as any), defaultColor: option.value } })}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const policy = layer.text.colorPolicy as any;
+                      const nextOptions = policy.options.filter((_: any, i: number) => i !== index);
+                      updateText(onUpdate, { colorPolicy: { ...policy, options: nextOptions, defaultColor: policy.defaultColor === option.value ? nextOptions[0]?.value ?? "#000000" : policy.defaultColor } });
+                    }}
+                    className="absolute -right-1 -top-1 hidden size-4 items-center justify-center rounded-full bg-rose-500 text-[10px] text-white group-hover:flex"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+            <p className="mt-1.5 text-[10px] text-ui-fg-muted">Click a color to set as default.</p>
+            
+            <div className="mt-3 flex items-center gap-2 rounded border border-ui-border-base bg-ui-bg-base p-1">
+              <input
+                type="color"
+                value={pendingColor}
+                onChange={(e) => setPendingColor(e.target.value)}
+                className="size-6 cursor-pointer rounded bg-transparent p-0"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  const policy = layer.text.colorPolicy as any;
+                  if (!policy.options.some((o: any) => o.value === pendingColor)) {
+                    updateText(onUpdate, { colorPolicy: { ...policy, options: [...policy.options, { value: pendingColor }] } });
+                  }
+                }}
+                className="rounded px-2 py-1 text-xs font-medium text-ui-fg-base hover:bg-ui-bg-subtle"
+              >
+                Add Color
+              </button>
+            </div>
+          </div>
+
+          <label className="flex items-center gap-2 text-xs text-ui-fg-muted">
+            <input
+              type="checkbox"
+              checked={layer.text.colorPolicy.allowCustomColor ?? false}
+              onChange={(e) =>
+                updateText(onUpdate, {
+                  colorPolicy: { ...(layer.text.colorPolicy as any), allowCustomColor: e.target.checked },
+                })
+              }
+            />
+            Allow shopper to pick custom color
+          </label>
+        </div>
+      )}
       <Select label="Font mode" value={layer.text.fontPolicy.mode} options={["fixed", "shopper_selectable"]} onChange={(mode) => updateText(onUpdate, { fontPolicy: mode === "fixed" ? { mode: "fixed", fontId: "sans-bold" } : { mode: "shopper_selectable", defaultFontId: "sans-bold", options: DEFAULT_FONT_FAMILY_OPTIONS } })} />
     </div>
   );
@@ -207,10 +291,6 @@ function TextPathControls({
   const customPath = layer.text.path.type === "custom" ? layer.text.path : null;
   return (
     <div className="space-y-2">
-      <Select label="Text path" value={layer.text.path.type} options={["straight", "closed_ellipse"]} onChange={(type) => {
-        const path = defaultPath(type as TextPath["type"]);
-        updateText(onUpdate, { path, maxLines: type === "straight" ? layer.text.maxLines : 1 });
-      }} />
       {layer.text.path.type === "arc_up" || layer.text.path.type === "arc_down" ? (
         <NumberInput
           label="Curve amount"
@@ -308,20 +388,4 @@ function updateText(onUpdate: (updater: (layer: CustomizationLayer) => Customiza
   onUpdate((current) => ({ ...current, text: { ...(current as TextEditorLayer).text, ...patch } }) as CustomizationLayer);
 }
 
-function defaultPath(type: TextPath["type"]): TextPath {
-  if (type === "arc_up") return { type, curveAmount: 0.35 };
-  if (type === "arc_down") return { type, curveAmount: 0.35 };
-  if (type === "circle_top") return { type, radiusRatio: 0.5 };
-  if (type === "circle_bottom") return { type, radiusRatio: 0.5 };
-  if (type === "custom") return { type, points: [] };
-  if (type === "closed_ellipse") {
-    return {
-      type,
-      bounds: { xRatio: 0.5, yRatio: 0.5, widthRatio: 1, heightRatio: 1 },
-      startAngleDeg: 180,
-      direction: "clockwise",
-      placement: "over_path",
-    };
-  }
-  return { type: "straight" };
-}
+

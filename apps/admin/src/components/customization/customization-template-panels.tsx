@@ -110,7 +110,7 @@ export function LeftPanel(props: {
     fieldId: string,
     updater: (field: CustomizationFormField) => CustomizationFormField,
   ) => void;
-  onDelete: () => void;
+  onDelete: (id?: string) => void;
   onUploadBackground: (
     background: import("@trophy/customization").BackgroundAsset,
     file?: File,
@@ -140,6 +140,7 @@ export function LeftPanel(props: {
       {props.activeTab === "form" ? (
         <FormPanel
           template={props.template}
+          selectedLayerId={props.selectedLayerId}
           onSelectLayer={props.onSelectLayer}
           onUpdateField={props.onUpdateField}
           onUpdateTemplate={props.onUpdateTemplate}
@@ -247,7 +248,7 @@ function LayersPanel({
   onUpdateTemplate: (
     updater: (current: CustomizationTemplate) => CustomizationTemplate,
   ) => void;
-  onDelete: () => void;
+  onDelete: (id?: string) => void;
 }) {
   const topFirst = [...template.layers].sort((a, b) => b.zIndex - a.zIndex);
   const [flashId, setFlashId] = useState<string | null>(null);
@@ -380,7 +381,7 @@ function LayersPanel({
             </button>
             <button
               type="button"
-              onClick={onDelete}
+              onClick={() => onDelete(layer.id)}
               className="ml-auto rounded border border-rose-200 p-1 text-rose-600"
             >
               <Trash2 className="size-3" />
@@ -394,11 +395,13 @@ function LayersPanel({
 
 function FormPanel({
   template,
+  selectedLayerId,
   onSelectLayer,
   onUpdateField,
   onUpdateTemplate,
 }: {
   template: CustomizationTemplate;
+  selectedLayerId: string;
   onSelectLayer: (layerId: string) => void;
   onUpdateField: (
     fieldId: string,
@@ -439,25 +442,35 @@ function FormPanel({
   return (
     <div className="space-y-4">
       <PanelTitle title="Form" subtitle="Shopper field order and copy." />
-      {fields.map((field) => (
-        <SortablePanelItem
-          key={field.id}
-          id={field.id}
-          kind="form"
-          items={fields}
-          isFlashing={flashId === field.id}
-          onReorder={reorder}
-        >
-          <div className="flex items-start gap-2">
-            <DragHandle label={`Move ${field.label}`} />
-            <button
-              type="button"
-              onClick={() => onSelectLayer(field.layerId)}
-              className="min-w-0 flex-1 text-left text-sm font-medium"
-            >
-              {field.label}
-            </button>
-          </div>
+      {fields.map((field) => {
+        const layer = template.layers.find((l) => l.id === field.layerId);
+        return (
+          <SortablePanelItem
+            key={field.id}
+            id={field.id}
+            kind="form"
+            items={fields}
+            isSelected={selectedLayerId === field.layerId}
+            isFlashing={flashId === field.id}
+            onReorder={reorder}
+          >
+            <div className="flex items-start gap-2">
+              <DragHandle label={`Move ${field.label}`} />
+              <div className="min-w-0 flex-1">
+                <button
+                  type="button"
+                  onClick={() => onSelectLayer(field.layerId)}
+                  className="block w-full text-left text-sm font-medium"
+                >
+                  {field.label || "Unnamed field"}
+                </button>
+                {layer ? (
+                  <div className="mt-0.5 text-[11px] text-ui-fg-muted">
+                    Block: <span className="font-medium">{layer.name}</span>
+                  </div>
+                ) : null}
+              </div>
+            </div>
           <Input
             value={field.label}
             onChange={(label) =>
@@ -499,7 +512,8 @@ function FormPanel({
             Required
           </label>
         </SortablePanelItem>
-      ))}
+      );
+    })}
     </div>
   );
 }
