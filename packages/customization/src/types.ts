@@ -54,6 +54,14 @@ export type TextFontPolicy =
   | { mode: "fixed"; fontId: string }
   | { mode: "shopper_selectable"; defaultFontId: string; options: ChoiceOption[] };
 
+export type TextFormatPolicy =
+  | { mode: "fixed"; isBold: boolean; isItalic: boolean; isUnderline: boolean }
+  | { mode: "shopper_selectable"; defaultBold: boolean; defaultItalic: boolean; defaultUnderline: boolean };
+
+export type TextAlignPolicy =
+  | { mode: "fixed"; align: TextAlign }
+  | { mode: "shopper_selectable"; defaultAlign: TextAlign };
+
 export type BezierPoint = {
   id: string;
   xRatio: number;
@@ -98,9 +106,10 @@ export type TextEditorLayer = LayerBase & {
     maxLines: number;
     minFontSizePt: number;
     maxFontSizePt: number;
-    align: TextAlign;
+    alignPolicy: TextAlignPolicy;
     colorPolicy: TextColorPolicy;
     fontPolicy: TextFontPolicy;
+    formatPolicy: TextFormatPolicy;
     path: TextPath;
   };
 };
@@ -146,6 +155,10 @@ export type TextFieldValue = {
   text: string;
   color?: string;
   fontId?: string;
+  isBold?: boolean;
+  isItalic?: boolean;
+  isUnderline?: boolean;
+  align?: TextAlign;
 };
 
 export type ImageShapeFieldValue = {
@@ -169,6 +182,9 @@ export type RuntimeTextLayer = {
   fontId: string;
   fontSizePt: number;
   color: string;
+  isBold: boolean;
+  isItalic: boolean;
+  isUnderline: boolean;
   align: TextAlign;
   path: TextPath;
   geometry: LayerGeometry;

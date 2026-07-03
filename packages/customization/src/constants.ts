@@ -10,15 +10,75 @@ export const DEFAULT_TEXT_COLOR_OPTIONS: ChoiceOption[] = [
 ];
 
 export const DEFAULT_FONT_FAMILY_OPTIONS: ChoiceOption[] = [
-  { value: "sans-bold", label: "Sans Bold" },
-  { value: "serif-display", label: "Serif Display" },
-  { value: "script-elegant", label: "Script Elegant" },
+  { value: "sans", label: "Sans" },
+  { value: "serif", label: "Serif" },
+  { value: "script", label: "Script" },
 ];
 
+export const FONT_FAMILIES: Record<string, { regular: string; bold?: string; italic?: string; boldItalic?: string }> = {
+  "sans": {
+    regular: "sans-regular",
+    bold: "sans-bold",
+    italic: "sans-italic",
+    boldItalic: "sans-bold-italic",
+  },
+  "serif": {
+    regular: "serif-regular",
+    bold: "serif-bold",
+    italic: "serif-italic",
+    boldItalic: "serif-bold-italic",
+  },
+  "script": {
+    regular: "script-regular",
+    bold: "script-bold",
+    italic: "script-italic",
+    boldItalic: "script-bold-italic",
+  }
+};
+
+export type DynamicFontFamily = {
+  id: string;
+  name: string;
+  regularAssetId: string | null;
+  boldAssetId: string | null;
+  italicAssetId: string | null;
+  boldItalicAssetId: string | null;
+};
+
+export const resolveFontVariant = (
+  fontFamily: string, 
+  isBold: boolean, 
+  isItalic: boolean,
+  dynamicFonts: DynamicFontFamily[] = []
+) => {
+  const dynamicFont = dynamicFonts.find(f => f.id === fontFamily);
+  if (dynamicFont) {
+    if (isBold && isItalic && dynamicFont.boldItalicAssetId) return dynamicFont.boldItalicAssetId;
+    if (isBold && dynamicFont.boldAssetId) return dynamicFont.boldAssetId;
+    if (isItalic && dynamicFont.italicAssetId) return dynamicFont.italicAssetId;
+    return dynamicFont.regularAssetId || "";
+  }
+
+  const family = FONT_FAMILIES[fontFamily] || FONT_FAMILIES["sans"]!;
+  if (isBold && isItalic && family.boldItalic) return family.boldItalic;
+  if (isBold && family.bold) return family.bold;
+  if (isItalic && family.italic) return family.italic;
+  return family.regular;
+};
+
 export const FONT_FILES: Record<string, string> = {
+  "sans-regular": "SansBold.ttf",
   "sans-bold": "SansBold.ttf",
-  "serif-display": "SerifDisplay.ttf",
-  "script-elegant": "ScriptElegant.ttf",
+  "sans-italic": "SansBold.ttf",
+  "sans-bold-italic": "SansBold.ttf",
+  "serif-regular": "SerifDisplay.ttf",
+  "serif-bold": "SerifDisplay.ttf",
+  "serif-italic": "SerifDisplay.ttf",
+  "serif-bold-italic": "SerifDisplay.ttf",
+  "script-regular": "ScriptElegant.ttf",
+  "script-bold": "ScriptElegant.ttf",
+  "script-italic": "ScriptElegant.ttf",
+  "script-bold-italic": "ScriptElegant.ttf",
 };
 
 export const DEFAULT_TEMPLATE: CustomizationTemplate = {
@@ -62,9 +122,10 @@ export const DEFAULT_TEMPLATE: CustomizationTemplate = {
         maxLines: 1,
         minFontSizePt: 8,
         maxFontSizePt: 18,
-        align: "center",
+        alignPolicy: { mode: "fixed", align: "center" },
         colorPolicy: { mode: "fixed", color: "#111111" },
-        fontPolicy: { mode: "fixed", fontId: "sans-bold" },
+        fontPolicy: { mode: "fixed", fontId: "sans" },
+        formatPolicy: { mode: "fixed", isBold: false, isItalic: false, isUnderline: false },
         path: { type: "straight" },
       },
     },
@@ -81,7 +142,7 @@ export const DEFAULT_TEMPLATE: CustomizationTemplate = {
         maxLines: 1,
         minFontSizePt: 7,
         maxFontSizePt: 16,
-        align: "center",
+        alignPolicy: { mode: "fixed", align: "center" },
         colorPolicy: {
           mode: "shopper_selectable",
           defaultColor: "#111111",
@@ -89,9 +150,10 @@ export const DEFAULT_TEMPLATE: CustomizationTemplate = {
         },
         fontPolicy: {
           mode: "shopper_selectable",
-          defaultFontId: "sans-bold",
+          defaultFontId: "sans",
           options: DEFAULT_FONT_FAMILY_OPTIONS,
         },
+        formatPolicy: { mode: "fixed", isBold: false, isItalic: false, isUnderline: false },
         path: {
           type: "closed_ellipse",
           bounds: { xRatio: 0.5, yRatio: 0.5, widthRatio: 1, heightRatio: 1 },

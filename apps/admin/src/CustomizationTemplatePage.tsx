@@ -7,9 +7,20 @@ import { Inspector } from "./components/customization/customization-template-ins
 import { LeftPanel, Rail } from "./components/customization/customization-template-panels";
 import { PreviewDialog } from "./components/customization/customization-template-preview";
 
+import { useBrandAssets } from "./hooks/use-brand-assets";
+
 export default function CustomizationTemplatePage() {
   const [searchParams] = useSearchParams();
   const editParam = searchParams.get("edit");
+  const { fonts } = useBrandAssets();
+  const dynamicFonts = fonts.map(f => ({
+    id: f.id,
+    name: f.name,
+    regularAssetId: (f as any).regularAssetId || null,
+    boldAssetId: (f as any).boldAssetId || null,
+    italicAssetId: (f as any).italicAssetId || null,
+    boldItalicAssetId: (f as any).boldItalicAssetId || null,
+  }));
 
   const {
     template,
@@ -85,6 +96,7 @@ export default function CustomizationTemplatePage() {
           pathEditingLayerId={pathEditingLayerId}
           isDrawing={isDrawing}
           pendingVectorPoints={pendingVectorPoints}
+          dynamicFonts={dynamicFonts}
           onSelectLayer={setSelectedLayerId}
           onPathEditingLayerChange={setPathEditingLayerId}
           onUpdateLayer={updateLayer}

@@ -7,10 +7,14 @@ import type {
   TextEditorLayer,
   TextFieldValue,
   TextFontPolicy,
+  TextFormatPolicy,
+  TextAlignPolicy,
+  TextAlign,
   TextPath,
 } from "./types";
 import { clamp } from "./geometry";
 import { normalizeSingleLine, getLayerById } from "./template";
+import { resolveFontVariant, type DynamicFontFamily } from "./constants";
 
 const resolveColor = (policy: TextColorPolicy, selected?: string) => {
   if (policy.mode === "fixed") return policy.color;
@@ -27,10 +31,26 @@ const resolveFont = (policy: TextFontPolicy, selected?: string) => {
   return policy.defaultFontId;
 };
 
+const resolveFormat = (policy: TextFormatPolicy, selected?: { isBold?: boolean; isItalic?: boolean; isUnderline?: boolean }) => {
+  if (policy.mode === "fixed") return { isBold: policy.isBold, isItalic: policy.isItalic, isUnderline: policy.isUnderline };
+  return {
+    isBold: selected?.isBold ?? policy.defaultBold,
+    isItalic: selected?.isItalic ?? policy.defaultItalic,
+    isUnderline: selected?.isUnderline ?? policy.defaultUnderline,
+  };
+};
+
+const resolveAlign = (policy: TextAlignPolicy, selected?: TextAlign) => {
+  if (policy.mode === "fixed") return policy.align;
+  return selected ?? policy.defaultAlign;
+};
+
 export const createDefaultTextValue = (layer: TextEditorLayer): TextFieldValue => ({
   text: layer.text.sampleText,
   color: resolveColor(layer.text.colorPolicy),
   fontId: resolveFont(layer.text.fontPolicy),
+  ...resolveFormat(layer.text.formatPolicy),
+  align: resolveAlign(layer.text.alignPolicy),
 });
 
 export const createDefaultFormValues = (template: CustomizationTemplate): CustomizationFormValues => {
@@ -49,6 +69,12 @@ const getTextValue = (layer: TextEditorLayer, value: CustomizationFieldValue | u
       text: typeof value.text === "string" ? value.text : "",
       color: typeof value.color === "string" ? value.color : resolveColor(layer.text.colorPolicy),
       fontId: typeof value.fontId === "string" ? value.fontId : resolveFont(layer.text.fontPolicy),
+      ...resolveFormat(layer.text.formatPolicy, {
+        isBold: typeof value.isBold === "boolean" ? value.isBold : undefined,
+        isItalic: typeof value.isItalic === "boolean" ? value.isItalic : undefined,
+        isUnderline: typeof value.isUnderline === "boolean" ? value.isUnderline : undefined,
+      }),
+      align: typeof value.align === "string" ? value.align as TextAlign : resolveAlign(layer.text.alignPolicy),
     };
   }
   return createDefaultTextValue(layer);
@@ -131,7 +157,7 @@ export const getTextPathRenderAttributes = ({
   wordCount,
 }: {
   path: TextPath;
-  align: TextEditorLayer["text"]["align"];
+  align: TextAlign;
   widthPx: number;
   heightPx: number;
   textWidthPx?: number;
@@ -309,12 +335,14 @@ export const fitTextToLayer = ({
   availableWidthPx,
   availableHeightPx,
   measure,
+  dynamicFonts = [],
 }: {
   layer: TextEditorLayer;
   value: TextFieldValue;
   availableWidthPx: number;
   availableHeightPx?: number;
-  measure?: (text: string, fontSizePt: number, fontId: string) => number;
+  measure?: (text: string, size: number, fontId: string) => number;
+  dynamicFonts?: DynamicFontFamily[];
 }) => {
   const maxLines = isPathText(layer) ? 1 : Math.max(1, Math.round(layer.text.maxLines));
   const lines = value.text
@@ -323,8 +351,11 @@ export const fitTextToLayer = ({
     .slice(0, maxLines)
     .map((line) => (maxLines === 1 ? normalizeSingleLine(line) : line.trim()))
     .filter(Boolean);
-  const fontId = resolveFont(layer.text.fontPolicy, value.fontId);
+  const baseFontId = resolveFont(layer.text.fontPolicy, value.fontId);
   const color = resolveColor(layer.text.colorPolicy, value.color);
+  const { isBold, isItalic, isUnderline } = resolveFormat(layer.text.formatPolicy, value);
+  const align = resolveAlign(layer.text.alignPolicy, value.align);
+  const fontId = resolveFontVariant(baseFontId, isBold ?? false, isItalic ?? false, dynamicFonts);
   const text = lines.join("\n");
   const measureText = measure ?? ((line: string, size: number) => line.length * size * 0.55);
   const width = Math.max(
@@ -360,7 +391,7 @@ export const fitTextToLayer = ({
   const exactFontSize = best ?? layer.text.minFontSizePt;
   const fontSizePt = Math.floor(exactFontSize * 100) / 100;
   if (fitsAt(fontSizePt, text)) {
-    return { text, fontId, color, fontSizePt, align: layer.text.align, trimmed: false };
+    return { text, fontId, color, fontSizePt, align, isBold: isBold ?? false, isItalic: isItalic ?? false, isUnderline: isUnderline ?? false, trimmed: false };
   }
 
   const fittedLines = text.split("\n").map((line) => {
@@ -376,7 +407,10 @@ export const fitTextToLayer = ({
     fontId,
     color,
     fontSizePt,
-    align: layer.text.align,
+    align,
+    isBold: isBold ?? false,
+    isItalic: isItalic ?? false,
+    isUnderline: isUnderline ?? false,
     trimmed: true,
   };
 };

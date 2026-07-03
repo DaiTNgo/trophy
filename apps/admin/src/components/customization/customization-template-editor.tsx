@@ -30,6 +30,7 @@ export function EditorCanvas({
   pathEditingLayerId,
   isDrawing,
   pendingVectorPoints,
+  dynamicFonts = [],
   onSelectLayer,
   onPathEditingLayerChange,
   onUpdateLayer,
@@ -44,6 +45,7 @@ export function EditorCanvas({
   pathEditingLayerId: string;
   isDrawing: boolean;
   pendingVectorPoints: VectorPoint[];
+  dynamicFonts?: import("@trophy/customization").DynamicFontFamily[];
   onSelectLayer: (layerId: string) => void;
   onPathEditingLayerChange: (layerId: string) => void;
   onUpdateLayer: (layerId: string, updater: (layer: CustomizationLayer) => CustomizationLayer) => void;
@@ -156,7 +158,7 @@ export function EditorCanvas({
         </div>
       </div>
       <ShapeClipPaths layers={template.layers} />
-      <FontLoader layers={template.layers} />
+      <FontLoader layers={template.layers} dynamicFonts={dynamicFonts} />
       <div
         ref={workspaceRef}
         className={`relative min-h-0 flex-1 overflow-hidden ${mode === "view" ? "cursor-grab active:cursor-grabbing" : "cursor-default"}`}
@@ -499,7 +501,8 @@ function EditorTextLayer({
   const pathId = `editor_text_path_${layer.id}`;
   const textWidthPx = layer.text.sampleText.length * Math.max(8, layer.text.maxFontSizePt) * 0.55;
   const wordCount = layer.text.sampleText.trim() ? layer.text.sampleText.trim().split(/\s+/).length : 0;
-  const pathAttrs = getTextPathRenderAttributes({ path: layer.text.path, align: layer.text.align, widthPx, heightPx, textWidthPx, charCount: layer.text.sampleText.length, wordCount });
+  const align = layer.text.alignPolicy.mode === "fixed" ? layer.text.alignPolicy.align : layer.text.alignPolicy.defaultAlign;
+  const pathAttrs = getTextPathRenderAttributes({ path: layer.text.path, align, widthPx, heightPx, textWidthPx, charCount: layer.text.sampleText.length, wordCount });
   const renderPath = pathAttrs.pathStartAngleDeg != null
     ? { ...layer.text.path, startAngleDeg: pathAttrs.pathStartAngleDeg }
     : layer.text.path;

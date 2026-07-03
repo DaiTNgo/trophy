@@ -415,7 +415,14 @@ function PreviewTextLayer({
       <defs>
         <path id={pathId} d={pathD} />
       </defs>
-      <text fontSize={layer.fontSizePt} fontFamily={layer.fontId} fill={layer.color} textAnchor={pathAttrs.textAnchor} dominantBaseline="middle" textLength={pathAttrs.textLength} lengthAdjust={pathAttrs.lengthAdjust} wordSpacing={pathAttrs.wordSpacingPx ?? 0}>
+      <text 
+        fontSize={layer.fontSizePt} 
+        fontFamily={layer.fontId} 
+        fontWeight={layer.isBold ? "bold" : "normal"} 
+        fontStyle={layer.isItalic ? "italic" : "normal"} 
+        textDecoration={layer.isUnderline ? "underline" : "none"} 
+        fill={layer.color} textAnchor={pathAttrs.textAnchor} dominantBaseline="middle" textLength={pathAttrs.textLength} lengthAdjust={pathAttrs.lengthAdjust} wordSpacing={pathAttrs.wordSpacingPx ?? 0}
+      >
         <textPath id={`export-textpath-${layer.id}`} href={`#${pathId}`} startOffset={pathAttrs.startOffset}>
           {pathAttrs.dy ? <tspan dy={pathAttrs.dy}>{layer.text}</tspan> : layer.text}
         </textPath>
@@ -709,6 +716,48 @@ function PreviewField({
             value={textValue.fontId ?? layer.text.fontPolicy.defaultFontId}
             options={layer.text.fontPolicy.options.map((option) => option.value)}
             onChange={(fontId) => onChange({ ...textValue, fontId })}
+          />
+        ) : null}
+        {layer.text.formatPolicy.mode === "shopper_selectable" ? (
+          <div key="format-toolbar">
+            <label className="mb-2 block text-xs font-medium text-ui-fg-muted">Format</label>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => onChange({ ...textValue, isBold: !(textValue.isBold ?? (layer.text.formatPolicy as any).defaultBold) })}
+                className={`flex size-8 items-center justify-center rounded border font-bold transition-colors ${
+                  (textValue.isBold ?? (layer.text.formatPolicy as any).defaultBold) ? "bg-ui-bg-interactive text-ui-fg-on-inverted" : "bg-ui-bg-base hover:bg-ui-bg-subtle"
+                }`}
+              >
+                B
+              </button>
+              <button
+                type="button"
+                onClick={() => onChange({ ...textValue, isItalic: !(textValue.isItalic ?? (layer.text.formatPolicy as any).defaultItalic) })}
+                className={`flex size-8 items-center justify-center rounded border italic transition-colors ${
+                  (textValue.isItalic ?? (layer.text.formatPolicy as any).defaultItalic) ? "bg-ui-bg-interactive text-ui-fg-on-inverted" : "bg-ui-bg-base hover:bg-ui-bg-subtle"
+                }`}
+              >
+                I
+              </button>
+              <button
+                type="button"
+                onClick={() => onChange({ ...textValue, isUnderline: !(textValue.isUnderline ?? (layer.text.formatPolicy as any).defaultUnderline) })}
+                className={`flex size-8 items-center justify-center rounded border underline transition-colors ${
+                  (textValue.isUnderline ?? (layer.text.formatPolicy as any).defaultUnderline) ? "bg-ui-bg-interactive text-ui-fg-on-inverted" : "bg-ui-bg-base hover:bg-ui-bg-subtle"
+                }`}
+              >
+                U
+              </button>
+            </div>
+          </div>
+        ) : null}
+        {layer.text.alignPolicy.mode === "shopper_selectable" ? (
+          <Select
+            label="Alignment"
+            value={textValue.align ?? (layer.text.alignPolicy as any).defaultAlign}
+            options={["left", "center", "right", "justified"]}
+            onChange={(align) => onChange({ ...textValue, align: align as import("@trophy/customization").TextAlign })}
           />
         ) : null}
       </div>

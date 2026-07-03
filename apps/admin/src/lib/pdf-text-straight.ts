@@ -21,6 +21,7 @@ export interface DrawStraightTextOptions {
   fontSizePt: number;
   color: string;           // hex color
   align: TextAlign;
+  isUnderline: boolean;
   /** Frame left edge in PDF coords (x) */
   frameX: number;
   /** Frame top edge in PDF coords (y, bottom-up) — top of first line */
@@ -30,7 +31,7 @@ export interface DrawStraightTextOptions {
 }
 
 export function drawStraightText(opts: DrawStraightTextOptions) {
-  const { page, embeddedFont, text, fontSizePt, color: colorHex, align, frameX, frameTopY, frameW } = opts;
+  const { page, embeddedFont, text, fontSizePt, color: colorHex, align, isUnderline, frameX, frameTopY, frameW } = opts;
 
   const lines = text.split("\n");
   const lineHeight = fontSizePt * 1.35;
@@ -62,11 +63,21 @@ export function drawStraightText(opts: DrawStraightTextOptions) {
       // Justified: distribute word spacing to fill the frame width.
       // pdf-lib drawText does not support word-spacing natively,
       // so we draw word-by-word with computed gaps.
-      drawJustifiedLine(page, embeddedFont, line, fontSizePt, color, frameX, baselineY, frameW);
+      drawJustifiedLine(page, embeddedFont, line, fontSizePt, color, frameX, baselineY, frameW, isUnderline);
       continue;
     }
     // left / last-line justified / single-line justified
     page.drawText(line, { x, y: baselineY, size: fontSizePt, font: embeddedFont, color });
+    
+    if (isUnderline) {
+      const textW = embeddedFont.widthOfTextAtSize(line, fontSizePt);
+      page.drawLine({
+        start: { x, y: baselineY - fontSizePt * 0.1 },
+        end: { x: x + textW, y: baselineY - fontSizePt * 0.1 },
+        thickness: Math.max(1, fontSizePt * 0.05),
+        color,
+      });
+    }
   }
 }
 
@@ -79,10 +90,20 @@ function drawJustifiedLine(
   frameX: number,
   baselineY: number,
   frameW: number,
+  isUnderline: boolean,
 ) {
   const words = line.split(" ").filter(Boolean);
   if (words.length <= 1) {
     page.drawText(line, { x: frameX, y: baselineY, size: fontSizePt, font: embeddedFont, color });
+    if (isUnderline) {
+      const textW = embeddedFont.widthOfTextAtSize(line, fontSizePt);
+      page.drawLine({
+        start: { x: frameX, y: baselineY - fontSizePt * 0.1 },
+        end: { x: frameX + textW, y: baselineY - fontSizePt * 0.1 },
+        thickness: Math.max(1, fontSizePt * 0.05),
+        color,
+      });
+    }
     return;
   }
   const totalWordW = words.reduce((sum, w) => sum + embeddedFont.widthOfTextAtSize(w, fontSizePt), 0);
@@ -91,5 +112,13 @@ function drawJustifiedLine(
   for (const word of words) {
     page.drawText(word, { x, y: baselineY, size: fontSizePt, font: embeddedFont, color });
     x += embeddedFont.widthOfTextAtSize(word, fontSizePt) + gap;
+  }
+  if (isUnderline) {
+    page.drawLine({
+      start: { x: frameX, y: baselineY - fontSizePt * 0.1 },
+      end: { x: frameX + frameW, y: baselineY - fontSizePt * 0.1 },
+      thickness: Math.max(1, fontSizePt * 0.05),
+      color,
+    });
   }
 }

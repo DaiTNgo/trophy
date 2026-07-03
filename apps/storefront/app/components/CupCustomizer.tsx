@@ -32,7 +32,13 @@ function getUploadToken() {
   return token;
 }
 
-export default function CupCustomizer({ template: templateProp }: { template?: CustomizationTemplate } = {}) {
+export default function CupCustomizer({ 
+  template: templateProp,
+  dynamicFonts = []
+}: { 
+  template?: CustomizationTemplate;
+  dynamicFonts?: import("@trophy/customization").DynamicFontFamily[];
+} = {}) {
   const template = templateProp ?? DEFAULT_TEMPLATE;
   const [values, setValues] = useState<CustomizationFormValues>(() => createDefaultFormValues(template));
   const [uploadingFieldId, setUploadingFieldId] = useState("");
@@ -40,8 +46,8 @@ export default function CupCustomizer({ template: templateProp }: { template?: C
 
   const validation = useMemo(() => validateCustomizationValues({ template, values }), [template, values]);
   const design = useMemo(
-    () => buildDesignFromForm({ template, values, designId: "storefront_preview" }),
-    [template, values],
+    () => buildDesignFromForm({ template, values, designId: "storefront_preview", dynamicFonts }),
+    [template, values, dynamicFonts],
   );
 
   function updateValue(fieldId: string, value: CustomizationFieldValue) {
@@ -110,7 +116,7 @@ export default function CupCustomizer({ template: templateProp }: { template?: C
 
         <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(420px,0.8fr)]">
           <section className="rounded-[34px] border border-black/5 bg-white p-5 shadow-[0_24px_70px_rgba(35,40,36,0.08)]">
-            <PreviewCanvas template={template} layers={design.layers} />
+            <PreviewCanvas template={template} layers={design.layers} dynamicFonts={dynamicFonts} />
             <p className="mt-4 text-center text-xs text-slate-400">
               Preview only. The visible result is what will be produced.
             </p>
@@ -168,28 +174,48 @@ export default function CupCustomizer({ template: templateProp }: { template?: C
 
 import { FONT_FILES } from "@trophy/customization";
 
-function FontLoader({ layers }: { layers: RuntimeLayer[] }) {
-  const fontIds = Array.from(new Set(layers.filter((l): l is Extract<RuntimeLayer, { type: "text" }> => l.type === "text" && !!l.fontId).map(l => l.fontId)));
+function FontLoader({ layers, dynamicFonts = [] }: { layers: RuntimeLayer[]; dynamicFonts?: import("@trophy/customization").DynamicFontFamily[] }) {
+  const fontFamilies = Array.from(new Set(layers.filter((l): l is Extract<RuntimeLayer, { type: "text" }> => l.type === "text" && !!l.fontId).map(l => l.fontId)));
 
   return (
     <>
-      {fontIds.map((fontId) => {
-        const file = FONT_FILES[fontId];
-        if (!file) return null;
-        return (
-          <style key={fontId} dangerouslySetInnerHTML={{ __html: `
-            @font-face {
-              font-family: '${fontId}';
-              src: url('${BACKEND_URL}/fonts/${file}') format('truetype');
-            }
-          `}} />
-        );
+      {fontFamilies.map((familyId) => {
+        const dynamicFont = dynamicFonts.find(f => f.id === familyId);
+        if (dynamicFont) {
+          const variants = [];
+          if (dynamicFont.regularAssetId) variants.push({ variantId: dynamicFont.regularAssetId, assetId: dynamicFont.regularAssetId });
+          if (dynamicFont.boldAssetId) variants.push({ variantId: dynamicFont.boldAssetId, assetId: dynamicFont.boldAssetId });
+          if (dynamicFont.italicAssetId) variants.push({ variantId: dynamicFont.italicAssetId, assetId: dynamicFont.italicAssetId });
+          if (dynamicFont.boldItalicAssetId) variants.push({ variantId: dynamicFont.boldItalicAssetId, assetId: dynamicFont.boldItalicAssetId });
+          return variants.map(v => (
+            <style key={v.variantId} dangerouslySetInnerHTML={{ __html: `
+              @font-face {
+                font-family: '${v.variantId}';
+                src: url('${BACKEND_URL}/api/brand-assets/fonts/file/${v.assetId}') format('truetype');
+              }
+            `}} />
+          ));
+        }
+
+        return ["regular", "bold", "italic", "bold-italic"].map(weight => {
+          const variantId = `${familyId}-${weight}`;
+          const file = FONT_FILES[variantId];
+          if (!file) return null;
+          return (
+            <style key={variantId} dangerouslySetInnerHTML={{ __html: `
+              @font-face {
+                font-family: '${variantId}';
+                src: url('${BACKEND_URL}/fonts/${file}') format('truetype');
+              }
+            `}} />
+          );
+        });
       })}
     </>
   );
 }
 
-function PreviewCanvas({ template, layers }: { template: CustomizationTemplate; layers: RuntimeLayer[] }) {
+function PreviewCanvas({ template, layers, dynamicFonts = [] }: { template: CustomizationTemplate; layers: RuntimeLayer[]; dynamicFonts?: import("@trophy/customization").DynamicFontFamily[] }) {
   const background = template.background;
   const width = background?.widthPx ?? 900;
   const height = background?.heightPx ?? 900;
@@ -197,7 +223,7 @@ function PreviewCanvas({ template, layers }: { template: CustomizationTemplate; 
 
   return (
     <div className="overflow-auto rounded-[28px] bg-stone-100 p-4">
-      <FontLoader layers={layers} />
+      <FontLoader layers={layers} dynamicFonts={dynamicFonts} />
       <div className="relative mx-auto bg-white shadow" style={{ width: width * scale, height: height * scale }}>
         {background ? <img src={background.previewUrl} alt="" className="absolute inset-0 h-full w-full object-fill" /> : null}
         {[...layers].sort((a, b) => a.zIndex - b.zIndex).map((layer) => {
@@ -243,7 +269,14 @@ function PreviewText({ layer, width, height, scale }: { layer: Extract<RuntimeLa
         <defs>
           <path id={pathId} d={pathD} />
         </defs>
-        <text fontSize={layer.fontSizePt} fontFamily={layer.fontId} fill={layer.color} textAnchor={pathAttrs.textAnchor} dominantBaseline="middle" textLength={pathAttrs.textLength} lengthAdjust={pathAttrs.lengthAdjust} wordSpacing={pathAttrs.wordSpacingPx ?? 0}>
+        <text 
+          fontSize={layer.fontSizePt} 
+          fontFamily={layer.fontId} 
+          fontWeight={layer.isBold ? "bold" : "normal"} 
+          fontStyle={layer.isItalic ? "italic" : "normal"} 
+          textDecoration={layer.isUnderline ? "underline" : "none"} 
+          fill={layer.color} textAnchor={pathAttrs.textAnchor} dominantBaseline="middle" textLength={pathAttrs.textLength} lengthAdjust={pathAttrs.lengthAdjust} wordSpacing={pathAttrs.wordSpacingPx ?? 0}
+        >
           <textPath id={`export-textpath-${layer.id}`} href={`#${pathId}`} startOffset={pathAttrs.startOffset}>
             {pathAttrs.dy ? <tspan dy={pathAttrs.dy}>{layer.text}</tspan> : layer.text}
           </textPath>

@@ -54,6 +54,8 @@ function CanvasInspector({ template, onUpdateTemplate }: { template: Customizati
   );
 }
 
+import { useBrandAssets } from "../../hooks/use-brand-assets";
+
 function TextInspector({
   template,
   layer,
@@ -68,19 +70,30 @@ function TextInspector({
   onUpdate: (updater: (layer: CustomizationLayer) => CustomizationLayer) => void;
 }) {
   const isClosedPath = layer.text.path.type === "closed_ellipse";
+  const { colors, fonts } = useBrandAssets();
+
+  // Map dynamic fonts/colors to the expected Select options format
+  const dynamicColorOptions = [
+    ...DEFAULT_TEXT_COLOR_OPTIONS,
+    ...colors.map(c => ({ value: c.hexCode, label: c.name }))
+  ];
+  const dynamicFontOptions = [
+    ...DEFAULT_FONT_FAMILY_OPTIONS,
+    ...fonts.map(f => ({ value: f.id, label: f.name }))
+  ];
+
   return (
     <div className="space-y-5">
       <PanelTitle title="Text" subtitle={layer.name} />
       <LayerName layer={layer} onUpdate={onUpdate} />
       <PositionFields template={template} layer={layer} onUpdate={onUpdate} textOnly />
       <Input value={layer.text.sampleText} onChange={(sampleText) => onUpdate((current) => ({ ...current, text: { ...(current as TextEditorLayer).text, sampleText } }) as CustomizationLayer)} />
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-3 gap-2">
         <NumberInput label="Max lines" value={isClosedPath ? 1 : layer.text.maxLines} disabled={isClosedPath} onChange={(maxLines) => updateText(onUpdate, { maxLines: layer.text.path.type === "straight" ? Math.max(1, Math.round(maxLines)) : 1 })} />
         <NumberInput label="Min font" value={layer.text.minFontSizePt} onChange={(minFontSizePt) => updateText(onUpdate, { minFontSizePt })} />
         <NumberInput label="Max font" value={layer.text.maxFontSizePt} onChange={(maxFontSizePt) => updateText(onUpdate, { maxFontSizePt })} />
-        <Select label="Align" value={layer.text.align} options={["left", "center", "right", "justified"]} onChange={(align) => updateText(onUpdate, { align: align as TextEditorLayer["text"]["align"] })} />
       </div>
-      <TextStyleControls layer={layer} onUpdate={onUpdate} />
+      <TextStyleControls layer={layer} onUpdate={onUpdate} colorOptions={dynamicColorOptions} fontOptions={dynamicFontOptions} />
       <TextPathControls layer={layer} pathEditing={pathEditing} onPathEditingChange={onPathEditingChange} onUpdate={onUpdate} />
     </div>
   );
@@ -183,12 +196,32 @@ function PositionFields({ template, layer, onUpdate, textOnly }: { template: Cus
   );
 }
 
-function TextStyleControls({ layer, onUpdate }: { layer: TextEditorLayer; onUpdate: (updater: (layer: CustomizationLayer) => CustomizationLayer) => void }) {
+function TextStyleControls({ 
+  layer, 
+  onUpdate,
+  colorOptions = DEFAULT_TEXT_COLOR_OPTIONS,
+  fontOptions = DEFAULT_FONT_FAMILY_OPTIONS
+}: { 
+  layer: TextEditorLayer; 
+  onUpdate: (updater: (layer: CustomizationLayer) => CustomizationLayer) => void;
+  colorOptions?: { value: string; label: string }[];
+  fontOptions?: { value: string; label: string }[];
+}) {
   const [pendingColor, setPendingColor] = useState("#2563eb");
 
   return (
-    <div className="space-y-2">
-      <Select label="Color mode" value={layer.text.colorPolicy.mode} options={["fixed", "shopper_selectable"]} onChange={(mode) => updateText(onUpdate, { colorPolicy: mode === "fixed" ? { mode: "fixed", color: "#111111" } : { mode: "shopper_selectable", defaultColor: "#111111", options: DEFAULT_TEXT_COLOR_OPTIONS } })} />
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <Select 
+          label="Color policy" 
+          value={layer.text.colorPolicy.mode} 
+          options={["fixed", "shopper_selectable"]} 
+          onChange={(mode) => updateText(onUpdate, { 
+            colorPolicy: mode === "fixed" 
+              ? { mode: "fixed", color: "#111111" } 
+              : { mode: "shopper_selectable", defaultColor: "#111111", options: colorOptions } 
+          })} 
+        />
       {layer.text.colorPolicy.mode === "fixed" && (
         <div className="flex items-center gap-2">
           <input
@@ -271,7 +304,40 @@ function TextStyleControls({ layer, onUpdate }: { layer: TextEditorLayer; onUpda
           </label>
         </div>
       )}
-      <Select label="Font mode" value={layer.text.fontPolicy.mode} options={["fixed", "shopper_selectable"]} onChange={(mode) => updateText(onUpdate, { fontPolicy: mode === "fixed" ? { mode: "fixed", fontId: "sans-bold" } : { mode: "shopper_selectable", defaultFontId: "sans-bold", options: DEFAULT_FONT_FAMILY_OPTIONS } })} />
+      </div>
+      <div className="space-y-2">
+        <Select 
+          label="Font policy" 
+          value={layer.text.fontPolicy.mode} 
+          options={["fixed", "shopper_selectable"]} 
+          onChange={(mode) => updateText(onUpdate, { 
+            fontPolicy: mode === "fixed" 
+              ? { mode: "fixed", fontId: "sans" } 
+              : { mode: "shopper_selectable", defaultFontId: "sans", options: fontOptions } 
+          })} 
+        />
+        {layer.text.fontPolicy.mode === "fixed" && (
+          <Select 
+            label="Font" 
+            value={layer.text.fontPolicy.fontId} 
+            options={fontOptions} 
+            onChange={(fontId) => updateText(onUpdate, { fontPolicy: { mode: "fixed", fontId } })} 
+          />
+        )}
+      </div>
+      <div className="space-y-2 pt-2 border-t border-ui-border-base">
+        <Select label="Format policy" value={layer.text.formatPolicy.mode} options={["fixed", "shopper_selectable"]} onChange={(mode) => updateText(onUpdate, { formatPolicy: mode === "fixed" ? { mode: "fixed", isBold: false, isItalic: false, isUnderline: false } : { mode: "shopper_selectable", defaultBold: false, defaultItalic: false, defaultUnderline: false } })} />
+        <div className="flex items-center gap-4 rounded-md border border-ui-border-base p-2 bg-ui-bg-subtle">
+           <label className="flex items-center gap-1.5 text-sm font-medium"><input type="checkbox" checked={layer.text.formatPolicy.mode === "fixed" ? layer.text.formatPolicy.isBold : layer.text.formatPolicy.defaultBold} onChange={(e) => updateText(onUpdate, { formatPolicy: { ...layer.text.formatPolicy, ...(layer.text.formatPolicy.mode === "fixed" ? { isBold: e.target.checked } : { defaultBold: e.target.checked }) } as any })} className="rounded" /> B</label>
+           <label className="flex items-center gap-1.5 text-sm font-medium italic"><input type="checkbox" checked={layer.text.formatPolicy.mode === "fixed" ? layer.text.formatPolicy.isItalic : layer.text.formatPolicy.defaultItalic} onChange={(e) => updateText(onUpdate, { formatPolicy: { ...layer.text.formatPolicy, ...(layer.text.formatPolicy.mode === "fixed" ? { isItalic: e.target.checked } : { defaultItalic: e.target.checked }) } as any })} className="rounded" /> I</label>
+           <label className="flex items-center gap-1.5 text-sm font-medium underline"><input type="checkbox" checked={layer.text.formatPolicy.mode === "fixed" ? layer.text.formatPolicy.isUnderline : layer.text.formatPolicy.defaultUnderline} onChange={(e) => updateText(onUpdate, { formatPolicy: { ...layer.text.formatPolicy, ...(layer.text.formatPolicy.mode === "fixed" ? { isUnderline: e.target.checked } : { defaultUnderline: e.target.checked }) } as any })} className="rounded" /> U</label>
+        </div>
+        {layer.text.formatPolicy.mode === "shopper_selectable" && <p className="text-[10px] text-ui-fg-muted">Checkboxes set the default state for shoppers.</p>}
+      </div>
+      <div className="space-y-2 pt-2 border-t border-ui-border-base">
+        <Select label="Align policy" value={layer.text.alignPolicy.mode} options={["fixed", "shopper_selectable"]} onChange={(mode) => updateText(onUpdate, { alignPolicy: mode === "fixed" ? { mode: "fixed", align: "center" } : { mode: "shopper_selectable", defaultAlign: "center" } })} />
+        <Select label="Default align" value={layer.text.alignPolicy.mode === "fixed" ? layer.text.alignPolicy.align : layer.text.alignPolicy.defaultAlign} options={["left", "center", "right", "justified"]} onChange={(align) => updateText(onUpdate, { alignPolicy: { ...layer.text.alignPolicy, ...(layer.text.alignPolicy.mode === "fixed" ? { align } : { defaultAlign: align }) } as any })} />
+      </div>
     </div>
   );
 }

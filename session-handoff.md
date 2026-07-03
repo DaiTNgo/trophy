@@ -1,16 +1,12 @@
 # Session Handoff
 
-## Current Status
-- Finished implementing OpenSpec change `pdf-background-vector-export`.
-- All tests and builds pass. `./init.sh` runs successfully.
-- Code has been fully implemented, and `feature_list.json` has been updated to log the evidence.
+## Current State
+- Set up the storefront home page based on the Stitch UI mockup for the "Hệ Thống Kỷ Niệm Chương" project.
+- Converted the HTML to React JSX and configured Tailwind v4 using `@config` from a generated `tailwind.config.js` to preserve the precise colors, fonts, and sizing tokens.
+- Google Fonts (Anton, Hanken Grotesk, Material Symbols Outlined) included in `root.tsx`.
+- Refactored `home.tsx` according to `react-component-architecture` skill. Created separate custom hooks (`useScrollReveal`, `useNavbarScroll`) and UI components (`Navbar`, `HeroSection`, `BestSellersSection`, `ManufacturerSection`, `CategoriesSection`, `TrustedBrandsSection`, `ProductCard`, `Footer`).
+- Successfully built and type-checked the storefront.
 
-## What's Completed
-- Database migration for new asset fields.
-- Backend support for multipart PDF background uploads, storing metadata into DB and assets into R2.
-- Vector PDF export using `pdf-lib` (embedding backgrounds, drawing text on paths, rendering image shapes, handling standard and TTF fonts).
-- Admin UI support for uploading PDFs, creating client-side thumbnails with `pdfjs-dist`.
-- Publish workflow that submits PDF files along with their template state.
-
-## Next Step
-- Look at `feature_list.json` for any remaining work or start working on new OpenSpec changes if requested by the user.
+## Next Steps
+- Verify the design in the browser and apply any necessary adjustments based on feedback.
+- Setup interactivity and backend APIs integration for the storefront homepage.

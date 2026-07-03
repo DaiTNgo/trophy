@@ -9,6 +9,27 @@ import {
   uniqueIndex,
 } from "drizzle-orm/sqlite-core";
 
+export const brandColors = sqliteTable("brand_color", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  hexCode: text("hex_code").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" })
+    .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+    .notNull(),
+});
+
+export const fontFamilies = sqliteTable("font_family", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  regularAssetId: text("regular_asset_id"),
+  boldAssetId: text("bold_asset_id"),
+  italicAssetId: text("italic_asset_id"),
+  boldItalicAssetId: text("bold_italic_asset_id"),
+  createdAt: integer("created_at", { mode: "timestamp_ms" })
+    .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+    .notNull(),
+});
+
 export const users = sqliteTable("user", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),

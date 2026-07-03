@@ -9,8 +9,8 @@ export type RailTab = "blocks" | "layers" | "form" | "background";
 
 export const createId = (prefix: string) => `${prefix}_${crypto.randomUUID()}`;
 
-export function FontLoader({ layers }: { layers: CustomizationLayer[] | any[] }) {
-  const fontIds = useMemo(() => {
+export function FontLoader({ layers, dynamicFonts = [] }: { layers: CustomizationLayer[] | any[]; dynamicFonts?: import("@trophy/customization").DynamicFontFamily[] }) {
+  const fontFamilies = useMemo(() => {
     const ids = new Set<string>();
     for (const layer of layers) {
       if (layer.type === "text") {
@@ -25,17 +25,39 @@ export function FontLoader({ layers }: { layers: CustomizationLayer[] | any[] })
 
   return (
     <>
-      {fontIds.map((fontId) => {
-        const file = FONT_FILES[fontId];
-        if (!file) return null;
-        return (
-          <style key={fontId} dangerouslySetInnerHTML={{ __html: `
-            @font-face {
-              font-family: '${fontId}';
-              src: url('${backendUrl}/fonts/${file}') format('truetype');
-            }
-          `}} />
-        );
+      {fontFamilies.map((familyId) => {
+        const dynamicFont = dynamicFonts.find(f => f.id === familyId);
+        if (dynamicFont) {
+          const variants = [];
+          if (dynamicFont.regularAssetId) variants.push({ variantId: dynamicFont.regularAssetId, assetId: dynamicFont.regularAssetId });
+          if (dynamicFont.boldAssetId) variants.push({ variantId: dynamicFont.boldAssetId, assetId: dynamicFont.boldAssetId });
+          if (dynamicFont.italicAssetId) variants.push({ variantId: dynamicFont.italicAssetId, assetId: dynamicFont.italicAssetId });
+          if (dynamicFont.boldItalicAssetId) variants.push({ variantId: dynamicFont.boldItalicAssetId, assetId: dynamicFont.boldItalicAssetId });
+          return variants.map(v => (
+            <style key={v.variantId} dangerouslySetInnerHTML={{ __html: `
+              @font-face {
+                font-family: '${v.variantId}';
+                src: url('${backendUrl}/api/brand-assets/fonts/file/${v.assetId}') format('truetype');
+              }
+            `}} />
+          ));
+        }
+
+        // Static font fallback
+        // We can't await inside render, so we'll just inject the 4 variants if they exist in FONT_FILES
+        return ["regular", "bold", "italic", "bold-italic"].map(weight => {
+          const variantId = `${familyId}-${weight}`;
+          const file = FONT_FILES[variantId];
+          if (!file) return null;
+          return (
+            <style key={variantId} dangerouslySetInnerHTML={{ __html: `
+              @font-face {
+                font-family: '${variantId}';
+                src: url('${backendUrl}/fonts/${file}') format('truetype');
+              }
+            `}} />
+          );
+        });
       })}
     </>
   );
@@ -50,8 +72,8 @@ export function PanelTitle({ title, subtitle }: { title: string; subtitle: strin
   );
 }
 
-export function Input({ value, onChange, placeholder }: { value: string; onChange: (value: string) => void; placeholder?: string }) {
-  return <input value={value} placeholder={placeholder} onChange={(event) => onChange(event.target.value)} className="w-full rounded-md border border-ui-border-base px-2 py-1 text-sm" />;
+export function Input({ value, onChange, placeholder, onFocus }: { value: string; onChange: (value: string) => void; placeholder?: string; onFocus?: () => void }) {
+  return <input value={value} placeholder={placeholder} onFocus={onFocus} onChange={(event) => onChange(event.target.value)} className="w-full rounded-md border border-ui-border-base px-2 py-1 text-sm" />;
 }
 
 export function NumberInput({ label, value, onChange, disabled }: { label: string; value: number; onChange: (value: number) => void; disabled?: boolean }) {
@@ -63,12 +85,16 @@ export function NumberInput({ label, value, onChange, disabled }: { label: strin
   );
 }
 
-export function Select({ label, value, options, onChange }: { label: string; value: string; options: string[]; onChange: (value: string) => void }) {
+export function Select({ label, value, options, onChange }: { label: string; value: string; options: (string | { value: string; label: string })[]; onChange: (value: string) => void }) {
   return (
     <label className="block text-xs font-medium text-ui-fg-muted">
       {label}
       <select value={value} onChange={(event) => onChange(event.target.value)} className="mt-1 w-full rounded-md border border-ui-border-base px-2 py-1 text-sm text-ui-fg-base">
-        {options.map((option) => <option key={option} value={option}>{option}</option>)}
+        {options.map((option) => {
+          const optValue = typeof option === "string" ? option : option.value;
+          const optLabel = typeof option === "string" ? option : option.label;
+          return <option key={optValue} value={optValue}>{optLabel}</option>;
+        })}
       </select>
     </label>
   );

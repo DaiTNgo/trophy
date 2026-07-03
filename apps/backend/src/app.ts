@@ -10,6 +10,7 @@ import {
 } from "./lib/cors";
 import { adminAccountsRoute } from "./routes/admin-accounts";
 import { adminBootstrapRoute } from "./routes/admin-bootstrap";
+import { brandAssetsRoute } from "./routes/brand-assets";
 import { customizationAssetsRoute } from "./routes/customization-assets";
 import { productAssetsRoute } from "./routes/product-assets";
 import { customizationsRoute } from "./routes/customizations";
@@ -24,6 +25,7 @@ app.use(`${AUTH_BASE_PATH}/*`, createCorsMiddleware(SESSION_CORS_POLICY));
 app.use("/api/admin/bootstrap/*", createCorsMiddleware(SESSION_CORS_POLICY));
 app.use("/api/admin/accounts/*", createCorsMiddleware(SESSION_CORS_POLICY));
 app.use("/api/customizations/*", createCorsMiddleware(CUSTOMIZATION_CORS_POLICY));
+app.use("/api/brand-assets/*", createCorsMiddleware(CUSTOMIZATION_CORS_POLICY));
 app.use("/api/products/*", createCorsMiddleware(PRODUCTS_CORS_POLICY));
 app.use("/api/products/assets/*", createCorsMiddleware(PRODUCT_ASSET_CORS_POLICY));
 
@@ -46,6 +48,7 @@ export const routes = app
   .get("/health", (c) => c.json({ ok: true }, 200))
   .route("/admin/bootstrap", adminBootstrapRoute)
   .route("/admin/accounts", adminAccountsRoute)
+  .route("/brand-assets", brandAssetsRoute)
   .route("/customizations/assets", customizationAssetsRoute)
   .route("/customizations", customizationsRoute)
 

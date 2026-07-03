@@ -53,6 +53,12 @@ export const operationsSidebarItems: SidebarNavItem[] = [
     prefixes: ["/customization-templates"],
   },
   {
+    label: "Brand Assets",
+    to: "/brand-assets",
+    icon: Palette,
+    prefixes: ["/brand-assets"],
+  },
+  {
     label: "Team",
     to: "/team",
     icon: Users,

@@ -15,6 +15,7 @@ import { CreateProductPage } from "./pages/create-product";
 import { ProductDetailPage } from "./pages/product-detail";
 import { PlaceholderIndexPage } from "./pages/placeholder-index";
 import { CustomizationTemplatesRouter } from "./pages/customization-templates";
+import { BrandAssetsPage } from "./pages/brand-assets";
 
 function ProtectedRoute() {
   const auth = useAuth();
@@ -111,7 +112,8 @@ function App() {
                   <Route path="/team" element={<TeamPage />} />
                   <Route path="/settings" element={<Navigate to="/settings/security" replace />} />
                   <Route path="/settings/security" element={<SecurityPage />} />
-                  <Route path="/customization-templates" element={<CustomizationTemplatesRouter />} />
+                  <Route path="/customization-templates/*" element={<CustomizationTemplatesRouter />} />
+                  <Route path="/brand-assets" element={<BrandAssetsPage />} />
                 </Route>
               </Route>
               <Route path="*" element={<Navigate to="/orders" replace />} />

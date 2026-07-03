@@ -67,20 +67,22 @@ This repository is currently in **dev mode** for agent work:
 
 ## Session startup
 
-1. Read `feature_list.json`, `progress.md`, `session-handoff.md`.
-2. `git log --oneline -5` to see recent changes.
-3. If baseline `./init.sh` is failing, fix it before adding new scope.
+1. If the work lives under `openspec/changes/<change>/`, read that change's `proposal.md`, `design.md`, `specs/`, `tasks.md`, and any local `progress.md` / `session-handoff.md` first.
+2. If the work is not OpenSpec-driven, read `feature_list.json`, `progress.md`, `session-handoff.md`.
+3. `git log --oneline -5` to see recent changes.
+4. If baseline `./init.sh` is failing, fix it before adding new scope.
 
 ## Working rules
 
-- One feature at a time — pick exactly one unfinished item from `feature_list.json`.
-- Stay in scope: do not refactor unrelated apps while working on one feature.
+- For non-OpenSpec work, pick exactly one unfinished item from `feature_list.json`.
+- For OpenSpec work, the unit of ownership is one change folder. Parallel OpenSpec changes may proceed independently if they do not share files or ownership boundaries.
+- Stay in scope: do not refactor unrelated apps while working on one feature or change.
 - Dev mode cleanup is allowed inside the active feature: remove dead code, deprecated paths, and unused compatibility shims when replacing a flow.
 - Preserve app boundaries:
   - `backend` owns API routes, business logic, and Cloudflare bindings.
   - `admin` owns operator flows; must not depend on storefront route code.
   - `storefront` owns shopper routes, loaders, actions, and SSR.
-- Update `feature_list.json` evidence and `session-handoff.md` at end of session.
+- Update the active state files at end of session. For OpenSpec work, update the change-local `tasks.md`, `progress.md`, and `session-handoff.md` inside the change folder. For non-OpenSpec work, update `feature_list.json`, `progress.md`, and `session-handoff.md` at the repo root.
 - Leave the repo restartable: next session must be able to run `./init.sh` cleanly.
 
 ## Editing guidance
@@ -105,10 +107,17 @@ Do not treat migration authoring, deprecated-path compatibility, or dual-model s
 
 ## Required Artifacts
 
-- `feature_list.json` — source of truth for feature status, dependencies, and evidence.
-- `progress.md` — current session state, blockers, and verification notes.
-- `session-handoff.md` — concise restart notes for the next session.
+- `feature_list.json` — repo-level fallback index for non-OpenSpec work and cross-change coordination.
+- `progress.md` — repo-level fallback state for non-OpenSpec work.
+- `session-handoff.md` — repo-level fallback restart notes for non-OpenSpec work.
 - `init.sh` — standard verification entrypoint.
+
+## OpenSpec Changes
+
+- Treat each folder under `openspec/changes/<change>/` as an independent unit of work.
+- Create `progress.md` and `session-handoff.md` inside the change folder if they do not already exist.
+- Keep task progress inside that change's `tasks.md`; do not use the root state files as the source of truth for OpenSpec work.
+- When multiple OpenSpec changes are active, keep their state isolated unless a task explicitly spans both folders.
 
 ## End of Session
 

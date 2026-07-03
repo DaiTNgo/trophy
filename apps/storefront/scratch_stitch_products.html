@@ -1,0 +1,342 @@
+<!DOCTYPE html><html class="light" lang="vi"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Danh Mục Sản Phẩm | PHÙNG THỊ - Premium Trophy Manufacturing</title>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Anton&amp;family=Hanken+Grotesk:wght@400;600;700&amp;display=swap" rel="stylesheet">
+<!-- Icons -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<!-- Tailwind -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Theme Config -->
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                "on-tertiary-container": "#454747",
+                "on-secondary-fixed-variant": "#454747",
+                "tertiary-container": "#b5b5b5",
+                "on-tertiary-fixed": "#1a1c1c",
+                "secondary-fixed": "#e2e2e2",
+                "on-tertiary": "#ffffff",
+                "error-container": "#ffdad6",
+                "on-secondary-fixed": "#1a1c1c",
+                "inverse-surface": "#313030",
+                "primary-fixed-dim": "#ffb865",
+                "on-tertiary-fixed-variant": "#454747",
+                "secondary-container": "#dcdddd",
+                "primary": "#875200",
+                "inverse-primary": "#ffb865",
+                "surface-container-highest": "#e5e2e1",
+                "surface-container-lowest": "#ffffff",
+                "background": "#fcf9f8",
+                "on-error": "#ffffff",
+                "surface-tint": "#875200",
+                "outline-variant": "#d9c3ad",
+                "on-error-container": "#93000a",
+                "inverse-on-surface": "#f3f0ef",
+                "tertiary-fixed-dim": "#c6c6c6",
+                "outline": "#867461",
+                "surface-container": "#f0eded",
+                "surface-bright": "#fcf9f8",
+                "surface-container-low": "#f6f3f2",
+                "surface": "#fcf9f8",
+                "tertiary-fixed": "#e2e2e2",
+                "secondary": "#5d5f5f",
+                "on-primary-fixed": "#2b1700",
+                "primary-container": "#fea00c",
+                "on-background": "#1c1b1b",
+                "surface-variant": "#e5e2e1",
+                "on-primary-fixed-variant": "#673d00",
+                "on-surface": "#1c1b1b",
+                "secondary-fixed-dim": "#c6c6c7",
+                "surface-dim": "#dcd9d9",
+                "on-primary-container": "#663d00",
+                "on-secondary": "#ffffff",
+                "on-secondary-container": "#5f6161",
+                "error": "#ba1a1a",
+                "surface-container-high": "#eae7e7",
+                "primary-fixed": "#ffddba",
+                "on-primary": "#ffffff",
+                "on-surface-variant": "#544433",
+                "tertiary": "#5d5f5f"
+            },
+            "borderRadius": {
+                "DEFAULT": "0.25rem",
+                "lg": "0.5rem",
+                "xl": "0.75rem",
+                "full": "9999px"
+            },
+            "spacing": {
+                "base": "8px",
+                "container-max": "1280px",
+                "margin-desktop": "64px",
+                "margin-mobile": "16px",
+                "gutter": "24px"
+            },
+            "fontFamily": {
+                "headline-lg": ["Anton"],
+                "headline-md": ["Anton"],
+                "body-lg": ["Hanken Grotesk"],
+                "label-md": ["Hanken Grotesk"],
+                "display-lg": ["Anton"],
+                "display-lg-mobile": ["Anton"],
+                "body-md": ["Hanken Grotesk"]
+            },
+            "fontSize": {
+                "headline-lg": ["40px", {"lineHeight": "44px", "letterSpacing": "0.02em", "fontWeight": "400"}],
+                "headline-md": ["32px", {"lineHeight": "36px", "letterSpacing": "0.02em", "fontWeight": "400"}],
+                "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                "label-md": ["14px", {"lineHeight": "20px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                "display-lg": ["72px", {"lineHeight": "72px", "letterSpacing": "0.04em", "fontWeight": "400"}],
+                "display-lg-mobile": ["48px", {"lineHeight": "48px", "letterSpacing": "0.04em", "fontWeight": "400"}],
+                "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body {
+            background-color: #fcf9f8;
+            color: #1c1b1b;
+            font-family: 'Hanken Grotesk', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .product-card:hover .product-action {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        .chip-active {
+            background-color: #875200;
+            color: #ffffff;
+        }
+        /* Custom scrollbar for horizontal filter on mobile */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body class="bg-background">
+<!-- TopNavBar -->
+<header class="sticky top-0 z-50 bg-surface dark:bg-inverse-surface shadow-sm dark:shadow-none h-20 w-full">
+<nav class="flex justify-between items-center px-margin-desktop h-full w-full max-w-container-max mx-auto">
+<div class="flex items-center gap-8">
+<a class="font-headline-lg text-headline-lg font-bold text-primary dark:text-primary-fixed-dim" href="#">PHÙNG THỊ</a>
+<div class="hidden md:flex gap-6">
+<a class="font-label-md text-label-md uppercase tracking-widest text-on-surface-variant dark:text-surface-variant hover:text-primary transition-colors" href="#">Collections</a>
+<a class="font-label-md text-label-md uppercase tracking-widest text-primary border-b-2 border-primary pb-1" href="#">Crystal</a>
+<a class="font-label-md text-label-md uppercase tracking-widest text-on-surface-variant dark:text-surface-variant hover:text-primary transition-colors" href="#">Alloy</a>
+<a class="font-label-md text-label-md uppercase tracking-widest text-on-surface-variant dark:text-surface-variant hover:text-primary transition-colors" href="#">Customization</a>
+<a class="font-label-md text-label-md uppercase tracking-widest text-on-surface-variant dark:text-surface-variant hover:text-primary transition-colors" href="#">About Us</a>
+</div>
+</div>
+<div class="flex items-center gap-6">
+<div class="hidden lg:flex items-center bg-surface-container rounded-full px-4 py-2">
+<span class="material-symbols-outlined text-on-surface-variant">search</span>
+<input class="bg-transparent border-none focus:ring-0 text-body-md w-48" placeholder="Tìm kiếm sản phẩm..." type="text">
+</div>
+<div class="flex items-center gap-4">
+<button class="text-primary hover:transition-all"><span class="material-symbols-outlined" data-icon="shopping_cart">shopping_cart</span></button>
+<button class="text-primary hover:transition-all"><span class="material-symbols-outlined" data-icon="person">person</span></button>
+</div>
+</div>
+</nav>
+</header>
+<main class="max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop py-12">
+<!-- Header Section -->
+<div class="mb-12">
+<h1 class="font-display-lg-mobile md:font-display-lg text-display-lg-mobile md:text-display-lg text-on-background mb-8">
+                DANH MỤC SẢN PHẨM
+            </h1>
+<!-- Quick Filter Chips -->
+<div class="flex gap-3 overflow-x-auto no-scrollbar pb-4 -mx-margin-mobile px-margin-mobile md:mx-0 md:px-0">
+<button class="chip-active whitespace-nowrap px-6 py-2 rounded-full font-label-md text-label-md border border-primary transition-all duration-300">Tất cả</button>
+<button class="bg-surface-container-low hover:bg-surface-variant whitespace-nowrap px-6 py-2 rounded-full font-label-md text-label-md border border-outline-variant transition-all duration-300 text-on-surface-variant">Cúp Pha Lê</button>
+<button class="bg-surface-container-low hover:bg-surface-variant whitespace-nowrap px-6 py-2 rounded-full font-label-md text-label-md border border-outline-variant transition-all duration-300 text-on-surface-variant">Cúp Hợp Kim</button>
+<button class="bg-surface-container-low hover:bg-surface-variant whitespace-nowrap px-6 py-2 rounded-full font-label-md text-label-md border border-outline-variant transition-all duration-300 text-on-surface-variant">Kỷ Niệm Chương</button>
+<button class="bg-surface-container-low hover:bg-surface-variant whitespace-nowrap px-6 py-2 rounded-full font-label-md text-label-md border border-outline-variant transition-all duration-300 text-on-surface-variant">Bảng Vinh Danh</button>
+<button class="bg-surface-container-low hover:bg-surface-variant whitespace-nowrap px-6 py-2 rounded-full font-label-md text-label-md border border-outline-variant transition-all duration-300 text-on-surface-variant">Quà Tặng Custom</button>
+</div>
+</div>
+<!-- Product Grid -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-gutter gap-y-16">
+<!-- Product 1 -->
+<div class="product-card group flex flex-col">
+<div class="relative aspect-[3/4] bg-[#F5F5F5] overflow-hidden mb-6 shadow-sm group-hover:shadow-md transition-shadow duration-500">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" data-alt="A professional product photograph of a luxury gold alloy trophy, named KL1, standing elegantly on a minimalist white pedestal. The trophy features sharp, geometric lines and a polished metallic finish that reflects soft studio lighting. The background is a clean, neutral gray gradient, emphasizing the championship gold color and premium craftsmanship of the trophy. Modern editorial style." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBYjkEhbe-fEEaHxGsXywDp8MB6pi78G0-1kId6IKN5I9Vjfa7odFudqsVAkKQDh1CVse3GAZv-0a83A5Dv5rIFg13RJRSiIO-L24yleWWtUlbKRoGAjuAoCxnf5U5AS8HlZwgtmXxfA4IyQhIODEnOlJO6tCsxHcv8YqwHJrz2nWNKlJ5EoXcQJNhlPGfmKeduwrDsir1X0LVbosAskXRCb6Iw4yDHjuhCcLVfM8prjv5sKXc997L_">
+<div class="product-action absolute bottom-4 left-4 right-4 translate-y-4 opacity-0 transition-all duration-300">
+<button class="w-full bg-primary text-on-primary py-4 font-label-md text-label-md uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-on-primary-fixed-variant">
+<span class="material-symbols-outlined text-[20px]">shopping_bag</span>
+                            Thêm vào giỏ hàng
+                        </button>
+</div>
+</div>
+<div class="flex flex-col gap-1">
+<p class="font-label-md text-label-md text-outline uppercase tracking-tighter">Cúp Hợp Kim</p>
+<h3 class="font-headline-md text-headline-md text-on-background">Cúp Hợp Kim KL1</h3>
+<p class="font-body-lg text-body-lg text-primary font-bold">2.450.000 VNĐ</p>
+</div>
+</div>
+<!-- Product 2 -->
+<div class="product-card group flex flex-col">
+<div class="relative aspect-[3/4] bg-[#F5F5F5] overflow-hidden mb-6 shadow-sm group-hover:shadow-md transition-shadow duration-500">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" data-alt="A stunning crystal trophy called Diamond, designed with multi-faceted edges that catch and refract light like a real gemstone. The trophy sits on a dark mahogany base within a bright, high-end gallery setting. The lighting is sophisticated, creating sparkling reflections and a sense of luxury and victory. The color palette consists of clear glass, warm wood, and soft white ambient light." src="https://lh3.googleusercontent.com/aida-public/AB6AXuB82Na8cyLdjyf3RPpEkUKpHNVAPARNtu2tFw8nIT_mUIlg3HUgV8fWn5kqr3W6IZ9M9251la0btt83hVowv5HrBMoy25e8Qh9h2IWTPJFE98li9HY85ooxvguTeXa9cYEnT6EtkalkpTeNbfbqkFwR0mFTvcqMcQZh_fep60AoXHEM1YWAtUGgSWjzylqErckQZyIvW1Xp5nK_o_9Mel935H1RQsqh-7DxPFVykl4uzNFVwQ3_Q5Ip">
+<div class="product-action absolute bottom-4 left-4 right-4 translate-y-4 opacity-0 transition-all duration-300">
+<button class="w-full bg-primary text-on-primary py-4 font-label-md text-label-md uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-on-primary-fixed-variant">
+<span class="material-symbols-outlined text-[20px]">shopping_bag</span>
+                            Thêm vào giỏ hàng
+                        </button>
+</div>
+</div>
+<div class="flex flex-col gap-1">
+<p class="font-label-md text-label-md text-outline uppercase tracking-tighter">Pha Lê Cao Cấp</p>
+<h3 class="font-headline-md text-headline-md text-on-background">Cúp Pha Lê Diamond</h3>
+<p class="font-body-lg text-body-lg text-primary font-bold">1.890.000 VNĐ</p>
+</div>
+</div>
+<!-- Product 3 -->
+<div class="product-card group flex flex-col">
+<div class="relative aspect-[3/4] bg-[#F5F5F5] overflow-hidden mb-6 shadow-sm group-hover:shadow-md transition-shadow duration-500">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" data-alt="A prestigious award plaque, model GĐ17, made from a combination of brushed silver metal and dark walnut wood. The design is minimalist and authoritative, suitable for corporate recognition. It is showcased in a modern executive office environment with soft natural light streaming from a large window. The mood is professional, celebratory, and refined, using a palette of deep browns and metallic silvers." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCxn1l7GDgE8X-ZseABJhqjf2QVpcKhpmOpBjfOGkWP3dp-hHtGS8_a8mK5gDQkTUc44syd-Yq_UOQhWKq2GyIWbpgM7xImR3NyE-iVNt6hlSWpaeFuZrst-L-rwQs4XJfGhfXHNGrC_EdLIaK5XxM31Tc3AAgRak6hARuTuH2uLbUgN_nS_uCSCzIlgozDn4Lq6sLOsV8wqgTfGPRCInrcHclaAy9jDnnAc62MWGrxJzUssMWxCuNX">
+<div class="product-action absolute bottom-4 left-4 right-4 translate-y-4 opacity-0 transition-all duration-300">
+<button class="w-full bg-primary text-on-primary py-4 font-label-md text-label-md uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-on-primary-fixed-variant">
+<span class="material-symbols-outlined text-[20px]">shopping_bag</span>
+                            Thêm vào giỏ hàng
+                        </button>
+</div>
+</div>
+<div class="flex flex-col gap-1">
+<p class="font-label-md text-label-md text-outline uppercase tracking-tighter">Bảng Vinh Danh</p>
+<h3 class="font-headline-md text-headline-md text-on-background">Bảng Vinh Danh GĐ17</h3>
+<p class="font-body-lg text-body-lg text-primary font-bold">3.200.000 VNĐ</p>
+</div>
+</div>
+<!-- Product 4 -->
+<div class="product-card group flex flex-col">
+<div class="relative aspect-[3/4] bg-[#F5F5F5] overflow-hidden mb-6 shadow-sm group-hover:shadow-md transition-shadow duration-500">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" data-alt="An abstract art-inspired trophy made from polished alloy and crystal elements, titled Victory Flame. The design features sweeping curves that mimic a flickering fire. It is positioned in a sleek, modern showroom with high-key lighting. The overall aesthetic is avant-garde and luxurious, emphasizing the 'earned success' brand identity with gold accents against a pristine white background." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAuBfe_VElNeiu9vPWjqF8O63AW5YcMnD5BBx88K4Ku3G5QX-oq5OI_5smZycDZVNT6AIkGa_bfTomViywp1AqSyZvr20SGonT1SoC_POetVmqwA71nGie7VMJ0RS51hkZdtfVeby_RrNqvrMpVKhIkolzJ-a-_Flsi1JfY_M3WgQm0XBBKp2z5zl-dMwSe7oP42-xQHOebQ1IrThtBgU4Azfu3T5MZJ9Uq-7J0ZSprEXZyAhux1aTa">
+<div class="product-action absolute bottom-4 left-4 right-4 translate-y-4 opacity-0 transition-all duration-300">
+<button class="w-full bg-primary text-on-primary py-4 font-label-md text-label-md uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-on-primary-fixed-variant">
+<span class="material-symbols-outlined text-[20px]">shopping_bag</span>
+                            Thêm vào giỏ hàng
+                        </button>
+</div>
+</div>
+<div class="flex flex-col gap-1">
+<p class="font-label-md text-label-md text-outline uppercase tracking-tighter">Thiết Kế Độc Bản</p>
+<h3 class="font-headline-md text-headline-md text-on-background">Victory Flame Alloy</h3>
+<p class="font-body-lg text-body-lg text-primary font-bold">4.500.000 VNĐ</p>
+</div>
+</div>
+<!-- Product 5 -->
+<div class="product-card group flex flex-col">
+<div class="relative aspect-[3/4] bg-[#F5F5F5] overflow-hidden mb-6 shadow-sm group-hover:shadow-md transition-shadow duration-500">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" data-alt="A minimalist circular glass commemorative award, model Circle of Excellence, featuring a frosted center for custom engraving. The award is presented on a minimalist desk with a soft-focus background of a corporate lobby. The lighting is diffused and bright, creating a clean light-mode look. The color palette is composed of soft whites, light grays, and the clear transparency of high-quality crystal." src="https://lh3.googleusercontent.com/aida-public/AB6AXuACQUaI-OHZuRmvptM-oiazQgKl7kS1rtmKSFbTXZL41ED-d4ZfG4OhdOxSA36sEwEOyrSXrkAhVOkQg1Od3YzBjNhXlxAnL63bwr_dTwnTs3mxOuN7xjXA-qkvEFGyw8oDPD-sI_-VmZFyyhOGbjwMxi8Hjuhoj8NNsnUBRCCzGEzK0VuPfqOEm8zJcGGOJYvlDCXCkzskQkHGLu4RMWIr3dFd_upve9YM0yiSD-pFdo-g__cYu2Q4">
+<div class="product-action absolute bottom-4 left-4 right-4 translate-y-4 opacity-0 transition-all duration-300">
+<button class="w-full bg-primary text-on-primary py-4 font-label-md text-label-md uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-on-primary-fixed-variant">
+<span class="material-symbols-outlined text-[20px]">shopping_bag</span>
+                            Thêm vào giỏ hàng
+                        </button>
+</div>
+</div>
+<div class="flex flex-col gap-1">
+<p class="font-label-md text-label-md text-outline uppercase tracking-tighter">Kỷ Niệm Chương</p>
+<h3 class="font-headline-md text-headline-md text-on-background">Circle of Excellence</h3>
+<p class="font-body-lg text-body-lg text-primary font-bold">950.000 VNĐ</p>
+</div>
+</div>
+<!-- Product 6 -->
+<div class="product-card group flex flex-col">
+<div class="relative aspect-[3/4] bg-[#F5F5F5] overflow-hidden mb-6 shadow-sm group-hover:shadow-md transition-shadow duration-500">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" data-alt="A customized high-end trophy for an esports tournament, featuring sharp angular metallic shards in championship gold and deep black finishes. The trophy looks powerful and futuristic. It is photographed with dramatic but clean lighting that highlights the different textures of the alloy. The scene is high-contrast, professional, and suggests a premium award ceremony atmosphere." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAnMnGimzovUlLHiAhL4244DFUs9YOPwhX0ogrYKN8QY0jdC_hblNsTcygjRvt6SRO2LsPPvDYL2qI52FJHIUEa5Vc7HX-Hpz1mVMd8Fw6E1PGJw6Lwjf-R2_ZE8TiPlzMt9UMsRLFEmhsiARFc3sT05uDc3PAANtdF3_LHi_4iO0UUIdqizl6e-WNRjwksuTBkI32tzIk_xErKCcxqNvQLEd4a9PPCRigU63VkZ5Zy5q7mVI1FG2BQ">
+<div class="product-action absolute bottom-4 left-4 right-4 translate-y-4 opacity-0 transition-all duration-300">
+<button class="w-full bg-primary text-on-primary py-4 font-label-md text-label-md uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-on-primary-fixed-variant">
+<span class="material-symbols-outlined text-[20px]">shopping_bag</span>
+                            Thêm vào giỏ hàng
+                        </button>
+</div>
+</div>
+<div class="flex flex-col gap-1">
+<p class="font-label-md text-label-md text-outline uppercase tracking-tighter">Quà Tặng Custom</p>
+<h3 class="font-headline-md text-headline-md text-on-background">Esports Vanguard</h3>
+<p class="font-body-lg text-body-lg text-primary font-bold">5.800.000 VNĐ</p>
+</div>
+</div>
+</div>
+<!-- Pagination -->
+<div class="mt-20 flex justify-center items-center gap-4">
+<button class="w-12 h-12 flex items-center justify-center rounded-full border border-outline-variant text-on-surface-variant hover:bg-primary hover:text-on-primary transition-all">
+<span class="material-symbols-outlined">chevron_left</span>
+</button>
+<span class="font-label-md text-label-md text-on-surface-variant px-4">Trang 1 / 10</span>
+<button class="w-12 h-12 flex items-center justify-center rounded-full border border-outline-variant text-on-surface-variant hover:bg-primary hover:text-on-primary transition-all">
+<span class="material-symbols-outlined">chevron_right</span>
+</button>
+</div>
+</main>
+<!-- Footer -->
+<footer class="w-full py-12 px-margin-desktop bg-surface-container-low dark:bg-surface-container-highest border-t border-outline-variant mt-24">
+<div class="max-w-container-max mx-auto flex flex-col md:flex-row justify-between items-center gap-base">
+<div class="flex flex-col items-center md:items-start gap-4">
+<span class="font-headline-md text-headline-md text-primary">PHÙNG THỊ</span>
+<p class="font-body-md text-body-md text-on-surface-variant text-center md:text-left max-w-sm">
+                    Xưởng sản xuất cúp vinh danh và kỷ niệm chương cao cấp. Chế tác thủ công, tinh xảo, xứng tầm chiến thắng.
+                </p>
+</div>
+<div class="flex flex-wrap justify-center gap-8 my-8 md:my-0">
+<a class="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors" href="#">Privacy Policy</a>
+<a class="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors" href="#">Terms of Service</a>
+<a class="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors" href="#">Bulk Orders</a>
+<a class="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors" href="#">Track Order</a>
+</div>
+<div class="flex flex-col items-center md:items-end gap-2">
+<p class="font-body-md text-body-md text-on-surface-variant">© 2024 PHÙNG THỊ - Premium Trophy Manufacturing. All rights reserved.</p>
+<div class="flex gap-4">
+<span class="material-symbols-outlined text-primary cursor-pointer">face_nod</span>
+<span class="material-symbols-outlined text-primary cursor-pointer">send</span>
+<span class="material-symbols-outlined text-primary cursor-pointer">mail</span>
+</div>
+</div>
+</div>
+</footer>
+<!-- Micro-interactions Script -->
+<script>
+        // Simple filter toggle logic
+        const filterButtons = document.querySelectorAll('button[class*="rounded-full"]');
+        filterButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                filterButtons.forEach(b => {
+                    b.classList.remove('chip-active');
+                    b.classList.add('bg-surface-container-low', 'text-on-surface-variant');
+                });
+                btn.classList.add('chip-active');
+                btn.classList.remove('bg-surface-container-low', 'text-on-surface-variant');
+            });
+        });
+
+        // Add to cart feedback
+        const cartButtons = document.querySelectorAll('.product-action button');
+        cartButtons.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const originalContent = btn.innerHTML;
+                btn.innerHTML = '<span class="material-symbols-outlined text-[20px]">check_circle</span> Đã thêm';
+                btn.classList.replace('bg-primary', 'bg-on-tertiary-container');
+                setTimeout(() => {
+                    btn.innerHTML = originalContent;
+                    btn.classList.replace('bg-on-tertiary-container', 'bg-primary');
+                }, 2000);
+            });
+        });
+    </script>
+</body></html>

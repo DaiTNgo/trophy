@@ -13,11 +13,13 @@ export const buildDesignFromForm = ({
   values,
   designId = `design_${crypto.randomUUID()}`,
   measureText,
+  dynamicFonts = [],
 }: {
   template: CustomizationTemplate;
   values: CustomizationFormValues;
   designId?: string;
   measureText?: (text: string, fontSizePt: number, fontId: string) => number;
+  dynamicFonts?: import("./constants").DynamicFontFamily[];
 }): CustomizationDesign => {
   const layers: RuntimeLayer[] = [];
   const fieldsByLayerId = new Map(template.formFields.map((field) => [field.layerId, field]));
@@ -34,6 +36,7 @@ export const buildDesignFromForm = ({
         availableWidthPx: layer.geometry.widthRatio * background.widthPx,
         availableHeightPx: (layer.geometry.heightRatio ?? layer.geometry.widthRatio) * background.heightPx,
         measure: measureText,
+        dynamicFonts,
       });
       if (!fitted.text) continue;
       layers.push({

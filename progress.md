@@ -1,19 +1,10 @@
-# Session Progress
+# Repo Progress
 
 ## Current State
-- Working on OpenSpec change `pdf-background-vector-export`.
-- Completed all tasks (1.1-8.6).
-- `feature_list.json` updated with evidence.
+- Root harness is now a fallback index for non-OpenSpec work only.
+- OpenSpec changes should keep their own `tasks.md`, `progress.md`, and `session-handoff.md` inside `openspec/changes/<change>/`.
+- `./init.sh` remains the baseline verification entrypoint.
 
-## Work Completed
-- Added optional PDF fields to `BackgroundAsset` type.
-- Updated database schema with `page_count`, `width_pt`, `height_pt` for assets.
-- Extended `POST /api/customizations/assets` to accept PDF multipart uploads.
-- Rewrote `renderPdf` to embed PDF background pages using `pdf-lib`.
-- Configured Worker `assets` to serve TTF fonts for direct vector text rendering.
-- Updated Admin UI to accept PDF uploads, generating client-side PNG previews with `pdfjs-dist`.
-- Updated Publish flow to upload the PDF background to R2.
-- Verified all apps build and `./init.sh` succeeds.
-
-## Next Steps
-- Implement follow-up features or wait for user requests.
+## Notes
+- Do not use this file as the source of truth for parallel OpenSpec changes.
+- If a change folder is missing local state files, create them alongside that change before starting work.

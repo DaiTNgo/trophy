@@ -473,6 +473,7 @@ function FormPanel({
             </div>
           <Input
             value={field.label}
+            onFocus={() => onSelectLayer(field.layerId)}
             onChange={(label) =>
               onUpdateField(field.id, (current) => ({ ...current, label }))
             }
@@ -480,6 +481,7 @@ function FormPanel({
           <Input
             value={field.placeholder ?? ""}
             placeholder="Placeholder"
+            onFocus={() => onSelectLayer(field.layerId)}
             onChange={(placeholder) =>
               onUpdateField(field.id, (current) => ({
                 ...current,
@@ -490,6 +492,7 @@ function FormPanel({
           <textarea
             value={field.helpText ?? ""}
             placeholder="Help text"
+            onFocus={() => onSelectLayer(field.layerId)}
             onChange={(event) =>
               onUpdateField(field.id, (current) => ({
                 ...current,

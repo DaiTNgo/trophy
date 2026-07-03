@@ -3,25 +3,39 @@
 // Admin-managed: users select from pre-approved fonts; no custom uploads.
 
 export const fontFiles: Record<string, string> = {
+  "sans-regular": "SansBold.ttf",
   "sans-bold": "SansBold.ttf",
-  "serif-display": "SerifDisplay.ttf",
-  "script-elegant": "ScriptElegant.ttf",
+  "sans-italic": "SansBold.ttf",
+  "sans-bold-italic": "SansBold.ttf",
+  "serif-regular": "SerifDisplay.ttf",
+  "serif-bold": "SerifDisplay.ttf",
+  "serif-italic": "SerifDisplay.ttf",
+  "serif-bold-italic": "SerifDisplay.ttf",
+  "script-regular": "ScriptElegant.ttf",
+  "script-bold": "ScriptElegant.ttf",
+  "script-italic": "ScriptElegant.ttf",
+  "script-bold-italic": "ScriptElegant.ttf",
 };
 
 // ─── raw bytes cache (shared between pdf-lib embed + opentype parse) ──────────
 
 const fontBytesCache = new Map<string, Uint8Array>();
 
-export async function loadFontBytes(fontId: string): Promise<Uint8Array | null> {
-  if (fontBytesCache.has(fontId)) return fontBytesCache.get(fontId)!;
-  const filename = fontFiles[fontId];
-  if (!filename) return null;
+export async function loadFontBytes(variantId: string): Promise<Uint8Array | null> {
+  if (fontBytesCache.has(variantId)) return fontBytesCache.get(variantId)!;
+  const filename = fontFiles[variantId];
   const backendUrl = import.meta.env.VITE_BACKEND_URL ?? "http://localhost:8787";
-  const url = `${backendUrl}/fonts/${filename}`;
+  
+  // If filename exists in fontFiles, it's a static font.
+  // Otherwise, assume variantId is an assetId from the database.
+  const url = filename 
+    ? `${backendUrl}/fonts/${filename}`
+    : `${backendUrl}/api/brand-assets/fonts/file/${variantId}`;
+    
   const response = await fetch(url).catch(() => null);
   if (!response?.ok) return null;
   const bytes = new Uint8Array(await response.arrayBuffer());
-  fontBytesCache.set(fontId, bytes);
+  fontBytesCache.set(variantId, bytes);
   return bytes;
 }
 
