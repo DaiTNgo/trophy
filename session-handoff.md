@@ -8,6 +8,7 @@
 - Main implementation direction: backend full-create product endpoint; product-owned customization config; variant media relationship with stable position; admin create product customization tab after Variants; publish blocked for customizable products until variant images, image dimensions, and editor model are valid.
 
 ## Current State
+- Root harness was updated on 2026-07-04 to make backend API contract tests part of Definition of Done. `AGENTS.md` now requires every new/changed backend route to have public route-surface API contract coverage for admin/storefront consumers, important failure-mode tests, service/helper unit tests for non-trivial business logic, and recorded risk when tests are intentionally omitted. `init.sh` now runs backend check, backend test, and backend build before admin/storefront verification. Verification passed with `pnpm --filter backend check`, `pnpm --filter backend test`, `pnpm --filter backend build`, and `./init.sh`.
 - Storefront SSR/hydration check on 2026-07-04 found no hydration warnings in browser automation for `/`, `/cart`, `/checkout`, `/customize`, or `/products` after the fix. The reproduced failure was SSR loader/API related: `/products` returned 500 because storefront server loaders defaulted to `http://127.0.0.1:8787`, but the backend dev server was reachable at `http://localhost:8787` and not `127.0.0.1:8787`. Updated the fallback URL in `apps/storefront/app/lib/api.ts`, `apps/storefront/app/components/CupCustomizer.tsx`, `apps/storefront/app/routes/customize.tsx`, and `apps/storefront/app/routes/customize.$templateId.tsx`. Verified with `pnpm --filter router-cf typecheck`, preview build, curl `/products` returning 200, Playwright reload checks with no console errors, and `./init.sh`.
 - Set up the storefront home page based on the Stitch UI mockup for the "Hệ Thống Kỷ Niệm Chương" project.
 - Converted the HTML to React JSX and configured Tailwind v4 using `@config` from a generated `tailwind.config.js` to preserve the precise colors, fonts, and sizing tokens.
@@ -18,6 +19,7 @@
 - Proposed OpenSpec change `storefront-product-apis`; proposal, design, specs, tasks, progress, and session handoff are present under `openspec/changes/storefront-product-apis/`.
 
 ## Next Steps
+- For any backend route work, start by naming the public API seam and add/maintain route-level contract tests before handing the endpoint to admin or storefront.
 - Implement the storefront product APIs from `openspec/changes/storefront-product-apis/tasks.md`.
 - Replace storefront product listing/detail mock data with the new public API once backend routes exist.
 - Verify the design in the browser and apply any necessary adjustments based on feedback.

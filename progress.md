@@ -1,6 +1,7 @@
 # Repo Progress
 
 ## Current State
+- Updated the root harness on 2026-07-04 so backend API work is only done when it has API contract coverage at the public admin/storefront route surface, important failure-mode coverage, service/helper unit tests for non-trivial business rules, and recorded risk when tests are intentionally omitted. Added `pnpm --filter backend test` to the documented backend checks and updated `init.sh` to run backend check, backend test, and backend build before admin/storefront verification. Verified with `pnpm --filter backend check`, `pnpm --filter backend test`, `pnpm --filter backend build`, and `./init.sh`.
 - Implemented Admin UI for Collections and Categories management on 2026-07-04. Replaced the placeholder pages with real Medusa UI CRUD pages (`CollectionsListPage`, `CollectionDetailPage`, `CategoriesListPage`, `CategoryDetailPage`) that fetch and manage data via the `backendFetch` utility. Also added missing `PUT` and `DELETE` backend routes to `/api/admin/product-metadata/(collections|categories)`. Verified via `./init.sh`.
 - Storefront SSR instability was investigated on 2026-07-04. The failure reproduced with `pnpm --filter router-cf preview`: `/products` returned 500 while `/`, `/cart`, `/checkout`, and `/customize` returned 200. Browser automation reloads on the successful routes showed no hydration warnings or page errors. Root cause was the storefront's local backend fallback using `http://127.0.0.1:8787` while the backend dev server in this environment responds at `http://localhost:8787` and direct `127.0.0.1:8787` connection fails. Updated storefront backend fallback URLs to `http://localhost:8787`; after rebuilding preview, `/products` returned 200 and browser reloads on `/products`, `/`, and `/customize` produced no console errors. `./init.sh` passes after the fix.
 - Root harness is now a fallback index for non-OpenSpec work only.
@@ -12,6 +13,7 @@
 - OpenSpec change `storefront-product-apis` was proposed on 2026-07-03 with proposal, design, specs, tasks, progress, and session handoff under `openspec/changes/storefront-product-apis/`. The change is ready for implementation pending OpenSpec validation.
 
 ## Notes
+- Backend API changes should now treat route-level API contract tests as required evidence before admin/storefront integration depends on the endpoint.
 - Do not use this file as the source of truth for parallel OpenSpec changes.
 - If a change folder is missing local state files, create them alongside that change before starting work.
 - Issue tracker setup is not configured and `gh` was unavailable in this environment, so the PRD was published as a local markdown issue.

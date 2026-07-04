@@ -7,6 +7,12 @@ echo "Working directory: $(pwd)"
 echo "=== Installing workspace dependencies ==="
 pnpm install
 
+echo "=== Type-checking backend ==="
+pnpm --filter backend check
+
+echo "=== Testing backend ==="
+pnpm --filter backend test
+
 echo "=== Building backend ==="
 pnpm --filter backend build
 

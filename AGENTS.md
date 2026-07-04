@@ -24,6 +24,7 @@ Individual checks:
 ```bash
 pnpm --filter backend build       # vite build
 pnpm --filter backend check       # tsc --noEmit
+pnpm --filter backend test        # vitest API/service tests
 pnpm --filter admin build         # tsc -b && vp build (uses Vite+ CLI)
 pnpm --filter router-cf build     # react-router build
 pnpm --filter router-cf typecheck # wrangler types + react-router typegen + tsc -b
@@ -102,6 +103,15 @@ A feature is done only when all of the following are true:
 - [ ] Relevant verification actually ran (`./init.sh`, package checks).
 - [ ] Evidence is recorded in `feature_list.json` and `progress.md`.
 - [ ] The repository is restartable from `./init.sh`.
+
+Backend API work has additional done criteria:
+
+- [ ] Every new or changed backend route has API contract coverage at the public route surface used by admin or storefront, normally through Hono `app.request(...)`.
+- [ ] API contract tests cover the successful response shape plus the important failure modes for that route: validation errors, not found cases, auth/session/role checks, and shopper-safe vs admin-only data boundaries when applicable.
+- [ ] Business rules behind the route are covered by service/helper unit tests when the logic is non-trivial, so API tests stay focused on the HTTP contract.
+- [ ] Test names describe observable behavior in project language from `CONTEXT.md` and assert known-good literals or worked examples, not implementation details.
+- [ ] Backend verification includes `pnpm --filter backend test`, `pnpm --filter backend check`, and `pnpm --filter backend build`; `./init.sh` must pass before claiming the feature done.
+- [ ] If a backend change intentionally does not add or update tests, the reason and residual risk must be recorded in `progress.md` and the active feature evidence.
 
 Do not treat migration authoring, deprecated-path compatibility, or dual-model support as part of done unless the user explicitly requests them.
 
