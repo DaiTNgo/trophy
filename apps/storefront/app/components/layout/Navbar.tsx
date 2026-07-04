@@ -47,7 +47,7 @@ export function Navbar() {
   }, []);
 
   return (
-    <header className="w-full bg-white flex flex-col z-50 sticky top-0 shadow-sm transition-all duration-300 relative" id="main-nav">
+    <header className="w-full bg-white flex flex-col z-50 sticky top-0 shadow-sm transition-all duration-300" id="main-nav">
       {/* Top Row: Brand & Main Actions */}
       <div className="flex items-center justify-between px-4 md:px-8 h-20 max-w-[1600px] w-full mx-auto gap-4 lg:gap-8 bg-white relative z-20">
         {/* Logo */}

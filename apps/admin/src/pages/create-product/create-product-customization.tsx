@@ -1,10 +1,13 @@
-import { Heading, Text } from "@medusajs/ui";
+import { useState } from "react";
+import { Button } from "@medusajs/ui";
+import { Eye } from "lucide-react";
 import { EditorCanvas } from "../../components/customization/customization-template-editor";
 import { Inspector } from "../../components/customization/customization-template-inspector";
 import {
   LeftPanel,
   Rail,
 } from "../../components/customization/customization-template-panels";
+import { PreviewDialog } from "../../components/customization/customization-template-preview";
 import type { useCreateProduct } from "./use-create-product";
 
 type CreateProductCustomizationProps = {
@@ -15,13 +18,14 @@ export function CreateProductCustomization({
   state,
 }: CreateProductCustomizationProps) {
   const {
-    embeddedCustomization,
     embeddedEditor,
     previewBackgrounds,
     selectedPreviewAssetId,
     setSelectedPreviewAssetId,
     dynamicFonts,
   } = state;
+
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   return (
     <section
@@ -50,27 +54,40 @@ export function CreateProductCustomization({
           activeTab={embeddedEditor.activeTab}
           onChange={embeddedEditor.setActiveTab}
         />
-        <div className="min-h-0 overflow-y-auto overflow-x-hidden">
-          <LeftPanel
-            activeTab={embeddedEditor.activeTab}
-            template={embeddedEditor.template}
-            selectedLayerId={embeddedEditor.selectedLayerId}
-            onAddText={embeddedEditor.addTextLayer}
-            onAddTextOnPath={embeddedEditor.addTextOnPathLayer}
-            onAddShape={embeddedEditor.addImageShape}
-            onAddPolygon={embeddedEditor.addPolygon}
-            onDrawShape={embeddedEditor.startDrawMode}
-            onSelectLayer={embeddedEditor.setSelectedLayerId}
-            onUpdateTemplate={embeddedEditor.updateTemplate}
-            onUpdateField={embeddedEditor.updateField}
-            onDelete={embeddedEditor.deleteSelectedLayer}
-            onUploadBackground={() => {}}
-            embeddedBackgrounds={{
-              items: previewBackgrounds,
-              selectedAssetId: selectedPreviewAssetId,
-              onSelectAssetId: setSelectedPreviewAssetId,
-            }}
-          />
+        <div className="flex min-h-0 flex-col">
+          <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
+            <LeftPanel
+              activeTab={embeddedEditor.activeTab}
+              template={embeddedEditor.template}
+              selectedLayerId={embeddedEditor.selectedLayerId}
+              onAddText={embeddedEditor.addTextLayer}
+              onAddTextOnPath={embeddedEditor.addTextOnPathLayer}
+              onAddShape={embeddedEditor.addImageShape}
+              onAddPolygon={embeddedEditor.addPolygon}
+              onDrawShape={embeddedEditor.startDrawMode}
+              onSelectLayer={embeddedEditor.setSelectedLayerId}
+              onUpdateTemplate={embeddedEditor.updateTemplate}
+              onUpdateField={embeddedEditor.updateField}
+              onDelete={embeddedEditor.deleteSelectedLayer}
+              onUploadBackground={() => {}}
+              embeddedBackgrounds={{
+                items: previewBackgrounds,
+                selectedAssetId: selectedPreviewAssetId,
+                onSelectAssetId: setSelectedPreviewAssetId,
+              }}
+            />
+          </div>
+          <div className="border-r border-t border-ui-border-base p-4 bg-ui-bg-base">
+            <Button
+              type="button"
+              variant="secondary"
+              className="w-full justify-center"
+              onClick={() => setPreviewOpen(true)}
+            >
+              <Eye className="mr-2 size-4" />
+              Preview
+            </Button>
+          </div>
         </div>
         <EditorCanvas
           template={embeddedEditor.template}
@@ -99,6 +116,16 @@ export function CreateProductCustomization({
           />
         </div>
       </div>
+      {previewOpen ? (
+        <PreviewDialog
+          template={embeddedEditor.template}
+          values={embeddedEditor.previewValues}
+          pendingPdfFile={null}
+          onChange={embeddedEditor.handlePreviewChange}
+          onClose={() => setPreviewOpen(false)}
+          onReset={embeddedEditor.resetPreviewValues}
+        />
+      ) : null}
     </section>
   );
 }

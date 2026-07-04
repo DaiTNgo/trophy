@@ -2,6 +2,7 @@ import { Heading, IconButton, Text } from "@medusajs/ui";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useEffect } from "react";
 import type { useCreateProduct } from "./use-create-product";
+import { AdminMedia } from "../../components/ui/admin-media";
 
 type VariantGalleryProps = {
   state: ReturnType<typeof useCreateProduct>;
@@ -57,8 +58,9 @@ export function VariantGallery({ state }: VariantGalleryProps) {
 
         <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_240px]">
           <div className="relative flex min-h-[420px] items-center justify-center bg-ui-bg-subtle p-6">
-            <img
+            <AdminMedia
               src={variantGallery.assets[variantGallery.activeIndex]?.contentUrl}
+              mimeType={variantGallery.assets[variantGallery.activeIndex]?.mimeType}
               alt={variantGallery.assets[variantGallery.activeIndex]?.fileName}
               className="max-h-[68vh] w-auto max-w-full object-contain"
             />
@@ -103,8 +105,9 @@ export function VariantGallery({ state }: VariantGalleryProps) {
                       : "border-ui-border-base",
                   ].join(" ")}
                 >
-                  <img
+                  <AdminMedia
                     src={asset.contentUrl}
+                    mimeType={asset.mimeType}
                     alt={asset.fileName}
                     className="h-20 w-full object-cover"
                   />

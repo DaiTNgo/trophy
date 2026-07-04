@@ -176,7 +176,7 @@ export function CreateProductPage() {
 
       <datalist id="product-tag-suggestions">
         {state.metadata.tags.map((option) => (
-          <option key={option} value={option} />
+          <option key={option.id} value={option.label} />
         ))}
       </datalist>
     </>

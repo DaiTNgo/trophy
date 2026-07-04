@@ -1,21 +1,34 @@
 import { Link } from "react-router";
-import { Button, Container, Heading, Text } from "@medusajs/ui";
-import { ArrowLeft, Save, Send } from "lucide-react";
-import { InlineError } from "../components/ui/medusa/inline-error";
+import { Button, Container, Heading, Text, StatusBadge } from "@medusajs/ui";
+import { ArrowLeft } from "lucide-react";
 
 import { useProductDetail } from "./product-detail/use-product-detail";
 import { ProductDetailOverview } from "./product-detail/product-detail-overview";
 import { ProductDetailOrganize } from "./product-detail/product-detail-organize";
 import { ProductDetailAttributes } from "./product-detail/product-detail-attributes";
 import { ProductDetailVariants } from "./product-detail/product-detail-variants";
+import { ProductDetailCustomization } from "./product-detail/product-detail-customization";
 import { ProductDetailAside } from "./product-detail/product-detail-aside";
-import { VariantGallery } from "./product-detail/variant-gallery";
+import { ProductDetailThumbnail } from "./product-detail/product-detail-thumbnail";
 
 export function ProductDetailPage() {
-  const state = useProductDetail();
-  const { product, errors, isSubmittingMedia, save } = state;
+  const { product, isLoading, error, mutate } = useProductDetail();
 
-  if (!product) {
+  if (isLoading) {
+    return (
+      <div className="flex flex-col gap-y-6">
+        <Container>
+          <div className="flex items-center justify-center py-8">
+            <Text size="small" className="text-ui-fg-muted">
+              Loading product...
+            </Text>
+          </div>
+        </Container>
+      </div>
+    );
+  }
+
+  if (error || !product) {
     return (
       <div className="flex flex-col gap-y-6">
         <Container>
@@ -27,7 +40,7 @@ export function ProductDetailPage() {
               <div className="flex flex-col gap-y-1">
                 <Heading level="h2">Product not found</Heading>
                 <Text size="base" className="text-ui-fg-subtle">
-                  The requested product does not exist in the current mock catalog.
+                  {error || "The requested product does not exist."}
                 </Text>
               </div>
               <Button variant="secondary" size="small" asChild>
@@ -47,15 +60,22 @@ export function ProductDetailPage() {
     <div className="flex flex-col gap-y-6">
       <Container>
         <div className="flex flex-col gap-y-3">
-          <Text size="small" className="text-ui-fg-muted uppercase tracking-wider">
-            Products
-          </Text>
+          <div className="flex items-center gap-x-2">
+            <Text size="small" className="text-ui-fg-muted uppercase tracking-wider">
+              Products
+            </Text>
+            <Text size="small" className="text-ui-fg-muted">
+              /
+            </Text>
+            <StatusBadge color={product.status === "Published" ? "green" : "grey"}>
+              {product.status}
+            </StatusBadge>
+          </div>
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="flex flex-col gap-y-1">
               <Heading level="h2">{product.title}</Heading>
               <Text size="base" className="text-ui-fg-subtle">
-                Section-based editing workspace for overview, organize, descriptive fields, and
-                variant-owned pricing.
+                Manage product details, variants, and customization settings.
               </Text>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -65,44 +85,25 @@ export function ProductDetailPage() {
                   Back
                 </Link>
               </Button>
-              <Button
-                variant="secondary"
-                size="small"
-                disabled={isSubmittingMedia}
-                onClick={() => void save("draft")}
-              >
-                <Save className="h-4 w-4" />
-                {isSubmittingMedia ? "Uploading media..." : "Save changes"}
-              </Button>
-              <Button
-                variant="primary"
-                size="small"
-                disabled={isSubmittingMedia}
-                onClick={() => void save("publish")}
-              >
-                <Send className="h-4 w-4" />
-                {isSubmittingMedia ? "Uploading media..." : "Publish"}
-              </Button>
             </div>
           </div>
         </div>
       </Container>
 
-      {errors.form ? <InlineError message={errors.form} /> : null}
-      {errors.publish ? <InlineError message={errors.publish} /> : null}
-
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="flex flex-col gap-y-6">
-          <ProductDetailOverview state={state} />
-          <ProductDetailOrganize state={state} />
-          <ProductDetailAttributes state={state} />
-          <ProductDetailVariants state={state} />
+          <ProductDetailOverview product={product} mutate={mutate} />
+          <ProductDetailThumbnail product={product} mutate={mutate} />
+          <ProductDetailVariants product={product} mutate={mutate} />
+          <ProductDetailAttributes product={product} mutate={mutate} />
+          <ProductDetailCustomization product={product} mutate={mutate} />
         </div>
 
-        <ProductDetailAside state={state} />
+        <div className="flex flex-col gap-y-6">
+          <ProductDetailAside product={product} mutate={mutate} />
+          <ProductDetailOrganize product={product} mutate={mutate} />
+        </div>
       </div>
-
-      <VariantGallery state={state} />
     </div>
   );
 }

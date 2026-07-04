@@ -1,7 +1,6 @@
 import {
   Button,
   DropdownMenu,
-  Heading,
   Input,
   Switch,
   Table,
@@ -9,6 +8,7 @@ import {
 } from "@medusajs/ui";
 import { Adjustments } from "@medusajs/icons";
 import { ExternalLink, Loader2, Trash2, Upload } from "lucide-react";
+import { AdminMedia } from "../../components/ui/admin-media";
 import { InlineError } from "../../components/ui/medusa/inline-error";
 import {
   buildVariantSignature,
@@ -234,8 +234,9 @@ export function CreateProductVariants({ state }: CreateProductVariantsProps) {
                                         )
                                       }
                                     >
-                                      <img
+                                      <AdminMedia
                                         src={asset.contentUrl}
+                                        mimeType={asset.mimeType}
                                         alt={asset.fileName}
                                         className="h-24 w-full object-cover"
                                       />

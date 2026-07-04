@@ -190,6 +190,8 @@ const optionsSchema = v.object({
   )
 })
 
+const assetIdSchema = v.pipe(v.string(), v.uuid())
+
 const variantsSchema = v.object({
   items: v.array(
     v.object({
@@ -202,12 +204,17 @@ const variantsSchema = v.object({
       isDefault: v.optional(v.boolean()),
       optionValueIds: v.optional(
         v.array(v.pipe(v.number(), v.integer(), v.minValue(1)))
+      ),
+      media: v.optional(
+        v.array(
+          v.object({
+            assetId: assetIdSchema
+          })
+        )
       )
     })
   )
 })
-
-const assetIdSchema = v.pipe(v.string(), v.uuid())
 
 const fullCreateCustomizationSchema = v.object({
   enabled: v.boolean(),
@@ -713,6 +720,7 @@ const replaceVariants = async (
     priceAmount?: number | null
     isDefault?: boolean
     optionValueIds?: number[]
+    media?: Array<{ assetId: string }>
   }>
 ) => {
   const product = await db.select().from(products).where(eq(products.id, productId)).get()
@@ -847,6 +855,10 @@ const replaceVariants = async (
     await db
       .delete(productVariantOptionValues)
       .where(inArray(productVariantOptionValues.variantId, existingVariantIds))
+    
+    await db
+      .delete(productVariantMedia)
+      .where(inArray(productVariantMedia.variantId, existingVariantIds))
   }
   await db.delete(productVariants).where(eq(productVariants.productId, productId))
 
@@ -875,6 +887,9 @@ const replaceVariants = async (
   if (variantOptionPayload.length > 0) {
     await db.insert(productVariantOptionValues).values(variantOptionPayload)
   }
+
+  const variantsWithMedia = normalized.map((item) => ({ media: item.media ?? [] }))
+  await insertVariantMedia(db, insertedVariants, variantsWithMedia)
 
   return null
 }
@@ -1819,6 +1834,49 @@ export const productsRoute = new Hono<AppEnv>()
     }
 
     const db = getDb(c.env)
+    const existingProduct = await readProduct(db, params.output.id)
+
+    if (!existingProduct) {
+      return jsonError(c, 404, 'Product not found')
+    }
+
+    if (existingProduct.status === 'published' && existingProduct.customization?.enabled) {
+      const candidateVariants = parsed.output.items.map((item, index) => ({
+        id: item.id ?? -1,
+        title: item.title,
+        sku: item.sku,
+        priceAmount: item.priceAmount ?? null,
+        isDefault: item.isDefault ?? false,
+        position: index,
+        options: [],
+        media: item.media ?? []
+      }))
+
+      const publishError = validatePublishable({
+        ...existingProduct,
+        variants: candidateVariants
+      } as any)
+
+      if (publishError) {
+        return jsonError(c, 409, publishError)
+      }
+    }
+
+    const allAssetIds = [
+      ...new Set(
+        parsed.output.items.flatMap((variant) =>
+          (variant.media ?? []).map((media) => media.assetId)
+        )
+      )
+    ]
+
+    if (allAssetIds.length > 0) {
+      const assetsById = await loadProductAssetsById(db, allAssetIds)
+      if (assetsById.size !== allAssetIds.length) {
+        return jsonError(c, 404, 'One or more variant media assets were not found')
+      }
+    }
+
     const replaceError = await replaceVariants(db, params.output.id, parsed.output.items)
 
     if (replaceError) {
@@ -1832,6 +1890,90 @@ export const productsRoute = new Hono<AppEnv>()
 
     const product = await readProduct(db, params.output.id)
     return c.json({ item: product }, 200)
+  })
+  .put('/:id/customization', async (c) => {
+    const params = parseParams(c, idParamsSchema)
+
+    if (!params.success) {
+      return params.response
+    }
+
+    const parsed = await parseJson(c, fullCreateCustomizationSchema)
+
+    if (!parsed.success) {
+      return parsed.response
+    }
+
+    const db = getDb(c.env)
+    const product = await readProduct(db, params.output.id)
+
+    if (!product) {
+      return jsonError(c, 404, 'Product not found')
+    }
+
+    let derivedCanvasWidthPx: number | null = null
+    let derivedCanvasHeightPx: number | null = null
+
+    if (parsed.output.enabled) {
+      const firstMedia = product.variants.flatMap((variant) => variant.media)[0]
+      if (firstMedia?.widthPx && firstMedia?.heightPx) {
+        derivedCanvasWidthPx = firstMedia.widthPx
+        derivedCanvasHeightPx = firstMedia.heightPx
+      }
+
+      const draftValidation = validateProductCustomizationDraft({
+        layers: parsed.output.layers as ProductCustomization['layers'],
+        formFields: parsed.output.formFields as ProductCustomization['formFields']
+      })
+
+      if (!draftValidation.valid) {
+        return jsonError(c, 409, draftValidation.issues[0]?.message ?? 'Customization is invalid')
+      }
+    }
+
+    if (product.status === 'published' && parsed.output.enabled) {
+      const publishCandidate = {
+        ...product,
+        customization: {
+          productId: String(product.id),
+          enabled: true,
+          canvasWidthPx: derivedCanvasWidthPx,
+          canvasHeightPx: derivedCanvasHeightPx,
+          layers: parsed.output.layers,
+          formFields: parsed.output.formFields,
+          layerCount: parsed.output.layers.length,
+          formFieldCount: parsed.output.formFields.length
+        }
+      }
+
+      const publishError = validatePublishable(publishCandidate as any)
+      if (publishError) {
+        return jsonError(c, 409, publishError)
+      }
+    }
+
+    await db.delete(productCustomizations).where(eq(productCustomizations.productId, product.id))
+
+    if (parsed.output.enabled) {
+      await db.insert(productCustomizations).values({
+        productId: product.id,
+        enabled: true,
+        canvasWidthPx: derivedCanvasWidthPx,
+        canvasHeightPx: derivedCanvasHeightPx,
+        layersJson: JSON.stringify(parsed.output.layers),
+        formFieldsJson: JSON.stringify(parsed.output.formFields),
+        createdAt: nowIso(),
+        updatedAt: nowIso()
+      })
+    }
+
+    await db
+      .update(products)
+      .set({ updatedAt: nowIso() })
+      .where(eq(products.id, product.id))
+
+    const updatedProduct = await readProduct(db, product.id)
+    return c.json({ item: updatedProduct }, 200)
   })
   .post('/:id/publish', async (c) => {
     const params = parseParams(c, idParamsSchema)

@@ -13,6 +13,7 @@ import { OrderDetailPage } from "./pages/order-detail";
 import { ProductsListPage } from "./pages/products-list";
 import { CreateProductPage } from "./pages/create-product";
 import { ProductDetailPage } from "./pages/product-detail";
+import { ProductCustomizationEditor } from "./pages/product-customization-editor";
 import { CollectionsListPage } from "./pages/collections/index";
 import { CollectionDetailPage } from "./pages/collections/detail";
 import { CategoriesListPage } from "./pages/categories/index";
@@ -53,6 +54,7 @@ function App() {
                   <Route path="/products" element={<ProductsListPage />} />
                   <Route path="/products/new" element={<CreateProductPage />} />
                   <Route path="/products/:productId" element={<ProductDetailPage />} />
+                  <Route path="/products/:productId/customization" element={<ProductCustomizationEditor />} />
                   <Route path="/collections" element={<CollectionsListPage />} />
                   <Route path="/collections/:id" element={<CollectionDetailPage />} />
                   <Route path="/categories" element={<CategoriesListPage />} />

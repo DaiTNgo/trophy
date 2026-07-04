@@ -10,7 +10,12 @@ import {
   Text,
 } from "@medusajs/ui";
 import { Plus } from "lucide-react";
-import { useCatalog } from "../hooks/use-catalog";
+import { useEffect } from "react";
+import {
+  fetchProducts,
+  mapApiProductToCatalogProduct,
+} from "../lib/products-client";
+import type { CatalogProduct } from "../types";
 import { formatCurrency } from "../lib/utils";
 
 function getBadgeColor(
@@ -27,27 +32,55 @@ function getBadgeColor(
 }
 
 export function ProductsListPage() {
-  const { products } = useCatalog();
   const location = useLocation();
   const [query, setQuery] = useState("");
+  const [products, setProducts] = useState<CatalogProduct[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
   const deferredQuery = useDeferredValue(query);
   const flash = (location.state as { flash?: string } | null)?.flash;
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const data = await fetchProducts();
+        setProducts(data.map(mapApiProductToCatalogProduct));
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : "Failed to load products",
+        );
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    void load();
+  }, []);
 
   const filteredProducts = useMemo(() => {
     const normalizedQuery = deferredQuery.trim().toLowerCase();
     if (!normalizedQuery) return products;
     return products.filter((product) =>
-      [product.id, product.title, product.status, product.category, product.collection, product.handle].some(
-        (value) => value.toLowerCase().includes(normalizedQuery),
-      ),
+      [
+        product.id,
+        product.title,
+        product.status,
+        product.category,
+        product.collection,
+        product.handle,
+      ].some((value) => value.toLowerCase().includes(normalizedQuery)),
     );
   }, [deferredQuery, products]);
 
   const productStats = useMemo(
     () => ({
-      published: products.filter((product) => product.status === "Published").length,
+      published: products.filter((product) => product.status === "Published")
+        .length,
       lowInventory: products.filter(
-        (product) => product.status === "Published" && product.inventory > 0 && product.inventory < 10,
+        (product) =>
+          product.status === "Published" &&
+          product.inventory > 0 &&
+          product.inventory < 10,
       ).length,
       drafts: products.filter((product) => product.status === "Draft").length,
     }),
@@ -58,14 +91,18 @@ export function ProductsListPage() {
     <div className="flex flex-col gap-y-6">
       <Container>
         <div className="flex flex-col gap-y-3">
-          <Text size="small" className="text-ui-fg-muted uppercase tracking-wider">
+          <Text
+            size="small"
+            className="text-ui-fg-muted uppercase tracking-wider"
+          >
             Products
           </Text>
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="flex flex-col gap-y-1">
               <Heading level="h2">Catalog control</Heading>
               <Text size="base" className="text-ui-fg-subtle">
-                Track publish state, inventory pressure, and pricing across the current assortment.
+                Track publish state, inventory pressure, and pricing across the
+                current assortment.
               </Text>
             </div>
             <Button variant="secondary" size="small" asChild>
@@ -82,6 +119,14 @@ export function ProductsListPage() {
         <Container>
           <Text size="small" className="text-ui-fg-success">
             {flash}
+          </Text>
+        </Container>
+      ) : null}
+
+      {error ? (
+        <Container>
+          <Text size="small" className="text-ui-fg-error">
+            {error}
           </Text>
         </Container>
       ) : null}
@@ -139,7 +184,13 @@ export function ProductsListPage() {
           />
         </div>
         <div className="mt-3">
-          {filteredProducts.length === 0 ? (
+          {isLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Text size="small" className="text-ui-fg-muted">
+                Loading products...
+              </Text>
+            </div>
+          ) : filteredProducts.length === 0 ? (
             <div className="flex items-center justify-center py-8">
               <Text size="small" className="text-ui-fg-muted">
                 No products matched your current search.
@@ -198,7 +249,10 @@ export function ProductsListPage() {
                       </Text>
                     </Table.Cell>
                     <Table.Cell className="text-right">
-                      <Text size="small" className="text-ui-fg-base font-medium">
+                      <Text
+                        size="small"
+                        className="text-ui-fg-base font-medium"
+                      >
                         {formatCurrency(product.price)}
                       </Text>
                     </Table.Cell>

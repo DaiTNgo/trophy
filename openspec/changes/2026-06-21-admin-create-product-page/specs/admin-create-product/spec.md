@@ -150,6 +150,12 @@ The system SHALL distinguish saving a draft from publishing a product.
 ### Requirement: Create Product API Contract
 The system SHALL expose a create product contract compatible with mock-first admin delivery and later backend implementation.
 
+#### Scenario: Handle file uploads before submitting the product payload
+- **WHEN** the admin uploads product or variant media files (e.g. PDFs, images)
+- **THEN** the admin frontend MUST first upload these files to the standalone assets API (`POST /api/admin/products/assets`) to obtain an `assetId`
+- **AND** the frontend MUST construct the final `full-create` JSON payload using these `assetId`s, rather than embedding raw file data or making piecemeal product update calls
+- **AND** the single `full-create` API call handles all database operations (product, variants, and media linking) in one step
+
 #### Scenario: Submit create product request
 - **WHEN** the admin submits the create product flow
 - **THEN** the contract accepts details, organize metadata, option definitions, and variant-row inputs

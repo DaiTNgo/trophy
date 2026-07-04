@@ -71,6 +71,13 @@
       "when": 1782626423604,
       "tag": "0009_harsh_tarot",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1783155625852,
+      "tag": "0010_fantastic_warpath",
+      "breakpoints": true
     }
   ]
 }

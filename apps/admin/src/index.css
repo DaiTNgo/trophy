@@ -3,6 +3,11 @@
 @tailwind utilities;
 
 html,
+body {
+  overflow: hidden;
+}
+
+html,
 body,
 #root {
   min-height: 100%;

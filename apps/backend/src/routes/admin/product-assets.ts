@@ -62,9 +62,11 @@ export const productAssetsRoute = new Hono<AppEnv>()
 
     let dimensions: { width: number; height: number } | null = null;
     if (mimeType === "application/pdf") {
-      const clientWidth = Number(formData?.get("widthPx"));
-      const clientHeight = Number(formData?.get("heightPx"));
-      if (Number.isFinite(clientWidth) && Number.isFinite(clientHeight)) {
+      const widthStr = formData?.get("widthPx");
+      const heightStr = formData?.get("heightPx");
+      const clientWidth = widthStr ? Number(widthStr) : NaN;
+      const clientHeight = heightStr ? Number(heightStr) : NaN;
+      if (Number.isFinite(clientWidth) && Number.isFinite(clientHeight) && clientWidth > 0 && clientHeight > 0) {
         dimensions = { width: clientWidth, height: clientHeight };
       } else {
         // Fallback for PDFs if client didn't provide dimensions

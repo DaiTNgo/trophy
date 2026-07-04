@@ -20,7 +20,7 @@ export type AuthContextValue = {
 };
 
 export type OrderStatus = "Pending" | "Processing" | "Fulfilled" | "Canceled";
-export type ProductStatus = "Published" | "Draft";
+export type ProductStatus = "Published" | "Draft" | "Proposed" | "Rejected";
 
 export type Order = {
   id: string;
@@ -56,13 +56,26 @@ export type CatalogProduct = {
   price: number;
   category: string;
   collection: string;
+  collectionId: number | null;
   type: string;
+  typeId: number | null;
   categories: string[];
+  categoryIds: number[];
   tags: string[];
+  tagIds: number[];
   media: string[];
   attributes: ProductAttribute[];
   optionDefinitions: ProductOptionDefinition[];
   variants: ProductVariant[];
+  customization?: {
+    enabled: boolean;
+    canvasWidthPx: number | null;
+    canvasHeightPx: number | null;
+    layers: unknown[];
+    formFields: unknown[];
+    layerCount: number;
+    formFieldCount: number;
+  } | null;
   updatedAt: string;
 };
 
@@ -99,6 +112,7 @@ export type ProductVariant = {
 export type VariantOptionValue = {
   option: string;
   value: string;
+  optionValueId?: number;
 };
 
 export type ProductOptionDefinition = {

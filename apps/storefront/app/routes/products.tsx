@@ -62,11 +62,13 @@ export default function Products({ loaderData }: Route.ComponentProps) {
           <h1 className="font-display-lg-mobile md:font-display-lg text-display-lg-mobile md:text-display-lg text-on-background mb-8">
             DANH MỤC SẢN PHẨM
           </h1>
-          <FilterChips 
-            categories={categories} 
-            activeCategory={activeCategory} 
-            onSelect={handleCategorySelect}
-          />
+          <div className="sticky top-[125px] z-30 bg-background/95 backdrop-blur-sm py-2 -mx-margin-mobile px-margin-mobile md:mx-0 md:px-0">
+            <FilterChips 
+              categories={categories} 
+              activeCategory={activeCategory} 
+              onSelect={handleCategorySelect}
+            />
+          </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-gutter gap-y-16">
