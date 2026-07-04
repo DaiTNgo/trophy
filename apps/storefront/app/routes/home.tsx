@@ -1,13 +1,15 @@
 import type { Route } from "./+types/home";
 import { useScrollReveal } from "../hooks/useScrollReveal";
-
-import { Navbar } from "../components/layout/Navbar";
-import { Footer } from "../components/layout/Footer";
 import { HeroSection } from "../components/home/HeroSection";
 import { BestSellersSection } from "../components/home/BestSellersSection";
 import { ManufacturerSection } from "../components/home/ManufacturerSection";
 import { CategoriesSection } from "../components/home/CategoriesSection";
 import { TrustedBrandsSection } from "../components/home/TrustedBrandsSection";
+import {
+  fetchStorefrontCategories,
+  fetchStorefrontCollectionProducts,
+  fetchStorefrontProducts,
+} from "../lib/api";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -16,18 +18,38 @@ export function meta({}: Route.MetaArgs) {
   ];
 }
 
-export default function Home() {
+export async function loader({}: Route.LoaderArgs) {
+  const [categories, bestSellersData, featuredData] = await Promise.all([
+    fetchStorefrontCategories().catch(() => []),
+    fetchStorefrontCollectionProducts("best-sellers", { limit: 4 }).catch(() => ({ items: [], page: 1, limit: 4, total: 0 })),
+    fetchStorefrontCollectionProducts("featured", { limit: 1 }).catch(() => ({ items: [], page: 1, limit: 1, total: 0 })),
+  ]);
+
+  // If no best-sellers collection products, fallback to latest products
+  const bestSellers = bestSellersData.items.length > 0
+    ? bestSellersData.items
+    : await fetchStorefrontProducts({ limit: 4 }).then((d) => d.items).catch(() => []);
+
+  const featuredProduct = featuredData.items[0] ?? bestSellers[0] ?? null;
+
+  return {
+    categories,
+    bestSellers,
+    featuredProduct,
+  };
+}
+
+export default function Home({ loaderData }: Route.ComponentProps) {
+  const { categories, bestSellers, featuredProduct } = loaderData;
   useScrollReveal();
 
   return (
     <div className="overflow-x-hidden">
-      <Navbar />
-      <HeroSection />
-      <BestSellersSection />
+      <HeroSection product={featuredProduct} />
+      <BestSellersSection products={bestSellers} />
       <ManufacturerSection />
-      <CategoriesSection />
+      <CategoriesSection categories={categories} />
       <TrustedBrandsSection />
-      <Footer />
     </div>
   );
 }

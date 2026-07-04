@@ -23,11 +23,17 @@ function normalizeContentUrl(contentUrl: string) {
   return `${BACKEND_URL}${contentUrl.startsWith("/") ? contentUrl : `/${contentUrl}`}`;
 }
 
-export async function uploadProductVariantMedia(file: File): Promise<ProductVariantMedia> {
+export async function uploadProductVariantMedia(file: File, widthPx?: number, heightPx?: number): Promise<ProductVariantMedia> {
   const formData = new FormData();
   formData.append("file", file);
+  if (widthPx !== undefined) {
+    formData.append("widthPx", String(widthPx));
+  }
+  if (heightPx !== undefined) {
+    formData.append("heightPx", String(heightPx));
+  }
 
-  const response = await backendFetch(`/api/products/assets`, {
+  const response = await backendFetch(`/api/admin/products/assets`, {
     method: "POST",
     credentials: "include",
     body: formData,
@@ -45,7 +51,7 @@ export async function uploadProductVariantMedia(file: File): Promise<ProductVari
 }
 
 export async function deleteProductVariantMedia(assetId: string) {
-  const response = await backendFetch(`/api/products/assets/${assetId}/delete`, {
+  const response = await backendFetch(`/api/admin/products/assets/${assetId}/delete`, {
     method: "POST",
     credentials: "include",
   });

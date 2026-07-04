@@ -30,7 +30,7 @@ export async function loadFontBytes(variantId: string): Promise<Uint8Array | nul
   // Otherwise, assume variantId is an assetId from the database.
   const url = filename 
     ? `${backendUrl}/fonts/${filename}`
-    : `${backendUrl}/api/brand-assets/fonts/file/${variantId}`;
+    : `${backendUrl}/api/admin/brand-assets/fonts/file/${variantId}`;
     
   const response = await fetch(url).catch(() => null);
   if (!response?.ok) return null;

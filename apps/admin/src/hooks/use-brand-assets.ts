@@ -12,8 +12,8 @@ export function useBrandAssets() {
     async function load() {
       try {
         const [colorsRes, fontsRes] = await Promise.all([
-          backendFetch("/api/brand-assets/colors"),
-          backendFetch("/api/brand-assets/fonts")
+          backendFetch("/api/admin/brand-assets/colors"),
+          backendFetch("/api/admin/brand-assets/fonts")
         ]);
 
         if (mounted) {

@@ -13,6 +13,10 @@ import { OrderDetailPage } from "./pages/order-detail";
 import { ProductsListPage } from "./pages/products-list";
 import { CreateProductPage } from "./pages/create-product";
 import { ProductDetailPage } from "./pages/product-detail";
+import { CollectionsListPage } from "./pages/collections/index";
+import { CollectionDetailPage } from "./pages/collections/detail";
+import { CategoriesListPage } from "./pages/categories/index";
+import { CategoryDetailPage } from "./pages/categories/detail";
 import { PlaceholderIndexPage } from "./pages/placeholder-index";
 import { CustomizationTemplatesRouter } from "./pages/customization-templates";
 import { BrandAssetsPage } from "./pages/brand-assets";
@@ -49,26 +53,10 @@ function App() {
                   <Route path="/products" element={<ProductsListPage />} />
                   <Route path="/products/new" element={<CreateProductPage />} />
                   <Route path="/products/:productId" element={<ProductDetailPage />} />
-                  <Route
-                    path="/collections"
-                    element={
-                      <PlaceholderIndexPage
-                        eyebrow="Products"
-                        title="Collections"
-                        description="Group products into merchandised sets before wiring this page to backend taxonomy contracts."
-                      />
-                    }
-                  />
-                  <Route
-                    path="/categories"
-                    element={
-                      <PlaceholderIndexPage
-                        eyebrow="Products"
-                        title="Categories"
-                        description="Shape shopper-facing taxonomy and category assignments here in a later admin slice."
-                      />
-                    }
-                  />
+                  <Route path="/collections" element={<CollectionsListPage />} />
+                  <Route path="/collections/:id" element={<CollectionDetailPage />} />
+                  <Route path="/categories" element={<CategoriesListPage />} />
+                  <Route path="/categories/:id" element={<CategoryDetailPage />} />
                   <Route
                     path="/inventory"
                     element={

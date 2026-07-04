@@ -15,8 +15,11 @@ import {
   layerGeometryToPixels,
   normalizeTextPath,
   pixelRectToLayerGeometry,
+  validateProductCustomizationDraft,
+  validateProductCustomizationForPublish,
   validateCustomizationValues,
   validateTemplateForPublish,
+  type ProductCustomization,
   type CustomizationTemplate,
   type TextEditorLayer,
 } from "./index";
@@ -110,6 +113,48 @@ describe("publish validation", () => {
     };
     expect(validateTemplateForPublish(invalidTemplate).issues.map((issue) => issue.code)).toContain(
       "TEXT_PATH_REQUIRES_SINGLE_LINE",
+    );
+  });
+});
+
+describe("product-owned customization validation", () => {
+  const productCustomization: ProductCustomization = {
+    productId: "product_123",
+    enabled: true,
+    canvasWidthPx: 1200,
+    canvasHeightPx: 900,
+    layers: DEFAULT_TEMPLATE.layers,
+    formFields: DEFAULT_TEMPLATE.formFields,
+  };
+
+  it("allows draft customization without canvas dimensions", () => {
+    const result = validateProductCustomizationDraft({
+      layers: productCustomization.layers,
+      formFields: productCustomization.formFields,
+    });
+
+    expect(result.valid).toBe(true);
+  });
+
+  it("requires canvas dimensions for publish-ready customization", () => {
+    const result = validateProductCustomizationForPublish({
+      ...productCustomization,
+      canvasWidthPx: null,
+      canvasHeightPx: null,
+    });
+
+    expect(result.valid).toBe(false);
+    expect(result.issues.map((issue) => issue.code)).toContain("CANVAS_DIMENSIONS_REQUIRED");
+  });
+
+  it("reuses editor model validation for product-owned customization", () => {
+    const result = validateProductCustomizationForPublish({
+      ...productCustomization,
+      formFields: [{ ...productCustomization.formFields[0], layerId: "missing_layer" }],
+    });
+
+    expect(result.issues.map((issue) => issue.code)).toEqual(
+      expect.arrayContaining(["FIELD_LAYER_MISSING", "LAYER_FIELD_MISSING"]),
     );
   });
 });

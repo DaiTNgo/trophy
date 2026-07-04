@@ -46,6 +46,13 @@ export const PRODUCT_ASSET_CORS_POLICY: CorsPolicy = {
   exposeHeaders: ["Content-Length", "ETag"],
 };
 
+export const STOREFRONT_CORS_POLICY: CorsPolicy = {
+  allowHeaders: ["Content-Type"],
+  allowMethods: ["GET", "OPTIONS"],
+  credentials: false,
+  exposeHeaders: ["Content-Length"],
+};
+
 function splitOrigins(value: string | undefined) {
   if (!value) {
     return [];

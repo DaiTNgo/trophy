@@ -1,6 +1,4 @@
 import type { Route } from "./+types/checkout";
-import { Navbar } from "../components/layout/Navbar";
-import { Footer } from "../components/layout/Footer";
 import { CheckoutProgress } from "../components/checkout/CheckoutProgress";
 import { BillingDetails } from "../components/checkout/BillingDetails";
 import { ShippingMethod } from "../components/checkout/ShippingMethod";
@@ -15,9 +13,7 @@ export function meta({}: Route.MetaArgs) {
 
 export default function Checkout() {
   return (
-    <div className="min-h-screen flex flex-col bg-surface text-on-background">
-      <Navbar />
-
+    <div className="min-h-screen bg-surface text-on-background">
       <main className="flex-grow max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop py-12 w-full">
         <CheckoutProgress />
 
@@ -34,8 +30,6 @@ export default function Checkout() {
           </div>
         </div>
       </main>
-
-      <Footer />
     </div>
   );
 }

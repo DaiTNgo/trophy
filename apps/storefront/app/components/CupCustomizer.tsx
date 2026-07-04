@@ -21,7 +21,7 @@ import { useMemo, useState } from "react";
 
 const BACKEND_URL =
   (import.meta.env.VITE_BACKEND_URL as string | undefined)?.replace(/\/$/, "") ??
-  "http://127.0.0.1:8787";
+  "http://localhost:8787";
 
 function getUploadToken() {
   const storageKey = "trophy-customization-upload-token";
@@ -67,7 +67,7 @@ export default function CupCustomizer({
 
     setUploadingFieldId(field.id);
     try {
-      const response = await fetch(`${BACKEND_URL}/api/customizations/assets`, {
+      const response = await fetch(`${BACKEND_URL}/api/storefront/customizations/assets`, {
         method: "POST",
         headers: { "Content-Type": file.type, "X-Upload-Token": getUploadToken() },
         body: file,
@@ -191,7 +191,7 @@ function FontLoader({ layers, dynamicFonts = [] }: { layers: RuntimeLayer[]; dyn
             <style key={v.variantId} dangerouslySetInnerHTML={{ __html: `
               @font-face {
                 font-family: '${v.variantId}';
-                src: url('${BACKEND_URL}/api/brand-assets/fonts/file/${v.assetId}') format('truetype');
+                src: url('${BACKEND_URL}/api/storefront/brand-assets/fonts/file/${v.assetId}') format('truetype');
               }
             `}} />
           ));

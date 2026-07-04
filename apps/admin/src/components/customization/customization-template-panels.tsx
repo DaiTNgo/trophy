@@ -115,6 +115,11 @@ export function LeftPanel(props: {
     background: import("@trophy/customization").BackgroundAsset,
     file?: File,
   ) => void;
+  embeddedBackgrounds?: {
+    items: Array<import("@trophy/customization").BackgroundAsset>;
+    selectedAssetId: string | null;
+    onSelectAssetId: (assetId: string) => void;
+  };
 }) {
   return (
     <aside className="overflow-y-auto border-r border-ui-border-base p-4">
@@ -147,11 +152,20 @@ export function LeftPanel(props: {
         />
       ) : null}
       {props.activeTab === "background" ? (
-        <BackgroundPanel
-          template={props.template}
-          onUpdateTemplate={props.onUpdateTemplate}
-          onUploadBackground={props.onUploadBackground}
-        />
+        props.embeddedBackgrounds ? (
+          <EmbeddedBackgroundPanel
+            template={props.template}
+            items={props.embeddedBackgrounds.items}
+            selectedAssetId={props.embeddedBackgrounds.selectedAssetId}
+            onSelectAssetId={props.embeddedBackgrounds.onSelectAssetId}
+          />
+        ) : (
+          <BackgroundPanel
+            template={props.template}
+            onUpdateTemplate={props.onUpdateTemplate}
+            onUploadBackground={props.onUploadBackground}
+          />
+        )
       ) : null}
     </aside>
   );
@@ -711,6 +725,62 @@ function BackgroundPanel({
       >
         Remove background
       </button>
+    </div>
+  );
+}
+
+function EmbeddedBackgroundPanel({
+  template,
+  items,
+  selectedAssetId,
+  onSelectAssetId,
+}: {
+  template: CustomizationTemplate;
+  items: Array<import("@trophy/customization").BackgroundAsset>;
+  selectedAssetId: string | null;
+  onSelectAssetId: (assetId: string) => void;
+}) {
+  return (
+    <div className="space-y-4">
+      <PanelTitle
+        title="Background"
+        subtitle="Choose a variant image for preview placement checks. This does not save a customization background asset."
+      />
+      {template.background ? (
+        <div className="space-y-3">
+          <img
+            src={template.background.previewUrl}
+            alt=""
+            className="aspect-video w-full rounded-md border object-contain"
+          />
+          <p className="text-sm text-ui-fg-subtle">
+            {template.background.filename ?? template.background.assetId}
+          </p>
+          <p className="text-xs text-ui-fg-muted">
+            {template.background.widthPx} x {template.background.heightPx}px
+          </p>
+        </div>
+      ) : null}
+      <div className="space-y-2">
+        {items.map((item) => (
+          <button
+            key={item.assetId}
+            type="button"
+            onClick={() => onSelectAssetId(item.assetId)}
+            className={`flex w-full items-center gap-3 rounded-md border px-2 py-2 text-left ${selectedAssetId === item.assetId ? "border-ui-border-interactive bg-ui-bg-base" : "border-ui-border-base"}`}
+          >
+            <img src={item.previewUrl} alt="" className="h-14 w-14 rounded border object-cover" />
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium text-ui-fg-base">
+                {item.filename ?? item.assetId}
+              </p>
+              <p className="text-xs text-ui-fg-muted">
+                {item.widthPx} x {item.heightPx}px
+              </p>
+            </div>
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

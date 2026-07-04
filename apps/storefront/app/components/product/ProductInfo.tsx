@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 export function ProductInfo({
   title,
   price,
@@ -5,13 +7,17 @@ export function ProductInfo({
   reviewsCount,
   description,
   specs,
+  variantSelector,
+  customizationSection,
 }: {
   title: string;
   price: string;
   rating: number;
   reviewsCount: number;
   description: string;
-  specs: any;
+  specs: Record<string, string>;
+  variantSelector?: ReactNode;
+  customizationSection?: ReactNode;
 }) {
   const fullStars = Math.floor(rating);
   const hasHalfStar = rating % 1 !== 0;
@@ -25,15 +31,22 @@ export function ProductInfo({
         <div className="flex items-center gap-4 mb-4">
           <div className="flex text-primary">
             {Array.from({ length: fullStars }).map((_, i) => (
-              <span key={`full-${i}`} className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>
+              <span
+                key={`full-${i}`}
+                className="material-symbols-outlined"
+                style={{ fontVariationSettings: "'FILL' 1" }}
+              >
                 star
               </span>
             ))}
-            {hasHalfStar && (
-              <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>
+            {hasHalfStar ? (
+              <span
+                className="material-symbols-outlined"
+                style={{ fontVariationSettings: "'FILL' 1" }}
+              >
                 star_half
               </span>
-            )}
+            ) : null}
           </div>
           <span className="text-on-surface-variant font-label-md">({reviewsCount} Reviews)</span>
         </div>
@@ -41,81 +54,14 @@ export function ProductInfo({
           {price}
         </div>
       </div>
-      <div className="h-px bg-outline-variant w-full"></div>
-      {/* Selection Blocks */}
+
+      <div className="h-px bg-outline-variant w-full" />
+
       <div className="space-y-8">
-        {/* Size Variant */}
-        <div className="space-y-4">
-          <label className="font-label-md text-on-surface uppercase">Size</label>
-          <div className="flex flex-wrap gap-3">
-            <button className="px-6 py-2 border-2 border-primary bg-primary text-white font-label-md transition-all">
-              SMALL
-            </button>
-            <button className="px-6 py-2 border-2 border-outline hover:border-primary font-label-md transition-all">
-              MEDIUM
-            </button>
-            <button className="px-6 py-2 border-2 border-outline hover:border-primary font-label-md transition-all">
-              LARGE
-            </button>
-          </div>
-        </div>
-        {/* Material Variant */}
-        <div className="space-y-4">
-          <label className="font-label-md text-on-surface uppercase">Material</label>
-          <div className="flex flex-wrap gap-4">
-            <button className="group flex items-center gap-3">
-              <span className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#C0C0C0] to-[#E8E8E8] border border-outline-variant"></span>
-              <span className="font-label-md text-on-surface-variant group-hover:text-primary transition-colors uppercase">
-                Silver
-              </span>
-            </button>
-            <button className="group flex items-center gap-3">
-              <span className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#D4AF37] to-[#F9E29C] border-2 border-primary"></span>
-              <span className="font-label-md text-primary transition-colors uppercase">Gold</span>
-            </button>
-          </div>
-        </div>
-        {/* Customization Section */}
-        <div className="space-y-4 p-6 bg-surface-container-low rounded-lg">
-          <h3 className="font-headline-md text-[20px] uppercase text-on-surface tracking-wide flex items-center gap-2">
-            <span className="material-symbols-outlined text-primary">edit_note</span>
-            Customization
-          </h3>
-          <div className="space-y-6">
-            <div className="space-y-2">
-              <label className="font-label-md text-on-surface-variant uppercase">
-                Engraving Text
-              </label>
-              <textarea
-                className="w-full bg-white border-none focus:ring-0 focus:border-b-2 focus:border-primary rounded-none transition-all placeholder:text-surface-variant font-body-md"
-                placeholder="Enter the name, achievement, or date to be engraved..."
-                rows={3}
-              ></textarea>
-              <p className="text-[12px] text-on-surface-variant">Recommended: Max 50 characters</p>
-            </div>
-            <div className="space-y-2">
-              <label className="font-label-md text-on-surface-variant uppercase">
-                Logo Upload
-              </label>
-              <div className="relative group">
-                <input className="hidden" id="logo-upload" type="file" />
-                <label
-                  className="flex flex-col items-center justify-center border-2 border-dashed border-outline-variant py-8 px-4 cursor-pointer hover:border-primary transition-colors bg-white"
-                  htmlFor="logo-upload"
-                >
-                  <span className="material-symbols-outlined text-3xl text-primary mb-2">
-                    upload_file
-                  </span>
-                  <span className="font-label-md text-on-surface-variant">
-                    Click to upload brand logo (.PNG, .SVG)
-                  </span>
-                </label>
-              </div>
-            </div>
-          </div>
-        </div>
+        {variantSelector}
+        {customizationSection}
       </div>
-      {/* Action Buttons */}
+
       <div className="flex flex-col gap-4">
         <button className="w-full bg-primary text-white py-5 font-label-md tracking-[2px] uppercase shadow-md hover:bg-surface-tint transition-all active:scale-[0.98] flex items-center justify-center gap-3">
           <span className="material-symbols-outlined">shopping_bag</span>
@@ -125,7 +71,7 @@ export function ProductInfo({
           Quick Buy
         </button>
       </div>
-      {/* Trust Badges */}
+
       <div className="grid grid-cols-2 gap-4">
         <div className="flex items-center gap-3 p-4 bg-surface-container-lowest border border-outline-variant rounded-lg">
           <span className="material-symbols-outlined text-primary">workspace_premium</span>
@@ -156,9 +102,9 @@ export function ProductInfo({
           </div>
         </div>
       </div>
-      {/* Collapsible Details */}
+
       <div className="divide-y divide-outline-variant">
-        <details className="group py-6" open={true}>
+        <details className="group py-6" open>
           <summary className="flex justify-between items-center cursor-pointer list-none font-label-md uppercase text-on-surface">
             Product Description
             <span className="material-symbols-outlined transition-transform duration-300 group-open:rotate-180">
@@ -177,14 +123,12 @@ export function ProductInfo({
             </span>
           </summary>
           <div className="mt-4 grid grid-cols-2 gap-y-3 text-[14px]">
-            <span className="text-on-surface-variant">Weight:</span>{" "}
-            <span className="text-on-surface font-semibold">{specs?.weight}</span>
-            <span className="text-on-surface-variant">Height:</span>{" "}
-            <span className="text-on-surface font-semibold">{specs?.height}</span>
-            <span className="text-on-surface-variant">Base Material:</span>{" "}
-            <span className="text-on-surface font-semibold">{specs?.baseMaterial}</span>
-            <span className="text-on-surface-variant">Engraving:</span>{" "}
-            <span className="text-on-surface font-semibold">{specs?.engraving}</span>
+            {Object.entries(specs).map(([name, value]) => (
+              <div key={name} className="contents">
+                <span className="text-on-surface-variant">{name}:</span>
+                <span className="text-on-surface font-semibold">{value}</span>
+              </div>
+            ))}
           </div>
         </details>
       </div>

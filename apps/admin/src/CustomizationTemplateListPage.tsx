@@ -24,7 +24,7 @@ export default function CustomizationTemplateListPage() {
     let active = true;
     async function load() {
       try {
-        const response = await backendFetch(`/api/customizations/templates`);
+        const response = await backendFetch(`/api/admin/customizations/templates`);
         if (!response.ok) {
           throw new Error(`Server returned ${response.status}`);
         }

@@ -151,6 +151,15 @@ export type CustomizationTemplate = {
   formFields: CustomizationFormField[];
 };
 
+export type ProductCustomization = {
+  productId: string;
+  enabled: boolean;
+  canvasWidthPx: number | null;
+  canvasHeightPx: number | null;
+  layers: CustomizationLayer[];
+  formFields: CustomizationFormField[];
+};
+
 export type TextFieldValue = {
   text: string;
   color?: string;
@@ -230,6 +239,8 @@ export type ImageCrop = {
 export type ValidationIssue = {
   code:
     | "BACKGROUND_REQUIRED"
+    | "CANVAS_DIMENSIONS_REQUIRED"
+    | "CANVAS_DIMENSIONS_INVALID"
     | "FIELD_LAYER_MISSING"
     | "LAYER_FIELD_MISSING"
     | "FONT_SIZE_RANGE_INVALID"

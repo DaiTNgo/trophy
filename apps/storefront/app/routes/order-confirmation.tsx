@@ -1,6 +1,4 @@
 import type { Route } from "./+types/order-confirmation";
-import { Navbar } from "../components/layout/Navbar";
-import { Footer } from "../components/layout/Footer";
 import { OrderConfirmationMessage } from "../components/checkout/OrderConfirmationMessage";
 import { OrderDetails } from "../components/checkout/OrderDetails";
 
@@ -13,9 +11,7 @@ export function meta({}: Route.MetaArgs) {
 
 export default function OrderConfirmation() {
   return (
-    <div className="bg-background text-on-background font-body-md min-h-screen flex flex-col">
-      <Navbar />
-
+    <div className="bg-background text-on-background font-body-md min-h-screen">
       <main className="relative flex-grow pt-12 pb-24 overflow-hidden">
         {/* Atmospheric Background Element */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[600px] -z-10" style={{ background: 'radial-gradient(circle at center, rgba(254, 160, 12, 0.05) 0%, transparent 70%)' }}></div>
@@ -34,8 +30,6 @@ export default function OrderConfirmation() {
           </div>
         </div>
       </main>
-
-      <Footer />
     </div>
   );
 }

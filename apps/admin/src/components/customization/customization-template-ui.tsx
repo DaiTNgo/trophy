@@ -37,7 +37,7 @@ export function FontLoader({ layers, dynamicFonts = [] }: { layers: Customizatio
             <style key={v.variantId} dangerouslySetInnerHTML={{ __html: `
               @font-face {
                 font-family: '${v.variantId}';
-                src: url('${backendUrl}/api/brand-assets/fonts/file/${v.assetId}') format('truetype');
+                src: url('${backendUrl}/api/admin/brand-assets/fonts/file/${v.assetId}') format('truetype');
               }
             `}} />
           ));

@@ -46,8 +46,8 @@ export function useTemplateEditor(editParam: string | null) {
     let active = true;
     async function loadTemplate() {
       const endpoint = /^\d+$/.test(target)
-        ? `/api/customizations/templates/product/${target}`
-        : `/api/customizations/templates/${target}`;
+        ? `/api/admin/customizations/templates/product/${target}`
+        : `/api/admin/customizations/templates/${target}`;
       const response = await backendFetch(endpoint);
       if (!response.ok) return;
       const data = (await response.json()) as { template: CustomizationTemplate };
@@ -341,7 +341,7 @@ export function useTemplateEditor(editParam: string | null) {
   }
 
   async function saveDraft() {
-    const response = await backendFetch(`/api/customizations/templates`, {
+    const response = await backendFetch(`/api/admin/customizations/templates`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -374,7 +374,7 @@ export function useTemplateEditor(editParam: string | null) {
       if (template.background.heightPx) formData.append("height", String(template.background.heightPx));
       if (template.background.pdfPageCount) formData.append("pageCount", String(template.background.pdfPageCount));
 
-      const uploadRes = await backendFetch(`/api/customizations/assets`, {
+      const uploadRes = await backendFetch(`/api/admin/customizations/assets`, {
         method: "POST",
         headers: { "X-Upload-Token": `publish_${Date.now()}` },
         body: formData,
@@ -409,7 +409,7 @@ export function useTemplateEditor(editParam: string | null) {
     }
     const saved = await saveDraft();
     if (!saved) return;
-    const response = await backendFetch(`/api/customizations/templates/${saved.id}/publish`, {
+    const response = await backendFetch(`/api/admin/customizations/templates/${saved.id}/publish`, {
       method: "POST",
     });
     setFlash(response.ok ? "Template published." : "Failed to publish template.");

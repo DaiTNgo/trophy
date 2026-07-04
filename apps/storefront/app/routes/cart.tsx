@@ -1,6 +1,4 @@
 import type { Route } from "./+types/cart";
-import { Navbar } from "../components/layout/Navbar";
-import { Footer } from "../components/layout/Footer";
 import { Link } from "react-router";
 import { CartItemList } from "../components/cart/CartItemList";
 import { OrderSummary } from "../components/cart/OrderSummary";
@@ -14,9 +12,7 @@ export function meta({}: Route.MetaArgs) {
 
 export default function Cart() {
   return (
-    <div className="min-h-screen flex flex-col bg-surface text-on-background">
-      <Navbar />
-
+    <div className="min-h-screen bg-surface text-on-background">
       <main className="flex-grow max-w-container-max mx-auto w-full px-margin-mobile md:px-margin-desktop py-12">
         {/* Breadcrumb */}
         <nav className="mb-8 flex items-center space-x-2 text-on-surface-variant font-label-md text-label-md">
@@ -47,8 +43,6 @@ export default function Cart() {
           </div>
         </div>
       </main>
-
-      <Footer />
     </div>
   );
 }

@@ -144,6 +144,9 @@ export const productCollections = sqliteTable(
     id: integer("id").primaryKey({ autoIncrement: true }),
     title: text("title").notNull(),
     handle: text("handle").notNull(),
+    description: text("description"),
+    imageUrl: text("image_url"),
+    position: integer("position").notNull().default(0),
   },
   (table) => [uniqueIndex("product_collections_handle_idx").on(table.handle)],
 );
@@ -155,6 +158,8 @@ export const productCategories = sqliteTable(
     name: text("name").notNull(),
     handle: text("handle").notNull(),
     parentId: integer("parent_id"),
+    description: text("description"),
+    imageUrl: text("image_url"),
   },
   (table) => [uniqueIndex("product_categories_handle_idx").on(table.handle)],
 );
@@ -237,6 +242,44 @@ export const productVariants = sqliteTable("product_variants", {
     .notNull()
     .default(sql`CURRENT_TIMESTAMP`),
 });
+
+export const productVariantMedia = sqliteTable(
+  "product_variant_media",
+  {
+    variantId: integer("variant_id").notNull(),
+    assetId: text("asset_id").notNull(),
+    position: integer("position").notNull(),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    primaryKey({ columns: [table.variantId, table.assetId] }),
+    uniqueIndex("product_variant_media_variant_position_idx").on(table.variantId, table.position),
+  ],
+);
+
+export const productCustomizations = sqliteTable(
+  "product_customizations",
+  {
+    productId: integer("product_id").notNull(),
+    enabled: integer("enabled", { mode: "boolean" }).notNull().default(false),
+    canvasWidthPx: integer("canvas_width_px"),
+    canvasHeightPx: integer("canvas_height_px"),
+    layersJson: text("layers_json").notNull().default("[]"),
+    formFieldsJson: text("form_fields_json").notNull().default("[]"),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+    updatedAt: text("updated_at")
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    primaryKey({ columns: [table.productId] }),
+    uniqueIndex("product_customizations_product_idx").on(table.productId),
+  ],
+);
 
 export const productVariantOptionValues = sqliteTable(
   "product_variant_option_values",

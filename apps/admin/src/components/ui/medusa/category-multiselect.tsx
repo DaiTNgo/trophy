@@ -2,26 +2,35 @@ import { Checkbox, Popover, Text } from "@medusajs/ui";
 import { ChevronDown } from "lucide-react";
 import { useState } from "react";
 
+type CategoryOption = {
+  value: string;
+  label: string;
+};
+
+const normalizeOption = (option: string | CategoryOption): CategoryOption =>
+  typeof option === "string" ? { value: option, label: option } : option;
+
 export function CategoryMultiSelect({
   values,
   options,
   onChange,
 }: {
   values: string[];
-  options: string[];
+  options: Array<string | CategoryOption>;
   onChange: (categories: string[]) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const normalizedOptions = options.map(normalizeOption);
 
-  const filtered = options.filter((opt) =>
-    opt.toLowerCase().includes(search.toLowerCase()),
+  const filtered = normalizedOptions.filter((opt) =>
+    opt.label.toLowerCase().includes(search.toLowerCase()),
   );
 
-  function toggle(option: string) {
-    const next = values.includes(option)
-      ? values.filter((v) => v !== option)
-      : [...values, option];
+  function toggle(optionValue: string) {
+    const next = values.includes(optionValue)
+      ? values.filter((v) => v !== optionValue)
+      : [...values, optionValue];
     onChange(next);
   }
 
@@ -65,17 +74,17 @@ export function CategoryMultiSelect({
             </div>
           ) : (
             filtered.map((option) => {
-              const checked = values.includes(option);
+              const checked = values.includes(option.value);
               return (
                 <label
-                  key={option}
+                  key={option.value}
                   className="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm transition hover:bg-ui-bg-base-hover"
                 >
                   <Checkbox
                     checked={checked}
-                    onCheckedChange={() => toggle(option)}
+                    onCheckedChange={() => toggle(option.value)}
                   />
-                  <span className="text-ui-fg-base">{option}</span>
+                  <span className="text-ui-fg-base">{option.label}</span>
                 </label>
               );
             })

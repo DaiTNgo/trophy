@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vp dev",
     "build": "tsc -b && vp build",
+    "test": "vitest run --config vitest.config.ts",
     "lint": "vp lint .",
     "analyze": "ANALYZE_BUNDLE=1 vp build",
     "deploy": "vp build && npx wrangler pages deploy dist --project-name trophy-admin --branch main",
@@ -42,7 +43,8 @@
     "tailwindcss": "^3.4.17",
     "tailwindcss-animate": "^1.0.7",
     "typescript": "~6.0.3",
-    "vite": "^8.0.16"
+    "vite": "^8.0.16",
+    "vitest": "^4.1.9"
   },
   "packageManager": "pnpm@11.8.0"
 }

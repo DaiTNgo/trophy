@@ -1,10 +1,17 @@
 # Repo Progress
 
 ## Current State
+- Implemented Admin UI for Collections and Categories management on 2026-07-04. Replaced the placeholder pages with real Medusa UI CRUD pages (`CollectionsListPage`, `CollectionDetailPage`, `CategoriesListPage`, `CategoryDetailPage`) that fetch and manage data via the `backendFetch` utility. Also added missing `PUT` and `DELETE` backend routes to `/api/admin/product-metadata/(collections|categories)`. Verified via `./init.sh`.
+- Storefront SSR instability was investigated on 2026-07-04. The failure reproduced with `pnpm --filter router-cf preview`: `/products` returned 500 while `/`, `/cart`, `/checkout`, and `/customize` returned 200. Browser automation reloads on the successful routes showed no hydration warnings or page errors. Root cause was the storefront's local backend fallback using `http://127.0.0.1:8787` while the backend dev server in this environment responds at `http://localhost:8787` and direct `127.0.0.1:8787` connection fails. Updated storefront backend fallback URLs to `http://localhost:8787`; after rebuilding preview, `/products` returned 200 and browser reloads on `/products`, `/`, and `/customize` produced no console errors. `./init.sh` passes after the fix.
 - Root harness is now a fallback index for non-OpenSpec work only.
 - OpenSpec changes should keep their own `tasks.md`, `progress.md`, and `session-handoff.md` inside `openspec/changes/<change>/`.
 - `./init.sh` remains the baseline verification entrypoint.
+- Product-owned customization planning was captured on 2026-07-03. The domain glossary now defines customizable product/background/canvas readiness terms, ADR `docs/adr/0001-product-owned-customization.md` records the decision to replace standalone customization template/revision lifecycle with one-to-one product customization, and the PRD is published as `.scratch/issues/product-owned-customization-prd.md` with `ready-for-agent` metadata.
+- OpenSpec change `product-owned-customization` was proposed on 2026-07-03 with proposal, design, specs, tasks, progress, and session handoff under `openspec/changes/product-owned-customization/`. `openspec validate product-owned-customization --strict` passes.
+- Storefront product API planning was captured on 2026-07-03. The domain glossary now defines Storefront Product Listing, Storefront Product Search, Admin Product Catalog, and Contact Price; ADR `docs/adr/0002-storefront-product-api-boundary.md` records the public storefront/admin catalog API split; and the PRD is published as `.scratch/issues/storefront-product-apis-prd.md` with `ready-for-agent` metadata.
+- OpenSpec change `storefront-product-apis` was proposed on 2026-07-03 with proposal, design, specs, tasks, progress, and session handoff under `openspec/changes/storefront-product-apis/`. The change is ready for implementation pending OpenSpec validation.
 
 ## Notes
 - Do not use this file as the source of truth for parallel OpenSpec changes.
 - If a change folder is missing local state files, create them alongside that change before starting work.
+- Issue tracker setup is not configured and `gh` was unavailable in this environment, so the PRD was published as a local markdown issue.

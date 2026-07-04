@@ -45,5 +45,8 @@ export async function backendFetch(input: RequestInfo | URL, init?: RequestInit)
     }
   }
 
+  // Ensure credentials are included by default so that cookies are sent
+  requestInit.credentials = requestInit.credentials ?? 'include';
+
   return fetch(url, requestInit);
 }

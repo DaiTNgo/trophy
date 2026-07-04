@@ -345,7 +345,6 @@ export function createMockProduct(existingProducts: CatalogProduct[], input: Cre
   const today = "2026-06-21";
   const optionDefinitions = getEffectiveOptionDefinitions(input.values, input.optionDefinitions);
   const variantRows = getEffectiveVariantRows(input.values, input.variantRows, input.optionDefinitions);
-  const tags = splitCommaValues(input.values.tags);
   const media = input.values.media
     .split("\n")
     .map((value) => value.trim())
@@ -373,9 +372,9 @@ export function createMockProduct(existingProducts: CatalogProduct[], input: Cre
     price: leadPrice,
     category: input.values.categories[0] ?? "Unassigned",
     collection: input.values.collection,
-    type: input.values.type.trim(),
+    type: "",
     categories: input.values.categories,
-    tags,
+    tags: [],
     media,
     attributes,
     optionDefinitions,
@@ -402,9 +401,9 @@ export function buildUpdatedProduct(current: CatalogProduct, input: CreateProduc
     price: leadPrice,
     category: input.values.categories[0] ?? "Unassigned",
     collection: input.values.collection,
-    type: input.values.type.trim(),
+    type: "",
     categories: input.values.categories,
-    tags: splitCommaValues(input.values.tags),
+    tags: [],
     media: input.values.media
       .split("\n")
       .map((value) => value.trim())
@@ -442,10 +441,9 @@ export function productToFormValues(product: CatalogProduct): CreateProductFormV
     handle: product.handle,
     subtitle: product.subtitle,
     description: product.description,
-    type: product.type,
+    customizationEnabled: false,
     collection: product.collection,
     categories: product.categories,
-    tags: product.tags.join(", "),
     media: product.media.join("\n"),
     hasVariants: product.optionDefinitions.length > 0,
     basePrice: String(product.price),

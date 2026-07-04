@@ -8,7 +8,6 @@ import {
 } from "react";
 import type { CatalogContextValue, CatalogProduct } from "../types";
 import { initialProducts, CATALOG_STORAGE_KEY } from "../lib/mock-data";
-import { createMockProduct } from "../lib/product-utils";
 
 const catalogContext = createContext<CatalogContextValue | null>(null);
 
@@ -31,9 +30,9 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
   const value = useMemo<CatalogContextValue>(
     () => ({
       products,
-      createProduct: (input) => {
-        const nextProduct = createMockProduct(products, input);
-        const nextProducts = [nextProduct, ...products];
+      createProduct: (product) => {
+        const nextProduct = product;
+        const nextProducts = [nextProduct, ...products.filter((entry) => entry.id !== nextProduct.id)];
         setProducts(nextProducts);
         window.localStorage.setItem(CATALOG_STORAGE_KEY, JSON.stringify(nextProducts));
         return nextProduct;

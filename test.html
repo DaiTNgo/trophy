@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+</head>
+<body>
+<script>
+  pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+  
+  async function test() {
+    const loadingTask = pdfjsLib.getDocument("https://raw.githubusercontent.com/mozilla/pdf.js/master/web/compressed.tracemonkey-pldi-09.pdf");
+    const pdfDocument = await loadingTask.promise;
+    const page = await pdfDocument.getPage(1);
+    const viewport = page.getViewport({ scale: 1.0 });
+    console.log("Viewport keys:", Object.keys(viewport));
+    console.log("Width:", viewport.width);
+  }
+  test();
+</script>
+</body>
+</html>

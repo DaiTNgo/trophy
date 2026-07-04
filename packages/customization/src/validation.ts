@@ -1,21 +1,22 @@
 import type {
   CustomizationFormValues,
+  ProductCustomization,
   CustomizationTemplate,
   ValidationIssue,
 } from "./types";
 import { getOrderedFormFields, getLayerById } from "./template";
 import { isPathText, getTextValue } from "./text";
 
-export const validateTemplateForPublish = (template: CustomizationTemplate) => {
+const collectEditorModelIssues = ({
+  layers,
+  formFields,
+}: Pick<CustomizationTemplate, "layers" | "formFields">) => {
   const issues: ValidationIssue[] = [];
-  if (!template.background) {
-    issues.push({ code: "BACKGROUND_REQUIRED", message: "A background image is required before publishing." });
-  }
 
-  const layerIds = new Set(template.layers.map((layer) => layer.id));
-  const fieldLayerIds = new Set(template.formFields.map((field) => field.layerId));
+  const layerIds = new Set(layers.map((layer) => layer.id));
+  const fieldLayerIds = new Set(formFields.map((field) => field.layerId));
 
-  for (const field of template.formFields) {
+  for (const field of formFields) {
     if (!layerIds.has(field.layerId)) {
       issues.push({
         code: "FIELD_LAYER_MISSING",
@@ -26,7 +27,7 @@ export const validateTemplateForPublish = (template: CustomizationTemplate) => {
     }
   }
 
-  for (const layer of template.layers) {
+  for (const layer of layers) {
     if (!layer.hidden && !fieldLayerIds.has(layer.id)) {
       issues.push({
         code: "LAYER_FIELD_MISSING",
@@ -67,6 +68,58 @@ export const validateTemplateForPublish = (template: CustomizationTemplate) => {
     }
   }
 
+  return issues;
+};
+
+const collectCanvasDimensionIssues = (
+  customization: Pick<ProductCustomization, "canvasWidthPx" | "canvasHeightPx">,
+) => {
+  const issues: ValidationIssue[] = [];
+  const width = customization.canvasWidthPx;
+  const height = customization.canvasHeightPx;
+
+  if (width == null || height == null) {
+    issues.push({
+      code: "CANVAS_DIMENSIONS_REQUIRED",
+      message: "Customization canvas dimensions are required.",
+    });
+    return issues;
+  }
+
+  if (!Number.isInteger(width) || !Number.isInteger(height) || width <= 0 || height <= 0) {
+    issues.push({
+      code: "CANVAS_DIMENSIONS_INVALID",
+      message: "Customization canvas dimensions must be positive integers.",
+    });
+  }
+
+  return issues;
+};
+
+export const validateTemplateForPublish = (template: CustomizationTemplate) => {
+  const issues: ValidationIssue[] = [];
+  if (!template.background) {
+    issues.push({ code: "BACKGROUND_REQUIRED", message: "A background image is required before publishing." });
+  }
+
+  issues.push(...collectEditorModelIssues(template));
+
+  return { valid: issues.length === 0, issues };
+};
+
+export const validateProductCustomizationDraft = (
+  customization: Pick<ProductCustomization, "layers" | "formFields">,
+) => {
+  const issues = collectEditorModelIssues(customization);
+  return { valid: issues.length === 0, issues };
+};
+
+export const validateProductCustomizationForPublish = (customization: ProductCustomization) => {
+  const issues = [
+    ...collectCanvasDimensionIssues(customization),
+    ...collectEditorModelIssues(customization),
+  ];
+
   return { valid: issues.length === 0, issues };
 };
 
@@ -101,5 +154,4 @@ export const validateCustomizationValues = ({
   }
   return { valid: issues.length === 0, issues };
 };
-
 

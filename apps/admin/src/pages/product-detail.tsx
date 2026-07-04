@@ -25,6 +25,7 @@ import {
   Upload,
   X,
 } from "lucide-react";
+import { extractPdfPreview } from "../lib/pdf-preview";
 import { uploadProductVariantMedia } from "../lib/product-assets-client";
 import { TextField } from "../components/ui/medusa";
 import { TextAreaField } from "../components/ui/medusa/text-area-field";
@@ -63,10 +64,9 @@ const defaultCreateProductValues: CreateProductFormValues = {
   handle: "",
   subtitle: "",
   description: "",
-  type: "",
+  customizationEnabled: false,
   collection: "",
   categories: [],
-  tags: "",
   media: "",
   hasVariants: false,
   basePrice: "",
@@ -241,24 +241,33 @@ export function ProductDetailPage() {
     try {
       const stagedAssets = await Promise.all(
         Array.from(files).map(async (file) => {
-          if (!["image/png", "image/jpeg"].includes(file.type)) {
-            throw new Error("Only PNG and JPEG product assets are supported.");
+          if (!["image/png", "image/jpeg", "application/pdf"].includes(file.type)) {
+            throw new Error("Only PNG, JPEG, and PDF product assets are supported.");
           }
 
-          const objectUrl = URL.createObjectURL(file);
-          const dimensions = await new Promise<{
-            width: number;
-            height: number;
-          }>((resolve, reject) => {
-            const imgEl = document.createElement("img");
-            imgEl.onload = () => {
-              resolve({ width: imgEl.naturalWidth, height: imgEl.naturalHeight });
-            };
-            imgEl.onerror = () => {
-              reject(new Error("Image data is invalid or unsupported."));
-            };
-            imgEl.src = objectUrl;
-          });
+          let dimensions: { width: number; height: number };
+          let objectUrl: string;
+
+          if (file.type === "application/pdf") {
+            const preview = await extractPdfPreview(file);
+            dimensions = { width: preview.width, height: preview.height };
+            objectUrl = preview.dataUrl;
+          } else {
+            objectUrl = URL.createObjectURL(file);
+            dimensions = await new Promise<{
+              width: number;
+              height: number;
+            }>((resolve, reject) => {
+              const imgEl = document.createElement("img");
+              imgEl.onload = () => {
+                resolve({ width: imgEl.naturalWidth, height: imgEl.naturalHeight });
+              };
+              imgEl.onerror = () => {
+                reject(new Error("Image data is invalid or unsupported."));
+              };
+              imgEl.src = objectUrl;
+            });
+          }
 
           return {
             id: `pending_${crypto.randomUUID()}`,
@@ -370,7 +379,7 @@ export function ProductDetailPage() {
                 const { file: _, ...rest } = media;
                 return rest;
               }
-              const uploaded = await uploadProductVariantMedia(media.file);
+              const uploaded = await uploadProductVariantMedia(media.file, media.widthPx, media.heightPx);
               return uploaded;
             }),
           );
@@ -488,19 +497,12 @@ export function ProductDetailPage() {
                   onChange={(value) => setValue("handle", value)}
                 />
               </div>
-              <div className="grid gap-5 md:grid-cols-2">
+              <div className="grid gap-5 md:grid-cols-1">
                 <TextField
                   label="Subtitle"
                   name="detail-subtitle"
                   value={values.subtitle}
                   onChange={(value) => setValue("subtitle", value)}
-                />
-                <TextField
-                  label="Type"
-                  name="detail-type"
-                  value={values.type}
-                  list="product-types"
-                  onChange={(value) => setValue("type", value)}
                 />
               </div>
               <TextAreaField
@@ -523,30 +525,29 @@ export function ProductDetailPage() {
                   Control collection placement, category assignment, and tags.
                 </Text>
               </div>
-              <div className="grid gap-5 md:grid-cols-2">
+              <div className="grid gap-5 md:grid-cols-1">
                 <SelectField
-                  label="Collection"
+                  label="Collection (Shop by Interest)"
                   value={values.collection}
                   options={collectionOptions}
                   onChange={(value) => setValue("collection", value)}
                 />
-                <TextField
-                  label="Tags"
-                  name="detail-tags"
-                  value={values.tags}
-                  hint="Comma separated."
-                  onChange={(value) => setValue("tags", value)}
-                />
-              </div>
-              <div className="flex flex-col gap-y-2">
                 <Text size="small" className="text-ui-fg-subtle">
-                  Categories
+                  Used for merchandising groupings like occasions or audiences.
+                </Text>
+              </div>
+              <div className="flex flex-col gap-y-2 mt-5">
+                <Text size="small" className="text-ui-fg-subtle">
+                  Categories (Shop by Product)
                 </Text>
                 <CategoryMultiSelect
                   values={values.categories}
                   options={categoryOptions}
                   onChange={(categories) => setValue("categories", categories)}
                 />
+                <Text size="xsmall" className="text-ui-fg-muted">
+                  Shopper-facing product-kind placement. A product may belong to multiple categories.
+                </Text>
               </div>
             </div>
           </Container>
@@ -748,7 +749,7 @@ export function ProductDetailPage() {
                               fileInputRefs.current[variantSignature] = element;
                             }}
                             type="file"
-                            accept="image/png,image/jpeg"
+                            accept="image/png,image/jpeg,application/pdf"
                             multiple
                             className="hidden"
                             onChange={(event) => {

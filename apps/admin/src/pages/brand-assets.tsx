@@ -20,7 +20,7 @@ export function BrandAssetsPage() {
   const [isUploading, setIsUploading] = useState(false);
 
   const fetchColors = async () => {
-    const res = await backendFetch("/api/brand-assets/colors");
+    const res = await backendFetch("/api/admin/brand-assets/colors");
     if (res.ok) {
       const data = await res.json();
       setColors(data.colors);
@@ -28,7 +28,7 @@ export function BrandAssetsPage() {
   };
 
   const fetchFonts = async () => {
-    const res = await backendFetch("/api/brand-assets/fonts");
+    const res = await backendFetch("/api/admin/brand-assets/fonts");
     if (res.ok) {
       const data = await res.json();
       setFonts(data.fonts);
@@ -51,7 +51,7 @@ export function BrandAssetsPage() {
       return;
     }
 
-    const res = await backendFetch("/api/brand-assets/colors", {
+    const res = await backendFetch("/api/admin/brand-assets/colors", {
       method: "POST",
       body: JSON.stringify({ id: generatedColorId, name: colorName, hexCode: colorHex }),
     });
@@ -66,7 +66,7 @@ export function BrandAssetsPage() {
   };
 
   const handleDeleteColor = async (id: string) => {
-    await backendFetch(`/api/brand-assets/colors/${id}`, { method: "DELETE" });
+    await backendFetch(`/api/admin/brand-assets/colors/${id}`, { method: "DELETE" });
     fetchColors();
   };
 
@@ -88,7 +88,7 @@ export function BrandAssetsPage() {
     try {
       const uploadFile = async (file: File | null) => {
         if (!file) return null;
-        const res = await backendFetch("/api/brand-assets/fonts/upload", {
+        const res = await backendFetch("/api/admin/brand-assets/fonts/upload", {
           method: "POST",
           headers: { "Content-Type": file.type || "font/ttf" },
           body: file,
@@ -105,7 +105,7 @@ export function BrandAssetsPage() {
         uploadFile(boldItalicFile),
       ]);
 
-      const res = await backendFetch("/api/brand-assets/fonts", {
+      const res = await backendFetch("/api/admin/brand-assets/fonts", {
         method: "POST",
         body: JSON.stringify({ 
           id: generatedFontId, 
@@ -136,7 +136,7 @@ export function BrandAssetsPage() {
   };
 
   const handleDeleteFont = async (id: string) => {
-    await backendFetch(`/api/brand-assets/fonts/${id}`, { method: "DELETE" });
+    await backendFetch(`/api/admin/brand-assets/fonts/${id}`, { method: "DELETE" });
     fetchFonts();
   };
 

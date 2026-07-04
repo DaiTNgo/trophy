@@ -68,7 +68,7 @@ export type CatalogProduct = {
 
 export type CatalogContextValue = {
   products: CatalogProduct[];
-  createProduct: (input: CreateProductSubmission) => CatalogProduct;
+  createProduct: (product: CatalogProduct) => CatalogProduct;
   updateProduct: (productId: string, updater: (product: CatalogProduct) => CatalogProduct) => CatalogProduct | null;
 };
 
@@ -122,10 +122,9 @@ export type CreateProductFormValues = {
   handle: string;
   subtitle: string;
   description: string;
-  type: string;
+  customizationEnabled: boolean;
   collection: string;
   categories: string[];
-  tags: string;
   media: string;
   hasVariants: boolean;
   basePrice: string;

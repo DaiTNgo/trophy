@@ -28,17 +28,30 @@ import { startTransition, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 
 import { CategoryMultiSelect } from "../components/ui/medusa/category-multiselect";
+import { EditorCanvas } from "../components/customization/customization-template-editor";
+import { Inspector } from "../components/customization/customization-template-inspector";
+import { LeftPanel, Rail } from "../components/customization/customization-template-panels";
 import { InlineError } from "../components/ui/medusa/inline-error";
 import { useCatalog } from "../hooks/use-catalog";
+import { useBrandAssets } from "../hooks/use-brand-assets";
+import { useEmbeddedProductCustomizationEditor } from "../hooks/use-embedded-product-customization-editor";
 import {
-  categoryOptions,
-  collectionOptions,
-  typeOptions,
-} from "../lib/mock-data";
+  createEmptyEmbeddedCustomizationDraft,
+  getCustomizationTabRequirement,
+  getPreviewBackgrounds,
+  getSubmittedCustomization,
+  hasEmbeddedCustomizationDraft,
+  resolveSelectedPreviewBackground,
+  type EmbeddedCustomizationDraft,
+} from "./create-product-helpers";
+import { fetchProductMetadata, type ProductMetadataSnapshot } from "../lib/product-metadata-client";
+import { extractPdfPreview } from "../lib/pdf-preview";
 import { uploadProductVariantMedia } from "../lib/product-assets-client";
+import { createFullProduct, mapApiProductToCatalogProduct } from "../lib/products-client";
 import {
   createEmptyOptionDefinition,
   createOptionValueDefinition,
+  getEffectiveOptionDefinitions,
   isPublishReady,
   reconcileVariantRows,
   validateCreateProduct,
@@ -55,15 +68,17 @@ import type {
 import { ProductsListPage } from "./products-list";
 import {Adjustments} from '@medusajs/icons'
 
+type CreateProductStep = "details" | "organize" | "variants" | "customization";
+
+
 const defaultCreateProductValues: CreateProductFormValues = {
   title: "",
   handle: "",
   subtitle: "",
   description: "",
-  type: "",
+  customizationEnabled: false,
   collection: "",
   categories: [],
-  tags: "",
   media: "",
   hasVariants: false,
   basePrice: "",
@@ -86,9 +101,24 @@ const defaultCreateProductValues: CreateProductFormValues = {
 
 export function CreateProductPage() {
   const { products, createProduct } = useCatalog();
+  const { fonts } = useBrandAssets();
   const navigate = useNavigate();
+  const [metadata, setMetadata] = useState<ProductMetadataSnapshot>({
+    types: [],
+    collections: [],
+    categories: [],
+    tags: [],
+  });
+  const [metadataError, setMetadataError] = useState<string | null>(null);
+  const [isLoadingMetadata, setIsLoadingMetadata] = useState(true);
   const [values, setValues] = useState<CreateProductFormValues>(
     defaultCreateProductValues,
+  );
+  const [selectedCollectionId, setSelectedCollectionId] = useState<string>("");
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
+  const [selectedPreviewAssetId, setSelectedPreviewAssetId] = useState<string | null>(null);
+  const [embeddedCustomization, setEmbeddedCustomization] = useState<EmbeddedCustomizationDraft>(
+    () => createEmptyEmbeddedCustomizationDraft(),
   );
   const [attributes, setAttributes] = useState<ProductAttribute[]>([
     { key: "", value: "" },
@@ -100,13 +130,14 @@ export function CreateProductPage() {
   const [optionValueDrafts, setOptionValueDrafts] = useState<
     Record<string, string>
   >({});
-  const [activeStep, setActiveStep] = useState<
-    "details" | "organize" | "variants"
-  >("details");
+  const [activeStep, setActiveStep] = useState<CreateProductStep>("details");
   const [variantRows, setVariantRows] = useState<ProductVariant[]>(() =>
     reconcileVariantRows([], defaultCreateProductValues, []),
   );
   const [variantMediaError, setVariantMediaError] = useState<string | null>(
+    null,
+  );
+  const [customizationTabError, setCustomizationTabError] = useState<string | null>(
     null,
   );
   const [processingVariantKeys, setProcessingVariantKeys] = useState<string[]>(
@@ -134,9 +165,11 @@ export function CreateProductPage() {
     price: true,
     inventory: true,
   });
-  const stepOrder = ["details", "organize", "variants"] as const;
+  const stepOrder: readonly CreateProductStep[] = values.customizationEnabled
+    ? ["details", "organize", "variants", "customization"]
+    : ["details", "organize", "variants"];
   const activeStepIndex = stepOrder.indexOf(activeStep);
-  const isLastStep = activeStep === "variants";
+  const isLastStep = activeStep === stepOrder[stepOrder.length - 1];
   const effectiveVariantRows = useMemo(
     () => reconcileVariantRows(variantRows, values, optionDefinitions),
     [optionDefinitions, values, variantRows],
@@ -146,12 +179,133 @@ export function CreateProductPage() {
     effectiveVariantRows,
     optionDefinitions,
   );
+  const createdVariantRows = useMemo(
+    () => effectiveVariantRows.filter((variant) => variant.shouldCreate),
+    [effectiveVariantRows]
+  );
+  const previewBackgrounds = useMemo(
+    () => getPreviewBackgrounds(createdVariantRows),
+    [createdVariantRows]
+  );
+  const selectedPreviewBackground = useMemo(
+    () => resolveSelectedPreviewBackground({
+      backgrounds: previewBackgrounds,
+      selectedAssetId: selectedPreviewAssetId,
+    }),
+    [previewBackgrounds, selectedPreviewAssetId]
+  );
+  const dynamicFonts = fonts.map((font) => ({
+    id: font.id,
+    name: font.name,
+    regularAssetId: (font as any).regularAssetId || null,
+    boldAssetId: (font as any).boldAssetId || null,
+    italicAssetId: (font as any).italicAssetId || null,
+    boldItalicAssetId: (font as any).boldItalicAssetId || null,
+  }));
+  const customizationTabRequirement = getCustomizationTabRequirement({
+    customizationEnabled: values.customizationEnabled,
+    createdVariantRows,
+  });
+  const embeddedEditor = useEmbeddedProductCustomizationEditor({
+    productTitle: values.title,
+    productId: values.handle.trim() || slugify(values.title || "new-product"),
+    background: selectedPreviewBackground,
+    draft: embeddedCustomization,
+    onDraftChange: setEmbeddedCustomization,
+  });
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadMetadata() {
+      setIsLoadingMetadata(true);
+      setMetadataError(null);
+
+      try {
+        const nextMetadata = await fetchProductMetadata();
+        if (!active) {
+          return;
+        }
+        setMetadata(nextMetadata);
+      } catch (error) {
+        if (!active) {
+          return;
+        }
+        setMetadataError(
+          error instanceof Error ? error.message : "Unable to load product metadata.",
+        );
+      } finally {
+        if (active) {
+          setIsLoadingMetadata(false);
+        }
+      }
+    }
+
+    void loadMetadata();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+
+
+  useEffect(() => {
+    if (previewBackgrounds.length === 0) {
+      if (selectedPreviewAssetId !== null) {
+        setSelectedPreviewAssetId(null);
+      }
+      return;
+    }
+
+    if (!selectedPreviewAssetId || !previewBackgrounds.some((asset) => asset.assetId === selectedPreviewAssetId)) {
+      setSelectedPreviewAssetId(previewBackgrounds[0].assetId);
+    }
+  }, [previewBackgrounds, selectedPreviewAssetId]);
 
   useEffect(() => {
     setVariantRows((current) =>
       reconcileVariantRows(current, values, optionDefinitions),
     );
   }, [optionDefinitions, values.hasVariants, values.inventory]);
+
+  useEffect(() => {
+    if (!values.customizationEnabled && activeStep === "customization") {
+      setActiveStep("variants");
+    }
+  }, [activeStep, values.customizationEnabled]);
+
+  useEffect(() => {
+    if (customizationTabRequirement.ready) {
+      setCustomizationTabError(null);
+    }
+  }, [customizationTabRequirement.ready]);
+
+  useEffect(() => {
+    if (!values.customizationEnabled || !customizationTabRequirement.ready) {
+      return;
+    }
+
+    const firstMedia = createdVariantRows[0]?.media[0];
+    if (!firstMedia) {
+      return;
+    }
+
+    setEmbeddedCustomization((current) => {
+      if (
+        current.canvasWidthPx === firstMedia.widthPx &&
+        current.canvasHeightPx === firstMedia.heightPx
+      ) {
+        return current;
+      }
+
+      return {
+        ...current,
+        canvasWidthPx: current.canvasWidthPx ?? firstMedia.widthPx,
+        canvasHeightPx: current.canvasHeightPx ?? firstMedia.heightPx,
+      };
+    });
+  }, [createdVariantRows, customizationTabRequirement.ready, values.customizationEnabled]);
 
   useEffect(() => {
     return () => {
@@ -187,6 +341,8 @@ export function CreateProductPage() {
     setValues((current) => ({ ...current, [key]: nextValue }));
   }
 
+
+
   function updateAttribute(
     index: number,
     key: keyof ProductAttribute,
@@ -214,13 +370,14 @@ export function CreateProductPage() {
   }
 
   function getStepErrors(
-    step: "details" | "organize" | "variants",
+    step: CreateProductStep,
     nextErrors: CreateProductErrors,
   ) {
     const stepKeys: Record<typeof step, string[]> = {
       details: ["title", "handle", "attributes", "optionDefinitions", "form"],
       organize: ["form"],
       variants: ["variants", "publish", "form"],
+      customization: ["publish", "form"],
     };
 
     return Object.fromEntries(
@@ -230,7 +387,14 @@ export function CreateProductPage() {
     ) as CreateProductErrors;
   }
 
-  function goToStep(step: "details" | "organize" | "variants") {
+  function goToStep(step: CreateProductStep) {
+    if (step === "customization" && !customizationTabRequirement.ready) {
+      setCustomizationTabError(customizationTabRequirement.message);
+      setActiveStep("variants");
+      return;
+    }
+
+    setCustomizationTabError(null);
     setActiveStep(step);
     clearErrors();
   }
@@ -256,6 +420,13 @@ export function CreateProductPage() {
       return;
     }
 
+    if (nextStep === "customization" && !customizationTabRequirement.ready) {
+      setCustomizationTabError(customizationTabRequirement.message);
+      setActiveStep("variants");
+      return;
+    }
+
+    setCustomizationTabError(null);
     clearErrors();
     setActiveStep(nextStep);
   }
@@ -279,6 +450,15 @@ export function CreateProductPage() {
     setIsSubmittingMedia(true);
 
     try {
+      const enabledOptionDefinitions = getEffectiveOptionDefinitions(
+        values,
+        optionDefinitions,
+      )
+        .map((option) => ({
+          title: option.title.trim(),
+          values: option.values.map((value) => value.value.trim()).filter(Boolean),
+        }))
+        .filter((option) => option.title !== "" && option.values.length > 0);
       const variantRowsWithUploadedMedia = await Promise.all(
         effectiveVariantRows.map(async (variant) => {
           const uploadedMedia = await Promise.all(
@@ -291,7 +471,7 @@ export function CreateProductPage() {
                 };
               }
 
-              const uploaded = await uploadProductVariantMedia(media.file);
+              const uploaded = await uploadProductVariantMedia(media.file, media.widthPx, media.heightPx);
               return uploaded;
             }),
           );
@@ -303,13 +483,48 @@ export function CreateProductPage() {
         }),
       );
 
-      const nextProduct = createProduct({
+      const submittedVariants = variantRowsWithUploadedMedia
+        .filter((variant) => variant.shouldCreate)
+        .map((variant, index) => ({
+          title: variant.title,
+          sku: variant.sku.trim() || null,
+          priceAmount: Number.isFinite(variant.price) && variant.price > 0 ? variant.price : null,
+          isDefault: index === 0,
+          optionValues: variant.options.map((option) => ({
+            optionTitle: option.option,
+            value: option.value,
+          })),
+          media: variant.media.map((asset) => ({ assetId: asset.id })),
+        }));
+
+      const createdProduct = await createFullProduct({
         mode,
-        values,
-        attributes,
-        optionDefinitions,
-        variantRows: variantRowsWithUploadedMedia,
+        details: {
+          title: values.title.trim(),
+          subtitle: values.subtitle.trim() || null,
+          handle: values.handle.trim() || null,
+          description: values.description.trim() || null,
+        },
+        organization: {
+          collectionId: selectedCollectionId ? Number(selectedCollectionId) : null,
+          categoryIds: selectedCategoryIds.map((id) => Number(id)),
+        },
+        attributes: attributes
+          .filter((attribute) => attribute.key.trim() !== "" && attribute.value.trim() !== "")
+          .map((attribute) => ({
+            name: attribute.key.trim(),
+            value: attribute.value.trim(),
+            unit: null,
+          })),
+        options: enabledOptionDefinitions,
+        variants: submittedVariants,
+        customization: getSubmittedCustomization({
+          customizationEnabled: values.customizationEnabled,
+          draft: embeddedCustomization,
+        }),
       });
+
+      const nextProduct = createProduct(mapApiProductToCatalogProduct(createdProduct));
 
       setErrors({});
       startTransition(() => {
@@ -459,27 +674,36 @@ export function CreateProductPage() {
     try {
       const stagedAssets = await Promise.all(
         Array.from(files).map(async (file) => {
-          if (!["image/png", "image/jpeg"].includes(file.type)) {
-            throw new Error("Only PNG and JPEG product assets are supported.");
+          if (!["image/png", "image/jpeg", "application/pdf"].includes(file.type)) {
+            throw new Error("Only PNG, JPEG, and PDF product assets are supported.");
           }
 
-          const objectUrl = URL.createObjectURL(file);
-          const dimensions = await new Promise<{
-            width: number;
-            height: number;
-          }>((resolve, reject) => {
-            const image = new Image();
-            image.onload = () => {
-              resolve({
-                width: image.naturalWidth,
-                height: image.naturalHeight,
-              });
-            };
-            image.onerror = () => {
-              reject(new Error("Image data is invalid or unsupported."));
-            };
-            image.src = objectUrl;
-          });
+          let dimensions: { width: number; height: number };
+          let objectUrl: string;
+
+          if (file.type === "application/pdf") {
+            const preview = await extractPdfPreview(file);
+            dimensions = { width: preview.width, height: preview.height };
+            objectUrl = preview.dataUrl;
+          } else {
+            objectUrl = URL.createObjectURL(file);
+            dimensions = await new Promise<{
+              width: number;
+              height: number;
+            }>((resolve, reject) => {
+              const image = new Image();
+              image.onload = () => {
+                resolve({
+                  width: image.naturalWidth,
+                  height: image.naturalHeight,
+                });
+              };
+              image.onerror = () => {
+                reject(new Error("Image data is invalid or unsupported."));
+              };
+              image.src = objectUrl;
+            });
+          }
 
           return {
             id: `pending_${crypto.randomUUID()}`,
@@ -608,13 +832,11 @@ export function CreateProductPage() {
         }}
       >
         <FocusModal.Content className="md:inset-2">
-          <ProgressTabs
-            value={activeStep}
-            onValueChange={(value) =>
-              goToStep(value as "details" | "organize" | "variants")
-            }
-            className="flex min-h-0 flex-1 flex-col overflow-hidden"
-          >
+            <ProgressTabs
+              value={activeStep}
+              onValueChange={(value) => goToStep(value as CreateProductStep)}
+              className="flex min-h-0 flex-1 flex-col overflow-hidden"
+            >
             <FocusModal.Header>
               <ProgressTabs.List className="-my-2 w-full border-l">
                 {stepOrder.map((step) => {
@@ -623,7 +845,9 @@ export function CreateProductPage() {
                       ? "Details"
                       : step === "organize"
                         ? "Organize"
-                        : "Variants";
+                        : step === "variants"
+                          ? "Variants"
+                          : "Customization";
                   const status =
                     stepOrder.indexOf(step) < activeStepIndex
                       ? "completed"
@@ -729,6 +953,31 @@ export function CreateProductPage() {
                         }
                         placeholder="A warm and cozy jacket"
                       />
+                    </div>
+
+                    <div className="rounded-xl border border-ui-border-base bg-ui-bg-base px-4 py-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="space-y-1">
+                          <Heading level="h3">Customization</Heading>
+                          <Text size="small" className="text-ui-fg-subtle">
+                            Enable this when shoppers should personalize the product after choosing a variant.
+                          </Text>
+                        </div>
+                        <Switch
+                          checked={values.customizationEnabled}
+                          onCheckedChange={(checked) =>
+                            setValue("customizationEnabled", checked)
+                          }
+                        />
+                      </div>
+                      <Text size="small" className="mt-3 text-ui-fg-subtle">
+                        When enabled, a <span className="text-ui-fg-base">Customization</span> tab appears after <span className="text-ui-fg-base">Variants</span>.
+                      </Text>
+                      {!values.customizationEnabled && hasEmbeddedCustomizationDraft(embeddedCustomization) ? (
+                        <Text size="small" className="mt-2 text-ui-fg-subtle">
+                          Your in-progress customization draft is still kept for this create session and will be reused if you turn customization back on.
+                        </Text>
+                      ) : null}
                     </div>
 
                     <div className="space-y-4 border-t border-ui-border-base pt-4">
@@ -1065,69 +1314,47 @@ export function CreateProductPage() {
                     </Text>
                   </div>
 
-                  <div className="grid gap-5 md:grid-cols-2">
+                  {metadataError ? <InlineError message={metadataError} /> : null}
+
+                  <div className="grid gap-5 md:grid-cols-1">
                     <div className="space-y-2">
-                      <Label>Type</Label>
+                      <Label>Collection (Shop by Interest)</Label>
                       <Select
-                        value={values.type}
-                        onValueChange={(value) => setValue("type", value)}
+                        value={selectedCollectionId}
+                        onValueChange={setSelectedCollectionId}
+                        disabled={isLoadingMetadata}
                       >
                         <Select.Trigger>
-                          <Select.Value placeholder="Select type" />
+                          <Select.Value placeholder={isLoadingMetadata ? "Loading collections..." : "Select collection"} />
                         </Select.Trigger>
                         <Select.Content>
-                          {typeOptions.map((option) => (
-                            <Select.Item key={option} value={option}>
-                              {option}
+                          {metadata.collections.map((option) => (
+                            <Select.Item key={option.id} value={String(option.id)}>
+                              {option.label}
                             </Select.Item>
                           ))}
                         </Select.Content>
                       </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Collection</Label>
-                      <Select
-                        value={values.collection}
-                        onValueChange={(value) => setValue("collection", value)}
-                      >
-                        <Select.Trigger>
-                          <Select.Value placeholder="Select collection" />
-                        </Select.Trigger>
-                        <Select.Content>
-                          {collectionOptions.map((option) => (
-                            <Select.Item key={option} value={option}>
-                              {option}
-                            </Select.Item>
-                          ))}
-                        </Select.Content>
-                      </Select>
+                      <Text size="small" className="text-ui-fg-subtle">
+                        Used for merchandising groupings like occasions or audiences.
+                      </Text>
                     </div>
                   </div>
 
-                  <div className="grid gap-5 md:grid-cols-2">
+                  <div className="grid gap-5 mt-5">
                     <div className="space-y-2">
-                      <Label htmlFor="product-tags">Tags</Label>
-                      <Input
-                        id="product-tags"
-                        value={values.tags}
-                        onChange={(event) =>
-                          setValue("tags", event.target.value)
-                        }
-                        placeholder="summer, drop"
+                      <Label>Categories (Shop by Product)</Label>
+                      <CategoryMultiSelect
+                        values={selectedCategoryIds}
+                        options={metadata.categories.map((category) => ({
+                          value: String(category.id),
+                          label: category.label,
+                        }))}
+                        onChange={setSelectedCategoryIds}
                       />
                       <Text size="small" className="text-ui-fg-subtle">
-                        Comma separated.
+                        Shopper-facing product-kind placement. A product may belong to multiple categories.
                       </Text>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Categories</Label>
-                      <CategoryMultiSelect
-                        values={values.categories}
-                        options={categoryOptions}
-                        onChange={(categories) =>
-                          setValue("categories", categories)
-                        }
-                      />
                     </div>
                   </div>
                 </ProgressTabs.Content>
@@ -1165,8 +1392,22 @@ export function CreateProductPage() {
                   {errors.variants ? (
                     <InlineError message={errors.variants} />
                   ) : null}
+                  {customizationTabError ? (
+                    <InlineError message={customizationTabError} />
+                  ) : null}
                   {variantMediaError ? (
                     <InlineError message={variantMediaError} />
+                  ) : null}
+
+                  {values.customizationEnabled ? (
+                    <div className="mx-2 rounded-xl border border-ui-border-base bg-ui-bg-component px-4 py-4">
+                      <Text weight="plus" size="small">
+                        Customizable variants need consistent images.
+                      </Text>
+                      <Text size="small" className="mt-2 text-ui-fg-subtle">
+                        Every created variant must have at least one image, and every uploaded image must share the same pixel dimensions before you can open Customization.
+                      </Text>
+                    </div>
                   ) : null}
 
                   <div className="overflow-x-auto">
@@ -1242,7 +1483,7 @@ export function CreateProductPage() {
                                         fileInputRefs.current[variantSignature] = element;
                                       }}
                                       type="file"
-                                      accept="image/png,image/jpeg"
+                                      accept="image/png,image/jpeg,application/pdf"
                                       multiple
                                       className="hidden"
                                       onChange={(event) => {
@@ -1411,6 +1652,81 @@ export function CreateProductPage() {
                     </Table>
                   </div>
                 </ProgressTabs.Content>
+
+                {values.customizationEnabled ? (
+                  <ProgressTabs.Content
+                    value="customization"
+                    className="outline-none px-6 py-6"
+                  >
+                    <section className="overflow-hidden rounded-xl border border-ui-border-base bg-ui-bg-base shadow-sm">
+                      <div className="flex items-center justify-between border-b border-ui-border-base px-4 py-3">
+                        <div>
+                          <Heading level="h2">Customization</Heading>
+                          <Text size="small" className="mt-1 text-ui-fg-subtle">
+                            Embedded product-create mode. Preview backgrounds come from created variant images and are not persisted as customization assets.
+                          </Text>
+                        </div>
+                        <div className="text-right">
+                          <Text size="small" className="text-ui-fg-subtle">
+                            Draft preserved in session
+                          </Text>
+                          <Text size="small" className="mt-1 text-ui-fg-base">
+                            {embeddedCustomization.canvasWidthPx && embeddedCustomization.canvasHeightPx
+                              ? `${embeddedCustomization.canvasWidthPx} x ${embeddedCustomization.canvasHeightPx}`
+                              : "Canvas not seeded yet"}
+                          </Text>
+                        </div>
+                      </div>
+                      <div className="grid min-h-0 flex-1 grid-cols-[56px_280px_minmax(0,1fr)_320px]">
+                        <Rail activeTab={embeddedEditor.activeTab} onChange={embeddedEditor.setActiveTab} />
+                        <LeftPanel
+                          activeTab={embeddedEditor.activeTab}
+                          template={embeddedEditor.template}
+                          selectedLayerId={embeddedEditor.selectedLayerId}
+                          onAddText={embeddedEditor.addTextLayer}
+                          onAddTextOnPath={embeddedEditor.addTextOnPathLayer}
+                          onAddShape={embeddedEditor.addImageShape}
+                          onAddPolygon={embeddedEditor.addPolygon}
+                          onDrawShape={embeddedEditor.startDrawMode}
+                          onSelectLayer={embeddedEditor.setSelectedLayerId}
+                          onUpdateTemplate={embeddedEditor.updateTemplate}
+                          onUpdateField={embeddedEditor.updateField}
+                          onDelete={embeddedEditor.deleteSelectedLayer}
+                          onUploadBackground={() => {}}
+                          embeddedBackgrounds={{
+                            items: previewBackgrounds,
+                            selectedAssetId: selectedPreviewAssetId,
+                            onSelectAssetId: setSelectedPreviewAssetId,
+                          }}
+                        />
+                        <EditorCanvas
+                          template={embeddedEditor.template}
+                          selectedLayerId={embeddedEditor.selectedLayerId}
+                          pathEditingLayerId={embeddedEditor.pathEditingLayerId}
+                          isDrawing={embeddedEditor.isDrawing}
+                          pendingVectorPoints={embeddedEditor.pendingVectorPoints}
+                          dynamicFonts={dynamicFonts}
+                          onSelectLayer={embeddedEditor.setSelectedLayerId}
+                          onPathEditingLayerChange={embeddedEditor.setPathEditingLayerId}
+                          onUpdateLayer={embeddedEditor.updateLayer}
+                          onUploadBackground={() => {}}
+                          onAddVectorPoint={embeddedEditor.addVectorPoint}
+                          onUndoVectorPoint={embeddedEditor.undoVectorPoint}
+                          onCloseVectorShape={embeddedEditor.closeVectorShape}
+                          onCancelDraw={embeddedEditor.cancelDrawMode}
+                        />
+                        <Inspector
+                          template={embeddedEditor.template}
+                          selectedLayer={embeddedEditor.selectedLayer}
+                          pathEditingLayerId={embeddedEditor.pathEditingLayerId}
+                          onUpdateLayer={embeddedEditor.updateLayer}
+                          onPathEditingLayerChange={embeddedEditor.setPathEditingLayerId}
+                          onUpdateTemplate={embeddedEditor.updateTemplate}
+                        />
+                      </div>
+                    </section>
+                  </ProgressTabs.Content>
+                ) : null}
               </div>
             </FocusModal.Body>
           </ProgressTabs>
@@ -1560,8 +1876,8 @@ export function CreateProductPage() {
         </div>
       ) : null}
 
-      <datalist id="product-types">
-        {typeOptions.map((option) => (
+      <datalist id="product-tag-suggestions">
+        {metadata.tags.map((option) => (
           <option key={option} value={option} />
         ))}
       </datalist>
