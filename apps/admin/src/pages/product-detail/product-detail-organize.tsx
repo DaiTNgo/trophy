@@ -98,7 +98,7 @@ export function ProductDetailOrganize({ product, mutate }: ProductDetailOrganize
               <Drawer.Header>
                 <Drawer.Title>Edit Organization</Drawer.Title>
               </Drawer.Header>
-              <Drawer.Body className="flex flex-col gap-y-6">
+              <Drawer.Body className="flex flex-col gap-y-6 overflow-y-auto">
                 {error && <InlineError message={error} />}
                 {metaError && <InlineError message={metaError} />}
 
@@ -112,16 +112,16 @@ export function ProductDetailOrganize({ product, mutate }: ProductDetailOrganize
                     <LoadingPlaceholder />
                   ) : (
                     <Select
-                      value={collectionId !== null ? String(collectionId) : ""}
+                      value={collectionId !== null ? String(collectionId) : "none"}
                       onValueChange={(val) =>
-                        setCollectionId(val === "" ? null : Number(val))
+                        setCollectionId(val === "none" ? null : Number(val))
                       }
                     >
                       <Select.Trigger>
                         <Select.Value placeholder="No collection" />
                       </Select.Trigger>
                       <Select.Content>
-                        <Select.Item value="">
+                        <Select.Item value="none">
                           <span className="text-ui-fg-muted">No collection</span>
                         </Select.Item>
                         {collections.map((col) => (

@@ -7,7 +7,7 @@ type ApiProduct = {
   handle: string;
   subtitle: string | null;
   description: string | null;
-  status: "Draft" | "Proposed" | "Published" | "Rejected";
+  status: "draft" | "published" | "archived" | "proposed" | "rejected";
   categories: Array<{ id: number; name: string }>;
   tags: Array<{ id: number; value: string }>;
   type: { id: number; value: string } | null;
@@ -48,6 +48,20 @@ type ApiProduct = {
   } | null;
   updatedAt: string;
 };
+
+function mapApiProductStatus(status: ApiProduct["status"]): CatalogProduct["status"] {
+  switch (status) {
+    case "published":
+      return "Published";
+    case "proposed":
+      return "Proposed";
+    case "rejected":
+      return "Rejected";
+    case "draft":
+    case "archived":
+      return "Draft";
+  }
+}
 
 type CreateFullProductPayload = {
   mode: "draft" | "publish";
@@ -105,8 +119,13 @@ export async function createFullProduct(payload: CreateFullProductPayload) {
   return body.item;
 }
 
-export async function fetchProducts() {
-  const response = await backendFetch("/api/admin/products", {
+export async function fetchProducts(params?: { categoryId?: string; collectionId?: string; q?: string }) {
+  const url = new URL("/api/admin/products", "http://localhost");
+  if (params?.categoryId) url.searchParams.set("categoryId", params.categoryId);
+  if (params?.collectionId) url.searchParams.set("collectionId", params.collectionId);
+  if (params?.q) url.searchParams.set("q", params.q);
+
+  const response = await backendFetch(url.pathname + url.search, {
     method: "GET",
     credentials: "include",
   });
@@ -137,6 +156,34 @@ export async function fetchProduct(id: string) {
   }
 
   return body.item;
+}
+
+export async function assignProductsToCollection(
+  collectionId: string,
+  payload: { addProductIds?: number[]; removeProductIds?: number[] }
+) {
+  const response = await backendFetch(`/api/admin/product-metadata/collections/${collectionId}/products`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) throw new Error("Failed to assign products to collection.");
+  return response.json();
+}
+
+export async function assignProductsToCategory(
+  categoryId: string,
+  payload: { addProductIds?: number[]; removeProductIds?: number[] }
+) {
+  const response = await backendFetch(`/api/admin/product-metadata/categories/${categoryId}/products`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) throw new Error("Failed to assign products to category.");
+  return response.json();
 }
 
 export async function updateProductOverview(id: string, payload: {
@@ -542,7 +589,7 @@ export function mapApiProductToCatalogProduct(product: Partial<ApiProduct> & Pic
     handle: product.handle,
     subtitle: product.subtitle ?? "",
     description: product.description ?? "",
-    status: product.status === "Published" ? "Published" : "Draft",
+    status: mapApiProductStatus(product.status),
     inventory: 0,
     price: leadPrice,
     category: product.categories?.[0]?.name ?? "",

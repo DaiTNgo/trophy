@@ -89,6 +89,8 @@ This repository is currently in **dev mode** for agent work:
 ## Editing guidance
 
 - New API work → `apps/backend/src/routes/`.
+- New backend route contracts consumed by admin or storefront must use Hono RPC as the default integration path: export the relevant route/app type from backend, create typed clients with `hc<AppType>()`, and avoid new hand-written fetch wrappers unless there is a documented blocker.
+- Hono RPC routes must return explicit typed JSON responses with `c.json(payload, status)` for success and error cases; do not use untyped `c.notFound()` for client-consumed not-found responses.
 - New admin screens → add React Router route in `App.tsx`.
 - Storefront changes → prefer route loaders/actions over client-only fetching.
 - Cloudflare config → `apps/*/wrangler.jsonc`.
@@ -107,6 +109,7 @@ A feature is done only when all of the following are true:
 Backend API work has additional done criteria:
 
 - [ ] Every new or changed backend route has API contract coverage at the public route surface used by admin or storefront, normally through Hono `app.request(...)`.
+- [ ] New admin/storefront consumers use Hono RPC (`hc<AppType>()`) against exported backend route/app types, with any exception documented in `progress.md` and the active feature evidence.
 - [ ] API contract tests cover the successful response shape plus the important failure modes for that route: validation errors, not found cases, auth/session/role checks, and shopper-safe vs admin-only data boundaries when applicable.
 - [ ] Business rules behind the route are covered by service/helper unit tests when the logic is non-trivial, so API tests stay focused on the HTTP contract.
 - [ ] Test names describe observable behavior in project language from `CONTEXT.md` and assert known-good literals or worked examples, not implementation details.

@@ -7,8 +7,11 @@ import {
   Input,
   Text,
   Label,
+  Table,
 } from "@medusajs/ui";
 import { backendFetch } from "../../lib/fetch";
+import { fetchProducts, assignProductsToCategory } from "../../lib/products-client";
+import { ProductSelectorDrawer } from "../../components/product-selector-drawer";
 
 export function CategoryDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -18,36 +21,66 @@ export function CategoryDetailPage() {
   const [name, setName] = useState("");
   const [handle, setHandle] = useState("");
   const [description, setDescription] = useState("");
-  const [parentId, setParentId] = useState("");
   
+  const [products, setProducts] = useState<any[]>([]);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+
   const [isLoading, setIsLoading] = useState(!isNew);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (isNew) return;
 
-    async function loadCategory() {
+    async function loadData() {
       try {
-        const res = await backendFetch("/api/admin/product-metadata/categories");
-        if (res.ok) {
-          const data = await res.json();
+        const [catRes, prodRes] = await Promise.all([
+          backendFetch("/api/admin/product-metadata/categories"),
+          fetchProducts({ categoryId: id })
+        ]);
+
+        if (catRes.ok) {
+          const data = await catRes.json();
           const category = data.items.find((c: any) => c.id.toString() === id);
           if (category) {
             setName(category.name);
             setHandle(category.handle || "");
             setDescription(category.description || "");
-            setParentId(category.parentId ? category.parentId.toString() : "");
           }
         }
+        setProducts(prodRes || []);
       } catch (e) {
-        console.error("Failed to load category", e);
+        console.error("Failed to load category data", e);
       } finally {
         setIsLoading(false);
       }
     }
 
-    loadCategory();
+    loadData();
   }, [id, isNew]);
+
+  async function handleAssignProducts(selectedIds: string[]) {
+    if (!id) return;
+    
+    const currentProductIds = new Set(products.map((p) => p.id.toString()));
+    const newProductIds = new Set(selectedIds);
+    
+    const addProductIds = Array.from(newProductIds)
+      .filter(pId => !currentProductIds.has(pId))
+      .map(pId => parseInt(pId, 10));
+      
+    const removeProductIds = Array.from(currentProductIds)
+      .filter(pId => !newProductIds.has(pId))
+      .map(pId => parseInt(pId, 10));
+
+    try {
+      await assignProductsToCategory(id, { addProductIds, removeProductIds });
+      // Reload products
+      const prodRes = await fetchProducts({ categoryId: id });
+      setProducts(prodRes || []);
+    } catch (e) {
+      console.error(e);
+    }
+  }
 
   async function handleSave() {
     setIsSaving(true);
@@ -57,12 +90,6 @@ export function CategoryDetailPage() {
         handle: handle || null, 
         description: description || null 
       };
-      
-      if (parentId) {
-        payload.parentId = parseInt(parentId, 10);
-      } else {
-        payload.parentId = null;
-      }
       
       const res = await backendFetch(
         `/api/admin/product-metadata/categories${isNew ? "" : `/${id}`}`,
@@ -177,21 +204,71 @@ export function CategoryDetailPage() {
               placeholder="Category description"
             />
           </div>
-
-          <div className="flex flex-col gap-y-2">
-            <Label htmlFor="parentId" className="text-ui-fg-base">
-              Parent ID (optional)
-            </Label>
-            <Input
-              id="parentId"
-              type="number"
-              value={parentId}
-              onChange={(e) => setParentId(e.target.value)}
-              placeholder="e.g. 1"
-            />
-          </div>
         </div>
       </Container>
+
+      {!isNew && (
+        <Container>
+          <div className="flex flex-col gap-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex flex-col">
+                <Heading level="h2">Products</Heading>
+                <Text size="base" className="text-ui-fg-subtle">
+                  Manage products in this category.
+                </Text>
+              </div>
+              <Button variant="secondary" onClick={() => setIsDrawerOpen(true)}>
+                Edit Products
+              </Button>
+            </div>
+            
+            {products.length === 0 ? (
+              <Text className="text-ui-fg-subtle text-center py-6">
+                No products in this category.
+              </Text>
+            ) : (
+              <div className="border rounded-md overflow-hidden">
+                <Table>
+                  <Table.Header>
+                    <Table.Row>
+                      <Table.HeaderCell>Product</Table.HeaderCell>
+                      <Table.HeaderCell>Status</Table.HeaderCell>
+                    </Table.Row>
+                  </Table.Header>
+                  <Table.Body>
+                    {products.map((product) => (
+                      <Table.Row key={product.id}>
+                        <Table.Cell>
+                          <div className="flex items-center gap-x-3">
+                            {product.media && product.media[0] ? (
+                              <img src={product.media[0].url} alt={product.title} className="w-8 h-8 rounded object-cover" />
+                            ) : (
+                              <div className="w-8 h-8 bg-ui-bg-component rounded" />
+                            )}
+                            <Text size="small" weight="plus">{product.title}</Text>
+                          </div>
+                        </Table.Cell>
+                        <Table.Cell>
+                          <Text size="small">{product.status}</Text>
+                        </Table.Cell>
+                      </Table.Row>
+                    ))}
+                  </Table.Body>
+                </Table>
+              </div>
+            )}
+          </div>
+          
+          <ProductSelectorDrawer
+            open={isDrawerOpen}
+            onOpenChange={setIsDrawerOpen}
+            title="Edit Category Products"
+            description="Select products to add to this category."
+            initialSelectedIds={products.map(p => p.id.toString())}
+            onSave={handleAssignProducts}
+          />
+        </Container>
+      )}
 
       {!isNew && (
         <Container className="border-ui-border-danger">

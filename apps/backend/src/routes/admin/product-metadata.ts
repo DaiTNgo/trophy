@@ -1,10 +1,12 @@
-import { asc, eq } from 'drizzle-orm'
+import { and, asc, eq, inArray, sql } from 'drizzle-orm'
 import { Hono } from 'hono'
 import * as v from 'valibot'
 import { getDb } from '../../db/client'
 import {
   productCategories,
+  productCategoryLinks,
   productCollections,
+  products,
   productTags,
   productTypes
 } from '../../db/schema'
@@ -45,8 +47,7 @@ const createCollectionSchema = v.object({
 
 const createCategorySchema = v.object({
   name: trimmedString(1, 120),
-  handle: optionalHandle,
-  parentId: v.optional(v.nullable(v.pipe(v.number(), v.integer(), v.minValue(1))))
+  handle: optionalHandle
 })
 
 const createTagSchema = v.object({
@@ -64,7 +65,6 @@ const updateCollectionSchema = v.object({
 const updateCategorySchema = v.object({
   name: v.optional(trimmedString(1, 120)),
   handle: optionalHandle,
-  parentId: v.optional(v.nullable(v.pipe(v.number(), v.integer(), v.minValue(1)))),
   description: v.optional(v.nullable(v.string())),
   imageUrl: v.optional(v.nullable(v.string()))
 })
@@ -268,18 +268,6 @@ export const productMetadataRoute = new Hono<AppEnv>()
 
     const db = getDb(c.env)
 
-    if (parsed.output.parentId) {
-      const parent = await db
-        .select({ id: productCategories.id })
-        .from(productCategories)
-        .where(eq(productCategories.id, parsed.output.parentId))
-        .get()
-
-      if (!parent) {
-        return jsonError(c, 404, 'Parent category not found')
-      }
-    }
-
     const handle = await ensureUniqueHandle(
       db,
       parsed.output.handle ?? parsed.output.name,
@@ -289,8 +277,7 @@ export const productMetadataRoute = new Hono<AppEnv>()
       .insert(productCategories)
       .values({
         name: parsed.output.name,
-        handle,
-        parentId: parsed.output.parentId ?? null
+        handle
       })
       .returning()
       .get()
@@ -324,25 +311,6 @@ export const productMetadataRoute = new Hono<AppEnv>()
     if (parsed.output.name !== undefined) updates.name = parsed.output.name
     if (parsed.output.description !== undefined) updates.description = parsed.output.description
     if (parsed.output.imageUrl !== undefined) updates.imageUrl = parsed.output.imageUrl
-    
-    if (parsed.output.parentId !== undefined) {
-      if (parsed.output.parentId !== null && parsed.output.parentId !== existing.parentId) {
-        const parent = await db
-          .select({ id: productCategories.id })
-          .from(productCategories)
-          .where(eq(productCategories.id, parsed.output.parentId))
-          .get()
-
-        if (!parent) {
-          return jsonError(c, 404, 'Parent category not found')
-        }
-        
-        if (parsed.output.parentId === id) {
-          return jsonError(c, 400, 'Category cannot be its own parent')
-        }
-      }
-      updates.parentId = parsed.output.parentId
-    }
 
     if (parsed.output.handle !== undefined) {
       if (parsed.output.handle !== existing.handle) {
@@ -422,79 +390,108 @@ export const productMetadataRoute = new Hono<AppEnv>()
     return c.json({ item }, 201)
   })
 
-productMetadataRoute.put('/collections/:id', async (c) => {
-  const id = parseInt(c.req.param('id'), 10)
-  if (isNaN(id)) return jsonError(c, 400, 'Invalid ID')
+const assignProductsSchema = v.object({
+  addProductIds: v.optional(v.array(v.pipe(v.number(), v.integer(), v.minValue(1))), []),
+  removeProductIds: v.optional(v.array(v.pipe(v.number(), v.integer(), v.minValue(1))), [])
+})
 
-  const parsed = await parseJson(c, createCollectionSchema)
-  if (!parsed.success) return parsed.response
+productMetadataRoute.post('/collections/:id/products', async (c) => {
+  const idParam = v.safeParse(idParamSchema, { id: c.req.param('id') })
+  if (!idParam.success) {
+    return jsonError(c, 400, 'Invalid ID')
+  }
+  const id = idParam.output.id
 
-  const db = getDb(c.env)
-  
-  let handle = parsed.output.handle
-  if (!handle && parsed.output.title) {
-    handle = await ensureUniqueHandle(db, parsed.output.title, 'collection')
+  const parsed = await parseJson(c, assignProductsSchema)
+  if (!parsed.success) {
+    return parsed.response
   }
 
-  const updateData: any = { title: parsed.output.title }
-  if (handle) updateData.handle = handle
+  const { addProductIds, removeProductIds } = parsed.output
+  const db = getDb(c.env)
 
-  const item = await db
-    .update(productCollections)
-    .set(updateData)
+  const existing = await db
+    .select({ id: productCollections.id })
+    .from(productCollections)
     .where(eq(productCollections.id, id))
-    .returning()
     .get()
 
-  if (!item) return jsonError(c, 404, 'Collection not found')
-  return c.json({ item }, 200)
-})
-.delete('/collections/:id', async (c) => {
-  const id = parseInt(c.req.param('id'), 10)
-  if (isNaN(id)) return jsonError(c, 400, 'Invalid ID')
-
-  const db = getDb(c.env)
-  await db.delete(productCollections).where(eq(productCollections.id, id))
-  
-  return new Response(null, { status: 204 })
-})
-
-productMetadataRoute.put('/categories/:id', async (c) => {
-  const id = parseInt(c.req.param('id'), 10)
-  if (isNaN(id)) return jsonError(c, 400, 'Invalid ID')
-
-  const parsed = await parseJson(c, createCategorySchema)
-  if (!parsed.success) return parsed.response
-
-  const db = getDb(c.env)
-  
-  let handle = parsed.output.handle
-  if (!handle && parsed.output.name) {
-    handle = await ensureUniqueHandle(db, parsed.output.name, 'category')
+  if (!existing) {
+    return jsonError(c, 404, 'Collection not found')
   }
 
-  const updateData: any = { 
-    name: parsed.output.name,
-    parentId: parsed.output.parentId ?? null
+  if (addProductIds && addProductIds.length > 0) {
+    await db
+      .update(products)
+      .set({ collectionId: id, updatedAt: sql`CURRENT_TIMESTAMP` })
+      .where(inArray(products.id, addProductIds))
+      .run()
   }
-  if (handle) updateData.handle = handle
 
-  const item = await db
-    .update(productCategories)
-    .set(updateData)
+  if (removeProductIds && removeProductIds.length > 0) {
+    await db
+      .update(products)
+      .set({ collectionId: null, updatedAt: sql`CURRENT_TIMESTAMP` })
+      .where(
+        and(
+          inArray(products.id, removeProductIds),
+          eq(products.collectionId, id)
+        )
+      )
+      .run()
+  }
+
+  return c.json({ success: true }, 200)
+})
+
+productMetadataRoute.post('/categories/:id/products', async (c) => {
+  const idParam = v.safeParse(idParamSchema, { id: c.req.param('id') })
+  if (!idParam.success) {
+    return jsonError(c, 400, 'Invalid ID')
+  }
+  const id = idParam.output.id
+
+  const parsed = await parseJson(c, assignProductsSchema)
+  if (!parsed.success) {
+    return parsed.response
+  }
+
+  const { addProductIds, removeProductIds } = parsed.output
+  const db = getDb(c.env)
+
+  const existing = await db
+    .select({ id: productCategories.id })
+    .from(productCategories)
     .where(eq(productCategories.id, id))
-    .returning()
     .get()
 
-  if (!item) return jsonError(c, 404, 'Category not found')
-  return c.json({ item }, 200)
-})
-.delete('/categories/:id', async (c) => {
-  const id = parseInt(c.req.param('id'), 10)
-  if (isNaN(id)) return jsonError(c, 400, 'Invalid ID')
+  if (!existing) {
+    return jsonError(c, 404, 'Category not found')
+  }
 
-  const db = getDb(c.env)
-  await db.delete(productCategories).where(eq(productCategories.id, id))
-  
-  return new Response(null, { status: 204 })
+  if (addProductIds && addProductIds.length > 0) {
+    const values = addProductIds.map((productId) => ({
+      productId,
+      categoryId: id
+    }))
+    await db
+      .insert(productCategoryLinks)
+      .values(values)
+      .onConflictDoNothing()
+      .run()
+  }
+
+  if (removeProductIds && removeProductIds.length > 0) {
+    await db
+      .delete(productCategoryLinks)
+      .where(
+        and(
+          eq(productCategoryLinks.categoryId, id),
+          inArray(productCategoryLinks.productId, removeProductIds)
+        )
+      )
+      .run()
+  }
+
+  return c.json({ success: true }, 200)
 })

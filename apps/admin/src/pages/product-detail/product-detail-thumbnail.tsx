@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, useEffect } from "react";
 import { Button, Container, Heading, Text, Drawer, clx } from "@medusajs/ui";
 import { Image, Edit, Upload, X, Check } from "lucide-react";
 import type { CatalogProduct } from "../../types";
@@ -6,6 +6,7 @@ import { updateProductMedia } from "../../lib/products-client";
 import { uploadProductVariantMedia } from "../../lib/product-assets-client";
 import { AdminMedia } from "../../components/ui/admin-media";
 import { InlineError } from "../../components/ui/medusa/inline-error";
+import { convertPdfToImageFile } from "../../lib/pdf-preview";
 
 const MAX_THUMBNAIL_COUNT = 2;
 
@@ -13,6 +14,7 @@ type ThumbnailItem = {
   url: string;
   mimeType: string;
   isUploading?: boolean;
+  file?: File;
 };
 
 type ProductDetailThumbnailProps = {
@@ -28,6 +30,17 @@ export function ProductDetailThumbnail({ product, mutate }: ProductDetailThumbna
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const productMedia = product.media ?? [];
+
+  // Cleanup object URLs when they are removed from thumbnails or drawer is closed
+  useEffect(() => {
+    return () => {
+      thumbnails.forEach(t => {
+        if (t.file && t.url.startsWith("blob:")) {
+          URL.revokeObjectURL(t.url);
+        }
+      });
+    };
+  }, [thumbnails]);
 
   // Extract all unique media from all variants
   const allVariantMedia = useMemo(() => {
@@ -55,6 +68,13 @@ export function ProductDetailThumbnail({ product, mutate }: ProductDetailThumbna
         })
       );
       setError(null);
+    } else {
+      // Cleanup Object URLs on close
+      thumbnails.forEach(t => {
+        if (t.file && t.url.startsWith("blob:")) {
+          URL.revokeObjectURL(t.url);
+        }
+      });
     }
     setOpen(isOpen);
   };
@@ -66,34 +86,40 @@ export function ProductDetailThumbnail({ product, mutate }: ProductDetailThumbna
     if (!file) return;
     if (thumbnails.length >= MAX_THUMBNAIL_COUNT) return;
 
-    const placeholderIndex = thumbnails.length;
-    setThumbnails((prev) => [
-      ...prev,
-      { url: "", mimeType: file.type, isUploading: true },
-    ]);
     setError(null);
 
     try {
-      const media = await uploadProductVariantMedia(file);
-      setThumbnails((prev) => {
-        const updated = [...prev];
-        updated[placeholderIndex] = {
-          url: media.contentUrl,
-          mimeType: media.mimeType,
+      let fileToProcess = file;
+      if (file.type === "application/pdf") {
+        fileToProcess = await convertPdfToImageFile(file);
+      }
+
+      const objectUrl = URL.createObjectURL(fileToProcess);
+
+      setThumbnails((prev) => [
+        ...prev,
+        {
+          url: objectUrl,
+          mimeType: fileToProcess.type,
           isUploading: false,
-        };
-        return updated;
-      });
+          file: fileToProcess,
+        },
+      ]);
     } catch (err) {
-      setThumbnails((prev) => prev.filter((_, i) => i !== placeholderIndex));
-      setError(err instanceof Error ? err.message : "Upload failed");
+      setError(err instanceof Error ? err.message : "Failed to load file preview");
     } finally {
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
   const removeThumbnail = (index: number) => {
-    setThumbnails((prev) => prev.filter((_, i) => i !== index));
+    setThumbnails((prev) => {
+      const removed = prev[index];
+      if (removed?.file && removed.url.startsWith("blob:")) {
+        URL.revokeObjectURL(removed.url);
+      }
+      return prev.filter((_, i) => i !== index);
+    });
   };
 
   const toggleVariantMedia = (mediaUrl: string, mimeType: string) => {
@@ -107,13 +133,21 @@ export function ProductDetailThumbnail({ product, mutate }: ProductDetailThumbna
   };
 
   const handleSave = async () => {
-    const items = thumbnails
-      .filter((t) => !t.isUploading && t.url)
-      .map((t) => ({ url: t.url }));
-
     setIsSubmitting(true);
     setError(null);
     try {
+      // Step 1: Upload any pending files
+      const uploadPromises = thumbnails.map(async (t) => {
+        if (!t.file) return { url: t.url };
+        
+        // Mark as uploading for UI feedback if needed, though we block the whole UI anyway
+        const media = await uploadProductVariantMedia(t.file);
+        return { url: media.contentUrl };
+      });
+
+      const items = await Promise.all(uploadPromises);
+
+      // Step 2: Save updated media URLs to product
       await updateProductMedia(product.id, items);
       await mutate();
       setOpen(false);
@@ -152,7 +186,7 @@ export function ProductDetailThumbnail({ product, mutate }: ProductDetailThumbna
                 <Drawer.Title>Edit Thumbnail</Drawer.Title>
               </Drawer.Header>
 
-              <Drawer.Body className="flex flex-col gap-y-6">
+              <Drawer.Body className="flex flex-col gap-y-6 overflow-y-auto">
                 {error && <InlineError message={error} />}
 
                 <Text size="small" className="text-ui-fg-subtle">
@@ -178,7 +212,7 @@ export function ProductDetailThumbnail({ product, mutate }: ProductDetailThumbna
                             <AdminMedia
                               src={thumb.url}
                               mimeType={thumb.mimeType}
-                              className="h-full w-full object-cover"
+                              className="h-full w-full object-contain"
                               alt={`Thumbnail ${index + 1}`}
                             />
                             <button
@@ -189,6 +223,11 @@ export function ProductDetailThumbnail({ product, mutate }: ProductDetailThumbna
                             >
                               <X className="h-3 w-3" />
                             </button>
+                            {thumb.file && (
+                              <div className="absolute bottom-1 left-1 rounded bg-ui-bg-overlay px-1.5 py-0.5 shadow">
+                                <Text size="xsmall" className="text-ui-fg-on-color">New</Text>
+                              </div>
+                            )}
                           </>
                         )}
                       </div>
@@ -244,7 +283,7 @@ export function ProductDetailThumbnail({ product, mutate }: ProductDetailThumbna
                             <AdminMedia
                               src={media.url}
                               mimeType={media.mimeType}
-                              className="h-full w-full object-cover"
+                              className="h-full w-full object-contain"
                               alt={`Variant media ${idx + 1}`}
                             />
                             {isSelected && (
@@ -294,7 +333,7 @@ export function ProductDetailThumbnail({ product, mutate }: ProductDetailThumbna
                     <AdminMedia
                       src={url}
                       mimeType={mimeType}
-                      className="h-full w-full object-cover"
+                      className="h-full w-full object-contain"
                       alt={`Thumbnail ${idx + 1}`}
                     />
                   </div>

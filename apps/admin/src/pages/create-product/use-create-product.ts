@@ -13,7 +13,7 @@ import {
   type EmbeddedCustomizationDraft,
 } from "../create-product-helpers";
 import { fetchProductMetadata, type ProductMetadataSnapshot } from "../../lib/product-metadata-client";
-import { extractPdfPreview } from "../../lib/pdf-preview";
+import { convertPdfToImageFile } from "../../lib/pdf-preview";
 import { uploadProductVariantMedia } from "../../lib/product-assets-client";
 import { createFullProduct, mapApiProductToCatalogProduct } from "../../lib/products-client";
 import {
@@ -624,46 +624,43 @@ export function useCreateProduct() {
     try {
       const stagedAssets = await Promise.all(
         Array.from(files).map(async (file) => {
-          if (!["image/png", "image/jpeg", "application/pdf"].includes(file.type)) {
-            throw new Error("Only PNG, JPEG, and PDF product assets are supported.");
+          if (!["image/png", "image/jpeg", "image/webp", "application/pdf"].includes(file.type)) {
+            throw new Error("Only PNG, JPEG, WebP, and PDF product assets are supported.");
+          }
+
+          let fileToProcess = file;
+          if (file.type === "application/pdf") {
+            fileToProcess = await convertPdfToImageFile(file);
           }
 
           let dimensions: { width: number; height: number };
-          let objectUrl: string;
-
-          if (file.type === "application/pdf") {
-            const preview = await extractPdfPreview(file);
-            dimensions = { width: preview.width, height: preview.height };
-            objectUrl = preview.dataUrl;
-          } else {
-            objectUrl = URL.createObjectURL(file);
-            dimensions = await new Promise<{
-              width: number;
-              height: number;
-            }>((resolve, reject) => {
-              const image = new Image();
-              image.onload = () => {
-                resolve({
-                  width: image.naturalWidth,
-                  height: image.naturalHeight,
-                });
-              };
-              image.onerror = () => {
-                reject(new Error("Image data is invalid or unsupported."));
-              };
-              image.src = objectUrl;
-            });
-          }
+          const objectUrl = URL.createObjectURL(fileToProcess);
+          dimensions = await new Promise<{
+            width: number;
+            height: number;
+          }>((resolve, reject) => {
+            const image = new Image();
+            image.onload = () => {
+              resolve({
+                width: image.naturalWidth,
+                height: image.naturalHeight,
+              });
+            };
+            image.onerror = () => {
+              reject(new Error("Unable to read image dimensions."));
+            };
+            image.src = objectUrl;
+          });
 
           return {
             id: `pending_${crypto.randomUUID()}`,
-            fileName: file.name,
-            mimeType: file.type,
+            fileName: fileToProcess.name,
+            mimeType: fileToProcess.type,
             widthPx: dimensions.width,
             heightPx: dimensions.height,
-            byteSize: file.size,
+            byteSize: fileToProcess.size,
             contentUrl: objectUrl,
-            file,
+            file: fileToProcess,
             isPending: true,
           } satisfies ProductVariantMedia;
         }),

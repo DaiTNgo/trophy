@@ -39,6 +39,7 @@ import {
   updateProductVariantStock,
 } from "../../lib/products-client";
 import { uploadProductVariantMedia } from "../../lib/product-assets-client";
+import { convertPdfToImageFile } from "../../lib/pdf-preview";
 import { formatCurrency } from "../../lib/utils";
 import type { CatalogProduct } from "../../types";
 
@@ -369,7 +370,13 @@ export function ProductDetailVariants({ product, mutate }: ProductDetailVariants
 
     try {
       const uploadedAssets = await Promise.all(
-        Array.from(fileList).map((file) => uploadProductVariantMedia(file)),
+        Array.from(fileList).map(async (file) => {
+          let fileToUpload = file;
+          if (file.type === "application/pdf") {
+            fileToUpload = await convertPdfToImageFile(file);
+          }
+          return uploadProductVariantMedia(fileToUpload);
+        }),
       );
 
       setMediaDrafts((current) => [
@@ -564,7 +571,7 @@ export function ProductDetailVariants({ product, mutate }: ProductDetailVariants
           <Drawer.Header>
             <Drawer.Title>Manage options</Drawer.Title>
           </Drawer.Header>
-          <Drawer.Body className="flex flex-col gap-y-6">
+          <Drawer.Body className="flex flex-col gap-y-6 overflow-y-auto">
             {optionsError ? <InlineError message={optionsError} /> : null}
             {optionsDrafts.map((option, optionIndex) => (
               <div key={`${option.id ?? "new"}-${optionIndex}`} className="rounded-lg border border-ui-border-base p-4">
@@ -688,7 +695,7 @@ export function ProductDetailVariants({ product, mutate }: ProductDetailVariants
           <Drawer.Header>
             <Drawer.Title>Edit prices</Drawer.Title>
           </Drawer.Header>
-          <Drawer.Body className="flex flex-col gap-y-4">
+          <Drawer.Body className="flex flex-col gap-y-4 overflow-y-auto">
             {priceError ? <InlineError message={priceError} /> : null}
             {priceRows.map((row, index) => (
               <div key={row.id} className="grid gap-3 md:grid-cols-[1fr_180px]">
@@ -730,7 +737,7 @@ export function ProductDetailVariants({ product, mutate }: ProductDetailVariants
           <Drawer.Header>
             <Drawer.Title>Edit stock</Drawer.Title>
           </Drawer.Header>
-          <Drawer.Body className="flex flex-col gap-y-4">
+          <Drawer.Body className="flex flex-col gap-y-4 overflow-y-auto">
             {stockError ? <InlineError message={stockError} /> : null}
             {stockRows.map((row, index) => (
               <div key={row.id} className="grid gap-3 md:grid-cols-[1fr_180px]">
@@ -774,7 +781,7 @@ export function ProductDetailVariants({ product, mutate }: ProductDetailVariants
           <Drawer.Header>
             <Drawer.Title>{variantForm.id ? "Edit variant details" : "Create variant"}</Drawer.Title>
           </Drawer.Header>
-          <Drawer.Body className="flex flex-col gap-y-6">
+          <Drawer.Body className="flex flex-col gap-y-6 overflow-y-auto">
             {variantError ? <InlineError message={variantError} /> : null}
             <div className="space-y-1.5">
               <Label size="small">Title</Label>
@@ -856,7 +863,7 @@ export function ProductDetailVariants({ product, mutate }: ProductDetailVariants
           <Drawer.Header>
             <Drawer.Title>Manage variant media</Drawer.Title>
           </Drawer.Header>
-          <Drawer.Body className="flex flex-col gap-y-6">
+          <Drawer.Body className="flex flex-col gap-y-6 overflow-y-auto">
             {mediaError ? <InlineError message={mediaError} /> : null}
             <input
               ref={mediaInputRef}
@@ -890,7 +897,7 @@ export function ProductDetailVariants({ product, mutate }: ProductDetailVariants
                       src={asset.url}
                       mimeType={asset.mimeType}
                       alt={asset.fileName}
-                      className="h-32 w-full object-cover"
+                      className="h-32 w-full object-contain"
                     />
                     <div className="flex items-center justify-between px-3 py-3">
                       <Text size="small" weight="plus" className="line-clamp-1">

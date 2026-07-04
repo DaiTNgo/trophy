@@ -157,7 +157,6 @@ export const productCategories = sqliteTable(
     id: integer("id").primaryKey({ autoIncrement: true }),
     name: text("name").notNull(),
     handle: text("handle").notNull(),
-    parentId: integer("parent_id"),
     description: text("description"),
     imageUrl: text("image_url"),
   },

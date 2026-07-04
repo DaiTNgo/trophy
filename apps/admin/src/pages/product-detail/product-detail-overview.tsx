@@ -70,7 +70,7 @@ export function ProductDetailOverview({ product, mutate }: ProductDetailOverview
               <Drawer.Header>
                 <Drawer.Title>Edit Overview</Drawer.Title>
               </Drawer.Header>
-              <Drawer.Body className="flex flex-col gap-y-6">
+              <Drawer.Body className="flex flex-col gap-y-6 overflow-y-auto">
                 {error && <InlineError message={error} />}
                 <div className="grid gap-5 md:grid-cols-2">
                   <div className="flex flex-col gap-y-1.5">

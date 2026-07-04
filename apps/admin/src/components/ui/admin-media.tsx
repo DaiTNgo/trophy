@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import * as pdfjsLib from "pdfjs-dist";
+import { normalizeContentUrl } from "../../lib/product-assets-client";
 import pdfjsWorkerUrl from "pdfjs-dist/build/pdf.worker?url";
 import { Package, FileText } from "lucide-react";
 
@@ -26,7 +27,7 @@ export function AdminMedia({ src, mimeType, className = "", fallback, alt = "Med
       return;
     }
 
-    const isPdf = mimeType === "application/pdf" || src.toLowerCase().endsWith(".pdf");
+    const isPdf = (mimeType === "application/pdf" || src.toLowerCase().endsWith(".pdf")) && !src.startsWith("data:image/");
 
     if (isPdf) {
       let isCancelled = false;
@@ -35,8 +36,17 @@ export function AdminMedia({ src, mimeType, className = "", fallback, alt = "Med
 
       const loadPdfPreview = async () => {
         try {
-          // Fetch the PDF using pdfjsLib
-          const loadingTask = pdfjsLib.getDocument({ url: src });
+          // Fetch the PDF manually to ensure credentials are sent correctly
+          // We must use getProductAssetUrl to ensure we hit the backend, not the Vite dev server (which returns index.html for unknown routes)
+          const fullUrl = normalizeContentUrl(src);
+          const res = await fetch(fullUrl, { credentials: "include" });
+          if (!res.ok) throw new Error(`Failed to fetch PDF: ${res.status}`);
+          const blob = await res.blob();
+          if (isCancelled) return;
+          const arrayBuffer = await blob.arrayBuffer();
+          if (isCancelled) return;
+
+          const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
           const pdfDocument = await loadingTask.promise;
           if (isCancelled) return;
 

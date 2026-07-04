@@ -238,7 +238,7 @@ export function CreateProductVariants({ state }: CreateProductVariantsProps) {
                                         src={asset.contentUrl}
                                         mimeType={asset.mimeType}
                                         alt={asset.fileName}
-                                        className="h-24 w-full object-cover"
+                                        className="h-24 w-full object-contain"
                                       />
                                     </button>
                                     <div className="space-y-2 px-3 py-3">

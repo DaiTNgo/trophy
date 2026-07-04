@@ -79,7 +79,7 @@ export function ProductDetailAttributes({ product, mutate }: ProductDetailAttrib
               <Drawer.Header>
                 <Drawer.Title>Edit Attributes</Drawer.Title>
               </Drawer.Header>
-              <Drawer.Body className="flex flex-col gap-y-6">
+              <Drawer.Body className="flex flex-col gap-y-6 overflow-y-auto">
                 {error && <InlineError message={error} />}
                 <div className="flex flex-col gap-y-3">
                   <div className="flex items-center justify-between">

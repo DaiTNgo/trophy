@@ -109,7 +109,7 @@ export function VariantGallery({ state }: VariantGalleryProps) {
                     src={asset.contentUrl}
                     mimeType={asset.mimeType}
                     alt={asset.fileName}
-                    className="h-20 w-full object-cover"
+                    className="h-20 w-full object-contain"
                   />
                 </button>
               ))}

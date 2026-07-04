@@ -468,8 +468,7 @@ const readProduct = async (db: ReturnType<typeof getDb>, productId: number) => {
       .select({
         id: productCategories.id,
         name: productCategories.name,
-        handle: productCategories.handle,
-        parentId: productCategories.parentId
+        handle: productCategories.handle
       })
       .from(productCategoryLinks)
       .innerJoin(

@@ -15,8 +15,8 @@ type ProductAssetResponse = {
   error?: string;
 };
 
-function normalizeContentUrl(contentUrl: string) {
-  if (/^https?:\/\//i.test(contentUrl)) {
+export function normalizeContentUrl(contentUrl: string) {
+  if (/^https?:\/\//i.test(contentUrl) || contentUrl.startsWith("blob:") || contentUrl.startsWith("data:")) {
     return contentUrl;
   }
 

@@ -155,7 +155,7 @@ export function CreateProductDetails({ state }: CreateProductDetailsProps) {
         <div className="space-y-3">
           {attributes.map((attribute, index) => (
             <div
-              key={`${index}-${attribute.key}`}
+              key={index}
               className="grid gap-3 md:grid-cols-[1fr_1fr_auto]"
             >
               <Input

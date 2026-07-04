@@ -299,8 +299,7 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
         .select({
           id: productCategories.id,
           name: productCategories.name,
-          handle: productCategories.handle,
-          parentId: productCategories.parentId
+          handle: productCategories.handle
         })
         .from(productCategoryLinks)
         .innerJoin(

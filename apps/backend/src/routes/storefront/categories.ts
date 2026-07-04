@@ -15,11 +15,9 @@ export const storefrontCategoriesRoute = new Hono<AppEnv>()
         name: productCategories.name,
         handle: productCategories.handle,
         description: productCategories.description,
-        imageUrl: productCategories.imageUrl,
-        parentId: productCategories.parentId,
+        imageUrl: productCategories.imageUrl
       })
       .from(productCategories)
-      .where(all ? undefined : isNull(productCategories.parentId))
       .orderBy(asc(productCategories.name))
 
     return c.json({ items }, 200)
