@@ -2,21 +2,16 @@
 
 ## Current State
 
-- Created OpenSpec change `storefront-orders` from the agreed order creation contract.
-- Proposal, design, specs, and tasks are present.
-- Domain glossary terms and ADR `docs/adr/0004-order-item-snapshots.md` record the key ordering decisions:
-  - orders can contain multiple items;
-  - backend captures price at request time;
-  - Contact Price items cannot create orders;
-  - customizable items require customization values;
-  - item snapshots are immutable;
-  - manual payment uses bank transfer or cash on delivery;
-  - customized items start pending production review.
+- Implementation complete for the OpenSpec change `storefront-orders`.
+- Added Drizzle schema tables `orders` and `order_items` with snapshots for prices, customization, and backgrounds.
+- Implemented `POST /api/storefront/orders` route in `apps/backend/src/routes/storefront/orders.ts` with strict validation.
+- Validated all backend business logic (customer/shipping/payment data, pricing snapshots, variant validations, customization checks) and contract endpoints using Vitest.
+- Mocked Storefront UI in `apps/storefront` is wired up to correctly post to the API in `checkout.tsx` and redirect to `order-confirmation.tsx` upon success. Contact Price products have their add-to-cart buttons disabled.
+- `./init.sh` verification passes perfectly across all 5 workspace projects.
 
 ## Next Step
 
-- Validate the OpenSpec change with `openspec validate storefront-orders --strict`.
-- When implementation starts, begin with schema and backend route contract tests before wiring storefront checkout.
+- Archive the OpenSpec change via `/openspec-archive-change` or move on to the next feature.
 
 ## Blockers
 
@@ -27,3 +22,4 @@
 - Currency is `VND`.
 - Online payment integration is out of scope.
 - Contact Price products use a separate contact/inquiry flow, not order creation.
+- The storefront cart uses mocked state (submitting hardcoded values) because it currently runs mock-first without a real global store, matching the admin app's behavior.

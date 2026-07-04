@@ -194,3 +194,83 @@ export async function fetchStorefrontCollectionProducts(
     })),
   };
 }
+
+export type StorefrontOrderRequest = {
+  customer: {
+    name: string;
+    phone: string;
+    email?: string;
+  };
+  shipping: {
+    primaryAddress: {
+      line1: string;
+      line2?: string;
+      city: string;
+      province?: string;
+      postalCode?: string;
+      country: string;
+    };
+    shipToDifferentAddress: boolean;
+    differentAddress?: {
+      recipientName: string;
+      recipientPhone: string;
+      address: {
+        line1: string;
+        line2?: string;
+        city: string;
+        province?: string;
+        postalCode?: string;
+        country: string;
+      };
+    };
+  };
+  payment: {
+    method: "bank_transfer" | "cash_on_delivery";
+  };
+  items: Array<{
+    productId: number;
+    variantId: number;
+    quantity: number;
+    customization?: {
+      values: Record<string, unknown>;
+    };
+  }>;
+};
+
+export type StorefrontOrderResponse = {
+  order: {
+    id: number;
+    orderNumber: string;
+    status: string;
+    paymentStatus: string;
+    fulfillmentStatus: string;
+    totalAmount: number;
+    currencyCode: string;
+    itemCount: number;
+    createdAt: string;
+  };
+};
+
+export async function createStorefrontOrder(
+  payload: StorefrontOrderRequest
+): Promise<StorefrontOrderResponse> {
+  const url = `${BACKEND_URL}/api/storefront/orders`;
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const errData = await res.json().catch(() => null) as { error?: string } | null;
+    if (errData?.error) {
+      throw new Error(errData.error);
+    }
+    throw new Response("Failed to create order", { status: res.status });
+  }
+
+  return res.json();
+}

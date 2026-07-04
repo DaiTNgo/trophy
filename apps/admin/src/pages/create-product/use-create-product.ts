@@ -437,6 +437,8 @@ export function useCreateProduct() {
           title: variant.title,
           sku: variant.sku.trim() || null,
           priceAmount: Number.isFinite(variant.price) && variant.price > 0 ? variant.price : null,
+          inventoryQuantity: Number.isFinite(variant.inventory) ? variant.inventory : 0,
+          allowBackorder: variant.allowBackorder,
           isDefault: index === 0,
           optionValues: variant.options.map((option) => ({
             optionTitle: option.option,

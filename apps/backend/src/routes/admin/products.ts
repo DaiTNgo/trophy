@@ -61,14 +61,31 @@ const optionalId = v.optional(
   v.nullable(v.pipe(v.number(), v.integer(), v.minValue(1)))
 )
 
+const positiveIntParam = v.pipe(
+  v.string(),
+  v.transform((input) => Number(input)),
+  v.number(),
+  v.integer(),
+  v.minValue(1)
+)
+
 const idParamsSchema = v.object({
-  id: v.pipe(
-    v.string(),
-    v.transform((input) => Number(input)),
-    v.number(),
-    v.integer(),
-    v.minValue(1)
-  )
+  id: positiveIntParam
+})
+
+const optionParamsSchema = v.object({
+  id: positiveIntParam,
+  optionId: positiveIntParam
+})
+
+const optionValueParamsSchema = v.object({
+  id: positiveIntParam,
+  valueId: positiveIntParam
+})
+
+const variantParamsSchema = v.object({
+  id: positiveIntParam,
+  variantId: positiveIntParam
 })
 
 const optionalQueryText = v.optional(
@@ -190,6 +207,31 @@ const optionsSchema = v.object({
   )
 })
 
+const optionCreateSchema = v.object({
+  title: trimmedString(1, 120),
+  values: v.optional(
+    v.pipe(
+      v.array(trimmedString(1, 120)),
+      v.check(
+        (values) => new Set(values.map((value) => value.toLowerCase())).size === values.length,
+        'Option values must be unique within the same option'
+      )
+    )
+  )
+})
+
+const optionUpdateSchema = v.object({
+  title: trimmedString(1, 120)
+})
+
+const optionValueCreateSchema = v.object({
+  value: trimmedString(1, 120)
+})
+
+const optionValueUpdateSchema = v.object({
+  value: trimmedString(1, 120)
+})
+
 const assetIdSchema = v.pipe(v.string(), v.uuid())
 
 const variantsSchema = v.object({
@@ -201,6 +243,8 @@ const variantsSchema = v.object({
       priceAmount: v.optional(
         v.nullable(v.pipe(v.number(), v.integer(), v.minValue(0)))
       ),
+      inventoryQuantity: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0))),
+      allowBackorder: v.optional(v.boolean()),
       isDefault: v.optional(v.boolean()),
       optionValueIds: v.optional(
         v.array(v.pipe(v.number(), v.integer(), v.minValue(1)))
@@ -212,6 +256,61 @@ const variantsSchema = v.object({
           })
         )
       )
+    })
+  )
+})
+
+const variantDetailSchema = v.object({
+  title: trimmedString(1, 200),
+  sku: nullableText(120),
+  allowBackorder: v.optional(v.boolean()),
+  optionValueIds: v.optional(v.array(v.pipe(v.number(), v.integer(), v.minValue(1))))
+})
+
+const variantCreateSchema = v.object({
+  title: trimmedString(1, 200),
+  sku: nullableText(120),
+  priceAmount: v.optional(v.nullable(v.pipe(v.number(), v.integer(), v.minValue(0)))),
+  inventoryQuantity: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0))),
+  allowBackorder: v.optional(v.boolean()),
+  optionValueIds: v.optional(v.array(v.pipe(v.number(), v.integer(), v.minValue(1)))),
+  media: v.optional(
+    v.array(
+      v.object({
+        assetId: assetIdSchema
+      })
+    )
+  )
+})
+
+const priceUpdateSchema = v.object({
+  items: v.pipe(
+    v.array(
+      v.object({
+        id: v.pipe(v.number(), v.integer(), v.minValue(1)),
+        priceAmount: v.nullable(v.pipe(v.number(), v.integer(), v.minValue(0)))
+      })
+    ),
+    v.minLength(1)
+  )
+})
+
+const stockUpdateSchema = v.object({
+  items: v.pipe(
+    v.array(
+      v.object({
+        id: v.pipe(v.number(), v.integer(), v.minValue(1)),
+        inventoryQuantity: v.pipe(v.number(), v.integer(), v.minValue(0))
+      })
+    ),
+    v.minLength(1)
+  )
+})
+
+const variantMediaSchema = v.object({
+  items: v.array(
+    v.object({
+      assetId: assetIdSchema
     })
   )
 })
@@ -264,6 +363,8 @@ const fullCreateProductSchema = v.object({
       title: trimmedString(1, 200),
       sku: nullableText(120),
       priceAmount: v.optional(v.nullable(v.pipe(v.number(), v.integer(), v.minValue(0)))),
+      inventoryQuantity: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0))),
+      allowBackorder: v.optional(v.boolean()),
       isDefault: v.optional(v.boolean()),
       optionValues: v.optional(
         v.array(
@@ -689,6 +790,239 @@ const replaceOptions = async (
   return null
 }
 
+const ensureProductExists = async (db: ReturnType<typeof getDb>, productId: number) =>
+  db.select().from(products).where(eq(products.id, productId)).get()
+
+const ensureOptionBelongsToProduct = async (
+  db: ReturnType<typeof getDb>,
+  productId: number,
+  optionId: number
+) =>
+  db
+    .select()
+    .from(productOptions)
+    .where(and(eq(productOptions.id, optionId), eq(productOptions.productId, productId)))
+    .get()
+
+const ensureVariantBelongsToProduct = async (
+  db: ReturnType<typeof getDb>,
+  productId: number,
+  variantId: number
+) =>
+  db
+    .select()
+    .from(productVariants)
+    .where(and(eq(productVariants.id, variantId), eq(productVariants.productId, productId)))
+    .get()
+
+const ensureOptionValueBelongsToProduct = async (
+  db: ReturnType<typeof getDb>,
+  productId: number,
+  valueId: number
+) =>
+  db
+    .select({
+      id: productOptionValues.id,
+      optionId: productOptionValues.optionId,
+      value: productOptionValues.value,
+      position: productOptionValues.position,
+      productId: productOptions.productId,
+      optionTitle: productOptions.title
+    })
+    .from(productOptionValues)
+    .innerJoin(productOptions, eq(productOptionValues.optionId, productOptions.id))
+    .where(and(eq(productOptionValues.id, valueId), eq(productOptions.productId, productId)))
+    .get()
+
+const updateProductTimestamp = async (db: ReturnType<typeof getDb>, productId: number) => {
+  await db
+    .update(products)
+    .set({ updatedAt: nowIso() })
+    .where(eq(products.id, productId))
+}
+
+const ensureVariantAssetIdsExist = async (
+  db: ReturnType<typeof getDb>,
+  assetIds: string[]
+) => {
+  if (assetIds.length === 0) {
+    return null
+  }
+
+  const assetsById = await loadProductAssetsById(db, assetIds)
+  if (assetsById.size !== assetIds.length) {
+    return { error: 'One or more variant media assets were not found', status: 404 as const }
+  }
+
+  return null
+}
+
+const validateOptionTitleUniquenessForProduct = async (
+  db: ReturnType<typeof getDb>,
+  productId: number,
+  title: string,
+  excludedOptionId?: number
+) => {
+  const optionRows = await db
+    .select({ id: productOptions.id, title: productOptions.title })
+    .from(productOptions)
+    .where(eq(productOptions.productId, productId))
+
+  const normalizedTitle = title.trim().toLowerCase()
+  if (
+    optionRows.some(
+      (row) => row.id !== excludedOptionId && row.title.trim().toLowerCase() === normalizedTitle
+    )
+  ) {
+    return { error: 'Option titles must be unique', status: 409 as const }
+  }
+
+  return null
+}
+
+const validateOptionValueUniquenessForOption = async (
+  db: ReturnType<typeof getDb>,
+  optionId: number,
+  value: string,
+  excludedValueId?: number
+) => {
+  const optionValueRows = await db
+    .select({ id: productOptionValues.id, value: productOptionValues.value })
+    .from(productOptionValues)
+    .where(eq(productOptionValues.optionId, optionId))
+
+  const normalizedValue = value.trim().toLowerCase()
+  if (
+    optionValueRows.some(
+      (row) => row.id !== excludedValueId && row.value.trim().toLowerCase() === normalizedValue
+    )
+  ) {
+    return {
+      error: 'Option values must be unique within the same option',
+      status: 409 as const
+    }
+  }
+
+  return null
+}
+
+const validateVariantSelectionForProduct = async ({
+  db,
+  productId,
+  optionValueIds,
+  excludedVariantId
+}: {
+  db: ReturnType<typeof getDb>
+  productId: number
+  optionValueIds: number[]
+  excludedVariantId?: number
+}) => {
+  const optionRows = await db
+    .select()
+    .from(productOptions)
+    .where(eq(productOptions.productId, productId))
+    .orderBy(asc(productOptions.position), asc(productOptions.id))
+  const expectedOptionCount = optionRows.length
+
+  if (expectedOptionCount === 0) {
+    if (optionValueIds.length > 0) {
+      return {
+        error: 'Default variant cannot reference option values when variants are disabled',
+        status: 409 as const
+      }
+    }
+
+    return null
+  }
+
+  if (optionValueIds.length !== expectedOptionCount) {
+    return {
+      error: 'Each variant must include exactly one value for every option',
+      status: 409 as const
+    }
+  }
+
+  if (!ensureArrayUnique(optionValueIds)) {
+    return {
+      error: 'Variant option values must be unique',
+      status: 409 as const
+    }
+  }
+
+  const optionValueRows = await db
+    .select({
+      id: productOptionValues.id,
+      optionId: productOptionValues.optionId
+    })
+    .from(productOptionValues)
+    .innerJoin(productOptions, eq(productOptionValues.optionId, productOptions.id))
+    .where(
+      and(
+        eq(productOptions.productId, productId),
+        inArray(productOptionValues.id, optionValueIds)
+      )
+    )
+
+  if (optionValueRows.length !== optionValueIds.length) {
+    return {
+      error: 'Variant references an unknown option value',
+      status: 409 as const
+    }
+  }
+
+  const optionIds = optionValueRows.map((row) => row.optionId)
+  if (new Set(optionIds).size !== expectedOptionCount) {
+    return {
+      error: 'Variant must contain at most one value from each option',
+      status: 409 as const
+    }
+  }
+
+  const normalizedOptionValueIds = [...new Set(optionValueIds)].sort((a, b) => a - b)
+  const existingVariants = await db
+    .select({ id: productVariants.id })
+    .from(productVariants)
+    .where(eq(productVariants.productId, productId))
+  const existingVariantIds = existingVariants
+    .map((row) => row.id)
+    .filter((variantId) => variantId !== excludedVariantId)
+
+  if (existingVariantIds.length === 0) {
+    return null
+  }
+
+  const existingSelections = await db
+    .select({
+      variantId: productVariantOptionValues.variantId,
+      optionValueId: productVariantOptionValues.optionValueId
+    })
+    .from(productVariantOptionValues)
+    .where(inArray(productVariantOptionValues.variantId, existingVariantIds))
+
+  const selectionsByVariantId = new Map<number, number[]>()
+  for (const selection of existingSelections) {
+    const current = selectionsByVariantId.get(selection.variantId) ?? []
+    current.push(selection.optionValueId)
+    selectionsByVariantId.set(selection.variantId, current)
+  }
+
+  const nextKey = normalizedOptionValueIds.join(':')
+  for (const variantId of existingVariantIds) {
+    const currentKey = (selectionsByVariantId.get(variantId) ?? [])
+      .sort((a, b) => a - b)
+      .join(':')
+
+    if (currentKey === nextKey) {
+      return {
+        error: 'Duplicate variant option combination',
+        status: 409 as const
+      }
+    }
+  }
+
+  return null
+}
+
 const nowIso = () => new Date().toISOString()
 
 const parseQuery = <TOutput>(
@@ -718,6 +1052,8 @@ const replaceVariants = async (
     title: string
     sku?: string | null
     priceAmount?: number | null
+    inventoryQuantity?: number
+    allowBackorder?: boolean
     isDefault?: boolean
     optionValueIds?: number[]
     media?: Array<{ assetId: string }>
@@ -762,6 +1098,8 @@ const replaceVariants = async (
     ...item,
     sku: item.sku ?? null,
     priceAmount: item.priceAmount ?? null,
+    inventoryQuantity: item.inventoryQuantity ?? 0,
+    allowBackorder: item.allowBackorder ?? false,
     optionValueIds: [...new Set(item.optionValueIds ?? [])].sort((a, b) => a - b),
     isDefault: item.isDefault ?? false,
     position: index
@@ -870,6 +1208,8 @@ const replaceVariants = async (
         title: item.title,
         sku: item.sku,
         priceAmount: item.priceAmount,
+        inventoryQuantity: item.inventoryQuantity,
+        allowBackorder: item.allowBackorder,
         isDefault: item.isDefault,
         position: index,
         updatedAt: nowIso()
@@ -1375,6 +1715,8 @@ export const productsRoute = new Hono<AppEnv>()
       title: defaultVariantTitle,
       sku: null,
       priceAmount: parsed.output.priceAmount ?? null,
+      inventoryQuantity: 0,
+      allowBackorder: false,
       isDefault: true,
       position: 0,
       updatedAt: nowIso()
@@ -1496,6 +1838,8 @@ export const productsRoute = new Hono<AppEnv>()
       title: string
       sku?: string | null
       priceAmount?: number | null
+      inventoryQuantity?: number
+      allowBackorder?: boolean
       isDefault?: boolean
       optionValueIds?: number[]
     }>
@@ -1523,6 +1867,8 @@ export const productsRoute = new Hono<AppEnv>()
         title: variant.title,
         sku: variant.sku ?? null,
         priceAmount: variant.priceAmount ?? null,
+        inventoryQuantity: variant.inventoryQuantity ?? 0,
+        allowBackorder: variant.allowBackorder ?? false,
         isDefault: variant.isDefault,
         optionValueIds
       })
@@ -1790,6 +2136,329 @@ export const productsRoute = new Hono<AppEnv>()
     const product = await readProduct(db, params.output.id)
     return c.json({ item: product }, 200)
   })
+  .post('/:id/options', async (c) => {
+    const params = parseParams(c, idParamsSchema)
+
+    if (!params.success) {
+      return params.response
+    }
+
+    const parsed = await parseJson(c, optionCreateSchema)
+
+    if (!parsed.success) {
+      return parsed.response
+    }
+
+    const db = getDb(c.env)
+    const product = await ensureProductExists(db, params.output.id)
+
+    if (!product) {
+      return jsonError(c, 404, 'Product not found')
+    }
+
+    if (product.status === 'published') {
+      return jsonError(
+        c,
+        409,
+        'Published products cannot add option definitions without rebuilding variants'
+      )
+    }
+
+    const uniqueTitleError = await validateOptionTitleUniquenessForProduct(
+      db,
+      product.id,
+      parsed.output.title
+    )
+    if (uniqueTitleError) {
+      return jsonError(c, uniqueTitleError.status, uniqueTitleError.error)
+    }
+
+    const currentOptions = await db
+      .select({ id: productOptions.id })
+      .from(productOptions)
+      .where(eq(productOptions.productId, product.id))
+
+    const insertedOption = await db
+      .insert(productOptions)
+      .values({
+        productId: product.id,
+        title: parsed.output.title,
+        position: currentOptions.length
+      })
+      .returning()
+      .get()
+
+    const values = parsed.output.values ?? []
+    if (values.length > 0) {
+      await db.insert(productOptionValues).values(
+        values.map((value, index) => ({
+          optionId: insertedOption.id,
+          value,
+          position: index
+        }))
+      )
+    }
+
+    await db
+      .update(products)
+      .set({
+        hasVariants: true,
+        updatedAt: nowIso()
+      })
+      .where(eq(products.id, product.id))
+
+    const nextProduct = await readProduct(db, product.id)
+    return c.json({ item: nextProduct }, 201)
+  })
+  .patch('/:id/options/:optionId', async (c) => {
+    const params = parseParams(c, optionParamsSchema)
+
+    if (!params.success) {
+      return params.response
+    }
+
+    const parsed = await parseJson(c, optionUpdateSchema)
+
+    if (!parsed.success) {
+      return parsed.response
+    }
+
+    const db = getDb(c.env)
+    const option = await ensureOptionBelongsToProduct(db, params.output.id, params.output.optionId)
+
+    if (!option) {
+      return jsonError(c, 404, 'Option not found')
+    }
+
+    const uniqueTitleError = await validateOptionTitleUniquenessForProduct(
+      db,
+      params.output.id,
+      parsed.output.title,
+      option.id
+    )
+    if (uniqueTitleError) {
+      return jsonError(c, uniqueTitleError.status, uniqueTitleError.error)
+    }
+
+    await db
+      .update(productOptions)
+      .set({ title: parsed.output.title })
+      .where(eq(productOptions.id, option.id))
+
+    await updateProductTimestamp(db, params.output.id)
+
+    const product = await readProduct(db, params.output.id)
+    return c.json({ item: product }, 200)
+  })
+  .delete('/:id/options/:optionId', async (c) => {
+    const params = parseParams(c, optionParamsSchema)
+
+    if (!params.success) {
+      return params.response
+    }
+
+    const db = getDb(c.env)
+    const product = await ensureProductExists(db, params.output.id)
+
+    if (!product) {
+      return jsonError(c, 404, 'Product not found')
+    }
+
+    if (product.status === 'published') {
+      return jsonError(
+        c,
+        409,
+        'Published products cannot delete option definitions without rebuilding variants'
+      )
+    }
+
+    const option = await ensureOptionBelongsToProduct(db, params.output.id, params.output.optionId)
+
+    if (!option) {
+      return jsonError(c, 404, 'Option not found')
+    }
+
+    const optionValueRows = await db
+      .select({ id: productOptionValues.id })
+      .from(productOptionValues)
+      .where(eq(productOptionValues.optionId, option.id))
+
+    const optionValueIds = optionValueRows.map((row) => row.id)
+    if (optionValueIds.length > 0) {
+      const referenced = await db
+        .select({ variantId: productVariantOptionValues.variantId })
+        .from(productVariantOptionValues)
+        .where(inArray(productVariantOptionValues.optionValueId, optionValueIds))
+        .get()
+
+      if (referenced) {
+        return jsonError(c, 409, 'Cannot delete an option that is still used by variants')
+      }
+    }
+
+    const currentVariants = await db
+      .select({ id: productVariants.id })
+      .from(productVariants)
+      .where(eq(productVariants.productId, product.id))
+    const currentOptions = await db
+      .select({ id: productOptions.id })
+      .from(productOptions)
+      .where(eq(productOptions.productId, product.id))
+
+    if (currentOptions.length === 1 && currentVariants.length > 1) {
+      return jsonError(
+        c,
+        409,
+        'Cannot disable variant options while the product still has multiple variants'
+      )
+    }
+
+    if (optionValueIds.length > 0) {
+      await db
+        .delete(productOptionValues)
+        .where(inArray(productOptionValues.id, optionValueIds))
+    }
+    await db.delete(productOptions).where(eq(productOptions.id, option.id))
+
+    const nextHasVariants = currentOptions.length > 1
+    await db
+      .update(products)
+      .set({
+        hasVariants: nextHasVariants,
+        updatedAt: nowIso()
+      })
+      .where(eq(products.id, product.id))
+
+    if (!nextHasVariants && currentVariants.length === 1) {
+      await db
+        .update(productVariants)
+        .set({
+          isDefault: true,
+          position: 0,
+          updatedAt: nowIso()
+        })
+        .where(eq(productVariants.id, currentVariants[0].id))
+    }
+
+    const nextProduct = await readProduct(db, product.id)
+    return c.json({ item: nextProduct }, 200)
+  })
+  .post('/:id/options/:optionId/values', async (c) => {
+    const params = parseParams(c, optionParamsSchema)
+
+    if (!params.success) {
+      return params.response
+    }
+
+    const parsed = await parseJson(c, optionValueCreateSchema)
+
+    if (!parsed.success) {
+      return parsed.response
+    }
+
+    const db = getDb(c.env)
+    const option = await ensureOptionBelongsToProduct(db, params.output.id, params.output.optionId)
+
+    if (!option) {
+      return jsonError(c, 404, 'Option not found')
+    }
+
+    const uniqueValueError = await validateOptionValueUniquenessForOption(
+      db,
+      option.id,
+      parsed.output.value
+    )
+    if (uniqueValueError) {
+      return jsonError(c, uniqueValueError.status, uniqueValueError.error)
+    }
+
+    const existingValues = await db
+      .select({ id: productOptionValues.id })
+      .from(productOptionValues)
+      .where(eq(productOptionValues.optionId, option.id))
+
+    await db.insert(productOptionValues).values({
+      optionId: option.id,
+      value: parsed.output.value,
+      position: existingValues.length
+    })
+
+    await updateProductTimestamp(db, params.output.id)
+
+    const product = await readProduct(db, params.output.id)
+    return c.json({ item: product }, 201)
+  })
+  .patch('/:id/option-values/:valueId', async (c) => {
+    const params = parseParams(c, optionValueParamsSchema)
+
+    if (!params.success) {
+      return params.response
+    }
+
+    const parsed = await parseJson(c, optionValueUpdateSchema)
+
+    if (!parsed.success) {
+      return parsed.response
+    }
+
+    const db = getDb(c.env)
+    const optionValue = await ensureOptionValueBelongsToProduct(db, params.output.id, params.output.valueId)
+
+    if (!optionValue) {
+      return jsonError(c, 404, 'Option value not found')
+    }
+
+    const uniqueValueError = await validateOptionValueUniquenessForOption(
+      db,
+      optionValue.optionId,
+      parsed.output.value,
+      optionValue.id
+    )
+    if (uniqueValueError) {
+      return jsonError(c, uniqueValueError.status, uniqueValueError.error)
+    }
+
+    await db
+      .update(productOptionValues)
+      .set({ value: parsed.output.value })
+      .where(eq(productOptionValues.id, optionValue.id))
+
+    await updateProductTimestamp(db, params.output.id)
+
+    const product = await readProduct(db, params.output.id)
+    return c.json({ item: product }, 200)
+  })
+  .delete('/:id/option-values/:valueId', async (c) => {
+    const params = parseParams(c, optionValueParamsSchema)
+
+    if (!params.success) {
+      return params.response
+    }
+
+    const db = getDb(c.env)
+    const optionValue = await ensureOptionValueBelongsToProduct(db, params.output.id, params.output.valueId)
+
+    if (!optionValue) {
+      return jsonError(c, 404, 'Option value not found')
+    }
+
+    const referenced = await db
+      .select({ variantId: productVariantOptionValues.variantId })
+      .from(productVariantOptionValues)
+      .where(eq(productVariantOptionValues.optionValueId, optionValue.id))
+      .get()
+
+    if (referenced) {
+      return jsonError(c, 409, 'Cannot delete an option value that is still used by variants')
+    }
+
+    await db.delete(productOptionValues).where(eq(productOptionValues.id, optionValue.id))
+    await updateProductTimestamp(db, params.output.id)
+
+    const product = await readProduct(db, params.output.id)
+    return c.json({ item: product }, 200)
+  })
+  // Legacy full-replace option editor. Product detail must use operation-specific option routes.
   .put('/:id/options', async (c) => {
     const params = parseParams(c, idParamsSchema)
 
@@ -1820,6 +2489,420 @@ export const productsRoute = new Hono<AppEnv>()
     const product = await readProduct(db, params.output.id)
     return c.json({ item: product }, 200)
   })
+  .patch('/:id/variants/prices', async (c) => {
+    const params = parseParams(c, idParamsSchema)
+
+    if (!params.success) {
+      return params.response
+    }
+
+    const parsed = await parseJson(c, priceUpdateSchema)
+
+    if (!parsed.success) {
+      return parsed.response
+    }
+
+    const db = getDb(c.env)
+    const product = await readProduct(db, params.output.id)
+
+    if (!product) {
+      return jsonError(c, 404, 'Product not found')
+    }
+
+    const variantIds = parsed.output.items.map((item) => item.id)
+    if (new Set(variantIds).size !== variantIds.length) {
+      return jsonError(c, 409, 'Variant ids in a price update must be unique')
+    }
+
+    if (
+      product.status === 'published' &&
+      parsed.output.items.some((item) => item.priceAmount === null)
+    ) {
+      return jsonError(c, 409, 'Every variant must have a price before publish')
+    }
+
+    const existingVariants = await db
+      .select({ id: productVariants.id })
+      .from(productVariants)
+      .where(eq(productVariants.productId, product.id))
+    const existingVariantIds = new Set(existingVariants.map((row) => row.id))
+
+    if (variantIds.some((variantId) => !existingVariantIds.has(variantId))) {
+      return jsonError(c, 404, 'One or more variants were not found')
+    }
+
+    for (const item of parsed.output.items) {
+      await db
+        .update(productVariants)
+        .set({
+          priceAmount: item.priceAmount,
+          updatedAt: nowIso()
+        })
+        .where(and(eq(productVariants.id, item.id), eq(productVariants.productId, product.id)))
+    }
+
+    await updateProductTimestamp(db, product.id)
+
+    const nextProduct = await readProduct(db, product.id)
+    return c.json({ item: nextProduct }, 200)
+  })
+  .patch('/:id/variants/stock', async (c) => {
+    const params = parseParams(c, idParamsSchema)
+
+    if (!params.success) {
+      return params.response
+    }
+
+    const parsed = await parseJson(c, stockUpdateSchema)
+
+    if (!parsed.success) {
+      return parsed.response
+    }
+
+    const db = getDb(c.env)
+    const product = await ensureProductExists(db, params.output.id)
+
+    if (!product) {
+      return jsonError(c, 404, 'Product not found')
+    }
+
+    const variantIds = parsed.output.items.map((item) => item.id)
+    if (new Set(variantIds).size !== variantIds.length) {
+      return jsonError(c, 409, 'Variant ids in a stock update must be unique')
+    }
+
+    const existingVariants = await db
+      .select({ id: productVariants.id })
+      .from(productVariants)
+      .where(eq(productVariants.productId, product.id))
+    const existingVariantIds = new Set(existingVariants.map((row) => row.id))
+
+    if (variantIds.some((variantId) => !existingVariantIds.has(variantId))) {
+      return jsonError(c, 404, 'One or more variants were not found')
+    }
+
+    for (const item of parsed.output.items) {
+      await db
+        .update(productVariants)
+        .set({
+          inventoryQuantity: item.inventoryQuantity,
+          updatedAt: nowIso()
+        })
+        .where(and(eq(productVariants.id, item.id), eq(productVariants.productId, product.id)))
+    }
+
+    await updateProductTimestamp(db, product.id)
+
+    const nextProduct = await readProduct(db, product.id)
+    return c.json({ item: nextProduct }, 200)
+  })
+  .post('/:id/variants', async (c) => {
+    const params = parseParams(c, idParamsSchema)
+
+    if (!params.success) {
+      return params.response
+    }
+
+    const parsed = await parseJson(c, variantCreateSchema)
+
+    if (!parsed.success) {
+      return parsed.response
+    }
+
+    const db = getDb(c.env)
+    const product = await readProduct(db, params.output.id)
+
+    if (!product) {
+      return jsonError(c, 404, 'Product not found')
+    }
+
+    if (!product.hasVariants && product.variants.length >= 1) {
+      return jsonError(c, 409, 'Define product options before creating multiple variants')
+    }
+
+    const optionValueIds = [...new Set(parsed.output.optionValueIds ?? [])].sort((a, b) => a - b)
+    const selectionError = await validateVariantSelectionForProduct({
+      db,
+      productId: product.id,
+      optionValueIds
+    })
+    if (selectionError) {
+      return jsonError(c, selectionError.status, selectionError.error)
+    }
+
+    const assetIds = [...new Set((parsed.output.media ?? []).map((item) => item.assetId))]
+    const missingAssets = await ensureVariantAssetIdsExist(db, assetIds)
+    if (missingAssets) {
+      return jsonError(c, missingAssets.status, missingAssets.error)
+    }
+
+    if (product.status === 'published' && parsed.output.priceAmount === null) {
+      return jsonError(c, 409, 'Every variant must have a price before publish')
+    }
+
+    if (product.status === 'published' && product.customization?.enabled && assetIds.length === 0) {
+      return jsonError(c, 409, 'Each variant needs at least one image before publish')
+    }
+
+    const insertedVariant = await db
+      .insert(productVariants)
+      .values({
+        productId: product.id,
+        title: parsed.output.title,
+        sku: parsed.output.sku ?? null,
+        priceAmount: parsed.output.priceAmount ?? null,
+        inventoryQuantity: parsed.output.inventoryQuantity ?? 0,
+        allowBackorder: parsed.output.allowBackorder ?? false,
+        isDefault: false,
+        position: product.variants.length,
+        updatedAt: nowIso()
+      })
+      .returning()
+      .get()
+
+    if (optionValueIds.length > 0) {
+      await db.insert(productVariantOptionValues).values(
+        optionValueIds.map((optionValueId) => ({
+          variantId: insertedVariant.id,
+          optionValueId
+        }))
+      )
+    }
+
+    if (assetIds.length > 0) {
+      await db.insert(productVariantMedia).values(
+        assetIds.map((assetId, index) => ({
+          variantId: insertedVariant.id,
+          assetId,
+          position: index
+        }))
+      )
+    }
+
+    await updateProductTimestamp(db, product.id)
+
+    const nextProduct = await readProduct(db, product.id)
+    return c.json({ item: nextProduct }, 201)
+  })
+  .patch('/:id/variants/:variantId', async (c) => {
+    const params = parseParams(c, variantParamsSchema)
+
+    if (!params.success) {
+      return params.response
+    }
+
+    const parsed = await parseJson(c, variantDetailSchema)
+
+    if (!parsed.success) {
+      return parsed.response
+    }
+
+    const db = getDb(c.env)
+    const product = await ensureProductExists(db, params.output.id)
+
+    if (!product) {
+      return jsonError(c, 404, 'Product not found')
+    }
+
+    const variant = await ensureVariantBelongsToProduct(db, product.id, params.output.variantId)
+    if (!variant) {
+      return jsonError(c, 404, 'Variant not found')
+    }
+
+    const currentOptionRows = await db
+      .select({ optionValueId: productVariantOptionValues.optionValueId })
+      .from(productVariantOptionValues)
+      .where(eq(productVariantOptionValues.variantId, variant.id))
+    const nextOptionValueIds = parsed.output.optionValueIds
+      ? [...new Set(parsed.output.optionValueIds)].sort((a, b) => a - b)
+      : currentOptionRows.map((row) => row.optionValueId).sort((a, b) => a - b)
+
+    const selectionError = await validateVariantSelectionForProduct({
+      db,
+      productId: product.id,
+      optionValueIds: nextOptionValueIds,
+      excludedVariantId: variant.id
+    })
+    if (selectionError) {
+      return jsonError(c, selectionError.status, selectionError.error)
+    }
+
+    await db
+      .update(productVariants)
+      .set({
+        title: parsed.output.title,
+        sku: parsed.output.sku ?? null,
+        allowBackorder: parsed.output.allowBackorder ?? variant.allowBackorder,
+        updatedAt: nowIso()
+      })
+      .where(eq(productVariants.id, variant.id))
+
+    if (parsed.output.optionValueIds !== undefined) {
+      await db
+        .delete(productVariantOptionValues)
+        .where(eq(productVariantOptionValues.variantId, variant.id))
+
+      if (nextOptionValueIds.length > 0) {
+        await db.insert(productVariantOptionValues).values(
+          nextOptionValueIds.map((optionValueId) => ({
+            variantId: variant.id,
+            optionValueId
+          }))
+        )
+      }
+    }
+
+    await updateProductTimestamp(db, product.id)
+
+    const nextProduct = await readProduct(db, product.id)
+    return c.json({ item: nextProduct }, 200)
+  })
+  .delete('/:id/variants/:variantId', async (c) => {
+    const params = parseParams(c, variantParamsSchema)
+
+    if (!params.success) {
+      return params.response
+    }
+
+    const db = getDb(c.env)
+    const product = await readProduct(db, params.output.id)
+
+    if (!product) {
+      return jsonError(c, 404, 'Product not found')
+    }
+
+    const variant = product.variants.find((item) => item.id === params.output.variantId)
+    if (!variant) {
+      return jsonError(c, 404, 'Variant not found')
+    }
+
+    if (product.variants.length === 1) {
+      return jsonError(c, 409, 'A product must have at least one variant')
+    }
+
+    await db
+      .delete(productVariantOptionValues)
+      .where(eq(productVariantOptionValues.variantId, variant.id))
+    await db
+      .delete(productVariantMedia)
+      .where(eq(productVariantMedia.variantId, variant.id))
+    await db.delete(productVariants).where(eq(productVariants.id, variant.id))
+
+    if (variant.isDefault) {
+      const remainingVariants = await db
+        .select({ id: productVariants.id })
+        .from(productVariants)
+        .where(eq(productVariants.productId, product.id))
+        .orderBy(asc(productVariants.position), asc(productVariants.id))
+
+      if (remainingVariants.length > 0) {
+        await db
+          .update(productVariants)
+          .set({
+            isDefault: false,
+            updatedAt: nowIso()
+          })
+          .where(eq(productVariants.productId, product.id))
+        await db
+          .update(productVariants)
+          .set({
+            isDefault: true,
+            position: 0,
+            updatedAt: nowIso()
+          })
+          .where(eq(productVariants.id, remainingVariants[0].id))
+      }
+    }
+
+    await updateProductTimestamp(db, product.id)
+
+    const nextProduct = await readProduct(db, product.id)
+    return c.json({ item: nextProduct }, 200)
+  })
+  .put('/:id/variants/:variantId/media', async (c) => {
+    const params = parseParams(c, variantParamsSchema)
+
+    if (!params.success) {
+      return params.response
+    }
+
+    const parsed = await parseJson(c, variantMediaSchema)
+
+    if (!parsed.success) {
+      return parsed.response
+    }
+
+    const db = getDb(c.env)
+    const product = await readProduct(db, params.output.id)
+
+    if (!product) {
+      return jsonError(c, 404, 'Product not found')
+    }
+
+    const variant = product.variants.find((item) => item.id === params.output.variantId)
+    if (!variant) {
+      return jsonError(c, 404, 'Variant not found')
+    }
+
+    const assetIds = [...new Set(parsed.output.items.map((item) => item.assetId))]
+    const assetLookup = await loadProductAssetsById(db, assetIds)
+    if (assetLookup.size !== assetIds.length) {
+      return jsonError(c, 404, 'One or more variant media assets were not found')
+    }
+
+    if (product.status === 'published' && product.customization?.enabled) {
+      const candidate = {
+        ...product,
+        variants: product.variants.map((item) =>
+          item.id === variant.id
+            ? {
+                ...item,
+                media: assetIds.map((assetId, index) => {
+                  const asset = assetLookup.get(assetId)!
+                  return {
+                    id: asset.id,
+                    fileName: asset.fileName,
+                    mimeType: asset.mimeType,
+                    widthPx: asset.widthPx,
+                    heightPx: asset.heightPx,
+                    byteSize: asset.byteSize,
+                    position: index,
+                    contentUrl: `/api/admin/products/assets/${asset.id}/content`
+                  }
+                })
+              }
+            : item
+        )
+      }
+
+      const publishError = validatePublishable(
+        candidate as NonNullable<Awaited<ReturnType<typeof readProduct>>>
+      )
+      if (publishError) {
+        return jsonError(c, 409, publishError)
+      }
+    }
+
+    await db
+      .delete(productVariantMedia)
+      .where(eq(productVariantMedia.variantId, variant.id))
+
+    if (assetIds.length > 0) {
+      await db.insert(productVariantMedia).values(
+        assetIds.map((assetId, index) => ({
+          variantId: variant.id,
+          assetId,
+          position: index
+        }))
+      )
+    }
+
+    await updateProductTimestamp(db, product.id)
+
+    const nextProduct = await readProduct(db, product.id)
+    return c.json({ item: nextProduct }, 200)
+  })
+  // Legacy full-replace variant editor. Product detail must use operation-specific variant routes.
   .put('/:id/variants', async (c) => {
     const params = parseParams(c, idParamsSchema)
 
@@ -1846,6 +2929,8 @@ export const productsRoute = new Hono<AppEnv>()
         title: item.title,
         sku: item.sku,
         priceAmount: item.priceAmount ?? null,
+        inventoryQuantity: item.inventoryQuantity ?? 0,
+        allowBackorder: item.allowBackorder ?? false,
         isDefault: item.isDefault ?? false,
         position: index,
         options: [],

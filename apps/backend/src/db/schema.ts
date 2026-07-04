@@ -233,6 +233,8 @@ export const productVariants = sqliteTable("product_variants", {
   title: text("title").notNull(),
   sku: text("sku"),
   priceAmount: integer("price_amount"),
+  inventoryQuantity: integer("inventory_quantity").notNull().default(0),
+  allowBackorder: integer("allow_backorder", { mode: "boolean" }).notNull().default(false),
   isDefault: integer("is_default", { mode: "boolean" }).notNull().default(false),
   position: integer("position").notNull(),
   createdAt: text("created_at")
@@ -412,6 +414,66 @@ export const customizationAssets = sqliteTable("customization_assets", {
     .notNull()
     .default(sql`CURRENT_TIMESTAMP`),
 });
+
+// ─── Orders ────────────────────────────────────────────────────────────────────
+
+export const orders = sqliteTable("orders", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  orderNumber: text("order_number").notNull(),
+  // statuses: narrow string unions enforced at application layer
+  status: text("status").notNull().default("pending"), // 'pending' | 'confirmed' | 'cancelled'
+  paymentStatus: text("payment_status").notNull().default("pending"), // 'pending' | 'paid' | 'failed' | 'refunded'
+  fulfillmentStatus: text("fulfillment_status").notNull().default("unfulfilled"), // 'unfulfilled' | 'partially_fulfilled' | 'fulfilled'
+  paymentMethod: text("payment_method").notNull(), // 'bank_transfer' | 'cash_on_delivery'
+  // customer details
+  customerName: text("customer_name").notNull(),
+  customerPhone: text("customer_phone").notNull(),
+  customerEmail: text("customer_email"),
+  // primary address snapshot (JSON)
+  primaryAddressJson: text("primary_address_json").notNull(),
+  // optional different shipping address snapshot (JSON)
+  shippingAddressJson: text("shipping_address_json"),
+  shipToDifferentAddress: integer("ship_to_different_address", { mode: "boolean" }).notNull().default(false),
+  // order totals (stored in smallest currency unit, e.g. VND đồng)
+  subtotalAmount: integer("subtotal_amount").notNull(),
+  totalAmount: integer("total_amount").notNull(),
+  currencyCode: text("currency_code").notNull().default("VND"),
+  itemCount: integer("item_count").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" })
+    .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+    .notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+    .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+    .$onUpdate(() => new Date())
+    .notNull(),
+});
+
+export const orderItems = sqliteTable("order_items", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  orderId: integer("order_id").notNull(),
+  // shopper selection
+  productId: integer("product_id").notNull(),
+  variantId: integer("variant_id").notNull(),
+  quantity: integer("quantity").notNull(),
+  // price snapshot
+  unitPriceAmount: integer("unit_price_amount").notNull(),
+  lineSubtotalAmount: integer("line_subtotal_amount").notNull(),
+  // product snapshot (JSON)
+  productSnapshotJson: text("product_snapshot_json").notNull(),
+  // variant snapshot (JSON)
+  variantSnapshotJson: text("variant_snapshot_json").notNull(),
+  // selected variant background snapshot (JSON, nullable)
+  backgroundSnapshotJson: text("background_snapshot_json"),
+  // customization snapshot (JSON, nullable for non-customizable products)
+  customizationSnapshotJson: text("customization_snapshot_json"),
+  // production status: 'not_required' for plain items, 'pending_review' for customized
+  productionStatus: text("production_status").notNull().default("not_required"),
+  createdAt: integer("created_at", { mode: "timestamp_ms" })
+    .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+    .notNull(),
+});
+
+// ─── Customization Exports ─────────────────────────────────────────────────────
 
 export const customizationExports = sqliteTable(
   "customization_exports",

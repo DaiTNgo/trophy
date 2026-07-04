@@ -1,7 +1,6 @@
 import { useState } from "react";
-import { Button, Container, Heading, Text, Drawer } from "@medusajs/ui";
+import { Button, Container, Heading, Text, Drawer, Input } from "@medusajs/ui";
 import { ListFilter, Plus, Trash2, Edit } from "lucide-react";
-import { TextField } from "../../components/ui/medusa";
 import { updateProductAttributes } from "../../lib/products-client";
 import type { CatalogProduct } from "../../types";
 import { InlineError } from "../../components/ui/medusa/inline-error";
@@ -97,17 +96,15 @@ export function ProductDetailAttributes({ product, mutate }: ProductDetailAttrib
                       key={index}
                       className="grid gap-3 md:grid-cols-[1fr_1fr_auto]"
                     >
-                      <TextField
-                        label={index === 0 ? "Attribute name" : ""}
-                        name={`detail-attribute-key-${index}`}
+                      <Input
                         value={attribute.key}
-                        onChange={(val) => updateAttribute(index, "key", val)}
+                        onChange={(e) => updateAttribute(index, "key", e.target.value)}
+                        placeholder="Attribute name"
                       />
-                      <TextField
-                        label={index === 0 ? "Attribute value" : ""}
-                        name={`detail-attribute-value-${index}`}
+                      <Input
                         value={attribute.value}
-                        onChange={(val) => updateAttribute(index, "value", val)}
+                        onChange={(e) => updateAttribute(index, "value", e.target.value)}
+                        placeholder="Attribute value"
                       />
                       <div className="flex items-end">
                         <Button

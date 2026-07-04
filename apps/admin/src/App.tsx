@@ -1,4 +1,4 @@
-import { Navigate, Route, BrowserRouter, Routes, Outlet, useLocation } from "react-router";
+import { Navigate, createBrowserRouter, RouterProvider, Outlet, useLocation } from "react-router";
 import { AuthScreenState } from "./components/ui/medusa/auth-screen-state";
 import { AdminShell } from "./components/layout/admin-shell";
 import { AuthProvider, useAuth } from "./hooks/use-auth";
@@ -37,78 +37,84 @@ function ProtectedRoute() {
   return <Outlet />;
 }
 
+const router = createBrowserRouter([
+  { path: "/login", Component: LoginPage },
+  { path: "/onboarding", Component: OnboardingPage },
+  {
+    Component: ProtectedRoute,
+    children: [
+      {
+        Component: AdminShell,
+        children: [
+          { index: true, Component: () => <Navigate to="/orders" replace /> },
+          { path: "orders", Component: OrdersListPage },
+          { path: "orders/:orderId", Component: OrderDetailPage },
+          { path: "products", Component: ProductsListPage },
+          { path: "products/new", Component: CreateProductPage },
+          { path: "products/:productId", Component: ProductDetailPage },
+          { path: "products/:productId/customization", Component: ProductCustomizationEditor },
+          { path: "collections", Component: CollectionsListPage },
+          { path: "collections/:id", Component: CollectionDetailPage },
+          { path: "categories", Component: CategoriesListPage },
+          { path: "categories/:id", Component: CategoryDetailPage },
+          {
+            path: "inventory",
+            Component: () => (
+              <PlaceholderIndexPage
+                eyebrow="Inventory"
+                title="Inventory"
+                description="Track stock locations, quantities, and replenishment workflows once inventory contracts move beyond mock data."
+              />
+            ),
+          },
+          {
+            path: "customers",
+            Component: () => (
+              <PlaceholderIndexPage
+                eyebrow="Customers"
+                title="Customers"
+                description="Review customer history, account status, and segments after the admin shell expands beyond operator-only flows."
+              />
+            ),
+          },
+          {
+            path: "promotions",
+            Component: () => (
+              <PlaceholderIndexPage
+                eyebrow="Promotions"
+                title="Promotions"
+                description="Manage discounts and campaign rules here once pricing logic is connected to live backend contracts."
+              />
+            ),
+          },
+          {
+            path: "price-lists",
+            Component: () => (
+              <PlaceholderIndexPage
+                eyebrow="Pricing"
+                title="Price Lists"
+                description="Configure channel-specific or customer-specific pricing here in a future merchandising iteration."
+              />
+            ),
+          },
+          { path: "team", Component: TeamPage },
+          { path: "settings", Component: () => <Navigate to="/settings/security" replace /> },
+          { path: "settings/security", Component: SecurityPage },
+          { path: "customization-templates/*", Component: CustomizationTemplatesRouter },
+          { path: "brand-assets", Component: BrandAssetsPage },
+        ],
+      },
+    ],
+  },
+  { path: "*", Component: () => <Navigate to="/orders" replace /> },
+]);
+
 function App() {
   return (
     <AuthProvider>
       <OrderProvider>
         <CatalogProvider>
-          <BrowserRouter>
-            <Routes>
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/onboarding" element={<OnboardingPage />} />
-              <Route element={<ProtectedRoute />}>
-                <Route element={<AdminShell />}>
-                  <Route index element={<Navigate to="/orders" replace />} />
-                  <Route path="/orders" element={<OrdersListPage />} />
-                  <Route path="/orders/:orderId" element={<OrderDetailPage />} />
-                  <Route path="/products" element={<ProductsListPage />} />
-                  <Route path="/products/new" element={<CreateProductPage />} />
-                  <Route path="/products/:productId" element={<ProductDetailPage />} />
-                  <Route path="/products/:productId/customization" element={<ProductCustomizationEditor />} />
-                  <Route path="/collections" element={<CollectionsListPage />} />
-                  <Route path="/collections/:id" element={<CollectionDetailPage />} />
-                  <Route path="/categories" element={<CategoriesListPage />} />
-                  <Route path="/categories/:id" element={<CategoryDetailPage />} />
-                  <Route
-                    path="/inventory"
-                    element={
-                      <PlaceholderIndexPage
-                        eyebrow="Inventory"
-                        title="Inventory"
-                        description="Track stock locations, quantities, and replenishment workflows once inventory contracts move beyond mock data."
-                      />
-                    }
-                  />
-                  <Route
-                    path="/customers"
-                    element={
-                      <PlaceholderIndexPage
-                        eyebrow="Customers"
-                        title="Customers"
-                        description="Review customer history, account status, and segments after the admin shell expands beyond operator-only flows."
-                      />
-                    }
-                  />
-                  <Route
-                    path="/promotions"
-                    element={
-                      <PlaceholderIndexPage
-                        eyebrow="Promotions"
-                        title="Promotions"
-                        description="Manage discounts and campaign rules here once pricing logic is connected to live backend contracts."
-                      />
-                    }
-                  />
-                  <Route
-                    path="/price-lists"
-                    element={
-                      <PlaceholderIndexPage
-                        eyebrow="Pricing"
-                        title="Price Lists"
-                        description="Configure channel-specific or customer-specific pricing here in a future merchandising iteration."
-                      />
-                    }
-                  />
-                  <Route path="/team" element={<TeamPage />} />
-                  <Route path="/settings" element={<Navigate to="/settings/security" replace />} />
-                  <Route path="/settings/security" element={<SecurityPage />} />
-                  <Route path="/customization-templates/*" element={<CustomizationTemplatesRouter />} />
-                  <Route path="/brand-assets" element={<BrandAssetsPage />} />
-                </Route>
-              </Route>
-              <Route path="*" element={<Navigate to="/orders" replace />} />
-            </Routes>
-          </BrowserRouter>
+          <RouterProvider router={router} />
         </CatalogProvider>
       </OrderProvider>
     </AuthProvider>

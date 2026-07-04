@@ -1,5 +1,6 @@
-import { Button, FocusModal, ProgressTabs, Text } from "@medusajs/ui";
-import { useNavigate } from "react-router";
+import { Button, FocusModal, ProgressTabs, Text, usePrompt } from "@medusajs/ui";
+import { useEffect } from "react";
+import { useBlocker, useNavigate } from "react-router";
 import { slugify } from "../lib/utils";
 import { ProductsListPage } from "./products-list";
 import { InlineError } from "../components/ui/medusa/inline-error";
@@ -14,6 +15,8 @@ import { VariantGallery } from "./create-product/variant-gallery";
 export function CreateProductPage() {
   const navigate = useNavigate();
   const state = useCreateProduct();
+  const blocker = useBlocker(true);
+  const prompt = usePrompt();
   
   const {
     activeStep,
@@ -30,6 +33,31 @@ export function CreateProductPage() {
     continueToNextStep,
     variantGallery,
   } = state;
+
+  useEffect(() => {
+    if (blocker.state !== "blocked") return;
+
+    if (blocker.location?.state?.flash) {
+      blocker.proceed();
+      return;
+    }
+
+    if (isSubmittingMedia) {
+      blocker.reset();
+      return;
+    }
+
+    prompt({
+      title: "Discard changes?",
+      description: "Are you sure you want to leave? You will lose any unsaved progress.",
+      variant: "confirmation",
+      confirmText: "Discard",
+      cancelText: "Stay",
+    }).then((confirmed) => {
+      if (confirmed) blocker.proceed();
+      else blocker.reset();
+    });
+  }, [blocker.state, isSubmittingMedia, prompt]);
 
   return (
     <>
@@ -176,7 +204,7 @@ export function CreateProductPage() {
 
       <datalist id="product-tag-suggestions">
         {state.metadata.tags.map((option) => (
-          <option key={option.id} value={option.label} />
+          <option key={option} value={option} />
         ))}
       </datalist>
     </>

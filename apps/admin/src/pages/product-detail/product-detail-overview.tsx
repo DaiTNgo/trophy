@@ -1,8 +1,6 @@
 import { useState } from "react";
-import { Container, Heading, Text, Drawer, Button } from "@medusajs/ui";
+import { Container, Heading, Text, Drawer, Button, Input, Textarea } from "@medusajs/ui";
 import { Edit } from "lucide-react";
-import { TextField } from "../../components/ui/medusa";
-import { TextAreaField } from "../../components/ui/medusa/text-area-field";
 import type { CatalogProduct } from "../../types";
 import { updateProductOverview } from "../../lib/products-client";
 import { InlineError } from "../../components/ui/medusa/inline-error";
@@ -75,33 +73,39 @@ export function ProductDetailOverview({ product, mutate }: ProductDetailOverview
               <Drawer.Body className="flex flex-col gap-y-6">
                 {error && <InlineError message={error} />}
                 <div className="grid gap-5 md:grid-cols-2">
-                  <TextField
-                    label="Title"
-                    name="detail-title"
-                    value={title}
-                    onChange={(val) => setTitle(val)}
-                  />
-                  <TextField
-                    label="Handle"
-                    name="detail-handle"
-                    value={handle}
-                    onChange={(val) => setHandle(val)}
-                  />
+                  <div className="flex flex-col gap-y-1.5">
+                    <span className="text-sm text-ui-fg-subtle">Title</span>
+                    <Input
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
+                      placeholder="Product title"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-y-1.5">
+                    <span className="text-sm text-ui-fg-subtle">Handle</span>
+                    <Input
+                      value={handle}
+                      onChange={(e) => setHandle(e.target.value)}
+                      placeholder="product-handle"
+                    />
+                  </div>
                 </div>
-                <div className="grid gap-5 md:grid-cols-1">
-                  <TextField
-                    label="Subtitle"
-                    name="detail-subtitle"
+                <div className="flex flex-col gap-y-1.5">
+                  <span className="text-sm text-ui-fg-subtle">Subtitle</span>
+                  <Input
                     value={subtitle}
-                    onChange={(val) => setSubtitle(val)}
+                    onChange={(e) => setSubtitle(e.target.value)}
+                    placeholder="Optional subtitle"
                   />
                 </div>
-                <TextAreaField
-                  label="Description"
-                  name="detail-description"
-                  value={description}
-                  onChange={(val) => setDescription(val)}
-                />
+                <div className="flex flex-col gap-y-1.5">
+                  <span className="text-sm text-ui-fg-subtle">Description</span>
+                  <Textarea
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="Product description"
+                  />
+                </div>
               </Drawer.Body>
               <Drawer.Footer>
                 <Drawer.Close asChild>

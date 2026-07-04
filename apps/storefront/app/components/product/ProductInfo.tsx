@@ -9,6 +9,7 @@ export function ProductInfo({
   specs,
   variantSelector,
   customizationSection,
+  isContactPrice,
 }: {
   title: string;
   price: string;
@@ -18,6 +19,7 @@ export function ProductInfo({
   specs: Record<string, string>;
   variantSelector?: ReactNode;
   customizationSection?: ReactNode;
+  isContactPrice?: boolean;
 }) {
   const fullStars = Math.floor(rating);
   const hasHalfStar = rating % 1 !== 0;
@@ -63,13 +65,22 @@ export function ProductInfo({
       </div>
 
       <div className="flex flex-col gap-4">
-        <button className="w-full bg-primary text-white py-5 font-label-md tracking-[2px] uppercase shadow-md hover:bg-surface-tint transition-all active:scale-[0.98] flex items-center justify-center gap-3">
-          <span className="material-symbols-outlined">shopping_bag</span>
-          Add to Cart
-        </button>
-        <button className="w-full border-2 border-primary text-primary py-5 font-label-md tracking-[2px] uppercase hover:bg-primary hover:text-white transition-all active:scale-[0.98]">
-          Quick Buy
-        </button>
+        {isContactPrice ? (
+          <button className="w-full bg-surface-variant text-on-surface-variant py-5 font-label-md tracking-[2px] uppercase flex items-center justify-center gap-3 cursor-not-allowed opacity-70">
+            <span className="material-symbols-outlined">call</span>
+            Contact for Pricing
+          </button>
+        ) : (
+          <>
+            <button className="w-full bg-primary text-white py-5 font-label-md tracking-[2px] uppercase shadow-md hover:bg-surface-tint transition-all active:scale-[0.98] flex items-center justify-center gap-3">
+              <span className="material-symbols-outlined">shopping_bag</span>
+              Add to Cart
+            </button>
+            <button className="w-full border-2 border-primary text-primary py-5 font-label-md tracking-[2px] uppercase hover:bg-primary hover:text-white transition-all active:scale-[0.98]">
+              Quick Buy
+            </button>
+          </>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-4">

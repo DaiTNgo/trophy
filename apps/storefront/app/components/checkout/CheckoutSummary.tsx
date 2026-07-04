@@ -35,7 +35,10 @@ export function CheckoutSummary() {
         </div>
       </div>
 
-      <button className="w-full mt-10 bg-primary hover:bg-surface-tint text-white py-6 font-label-md text-label-md uppercase tracking-widest transition-all shadow-xl hover:shadow-2xl active:scale-[0.98]">
+      <button 
+        type="submit"
+        className="w-full mt-10 bg-primary hover:bg-surface-tint text-white py-6 font-label-md text-label-md uppercase tracking-widest transition-all shadow-xl hover:shadow-2xl active:scale-[0.98]"
+      >
         Place Order
       </button>
 

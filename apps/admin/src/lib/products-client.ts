@@ -25,6 +25,7 @@ type ApiProduct = {
     sku: string | null;
     priceAmount: number | null;
     inventoryQuantity: number;
+    allowBackorder: boolean;
     media: Array<{
       id: string;
       fileName: string;
@@ -68,6 +69,8 @@ type CreateFullProductPayload = {
     title: string;
     sku: string | null;
     priceAmount: number | null;
+    inventoryQuantity: number;
+    allowBackorder: boolean;
     isDefault?: boolean;
     optionValues: Array<{ optionTitle: string; value: string }>;
     media: Array<{ assetId: string }>;
@@ -182,6 +185,8 @@ export async function updateProductAttributes(id: string, items: Array<{ name: s
   return body.item as ApiProduct;
 }
 
+// Legacy full-replace helper kept for create-flow compatibility. Product detail must use
+// the operation-specific option methods below.
 export async function updateProductOptions(id: string, items: Array<{ title: string; values: string[] }>) {
   const response = await backendFetch(`/api/admin/products/${id}/options`, {
     method: "PUT",
@@ -197,11 +202,116 @@ export async function updateProductOptions(id: string, items: Array<{ title: str
   return body.item as ApiProduct;
 }
 
+export async function createProductOption(
+  id: string,
+  payload: { title: string; values?: string[] },
+) {
+  const response = await backendFetch(`/api/admin/products/${id}/options`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => null);
+    throw new Error(err?.error || "Failed to create product option.");
+  }
+  const body = await response.json();
+  return body.item as ApiProduct;
+}
+
+export async function updateProductOption(
+  id: string,
+  optionId: number,
+  payload: { title: string },
+) {
+  const response = await backendFetch(`/api/admin/products/${id}/options/${optionId}`, {
+    method: "PATCH",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => null);
+    throw new Error(err?.error || "Failed to update product option.");
+  }
+  const body = await response.json();
+  return body.item as ApiProduct;
+}
+
+export async function deleteProductOption(id: string, optionId: number) {
+  const response = await backendFetch(`/api/admin/products/${id}/options/${optionId}`, {
+    method: "DELETE",
+    credentials: "include",
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => null);
+    throw new Error(err?.error || "Failed to delete product option.");
+  }
+  const body = await response.json();
+  return body.item as ApiProduct;
+}
+
+export async function createProductOptionValue(
+  id: string,
+  optionId: number,
+  payload: { value: string },
+) {
+  const response = await backendFetch(`/api/admin/products/${id}/options/${optionId}/values`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => null);
+    throw new Error(err?.error || "Failed to create option value.");
+  }
+  const body = await response.json();
+  return body.item as ApiProduct;
+}
+
+export async function updateProductOptionValue(
+  id: string,
+  valueId: number,
+  payload: { value: string },
+) {
+  const response = await backendFetch(`/api/admin/products/${id}/option-values/${valueId}`, {
+    method: "PATCH",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => null);
+    throw new Error(err?.error || "Failed to update option value.");
+  }
+  const body = await response.json();
+  return body.item as ApiProduct;
+}
+
+export async function deleteProductOptionValue(id: string, valueId: number) {
+  const response = await backendFetch(`/api/admin/products/${id}/option-values/${valueId}`, {
+    method: "DELETE",
+    credentials: "include",
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => null);
+    throw new Error(err?.error || "Failed to delete option value.");
+  }
+  const body = await response.json();
+  return body.item as ApiProduct;
+}
+
+// Legacy full-replace helper kept for create-flow compatibility. Product detail must use
+// the operation-specific variant methods below.
 export async function updateProductVariants(id: string, items: Array<{
   id?: number;
   title: string;
   sku: string | null;
   priceAmount: number | null;
+  inventoryQuantity?: number;
+  allowBackorder?: boolean;
   isDefault?: boolean;
   optionValueIds: number[];
   media?: Array<{ assetId: string }>;
@@ -220,7 +330,125 @@ export async function updateProductVariants(id: string, items: Array<{
   return body.item as ApiProduct;
 }
 
-export async function updateProductMedia(id: string, items: Array<{ assetId: string }>) {
+export async function createProductVariant(
+  id: string,
+  payload: {
+    title: string;
+    sku: string | null;
+    priceAmount: number | null;
+    inventoryQuantity: number;
+    allowBackorder: boolean;
+    optionValueIds: number[];
+    media?: Array<{ assetId: string }>;
+  },
+) {
+  const response = await backendFetch(`/api/admin/products/${id}/variants`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => null);
+    throw new Error(err?.error || "Failed to create product variant.");
+  }
+  const body = await response.json();
+  return body.item as ApiProduct;
+}
+
+export async function updateProductVariantDetails(
+  id: string,
+  variantId: number,
+  payload: {
+    title: string;
+    sku: string | null;
+    allowBackorder: boolean;
+    optionValueIds?: number[];
+  },
+) {
+  const response = await backendFetch(`/api/admin/products/${id}/variants/${variantId}`, {
+    method: "PATCH",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => null);
+    throw new Error(err?.error || "Failed to update variant details.");
+  }
+  const body = await response.json();
+  return body.item as ApiProduct;
+}
+
+export async function deleteProductVariant(id: string, variantId: number) {
+  const response = await backendFetch(`/api/admin/products/${id}/variants/${variantId}`, {
+    method: "DELETE",
+    credentials: "include",
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => null);
+    throw new Error(err?.error || "Failed to delete product variant.");
+  }
+  const body = await response.json();
+  return body.item as ApiProduct;
+}
+
+export async function updateProductVariantPrices(
+  id: string,
+  items: Array<{ id: number; priceAmount: number | null }>,
+) {
+  const response = await backendFetch(`/api/admin/products/${id}/variants/prices`, {
+    method: "PATCH",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ items }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => null);
+    throw new Error(err?.error || "Failed to update variant prices.");
+  }
+  const body = await response.json();
+  return body.item as ApiProduct;
+}
+
+export async function updateProductVariantStock(
+  id: string,
+  items: Array<{ id: number; inventoryQuantity: number }>,
+) {
+  const response = await backendFetch(`/api/admin/products/${id}/variants/stock`, {
+    method: "PATCH",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ items }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => null);
+    throw new Error(err?.error || "Failed to update variant stock.");
+  }
+  const body = await response.json();
+  return body.item as ApiProduct;
+}
+
+export async function updateProductVariantMedia(
+  id: string,
+  variantId: number,
+  items: Array<{ assetId: string }>,
+) {
+  const response = await backendFetch(`/api/admin/products/${id}/variants/${variantId}/media`, {
+    method: "PUT",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ items }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => null);
+    throw new Error(err?.error || "Failed to update variant media.");
+  }
+  const body = await response.json();
+  return body.item as ApiProduct;
+}
+
+export async function updateProductMedia(id: string, items: Array<{ url: string }>) {
   const response = await backendFetch(`/api/admin/products/${id}/media`, {
     method: "PUT",
     credentials: "include",
@@ -293,7 +521,7 @@ export function mapApiProductToCatalogProduct(product: Partial<ApiProduct> & Pic
       });
       return { option: optionTitle, value: optionValue, optionValueId: id };
     }),
-    allowBackorder: false,
+    allowBackorder: variant.allowBackorder,
     media: (variant.media || []).map((asset) => ({
       id: asset.id,
       fileName: asset.fileName,
@@ -321,18 +549,16 @@ export function mapApiProductToCatalogProduct(product: Partial<ApiProduct> & Pic
     collection: product.collection?.title ?? "",
     collectionId: product.collection?.id ?? null,
     type: product.type?.value ?? "",
-    typeId: product.type?.id ?? null,
     categories: (product.categories || []).map((category) => category.name),
     categoryIds: (product.categories || []).map((category) => category.id),
     tags: (product.tags || []).map((tag) => tag.value),
-    tagIds: (product.tags || []).map((tag) => tag.id),
     media: (product.media || []).map((m) => m.url),
     attributes: (product.attributes || []).map((a) => ({
       key: a.name,
       value: a.value,
     })),
     optionDefinitions: (product.options || []).map((option) => ({
-      id: `option_${option.title}`,
+      id: String(option.id),
       title: option.title,
       values: (option.values || []).map((value) => ({
         id: String(value.id),

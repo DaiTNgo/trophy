@@ -32,6 +32,18 @@ _Avoid_: storefront catalog, public product list
 The operator-facing product management page for one product, backed by the admin route surface as the source of truth after creation.
 _Avoid_: local product detail, mock product editor
 
+**Product Option Definition**:
+An admin-defined variation axis for a product, such as color or size, whose values can be selected by product variants.
+_Avoid_: Medusa option model, variant category
+
+**Product Variant**:
+A purchasable product row representing one concrete option selection, with its own title, SKU, price, inventory, backorder setting, and variant media.
+_Avoid_: generated option combination, Medusa variant model
+
+**Variant Management Action**:
+An explicit operator action that changes one part of variant-related data, such as option values, variant details, prices, stock, or media, without replacing unrelated variant state.
+_Avoid_: full variant replace, regenerate variants
+
 **Shop by Product**:
 A flat storefront browsing group based on the physical product kind shoppers want to buy, such as trophies, medals, plaques, or cups. It is modeled with product categories and is not a nested category tree.
 _Avoid_: product type, category hierarchy, internal type
@@ -131,3 +143,7 @@ _Avoid_: online checkout payment, gateway transaction, auto-captured payment
 **Order Item Production Status**:
 The production readiness state tracked per order item. Non-customized items do not require production review, while customized items start pending operator review before production work begins.
 _Avoid_: order status, fulfillment status, customization status
+
+**Admin Draft Discard Guard**:
+A confirmation prompt shown when closing a create-product creation modal, preventing accidental data loss by requiring the operator to confirm discard before the modal closes. It covers the Escape key, backdrop click, Cancel button, and browser back. Does not appear after a successful submission.
+_Avoid_: unsaved changes warning, dirty form guard, close protection

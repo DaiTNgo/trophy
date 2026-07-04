@@ -214,6 +214,8 @@ describe("product full-create helpers", () => {
           title: "Default",
           sku: "SKU-1",
           priceAmount: 1000,
+          inventoryQuantity: 0,
+          allowBackorder: false,
           isDefault: true,
           position: 0,
           createdAt: "2026-07-03T00:00:00.000Z",

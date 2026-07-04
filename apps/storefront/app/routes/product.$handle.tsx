@@ -214,6 +214,7 @@ export default function ProductDetail() {
                 </div>
               ) : null
             }
+            isContactPrice={selectedVariant?.priceAmount === null}
           />
         </div>
         <ProductMobileActionBar price={displayPrice} />
