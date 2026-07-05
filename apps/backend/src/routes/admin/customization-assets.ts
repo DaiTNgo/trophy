@@ -131,64 +131,10 @@ export const customizationAssetsRoute = new Hono<AppEnv>()
             ? { widthPt: dimensions.width, heightPt: dimensions.height, pageCount }
             : { widthPx: dimensions.width, heightPx: dimensions.height }),
           byteSize: buffer.byteLength,
-          contentUrl: `/api/admin/customizations/assets/${id}/content`,
-          ...(previewObjectKey ? { previewUrl: `/api/admin/customizations/assets/${id}/preview` } : {}),
+          contentUrl: `/api/assets/customizations/${id}/content`,
+          ...(previewObjectKey ? { previewUrl: `/api/assets/customizations/${id}/preview` } : {}),
         },
       },
       201,
     );
-  })
-  .get("/:id/content", async (c) => {
-    const params = parseParams(c, assetParamsSchema);
-    if (!params.success) {
-      return params.response;
-    }
-
-    const asset = await getDb(c.env)
-      .select()
-      .from(customizationAssets)
-      .where(eq(customizationAssets.id, params.output.id))
-      .get();
-    if (!asset) {
-      return jsonError(c, 404, "Customization asset not found");
-    }
-
-    const object = await c.env.CUSTOMIZATION_ASSETS.get(asset.objectKey);
-    if (!object) {
-      return jsonError(c, 404, "Customization asset object not found");
-    }
-
-    const headers = new Headers();
-    object.writeHttpMetadata(headers);
-    headers.set("etag", object.httpEtag);
-    headers.set("cache-control", "private, max-age=3600");
-    headers.set("x-content-type-options", "nosniff");
-    return new Response(object.body, { headers });
-  })
-  .get("/:id/preview", async (c) => {
-    const params = parseParams(c, assetParamsSchema);
-    if (!params.success) {
-      return params.response;
-    }
-
-    const asset = await getDb(c.env)
-      .select()
-      .from(customizationAssets)
-      .where(eq(customizationAssets.id, params.output.id))
-      .get();
-    if (!asset || !asset.previewObjectKey) {
-      return jsonError(c, 404, "Customization asset preview not found");
-    }
-
-    const object = await c.env.CUSTOMIZATION_ASSETS.get(asset.previewObjectKey);
-    if (!object) {
-      return jsonError(c, 404, "Customization asset preview object not found");
-    }
-
-    const headers = new Headers();
-    object.writeHttpMetadata(headers);
-    headers.set("etag", object.httpEtag);
-    headers.set("cache-control", "private, max-age=3600");
-    headers.set("x-content-type-options", "nosniff");
-    return new Response(object.body, { headers });
   });

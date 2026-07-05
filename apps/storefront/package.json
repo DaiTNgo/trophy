@@ -5,6 +5,7 @@
   "scripts": {
     "build": "react-router build",
     "dev": "react-router dev",
+    "test": "vitest run --config vitest.config.ts",
     "typecheck": "wrangler types && react-router typegen && tsc -b",
     "deploy": "pnpm run build && wrangler deploy",
     "preview": "pnpm run build && vite preview",
@@ -34,6 +35,7 @@
     "tailwindcss": "^4.3.2",
     "typescript": "^6.0.3",
     "vite": "^8.1.3",
+    "vitest": "^4.1.9",
     "wrangler": "^4.107.0"
   },
   "packageManager": "pnpm@11.9.0"

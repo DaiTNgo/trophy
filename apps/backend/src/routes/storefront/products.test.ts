@@ -103,7 +103,7 @@ describe("buildListingItem", () => {
       false,
     );
 
-    expect(item.thumbnail).toBe("/api/storefront/products/assets/asset_a/content");
+    expect(item.thumbnail).toBe("/api/assets/products/asset_a/content");
   });
 
   it("falls back to first variant with media when default has none", () => {
@@ -122,7 +122,7 @@ describe("buildListingItem", () => {
       false,
     );
 
-    expect(item.thumbnail).toBe("/api/storefront/products/assets/asset_b/content");
+    expect(item.thumbnail).toBe("/api/assets/products/asset_b/content");
   });
 
   it("returns null thumbnail when no variant has media", () => {

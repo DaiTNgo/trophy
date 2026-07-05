@@ -1,3 +1,5 @@
+import { Link } from "react-router";
+
 export function Footer() {
   return (
     <footer className="bg-surface-container-low text-on-surface py-20 px-margin-desktop">
@@ -21,7 +23,7 @@ export function Footer() {
             <h4 className="font-label-md text-label-md uppercase tracking-widest text-on-surface mb-8">Liên Kết Nhanh</h4>
             <ul className="space-y-4 font-body-md text-body-md text-on-surface-variant">
               <li className=""><a className="hover:text-primary transition-colors" href="#">Về Phùng Thị</a></li>
-              <li className=""><a className="hover:text-primary transition-colors" href="#">Tất cả sản phẩm</a></li>
+              <li className=""><Link className="hover:text-primary transition-colors" to="/products">Tất cả sản phẩm</Link></li>
               <li className=""><a className="hover:text-primary transition-colors" href="#">Dự án tiêu biểu</a></li>
               <li className=""><a className="hover:text-primary transition-colors" href="#">Tin tức &amp; Sự kiện</a></li>
             </ul>
@@ -32,7 +34,7 @@ export function Footer() {
               <li className=""><a className="hover:text-primary transition-colors" href="#">Chính sách bảo hành</a></li>
               <li className=""><a className="hover:text-primary transition-colors" href="#">Hướng dẫn đặt hàng</a></li>
               <li className=""><a className="hover:text-primary transition-colors" href="#">Vận chuyển &amp; Thanh toán</a></li>
-              <li className=""><a className="hover:text-primary transition-colors" href="#">Báo giá sỉ</a></li>
+              <li className=""><Link className="hover:text-primary transition-colors" to="/order-lookup">Tra cứu đơn hàng</Link></li>
             </ul>
           </div>
           <div>

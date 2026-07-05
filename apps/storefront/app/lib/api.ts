@@ -243,9 +243,6 @@ export type StorefrontOrderRequest = {
       };
     };
   };
-  payment: {
-    method: "bank_transfer" | "cash_on_delivery";
-  };
   items: Array<{
     productId: number;
     variantId: number;
@@ -270,6 +267,80 @@ export type StorefrontOrderResponse = {
   };
 };
 
+export type StorefrontResolvedCartLine = {
+  productId: number;
+  variantId: number;
+  valid: boolean;
+  reason: "product_unavailable" | "variant_missing" | "variant_mismatch" | "contact_price" | null;
+  product?: {
+    title: string;
+    handle: string;
+    variantTitle: string;
+    sku: string | null;
+    thumbnail: string | null;
+    priceAmount: number | null;
+    customizable: boolean;
+    requiresCustomization: boolean;
+    isContactPrice: boolean;
+  };
+};
+
+export type StorefrontResolvedCartResponse = {
+  items: StorefrontResolvedCartLine[];
+};
+
+export type StorefrontOrderLookupResponse = {
+  order: {
+    orderNumber: string;
+    status: string;
+    paymentStatus: string;
+    fulfillmentStatus: string;
+    totalAmount: number;
+    currencyCode: string;
+    itemCount: number;
+    createdAt: string;
+    customer: {
+      name: string;
+      phoneMasked: string;
+      email: string | null;
+    };
+    primaryAddress: {
+      line1: string;
+      line2?: string;
+      city: string;
+      province?: string;
+      postalCode?: string;
+      country: string;
+    } | null;
+    shippingAddress: {
+      recipientName: string;
+      recipientPhone: string;
+      address: {
+        line1: string;
+        line2?: string;
+        city: string;
+        province?: string;
+        postalCode?: string;
+        country: string;
+      };
+    } | null;
+    items: Array<{
+      quantity: number;
+      unitPriceAmount: number;
+      lineSubtotalAmount: number;
+      productTitle: string;
+      productHandle: string | null;
+      variantTitle: string;
+      sku: string | null;
+      customizationValues: Array<{
+        fieldId: string;
+        label: string;
+        valueSummary: string;
+      }>;
+    }>;
+  };
+};
+
 export async function createStorefrontOrder(
   payload: StorefrontOrderRequest
 ): Promise<StorefrontOrderResponse> {
@@ -289,6 +360,58 @@ export async function createStorefrontOrder(
       throw new Error(errData.error);
     }
     throw new Response("Failed to create order", { status: res.status });
+  }
+
+  return res.json();
+}
+
+export async function resolveStorefrontCartLines(
+  payload: { items: Array<{ productId: number; variantId: number }> },
+): Promise<StorefrontResolvedCartResponse> {
+  const res = await fetch(`${BACKEND_URL}/api/storefront/orders/resolve`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    throw new Response("Failed to resolve cart lines", { status: res.status });
+  }
+
+  const data: StorefrontResolvedCartResponse = await res.json();
+  return {
+    items: data.items.map((item) => ({
+      ...item,
+      product: item.product
+        ? {
+            ...item.product,
+            thumbnail: backendAssetUrl(item.product.thumbnail) || null,
+          }
+        : undefined,
+    })),
+  };
+}
+
+export async function lookupStorefrontOrder(payload: {
+  orderNumber: string;
+  phone: string;
+}): Promise<StorefrontOrderLookupResponse> {
+  const res = await fetch(`${BACKEND_URL}/api/storefront/orders/lookup`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const errData = (await res.json().catch(() => null)) as { error?: string } | null;
+    if (errData?.error) {
+      throw new Error(errData.error);
+    }
+    throw new Response("Failed to look up order", { status: res.status });
   }
 
   return res.json();

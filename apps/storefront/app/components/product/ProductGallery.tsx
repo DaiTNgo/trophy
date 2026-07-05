@@ -33,7 +33,7 @@ export function ProductGallery({
                 <img
                   src={thumbnail.src}
                   alt={thumbnail.alt}
-                  className="h-full w-full object-cover"
+                  className="h-full w-full object-contain"
                 />
               </button>
             ))}

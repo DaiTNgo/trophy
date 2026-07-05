@@ -110,38 +110,11 @@ export const productAssetsRoute = new Hono<AppEnv>()
           widthPx: dimensions.width,
           heightPx: dimensions.height,
           byteSize: buffer.byteLength,
-          contentUrl: `/api/admin/products/assets/${id}/content`,
+          contentUrl: `/api/assets/products/${id}/content`,
         },
       },
       201,
     );
-  })
-  .get("/:id/content", async (c) => {
-    const params = parseParams(c, assetParamsSchema);
-    if (!params.success) {
-      return params.response;
-    }
-
-    const asset = await getDb(c.env)
-      .select()
-      .from(productAssets)
-      .where(eq(productAssets.id, params.output.id))
-      .get();
-    if (!asset) {
-      return jsonError(c, 404, "Product asset not found");
-    }
-
-    const object = await c.env.CUSTOMIZATION_ASSETS.get(asset.objectKey);
-    if (!object) {
-      return jsonError(c, 404, "Product asset object not found");
-    }
-
-    const headers = new Headers();
-    object.writeHttpMetadata(headers);
-    headers.set("etag", object.httpEtag);
-    headers.set("cache-control", "private, max-age=3600");
-    headers.set("x-content-type-options", "nosniff");
-    return new Response(object.body, { headers });
   })
   .delete("/:id", async (c) => {
     const session = await requireAdminSession(c);

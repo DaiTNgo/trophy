@@ -86,31 +86,10 @@ export function AdminMedia({ src, mimeType, className = "", fallback, alt = "Med
         return;
       }
 
-      let isCancelled = false;
-      let generatedUrl: string | null = null;
-      const loadImageBlob = async () => {
-        try {
-          const fullUrl = normalizeContentUrl(src);
-          const res = await backendFetch(fullUrl);
-          if (!res.ok) throw new Error(`Failed to fetch image: ${res.status}`);
-          const blob = await res.blob();
-          if (isCancelled) return;
-          generatedUrl = URL.createObjectURL(blob);
-          setDataUrl(generatedUrl);
-          setError(false);
-        } catch (e) {
-          console.error("Failed to load authenticated image", e);
-          if (!isCancelled) setError(true);
-        }
-      };
-      
-      loadImageBlob();
-      return () => {
-        isCancelled = true;
-        if (generatedUrl) {
-          URL.revokeObjectURL(generatedUrl);
-        }
-      };
+      setDataUrl(normalizeContentUrl(src));
+      setError(false);
+      setIsLoadingPdf(false);
+      return;
     }
   }, [src, mimeType]);
 

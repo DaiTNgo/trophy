@@ -1,68 +1,91 @@
-import { startTransition, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router";
-import {
-  Badge,
-  Button,
-  Container,
-  Heading,
-  Text,
-} from "@medusajs/ui";
-import {
-  ArrowLeft,
-  Clock,
-  CreditCard,
-  MapPin,
-  Package,
-  ShoppingCart,
-  User,
-  XCircle,
-} from "lucide-react";
-import { ChecklistItem } from "../components/ui/medusa/checklist-item";
-import { InlineError } from "../components/ui/medusa/inline-error";
-import { useOrders } from "../hooks/use-orders";
-import { formatCurrency } from "../lib/utils";
+import { useEffect, useState } from "react";
+import { Link, useParams } from "react-router";
+import { Badge, Button, Container, Heading, Text } from "@medusajs/ui";
+import { ArrowLeft, CreditCard, MapPin, Package, ShoppingCart, User } from "lucide-react";
+import { fetchAdminOrderDetail, formatAdminCurrency, formatAdminDate, formatStatusLabel, type AdminOrderDetail } from "../lib/orders-client";
 
 function getBadgeColor(
   status: string,
 ): "green" | "red" | "blue" | "orange" | "grey" | "purple" {
   switch (status) {
-    case "Fulfilled":
-    case "Captured":
+    case "fulfilled":
+    case "paid":
       return "green";
-    case "Pending":
-    case "Partially fulfilled":
+    case "pending":
+    case "unfulfilled":
+    case "partially_fulfilled":
       return "orange";
-    case "Processing":
-    case "Authorized":
+    case "confirmed":
       return "blue";
-    case "Canceled":
-    case "Refunded":
+    case "cancelled":
+    case "failed":
+    case "refunded":
       return "red";
     default:
       return "grey";
   }
 }
 
-export function OrderDetailPage() {
-  const { orderId } = useParams();
-  const { orders, runOrderAction } = useOrders();
-  const navigate = useNavigate();
-  const order = orders.find((entry) => entry.id === `#${orderId}`);
-  const [error, setError] = useState<string | null>(null);
+function renderAddress(address: AdminOrderDetail["primaryAddress"]) {
+  if (!address) {
+    return "No address on record.";
+  }
 
-  if (!order) {
+  return [address.line1, address.line2, address.city, address.province, address.postalCode, address.country]
+    .filter(Boolean)
+    .join(", ");
+}
+
+export function OrderDetailPage() {
+  const { orderNumber } = useParams();
+  const [order, setOrder] = useState<AdminOrderDetail | null | undefined>(undefined);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!orderNumber) {
+      setOrder(null);
+      return;
+    }
+
+    let cancelled = false;
+    fetchAdminOrderDetail(orderNumber)
+      .then((value) => {
+        if (!cancelled) {
+          setOrder(value);
+          setError("");
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : "Failed to load order detail");
+          setOrder(null);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [orderNumber]);
+
+  if (order === undefined) {
+    return (
+      <Container>
+        <Text size="small" className="text-ui-fg-muted">Loading order…</Text>
+      </Container>
+    );
+  }
+
+  if (!order || error) {
     return (
       <div className="flex flex-col gap-y-6">
         <Container>
           <div className="flex flex-col gap-y-3">
-            <Text size="small" className="text-ui-fg-muted uppercase tracking-wider">
-              Orders
-            </Text>
+            <Text size="small" className="text-ui-fg-muted uppercase tracking-wider">Orders</Text>
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div className="flex flex-col gap-y-1">
                 <Heading level="h2">Order not found</Heading>
                 <Text size="base" className="text-ui-fg-subtle">
-                  The requested order is not available in the current mock operations queue.
+                  {error || "The requested order is not available in the backend queue."}
                 </Text>
               </div>
               <Button variant="secondary" size="small" asChild>
@@ -78,52 +101,16 @@ export function OrderDetailPage() {
     );
   }
 
-  const currentOrder = order;
-  const canCapture =
-    currentOrder.paymentStatus === "Authorized" && currentOrder.status !== "Canceled";
-  const canFulfill =
-    currentOrder.paymentStatus === "Captured" &&
-    currentOrder.fulfillmentStatus !== "Fulfilled" &&
-    currentOrder.fulfillmentStatus !== "Canceled" &&
-    currentOrder.status !== "Canceled";
-  const canCancel =
-    currentOrder.status !== "Canceled" && currentOrder.status !== "Fulfilled";
-
-  function run(action: "capture" | "fulfill" | "cancel") {
-    if (
-      (action === "capture" && !canCapture) ||
-      (action === "fulfill" && !canFulfill) ||
-      (action === "cancel" && !canCancel)
-    ) {
-      setError("This action is not available for the order's current payment or fulfillment state.");
-      return;
-    }
-
-    const updated = runOrderAction(currentOrder.id, action);
-    if (!updated) {
-      setError("Unable to apply the requested action.");
-      return;
-    }
-
-    setError(null);
-    startTransition(() => {
-      navigate(`/orders/${updated.id.slice(1)}`, { replace: true });
-    });
-  }
-
   return (
     <div className="flex flex-col gap-y-6">
       <Container>
         <div className="flex flex-col gap-y-3">
-          <Text size="small" className="text-ui-fg-muted uppercase tracking-wider">
-            Orders
-          </Text>
+          <Text size="small" className="text-ui-fg-muted uppercase tracking-wider">Orders</Text>
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="flex flex-col gap-y-1">
-              <Heading level="h2">Order {currentOrder.id}</Heading>
+              <Heading level="h2">Order {order.orderNumber}</Heading>
               <Text size="base" className="text-ui-fg-subtle">
-                Operational detail for {currentOrder.customer}, including payment,
-                fulfillment, and activity history.
+                Backend-backed detail for storefront checkout intake. Status transitions stay read-only in this slice.
               </Text>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -133,39 +120,10 @@ export function OrderDetailPage() {
                   Back
                 </Link>
               </Button>
-              <Button
-                variant="secondary"
-                size="small"
-                onClick={() => run("capture")}
-                disabled={!canCapture}
-              >
-                <CreditCard className="h-4 w-4" />
-                Capture
-              </Button>
-              <Button
-                variant="secondary"
-                size="small"
-                onClick={() => run("fulfill")}
-                disabled={!canFulfill}
-              >
-                <Package className="h-4 w-4" />
-                Fulfill
-              </Button>
-              <Button
-                variant="danger"
-                size="small"
-                onClick={() => run("cancel")}
-                disabled={!canCancel}
-              >
-                <XCircle className="h-4 w-4" />
-                Cancel
-              </Button>
             </div>
           </div>
         </div>
       </Container>
-
-      {error ? <InlineError message={error} /> : null}
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="flex flex-col gap-y-6">
@@ -173,55 +131,29 @@ export function OrderDetailPage() {
             <div className="flex flex-col gap-y-3">
               <div className="flex flex-col gap-y-1">
                 <Heading level="h3">Summary</Heading>
-                <Text size="small" className="text-ui-fg-subtle">
-                  High-level operational state and commercial totals.
-                </Text>
+                <Text size="small" className="text-ui-fg-subtle">Stored order state and totals from the backend snapshot.</Text>
               </div>
               <div className="grid gap-4 md:grid-cols-3">
                 <div className="flex flex-col gap-y-1">
-                  <Text size="small" className="text-ui-fg-subtle">
-                    Order status
-                  </Text>
-                  <Badge
-                    color={getBadgeColor(currentOrder.status)}
-                    size="xsmall"
-                    rounded="full"
-                  >
-                    {currentOrder.status}
+                  <Text size="small" className="text-ui-fg-subtle">Order status</Text>
+                  <Badge color={getBadgeColor(order.status)} size="xsmall" rounded="full">
+                    {formatStatusLabel(order.status)}
                   </Badge>
-                  <Text size="xsmall" className="text-ui-fg-muted">
-                    Channel: {currentOrder.channel}
-                  </Text>
+                  <Text size="xsmall" className="text-ui-fg-muted">Created {formatAdminDate(order.createdAt)}</Text>
                 </div>
                 <div className="flex flex-col gap-y-1">
-                  <Text size="small" className="text-ui-fg-subtle">
-                    Payment
-                  </Text>
-                  <Badge
-                    color={getBadgeColor(currentOrder.paymentStatus)}
-                    size="xsmall"
-                    rounded="full"
-                  >
-                    {currentOrder.paymentStatus}
+                  <Text size="small" className="text-ui-fg-subtle">Payment</Text>
+                  <Badge color={getBadgeColor(order.paymentStatus)} size="xsmall" rounded="full">
+                    {formatStatusLabel(order.paymentStatus)}
                   </Badge>
-                  <Text size="xsmall" className="text-ui-fg-muted">
-                    {currentOrder.paymentMethod}
-                  </Text>
+                  <Text size="xsmall" className="text-ui-fg-muted">Method: {formatStatusLabel(order.paymentMethod)}</Text>
                 </div>
                 <div className="flex flex-col gap-y-1">
-                  <Text size="small" className="text-ui-fg-subtle">
-                    Fulfillment
-                  </Text>
-                  <Badge
-                    color={getBadgeColor(currentOrder.fulfillmentStatus)}
-                    size="xsmall"
-                    rounded="full"
-                  >
-                    {currentOrder.fulfillmentStatus}
+                  <Text size="small" className="text-ui-fg-subtle">Fulfillment</Text>
+                  <Badge color={getBadgeColor(order.fulfillmentStatus)} size="xsmall" rounded="full">
+                    {formatStatusLabel(order.fulfillmentStatus)}
                   </Badge>
-                  <Text size="xsmall" className="text-ui-fg-muted">
-                    {currentOrder.items} items in order
-                  </Text>
+                  <Text size="xsmall" className="text-ui-fg-muted">{order.totals.itemCount} items in order</Text>
                 </div>
               </div>
             </div>
@@ -235,31 +167,41 @@ export function OrderDetailPage() {
                   Line items
                 </Heading>
                 <Text size="small" className="text-ui-fg-subtle">
-                  Sellable units and variant-level pricing on the order.
+                  Stored product, variant, and customization summaries captured at checkout.
                 </Text>
               </div>
-              <div className="flex flex-col gap-y-2">
-                {currentOrder.lineItems.map((item) => (
-                  <div
-                    key={`${item.title}-${item.variant}`}
-                    className="flex items-center justify-between rounded-lg border border-ui-border-base px-4 py-3"
-                  >
-                    <div className="flex flex-col gap-y-0.5">
-                      <Text size="small" className="text-ui-fg-base font-medium">
-                        {item.title}
-                      </Text>
-                      <Text size="xsmall" className="text-ui-fg-muted">
-                        {item.variant}
-                      </Text>
+              <div className="flex flex-col gap-y-3">
+                {order.items.map((item) => (
+                  <div key={item.id} className="rounded-lg border border-ui-border-base px-4 py-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex flex-col gap-y-0.5">
+                        <Text size="small" className="font-medium text-ui-fg-base">
+                          {item.product?.title ?? "Unknown product"}
+                        </Text>
+                        <Text size="xsmall" className="text-ui-fg-muted">
+                          {item.variant?.title ?? "Unknown variant"}
+                          {item.variant?.sku ? ` • ${item.variant.sku}` : ""}
+                        </Text>
+                        <Text size="xsmall" className="text-ui-fg-muted">
+                          Production: {formatStatusLabel(item.productionStatus)}
+                        </Text>
+                      </div>
+                      <div className="text-right">
+                        <Text size="small" className="text-ui-fg-muted">{item.quantity} units</Text>
+                        <Text size="small" className="font-medium text-ui-fg-base">
+                          {formatAdminCurrency(item.lineSubtotalAmount, order.totals.currencyCode)}
+                        </Text>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <Text size="small" className="text-ui-fg-muted">
-                        {item.quantity} units
-                      </Text>
-                      <Text size="small" className="text-ui-fg-muted">
-                        {formatCurrency(item.unitPrice)}
-                      </Text>
-                    </div>
+                    {item.customization?.values.length ? (
+                      <div className="mt-4 rounded-lg border border-ui-border-base bg-ui-bg-subtle p-3">
+                        {item.customization.values.map((entry) => (
+                          <Text key={entry.fieldId} size="xsmall" className="text-ui-fg-muted">
+                            <span className="font-medium text-ui-fg-base">{entry.label}:</span> {entry.valueSummary}
+                          </Text>
+                        ))}
+                      </div>
+                    ) : null}
                   </div>
                 ))}
               </div>
@@ -273,34 +215,20 @@ export function OrderDetailPage() {
                   <User className="-ml-1 mr-1 inline h-4 w-4 text-ui-fg-muted" />
                   Customer
                 </Heading>
-                <Text size="small" className="text-ui-fg-subtle">
-                  Primary contact and billing or shipping identity.
-                </Text>
+                <Text size="small" className="text-ui-fg-subtle">Primary storefront checkout contact.</Text>
               </div>
               <dl className="flex flex-col gap-y-2">
                 <div className="flex items-center justify-between">
-                  <Text size="small" className="text-ui-fg-subtle">
-                    Name
-                  </Text>
-                  <Text size="small" className="text-ui-fg-base">
-                    {currentOrder.customer}
-                  </Text>
+                  <Text size="small" className="text-ui-fg-subtle">Name</Text>
+                  <Text size="small" className="text-ui-fg-base">{order.customer.name}</Text>
                 </div>
                 <div className="flex items-center justify-between">
-                  <Text size="small" className="text-ui-fg-subtle">
-                    Email
-                  </Text>
-                  <Text size="small" className="text-ui-fg-base">
-                    {currentOrder.email}
-                  </Text>
+                  <Text size="small" className="text-ui-fg-subtle">Phone</Text>
+                  <Text size="small" className="text-ui-fg-base">{order.customer.phone}</Text>
                 </div>
                 <div className="flex items-center justify-between">
-                  <Text size="small" className="text-ui-fg-subtle">
-                    Channel
-                  </Text>
-                  <Text size="small" className="text-ui-fg-base">
-                    {currentOrder.channel}
-                  </Text>
+                  <Text size="small" className="text-ui-fg-subtle">Email</Text>
+                  <Text size="small" className="text-ui-fg-base">{order.customer.email ?? "Not provided"}</Text>
                 </div>
               </dl>
             </div>
@@ -313,25 +241,19 @@ export function OrderDetailPage() {
                   <MapPin className="-ml-1 mr-1 inline h-4 w-4 text-ui-fg-muted" />
                   Addresses
                 </Heading>
-                <Text size="small" className="text-ui-fg-subtle">
-                  Billing and shipping records for the order.
-                </Text>
+                <Text size="small" className="text-ui-fg-subtle">Stored primary and optional different shipping address snapshots.</Text>
               </div>
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="rounded-lg border border-ui-border-base bg-ui-bg-subtle p-4">
-                  <Text size="small" className="text-ui-fg-base font-medium">
-                    Shipping
-                  </Text>
-                  <Text size="small" className="text-ui-fg-muted mt-2">
-                    {currentOrder.shippingAddress}
-                  </Text>
+                  <Text size="small" className="font-medium text-ui-fg-base">Primary</Text>
+                  <Text size="small" className="mt-2 text-ui-fg-muted">{renderAddress(order.primaryAddress)}</Text>
                 </div>
                 <div className="rounded-lg border border-ui-border-base bg-ui-bg-subtle p-4">
-                  <Text size="small" className="text-ui-fg-base font-medium">
-                    Billing
-                  </Text>
-                  <Text size="small" className="text-ui-fg-muted mt-2">
-                    {currentOrder.billingAddress}
+                  <Text size="small" className="font-medium text-ui-fg-base">Shipping</Text>
+                  <Text size="small" className="mt-2 text-ui-fg-muted">
+                    {order.shippingAddress
+                      ? `${order.shippingAddress.recipientName} • ${order.shippingAddress.recipientPhone} • ${renderAddress(order.shippingAddress.address)}`
+                      : "Uses primary checkout address."}
                   </Text>
                 </div>
               </div>
@@ -347,37 +269,23 @@ export function OrderDetailPage() {
                   <CreditCard className="-ml-1 mr-1 inline h-4 w-4 text-ui-fg-muted" />
                   Payment
                 </Heading>
-                <Text size="small" className="text-ui-fg-subtle">
-                  Current payment settlement state for operator review.
-                </Text>
+                <Text size="small" className="text-ui-fg-subtle">Manual follow-up state returned by the backend order snapshot.</Text>
               </div>
               <dl className="flex flex-col gap-y-2">
                 <div className="flex items-center justify-between">
-                  <Text size="small" className="text-ui-fg-subtle">
-                    Method
-                  </Text>
-                  <Text size="small" className="text-ui-fg-base">
-                    {currentOrder.paymentMethod}
-                  </Text>
+                  <Text size="small" className="text-ui-fg-subtle">Method</Text>
+                  <Text size="small" className="text-ui-fg-base">{formatStatusLabel(order.paymentMethod)}</Text>
                 </div>
                 <div className="flex items-center justify-between">
-                  <Text size="small" className="text-ui-fg-subtle">
-                    Status
-                  </Text>
-                  <Badge
-                    color={getBadgeColor(currentOrder.paymentStatus)}
-                    size="xsmall"
-                    rounded="full"
-                  >
-                    {currentOrder.paymentStatus}
+                  <Text size="small" className="text-ui-fg-subtle">Status</Text>
+                  <Badge color={getBadgeColor(order.paymentStatus)} size="xsmall" rounded="full">
+                    {formatStatusLabel(order.paymentStatus)}
                   </Badge>
                 </div>
                 <div className="flex items-center justify-between">
-                  <Text size="small" className="text-ui-fg-subtle">
-                    Total
-                  </Text>
-                  <Text size="small" className="text-ui-fg-base font-medium">
-                    {formatCurrency(currentOrder.total)}
+                  <Text size="small" className="text-ui-fg-subtle">Total</Text>
+                  <Text size="small" className="font-medium text-ui-fg-base">
+                    {formatAdminCurrency(order.totals.totalAmount, order.totals.currencyCode)}
                   </Text>
                 </div>
               </dl>
@@ -392,59 +300,12 @@ export function OrderDetailPage() {
                   Fulfillment
                 </Heading>
                 <Text size="small" className="text-ui-fg-subtle">
-                  Shipment progress and whether more actions are available.
+                  This change intentionally stops at read-only visibility. Capture, fulfill, and cancel flows stay out of scope.
                 </Text>
               </div>
-              <ChecklistItem
-                label="Payment captured"
-                complete={currentOrder.paymentStatus === "Captured"}
-              />
-              <ChecklistItem
-                label="Order fulfilled"
-                complete={currentOrder.fulfillmentStatus === "Fulfilled"}
-              />
-              <ChecklistItem
-                label="Order cancellable"
-                complete={canCancel}
-              />
-            </div>
-          </Container>
-
-          <Container>
-            <div className="flex flex-col gap-y-3">
-              <div className="flex flex-col gap-y-1">
-                <Heading level="h3">
-                  <Clock className="-ml-1 mr-1 inline h-4 w-4 text-ui-fg-muted" />
-                  Activity timeline
-                </Heading>
-                <Text size="small" className="text-ui-fg-subtle">
-                  Chronological order events shown in a Medusa-like operational block.
-                </Text>
-              </div>
-              <div className="flex flex-col gap-y-4">
-                {currentOrder.timeline.map((event) => (
-                  <div
-                    key={`${event.at}-${event.title}`}
-                    className="relative border-l border-ui-border-base pl-4"
-                  >
-                    <Text
-                      size="xsmall"
-                      className="text-ui-fg-muted uppercase tracking-wider"
-                    >
-                      {event.at}
-                    </Text>
-                    <Text
-                      size="small"
-                      className="text-ui-fg-base font-medium"
-                    >
-                      {event.title}
-                    </Text>
-                    <Text size="xsmall" className="text-ui-fg-muted">
-                      {event.detail}
-                    </Text>
-                  </div>
-                ))}
-              </div>
+              <Badge color={getBadgeColor(order.fulfillmentStatus)} size="xsmall" rounded="full">
+                {formatStatusLabel(order.fulfillmentStatus)}
+              </Badge>
             </div>
           </Container>
         </aside>

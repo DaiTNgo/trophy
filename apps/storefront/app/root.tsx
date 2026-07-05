@@ -13,6 +13,7 @@ import "./app.css";
 
 import { Navbar } from "./components/layout/Navbar";
 import { Footer } from "./components/layout/Footer";
+import { CartProvider } from "./hooks/use-cart";
 import {
   fetchStorefrontCategories,
   fetchStorefrontCollections,
@@ -67,13 +68,15 @@ export function Layout({ children }: { children: React.ReactNode }) {
 export default function App() {
   const { categories, collections } = useLoaderData<typeof loader>();
   return (
-    <div className="flex min-h-screen flex-col overflow-x-hidden">
-      <Navbar categories={categories} collections={collections} />
-      <div className="flex-1">
-        <Outlet />
+    <CartProvider>
+      <div className="flex min-h-screen flex-col overflow-x-hidden">
+        <Navbar categories={categories} collections={collections} />
+        <div className="flex-1">
+          <Outlet />
+        </div>
+        <Footer />
       </div>
-      <Footer />
-    </div>
+    </CartProvider>
   );
 }
 

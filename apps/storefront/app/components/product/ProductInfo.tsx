@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Link } from "react-router";
 
 export function ProductInfo({
   title,
@@ -10,6 +11,11 @@ export function ProductInfo({
   variantSelector,
   customizationSection,
   isContactPrice,
+  contactHref,
+  primaryActionLabel,
+  primaryActionDisabled,
+  primaryActionMessage,
+  onPrimaryAction,
 }: {
   title: string;
   price: string;
@@ -20,6 +26,11 @@ export function ProductInfo({
   variantSelector?: ReactNode;
   customizationSection?: ReactNode;
   isContactPrice?: boolean;
+  contactHref?: string;
+  primaryActionLabel: string;
+  primaryActionDisabled: boolean;
+  primaryActionMessage?: string;
+  onPrimaryAction: () => void;
 }) {
   const fullStars = Math.floor(rating);
   const hasHalfStar = rating % 1 !== 0;
@@ -66,21 +77,35 @@ export function ProductInfo({
 
       <div className="flex flex-col gap-4">
         {isContactPrice ? (
-          <button className="w-full bg-surface-variant text-on-surface-variant py-5 font-label-md tracking-[2px] uppercase flex items-center justify-center gap-3 cursor-not-allowed opacity-70">
+          <Link
+            to={contactHref ?? "/contact"}
+            className="w-full bg-surface-variant text-on-surface-variant py-5 font-label-md tracking-[2px] uppercase flex items-center justify-center gap-3 opacity-80"
+          >
             <span className="material-symbols-outlined">call</span>
             Contact for Pricing
-          </button>
+          </Link>
         ) : (
           <>
-            <button className="w-full bg-primary text-white py-5 font-label-md tracking-[2px] uppercase shadow-md hover:bg-surface-tint transition-all active:scale-[0.98] flex items-center justify-center gap-3">
+            <button
+              type="button"
+              onClick={onPrimaryAction}
+              disabled={primaryActionDisabled}
+              className="w-full bg-primary text-white py-5 font-label-md tracking-[2px] uppercase shadow-md hover:bg-surface-tint transition-all active:scale-[0.98] flex items-center justify-center gap-3 disabled:cursor-not-allowed disabled:opacity-60"
+            >
               <span className="material-symbols-outlined">shopping_bag</span>
-              Add to Cart
+              {primaryActionLabel}
             </button>
-            <button className="w-full border-2 border-primary text-primary py-5 font-label-md tracking-[2px] uppercase hover:bg-primary hover:text-white transition-all active:scale-[0.98]">
-              Quick Buy
-            </button>
+            <Link
+              to="/cart"
+              className="w-full border-2 border-primary text-primary py-5 font-label-md tracking-[2px] uppercase hover:bg-primary hover:text-white transition-all active:scale-[0.98] text-center"
+            >
+              View Cart
+            </Link>
           </>
         )}
+        {primaryActionMessage ? (
+          <p className="text-sm text-on-surface-variant">{primaryActionMessage}</p>
+        ) : null}
       </div>
 
       <div className="grid grid-cols-2 gap-4">

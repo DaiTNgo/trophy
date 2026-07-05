@@ -440,7 +440,7 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
             heightPx: m.heightPx,
             byteSize: m.byteSize,
             position: m.position,
-            contentUrl: `/api/storefront/products/assets/${m.assetId}/content`
+            contentUrl: `/api/assets/products/${m.assetId}/content`
           })),
           optionValues: ovIds
             .map((ovId) => {
@@ -495,14 +495,14 @@ export function buildListingItem(
   if (defaultVariant) {
     const defaultMedia = variantMediaByVariantId.get(defaultVariant.id) ?? []
     if (defaultMedia.length > 0) {
-      thumbnail = `/api/storefront/products/assets/${defaultMedia[0].assetId}/content`
+      thumbnail = `/api/assets/products/${defaultMedia[0].assetId}/content`
     }
   }
   if (!thumbnail) {
     for (const variant of variants) {
       const media = variantMediaByVariantId.get(variant.id) ?? []
       if (media.length > 0) {
-        thumbnail = `/api/storefront/products/assets/${media[0].assetId}/content`
+        thumbnail = `/api/assets/products/${media[0].assetId}/content`
         break
       }
     }

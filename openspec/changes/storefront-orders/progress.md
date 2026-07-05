@@ -2,16 +2,41 @@
 
 ## Current State
 
-- Implementation complete for the OpenSpec change `storefront-orders`.
-- Added Drizzle schema tables `orders` and `order_items` with snapshots for prices, customization, and backgrounds.
-- Implemented `POST /api/storefront/orders` route in `apps/backend/src/routes/storefront/orders.ts` with strict validation.
-- Validated all backend business logic (customer/shipping/payment data, pricing snapshots, variant validations, customization checks) and contract endpoints using Vitest.
-- Mocked Storefront UI in `apps/storefront` is wired up to correctly post to the API in `checkout.tsx` and redirect to `order-confirmation.tsx` upon success. Contact Price products have their add-to-cart buttons disabled.
-- `./init.sh` verification passes perfectly across all 5 workspace projects.
+- Implemented the backend half of `storefront-orders` on 2026-07-05:
+  - public `POST /api/storefront/orders` no longer requires shopper `payment.method`;
+  - customer phone is normalized for create and lookup;
+  - public cart-line resolver lives under `/api/storefront/orders/resolve`;
+  - public storefront order lookup lives under `/api/storefront/orders/lookup`;
+  - authenticated admin order list/detail live under `/api/admin/orders` and `/api/admin/orders/:orderNumber`;
+  - route-surface coverage was added for storefront create/resolve/lookup and admin order read APIs.
+- Implemented the storefront shopper flow:
+  - browser-owned `CartProvider` with localStorage persistence;
+  - cart helper logic now lives in a pure helper module with Vitest coverage for serialization, merge, quantity edit, and remove behavior;
+  - product detail add-to-cart uses selected priced variant, quantity, and required customization values;
+  - Contact Price variants now route to a dedicated `/contact` inquiry page with the current product/variant context in the URL instead of reusing generic fallback UI;
+  - cart page hydrates browser lines through the backend resolver, allows quantity edits/removal, and blocks invalid checkout;
+  - checkout is now a client-side single-page submit flow with no payment selection;
+  - successful checkout clears the cart, stores confirmation summary in sessionStorage, and redirects to `/order-confirmation?orderNumber=...`;
+  - order confirmation degrades gracefully on reload;
+  - `/order-lookup` route was added and linked from navbar, footer, and confirmation.
+- Implemented the admin visibility slice:
+  - orders list reads backend data instead of mock orders;
+  - order detail reads backend snapshots by `orderNumber`;
+  - mock capture/fulfill/cancel actions were removed from the UI in favor of read-only backend visibility.
+- Verification on the current worktree:
+  - `pnpm --dir apps/storefront test`
+  - `pnpm --filter backend test`
+  - `pnpm --filter backend check`
+  - `pnpm --filter backend build`
+  - `pnpm --dir apps/storefront typecheck`
+  - `pnpm --filter router-cf build`
+  - `pnpm --filter admin build`
+  - `openspec validate storefront-orders --strict`
+  - `./init.sh`
 
 ## Next Step
 
-- Archive the OpenSpec change via `/openspec-archive-change` or move on to the next feature.
+- Archive the change after review if no further UX polish is needed.
 
 ## Blockers
 
@@ -19,7 +44,8 @@
 
 ## Open Assumptions
 
-- Currency is `VND`.
-- Online payment integration is out of scope.
-- Contact Price products use a separate contact/inquiry flow, not order creation.
-- The storefront cart uses mocked state (submitting hardcoded values) because it currently runs mock-first without a real global store, matching the admin app's behavior.
+- Currency remains `VND`.
+- Checkout does not include online payment or shopper-selected payment method.
+- Contact Price products use a separate contact/inquiry flow, not cart or order creation.
+- Cart is browser-owned; no customer account or server-side cart is introduced in this change.
+- Admin status transitions and production review/export workflows are out of scope for this change.

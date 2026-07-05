@@ -1,19 +1,10 @@
-/**
- * Storefront order creation route.
- *
- * POST /api/storefront/orders
- *
- * Accepts multi-item checkout submissions. All product, variant, price, and
- * customization data is read server-side. The browser only sends productId,
- * variantId, quantity, and customization.values for each item.
- */
-
-import { and, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import * as v from "valibot";
 import {
   buildDesignFromForm,
   validateCustomizationValues,
+  type CustomizationFormField,
   type CustomizationFormValues,
   type CustomizationTemplate,
 } from "@trophy/customization";
@@ -27,17 +18,24 @@ import {
   products,
 } from "../../db/schema";
 import type { AppEnv } from "../../lib/env";
+import {
+  buildCustomizationValueSummaries,
+  maskPhone,
+  normalizePhoneForLookup,
+  parseCustomizationSnapshot,
+  parseDifferentShippingAddress,
+  parseOrderAddress,
+  parseProductSnapshot,
+  parseVariantSnapshot,
+  type StoredCustomizationSnapshot,
+} from "../../lib/order-utils";
 import { jsonError, parseJson } from "../../lib/validation";
-
-// ─── Type aliases for status columns ──────────────────────────────────────────
 
 type OrderStatus = "pending" | "confirmed" | "cancelled";
 type PaymentStatus = "pending" | "paid" | "failed" | "refunded";
 type FulfillmentStatus = "unfulfilled" | "partially_fulfilled" | "fulfilled";
-type PaymentMethod = "bank_transfer" | "cash_on_delivery";
+type PaymentMethod = "manual";
 type ProductionStatus = "not_required" | "pending_review";
-
-// ─── Request Schema (Task 2.1) ─────────────────────────────────────────────────
 
 const addressSchema = v.object({
   line1: v.pipe(v.string(), v.trim(), v.minLength(1, "Address line is required"), v.maxLength(500)),
@@ -76,105 +74,37 @@ const createOrderSchema = v.object({
     shipToDifferentAddress: v.boolean(),
     differentAddress: v.optional(differentShippingAddressSchema),
   }),
-  payment: v.object({
-    method: v.picklist(["bank_transfer", "cash_on_delivery"], "Payment method must be bank_transfer or cash_on_delivery"),
-  }),
+  items: v.pipe(v.array(orderItemInputSchema), v.minLength(1, "At least one item is required")),
+});
+
+const resolveCartLinesSchema = v.object({
   items: v.pipe(
-    v.array(orderItemInputSchema),
+    v.array(
+      v.object({
+        productId: v.pipe(v.number(), v.integer(), v.minValue(1, "productId must be a positive integer")),
+        variantId: v.pipe(v.number(), v.integer(), v.minValue(1, "variantId must be a positive integer")),
+      }),
+    ),
     v.minLength(1, "At least one item is required"),
   ),
 });
 
+const lookupOrderSchema = v.object({
+  orderNumber: v.pipe(v.string(), v.trim(), v.minLength(1, "Order number is required"), v.maxLength(255)),
+  phone: v.pipe(v.string(), v.trim(), v.minLength(1, "Phone is required"), v.maxLength(50)),
+});
+
 type CreateOrderInput = v.InferOutput<typeof createOrderSchema>;
 type OrderItemInput = v.InferOutput<typeof orderItemInputSchema>;
-
-// ─── Product & Variant Lookup (Task 2.2) ──────────────────────────────────────
-
+type ResolveCartLinesInput = v.InferOutput<typeof resolveCartLinesSchema>;
+type LookupOrderInput = v.InferOutput<typeof lookupOrderSchema>;
 type DbType = ReturnType<typeof getDb>;
-
 type ProductRow = typeof products.$inferSelect;
 type VariantRow = typeof productVariants.$inferSelect;
 type VariantMediaRow = typeof productVariantMedia.$inferSelect;
 type CustomizationRow = typeof productCustomizations.$inferSelect;
-
-/**
- * Look up a published product by id. Returns null if not found or not published.
- */
-async function lookupPublishedProduct(db: DbType, productId: number): Promise<ProductRow | null> {
-  const product = await db
-    .select()
-    .from(products)
-    .where(and(eq(products.id, productId), eq(products.status, "published")))
-    .get();
-  return product ?? null;
-}
-
-/**
- * Look up a variant that belongs to the given product. Returns null if variant
- * does not exist or does not belong to the product.
- */
-async function lookupVariantForProduct(
-  db: DbType,
-  variantId: number,
-  productId: number,
-): Promise<VariantRow | null> {
-  const variant = await db
-    .select()
-    .from(productVariants)
-    .where(and(eq(productVariants.id, variantId), eq(productVariants.productId, productId)))
-    .get();
-  return variant ?? null;
-}
-
-/**
- * Look up the first media item for a variant (used as background snapshot).
- */
-async function lookupVariantFirstMedia(
-  db: DbType,
-  variantId: number,
-): Promise<VariantMediaRow | null> {
-  const media = await db
-    .select()
-    .from(productVariantMedia)
-    .where(eq(productVariantMedia.variantId, variantId))
-    .limit(1)
-    .get();
-  return media ?? null;
-}
-
-/**
- * Look up the product customization record.
- */
-async function lookupProductCustomization(
-  db: DbType,
-  productId: number,
-): Promise<CustomizationRow | null> {
-  const row = await db
-    .select()
-    .from(productCustomizations)
-    .where(eq(productCustomizations.productId, productId))
-    .get();
-  return row ?? null;
-}
-
-// ─── Price Validation (Task 2.3) ──────────────────────────────────────────────
-
-type PriceValidationResult =
-  | { ok: true; unitPrice: number }
-  | { ok: false; reason: "contact_price" };
-
-/**
- * Validate that the variant has a numeric price (not Contact Price).
- * Returns the unit price if valid.
- */
-function validateVariantPrice(variant: VariantRow): PriceValidationResult {
-  if (variant.priceAmount === null || variant.priceAmount === undefined) {
-    return { ok: false, reason: "contact_price" };
-  }
-  return { ok: true, unitPrice: variant.priceAmount };
-}
-
-// ─── Customization Validation & Snapshot (Tasks 2.4 & 2.5) ───────────────────
+type OrderRow = typeof orders.$inferSelect;
+type OrderItemRow = typeof orderItems.$inferSelect;
 
 type BackgroundSnapshot = {
   assetId: string;
@@ -183,16 +113,7 @@ type BackgroundSnapshot = {
   heightPx: number | null;
 };
 
-type CustomizationSnapshot = {
-  values: CustomizationFormValues;
-  design: object;
-  templateSnapshot: {
-    layers: unknown[];
-    formFields: unknown[];
-    canvasWidthPx: number | null;
-    canvasHeightPx: number | null;
-  };
-};
+type CustomizationSnapshot = StoredCustomizationSnapshot;
 
 type ItemValidationResult =
   | {
@@ -207,11 +128,68 @@ type ItemValidationResult =
     }
   | { ok: false; error: string; status: number };
 
-/**
- * Build the customization template from the stored product customization +
- * selected variant background. This mirrors buildProductCustomizationTemplate
- * from the storefront lib but runs entirely on the backend.
- */
+async function lookupPublishedProduct(db: DbType, productId: number): Promise<ProductRow | null> {
+  const product = await db
+    .select()
+    .from(products)
+    .where(and(eq(products.id, productId), eq(products.status, "published")))
+    .get();
+
+  return product ?? null;
+}
+
+async function lookupVariantById(db: DbType, variantId: number): Promise<VariantRow | null> {
+  const variant = await db.select().from(productVariants).where(eq(productVariants.id, variantId)).get();
+  return variant ?? null;
+}
+
+async function lookupVariantForProduct(
+  db: DbType,
+  variantId: number,
+  productId: number,
+): Promise<VariantRow | null> {
+  const variant = await db
+    .select()
+    .from(productVariants)
+    .where(and(eq(productVariants.id, variantId), eq(productVariants.productId, productId)))
+    .get();
+
+  return variant ?? null;
+}
+
+async function lookupVariantFirstMedia(db: DbType, variantId: number): Promise<VariantMediaRow | null> {
+  const media = await db
+    .select()
+    .from(productVariantMedia)
+    .where(eq(productVariantMedia.variantId, variantId))
+    .orderBy(asc(productVariantMedia.position), asc(productVariantMedia.assetId))
+    .limit(1)
+    .get();
+
+  return media ?? null;
+}
+
+async function lookupProductCustomization(
+  db: DbType,
+  productId: number,
+): Promise<CustomizationRow | null> {
+  const row = await db
+    .select()
+    .from(productCustomizations)
+    .where(eq(productCustomizations.productId, productId))
+    .get();
+
+  return row ?? null;
+}
+
+function validateVariantPrice(variant: VariantRow) {
+  if (variant.priceAmount === null || variant.priceAmount === undefined) {
+    return { ok: false as const, reason: "contact_price" as const };
+  }
+
+  return { ok: true as const, unitPrice: variant.priceAmount };
+}
+
 function buildBackendCustomizationTemplate(
   productId: number,
   productTitle: string,
@@ -222,7 +200,7 @@ function buildBackendCustomizationTemplate(
   backgroundAssetId: string | null,
 ): CustomizationTemplate {
   const layers = JSON.parse(customizationRow.layersJson) as unknown[];
-  const formFields = JSON.parse(customizationRow.formFieldsJson) as unknown[];
+  const formFields = JSON.parse(customizationRow.formFieldsJson) as CustomizationFormField[];
 
   const background =
     backgroundUrl && backgroundAssetId
@@ -242,19 +220,14 @@ function buildBackendCustomizationTemplate(
     status: "published",
     background,
     layers: layers as CustomizationTemplate["layers"],
-    formFields: formFields as CustomizationTemplate["formFields"],
+    formFields,
   };
 }
 
-/**
- * Validate and build snapshots for one order item.
- * Runs all lookups, price validation, and customization validation.
- */
 async function validateAndBuildItemSnapshot(
   db: DbType,
   item: OrderItemInput,
 ): Promise<ItemValidationResult> {
-  // Task 2.2 – look up published product
   const product = await lookupPublishedProduct(db, item.productId);
   if (!product) {
     return {
@@ -264,7 +237,6 @@ async function validateAndBuildItemSnapshot(
     };
   }
 
-  // Task 2.2 – validate variant belongs to product
   const variant = await lookupVariantForProduct(db, item.variantId, item.productId);
   if (!variant) {
     return {
@@ -274,7 +246,6 @@ async function validateAndBuildItemSnapshot(
     };
   }
 
-  // Task 2.3 – reject Contact Price variants
   const priceResult = validateVariantPrice(variant);
   if (!priceResult.ok) {
     return {
@@ -283,21 +254,17 @@ async function validateAndBuildItemSnapshot(
       status: 422,
     };
   }
-  const { unitPrice } = priceResult;
-  const lineSubtotal = unitPrice * item.quantity;
 
-  // Background snapshot from first variant media
   const firstMedia = await lookupVariantFirstMedia(db, item.variantId);
   const backgroundSnapshot: BackgroundSnapshot | null = firstMedia
     ? {
         assetId: firstMedia.assetId,
-        previewUrl: `/api/storefront/products/assets/${firstMedia.assetId}/content`,
+        previewUrl: `/api/assets/products/${firstMedia.assetId}/content`,
         widthPx: null,
         heightPx: null,
       }
     : null;
 
-  // Task 2.4 – customization validation
   const customizationRow = await lookupProductCustomization(db, item.productId);
   const isCustomizable = customizationRow?.enabled === true;
 
@@ -320,23 +287,21 @@ async function validateAndBuildItemSnapshot(
   let customizationSnapshot: CustomizationSnapshot | null = null;
   let productionStatus: ProductionStatus = "not_required";
 
-  // Task 2.5 – build customization snapshot for customizable products
   if (isCustomizable && customizationRow && item.customization?.values) {
     const values = item.customization.values as CustomizationFormValues;
-
     const template = buildBackendCustomizationTemplate(
       product.id,
       product.title,
       customizationRow,
-      backgroundSnapshot ? backgroundSnapshot.previewUrl : null,
-      backgroundSnapshot ? backgroundSnapshot.widthPx : null,
-      backgroundSnapshot ? backgroundSnapshot.heightPx : null,
-      backgroundSnapshot ? backgroundSnapshot.assetId : null,
+      backgroundSnapshot?.previewUrl ?? null,
+      backgroundSnapshot?.widthPx ?? null,
+      backgroundSnapshot?.heightPx ?? null,
+      backgroundSnapshot?.assetId ?? null,
     );
 
     const validationResult = validateCustomizationValues({ template, values });
     if (!validationResult.valid) {
-      const messages = validationResult.issues.map((i) => i.message).join("; ");
+      const messages = validationResult.issues.map((issue) => issue.message).join("; ");
       return {
         ok: false,
         error: `Customization validation failed: ${messages}`,
@@ -344,15 +309,12 @@ async function validateAndBuildItemSnapshot(
       };
     }
 
-    // Build the backend-rendered design snapshot
-    const design = buildDesignFromForm({ template, values });
-
     customizationSnapshot = {
       values,
-      design,
+      design: buildDesignFromForm({ template, values }),
       templateSnapshot: {
         layers: JSON.parse(customizationRow.layersJson) as unknown[],
-        formFields: JSON.parse(customizationRow.formFieldsJson) as unknown[],
+        formFields: JSON.parse(customizationRow.formFieldsJson) as CustomizationFormField[],
         canvasWidthPx: customizationRow.canvasWidthPx,
         canvasHeightPx: customizationRow.canvasHeightPx,
       },
@@ -360,7 +322,6 @@ async function validateAndBuildItemSnapshot(
     productionStatus = "pending_review";
   }
 
-  // Compact snapshots for storage
   const productSnapshot = {
     id: product.id,
     title: product.title,
@@ -377,8 +338,8 @@ async function validateAndBuildItemSnapshot(
 
   return {
     ok: true,
-    unitPrice,
-    lineSubtotal,
+    unitPrice: priceResult.unitPrice,
+    lineSubtotal: priceResult.unitPrice * item.quantity,
     productSnapshot,
     variantSnapshot,
     backgroundSnapshot,
@@ -387,26 +348,174 @@ async function validateAndBuildItemSnapshot(
   };
 }
 
-// ─── Order Number Generator (Task 3.3) ────────────────────────────────────────
-
-/**
- * Generate a shopper-facing order number: ORD- prefix + timestamp + random hex.
- * Distinct from the auto-increment integer DB id.
- */
-function generateOrderNumber(): string {
+function generateOrderNumber() {
   const ts = Date.now().toString(36).toUpperCase();
   const rand = Math.random().toString(36).slice(2, 6).toUpperCase();
   return `ORD-${ts}-${rand}`;
 }
 
-// ─── Route Handler ─────────────────────────────────────────────────────────────
+async function loadOrderWithItemsByNumber(db: DbType, orderNumber: string) {
+  const order = await db.select().from(orders).where(eq(orders.orderNumber, orderNumber)).get();
+
+  if (!order) {
+    return null;
+  }
+
+  const items = await db.select().from(orderItems).where(eq(orderItems.orderId, order.id)).orderBy(orderItems.id);
+  return { order, items };
+}
+
+function buildLookupOrderResponse(order: OrderRow, items: OrderItemRow[]) {
+  const primaryAddress = parseOrderAddress(order.primaryAddressJson);
+  const shippingAddress = parseDifferentShippingAddress(order.shippingAddressJson);
+
+  return {
+    order: {
+      orderNumber: order.orderNumber,
+      status: order.status,
+      paymentStatus: order.paymentStatus,
+      fulfillmentStatus: order.fulfillmentStatus,
+      totalAmount: order.totalAmount,
+      currencyCode: order.currencyCode,
+      itemCount: order.itemCount,
+      createdAt: order.createdAt.toISOString(),
+      customer: {
+        name: order.customerName,
+        phoneMasked: maskPhone(order.customerPhone),
+        email: order.customerEmail,
+      },
+      primaryAddress,
+      shippingAddress,
+      items: items.map((item) => {
+        const productSnapshot = parseProductSnapshot(item.productSnapshotJson);
+        const variantSnapshot = parseVariantSnapshot(item.variantSnapshotJson);
+        const customizationSnapshot = parseCustomizationSnapshot(item.customizationSnapshotJson);
+
+        return {
+          quantity: item.quantity,
+          unitPriceAmount: item.unitPriceAmount,
+          lineSubtotalAmount: item.lineSubtotalAmount,
+          productTitle: productSnapshot?.title ?? "Unknown product",
+          productHandle: productSnapshot?.handle ?? null,
+          variantTitle: variantSnapshot?.title ?? "Unknown variant",
+          sku: variantSnapshot?.sku ?? null,
+          customizationValues: buildCustomizationValueSummaries(customizationSnapshot),
+        };
+      }),
+    },
+  };
+}
 
 export const storefrontOrdersRoute = new Hono<AppEnv>()
-  /**
-   * POST /api/storefront/orders
-   *
-   * Task 3.1: Public storefront endpoint, protected by storefront CORS set in app.ts.
-   */
+  .post("/resolve", async (c) => {
+    const parsed = await parseJson(c, resolveCartLinesSchema);
+    if (!parsed.success) {
+      return parsed.response;
+    }
+
+    const input: ResolveCartLinesInput = parsed.output;
+    const db = getDb(c.env);
+
+    const results = await Promise.all(
+      input.items.map(async (item) => {
+        const product = await lookupPublishedProduct(db, item.productId);
+        if (!product) {
+          return {
+            productId: item.productId,
+            variantId: item.variantId,
+            valid: false,
+            reason: "product_unavailable",
+          };
+        }
+
+        const variant = await lookupVariantById(db, item.variantId);
+        if (!variant) {
+          return {
+            productId: item.productId,
+            variantId: item.variantId,
+            valid: false,
+            reason: "variant_missing",
+          };
+        }
+
+        if (variant.productId !== item.productId) {
+          return {
+            productId: item.productId,
+            variantId: item.variantId,
+            valid: false,
+            reason: "variant_mismatch",
+          };
+        }
+
+        const customization = await lookupProductCustomization(db, item.productId);
+        const firstMedia = await lookupVariantFirstMedia(db, item.variantId);
+
+        if (variant.priceAmount === null || variant.priceAmount === undefined) {
+          return {
+            productId: item.productId,
+            variantId: item.variantId,
+            valid: false,
+            reason: "contact_price",
+            product: {
+              title: product.title,
+              handle: product.handle,
+              variantTitle: variant.title,
+              sku: variant.sku,
+              thumbnail: firstMedia ? `/api/assets/products/${firstMedia.assetId}/content` : null,
+              priceAmount: null,
+              customizable: customization?.enabled === true,
+              requiresCustomization: customization?.enabled === true,
+              isContactPrice: true,
+            },
+          };
+        }
+
+        return {
+          productId: item.productId,
+          variantId: item.variantId,
+          valid: true,
+          reason: null,
+          product: {
+            title: product.title,
+            handle: product.handle,
+            variantTitle: variant.title,
+            sku: variant.sku,
+            thumbnail: firstMedia ? `/api/assets/products/${firstMedia.assetId}/content` : null,
+            priceAmount: variant.priceAmount,
+            customizable: customization?.enabled === true,
+            requiresCustomization: customization?.enabled === true,
+            isContactPrice: false,
+          },
+        };
+      }),
+    );
+
+    return c.json({ items: results }, 200);
+  })
+  .post("/lookup", async (c) => {
+    const parsed = await parseJson(c, lookupOrderSchema);
+    if (!parsed.success) {
+      return parsed.response;
+    }
+
+    const input: LookupOrderInput = parsed.output;
+    const normalizedPhone = normalizePhoneForLookup(input.phone);
+    if (!normalizedPhone) {
+      return jsonError(c, 422, "Phone must include at least one digit");
+    }
+
+    const db = getDb(c.env);
+    const loaded = await loadOrderWithItemsByNumber(db, input.orderNumber);
+    if (!loaded) {
+      return jsonError(c, 404, "Order not found");
+    }
+
+    if (normalizePhoneForLookup(loaded.order.customerPhone) !== normalizedPhone) {
+      return jsonError(c, 404, "Order not found");
+    }
+
+    return c.json(buildLookupOrderResponse(loaded.order, loaded.items), 200);
+  })
   .post("/", async (c) => {
     const parsed = await parseJson(c, createOrderSchema);
     if (!parsed.success) {
@@ -414,15 +523,20 @@ export const storefrontOrdersRoute = new Hono<AppEnv>()
     }
 
     const input: CreateOrderInput = parsed.output;
-
-    // Task 3.5: Validate different shipping address when shipToDifferentAddress is true
     if (input.shipping.shipToDifferentAddress && !input.shipping.differentAddress) {
-      return jsonError(c, 400, "Different shipping address details are required when shipToDifferentAddress is true");
+      return jsonError(
+        c,
+        400,
+        "Different shipping address details are required when shipToDifferentAddress is true",
+      );
+    }
+
+    const normalizedCustomerPhone = normalizePhoneForLookup(input.customer.phone);
+    if (!normalizedCustomerPhone) {
+      return jsonError(c, 422, "Customer phone must include at least one digit");
     }
 
     const db = getDb(c.env);
-
-    // Task 2.6: Validate ALL items before writing (fail-fast, no partial orders)
     const validatedItems: Array<{
       input: OrderItemInput;
       unitPrice: number;
@@ -439,6 +553,7 @@ export const storefrontOrdersRoute = new Hono<AppEnv>()
       if (!result.ok) {
         return c.json({ error: result.error }, result.status as 422);
       }
+
       validatedItems.push({
         input: item,
         unitPrice: result.unitPrice,
@@ -451,21 +566,20 @@ export const storefrontOrdersRoute = new Hono<AppEnv>()
       });
     }
 
-    // Calculate totals
-    const subtotalAmount = validatedItems.reduce((sum, i) => sum + i.lineSubtotal, 0);
+    const subtotalAmount = validatedItems.reduce((sum, item) => sum + item.lineSubtotal, 0);
     const totalAmount = subtotalAmount;
-    const itemCount = validatedItems.reduce((sum, i) => sum + i.input.quantity, 0);
-
-    // Task 3.3: Generate shopper-facing order number
+    const itemCount = validatedItems.reduce((sum, item) => sum + item.input.quantity, 0);
     const orderNumber = generateOrderNumber();
-
-    // Task 3.2: Persist the order with initial statuses
     const now = Date.now();
 
     const primaryAddressJson = JSON.stringify(input.shipping.primaryAddress);
-    const shippingAddressJson = input.shipping.shipToDifferentAddress && input.shipping.differentAddress
-      ? JSON.stringify(input.shipping.differentAddress)
-      : null;
+    const shippingAddressJson =
+      input.shipping.shipToDifferentAddress && input.shipping.differentAddress
+        ? JSON.stringify({
+            ...input.shipping.differentAddress,
+            recipientPhone: normalizePhoneForLookup(input.shipping.differentAddress.recipientPhone),
+          })
+        : null;
 
     const [insertedOrder] = await db
       .insert(orders)
@@ -474,9 +588,9 @@ export const storefrontOrdersRoute = new Hono<AppEnv>()
         status: "pending" satisfies OrderStatus,
         paymentStatus: "pending" satisfies PaymentStatus,
         fulfillmentStatus: "unfulfilled" satisfies FulfillmentStatus,
-        paymentMethod: input.payment.method satisfies PaymentMethod,
+        paymentMethod: "manual" satisfies PaymentMethod,
         customerName: input.customer.name,
-        customerPhone: input.customer.phone,
+        customerPhone: normalizedCustomerPhone,
         customerEmail: input.customer.email ?? null,
         primaryAddressJson,
         shippingAddressJson,
@@ -494,12 +608,9 @@ export const storefrontOrdersRoute = new Hono<AppEnv>()
       return jsonError(c, 422, "Failed to create order");
     }
 
-    const orderId = insertedOrder.id;
-
-    // Persist all order items
     for (const item of validatedItems) {
       await db.insert(orderItems).values({
-        orderId,
+        orderId: insertedOrder.id,
         productId: item.input.productId,
         variantId: item.input.variantId,
         quantity: item.input.quantity,
@@ -514,11 +625,10 @@ export const storefrontOrdersRoute = new Hono<AppEnv>()
       });
     }
 
-    // Task 3.4: Return confirmation summary
     return c.json(
       {
         order: {
-          id: orderId,
+          id: insertedOrder.id,
           orderNumber,
           status: "pending" satisfies OrderStatus,
           paymentStatus: "pending" satisfies PaymentStatus,

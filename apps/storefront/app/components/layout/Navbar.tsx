@@ -10,6 +10,7 @@ import {
 import { Input } from "../ui/input";
 import { backendAssetUrl } from "../../lib/api";
 import type { StorefrontCategory, StorefrontCollection } from "../../lib/api";
+import { useCart } from "../../hooks/use-cart";
 
 interface MegaMenuGridProps {
   items: Array<{
@@ -60,6 +61,7 @@ interface NavbarProps {
 }
 
 export function Navbar({ categories, collections }: NavbarProps) {
+  const { itemCount } = useCart();
   useNavbarScroll();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isMoreOpen, setIsMoreOpen] = useState(false);
@@ -247,6 +249,13 @@ export function Navbar({ categories, collections }: NavbarProps) {
                 >
                   Về chúng tôi
                 </Link>
+                <Link
+                  onClick={() => setIsMoreOpen(false)}
+                  to="/order-lookup"
+                  className="px-5 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-primary transition-colors"
+                >
+                  Tra cứu đơn hàng
+                </Link>
               </div>
             )}
           </div>
@@ -259,7 +268,7 @@ export function Navbar({ categories, collections }: NavbarProps) {
               shopping_cart
             </span>
             <div className="absolute top-0 right-0 bg-[#e03a3a] text-white text-[10px] font-bold h-[16px] min-w-[16px] px-1 rounded-full flex items-center justify-center border-2 border-white leading-none">
-              0
+              {itemCount}
             </div>
           </Link>
         </div>

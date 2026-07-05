@@ -124,6 +124,18 @@ _Avoid_: optional customized item, best-effort customization
 The shopper's product choice for an order item, identified by product ID and variant ID. The variant is the priced purchasable unit and determines the selected product background for customization.
 _Avoid_: handle selection, option-only selection, SKU-only selection
 
+**Cart Line**:
+A shopper-side pending purchase choice before checkout, containing the selected product, variant, quantity, and any shopper-entered customization values. It is not trusted for product title, SKU, price, or production snapshot data.
+_Avoid_: cart product snapshot, client order item, trusted cart item
+
+**Checkout-Ready Cart Line**:
+A cart line that has a concrete variant, a positive quantity, and all required customization values for customizable products. Checkout submits only checkout-ready cart lines to order creation.
+_Avoid_: incomplete cart item, draft order item, partially customized cart line
+
+**Cart Line Merge**:
+The storefront rule for combining shopper selections in the browser cart. Non-customized selections merge by product and variant, while customized selections merge only when product, variant, and customization values are identical.
+_Avoid_: always merge by SKU, never merge customized items, merge by product only
+
 **Different Shipping Address**:
 A checkout choice where the recipient and delivery address differ from the shopper's primary contact details. It keeps order contact information separate from fulfillment delivery information.
 _Avoid_: alternate customer, second billing profile, address note
@@ -136,9 +148,13 @@ _Avoid_: resolved address only, mutable customer address
 The shopper-facing identifier returned after order creation and shown on confirmation pages and admin order lists. It is distinct from the internal database ID.
 _Avoid_: order ID, database ID, confirmation token
 
+**Storefront Order Lookup**:
+A shopper-facing order retrieval flow that requires both the order number and the customer's phone number. It returns only shopper-safe order summary data, not internal production snapshots.
+_Avoid_: public order detail by number, admin order lookup, unauthenticated order detail
+
 **Manual Payment Order**:
-An order created without an online payment gateway, where payment is confirmed manually by bank transfer or collected when the product is delivered. Production or fulfillment may wait for an operator to mark the payment or order as ready.
-_Avoid_: online checkout payment, gateway transaction, auto-captured payment
+An order created without an online payment gateway or shopper-selected payment step. The storefront submits customer and delivery information, then operators handle payment and order follow-up manually after creation.
+_Avoid_: online checkout payment, gateway transaction, shopper payment method
 
 **Order Item Production Status**:
 The production readiness state tracked per order item. Non-customized items do not require production review, while customized items start pending operator review before production work begins.

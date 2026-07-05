@@ -602,7 +602,7 @@ const readProduct = async (db: ReturnType<typeof getDb>, productId: number) => {
           heightPx: media.heightPx,
           byteSize: media.byteSize,
           position: media.position,
-          contentUrl: `/api/admin/products/assets/${media.assetId}/content`
+          contentUrl: `/api/assets/products/${media.assetId}/content`
         })),
         optionValueIds,
         optionValues: optionValueIds
@@ -2735,7 +2735,7 @@ export const productsRoute = new Hono<AppEnv>()
                     heightPx: asset.heightPx,
                     byteSize: asset.byteSize,
                     position: index,
-                    contentUrl: `/api/admin/products/assets/${asset.id}/content`
+                    contentUrl: `/api/assets/products/${asset.id}/content`
                   }
                 })
               }

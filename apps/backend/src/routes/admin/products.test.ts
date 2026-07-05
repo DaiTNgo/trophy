@@ -226,7 +226,7 @@ describe("product full-create helpers", () => {
               heightPx: 900,
               byteSize: 1024,
               position: 0,
-              contentUrl: "/api/admin/products/assets/asset_red_1/content",
+              contentUrl: "/api/assets/products/asset_red_1/content",
             },
           ],
           optionValueIds: [],

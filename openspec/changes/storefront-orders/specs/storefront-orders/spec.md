@@ -1,11 +1,73 @@
 ## ADDED Requirements
 
+### Requirement: Storefront cart stores checkout-ready shopper selections
+The system SHALL maintain a browser-owned storefront cart containing cart lines with product ID, variant ID, quantity, and any required customization values.
+
+#### Scenario: Adds selected priced variant to cart
+- **WHEN** a shopper selects a priced variant and adds a positive quantity from product detail
+- **THEN** the storefront stores a cart line for that product, variant, and quantity
+
+#### Scenario: Requires variant selection before add-to-cart
+- **WHEN** a product has multiple variants and the shopper has not selected one
+- **THEN** the storefront prevents add-to-cart and asks the shopper to select a variant
+
+#### Scenario: Auto-selects only purchasable variant
+- **WHEN** a product has exactly one priced variant
+- **THEN** the storefront may select it by default for add-to-cart
+
+#### Scenario: Rejects Contact Price variant in cart
+- **WHEN** the selected variant has no numeric price
+- **THEN** the storefront does not create a cart line and shows a contact action instead
+
+#### Scenario: Requires customization before cart
+- **WHEN** a customizable product is missing required shopper customization values
+- **THEN** the storefront prevents add-to-cart until the required values are supplied
+
+#### Scenario: Merges non-customized cart lines
+- **WHEN** a shopper adds the same non-customized product and variant more than once
+- **THEN** the storefront merges the selections by increasing quantity
+
+#### Scenario: Keeps distinct customized cart lines
+- **WHEN** a shopper adds the same customizable product and variant with different customization values
+- **THEN** the storefront stores separate cart lines
+
+#### Scenario: Merges identical customized cart lines
+- **WHEN** a shopper adds the same customizable product and variant with identical customization values
+- **THEN** the storefront merges the selections by increasing quantity
+
+### Requirement: Storefront cart lines are hydrated from backend product data
+The system SHALL expose a public Storefront Route Surface endpoint that resolves browser cart lines into current shopper-safe display and availability data.
+
+#### Scenario: Resolves multiple cart lines
+- **WHEN** the storefront submits multiple product and variant selections for cart hydration
+- **THEN** the system returns one result per requested selection
+
+#### Scenario: Returns shopper-safe cart display data
+- **WHEN** a requested product and variant are valid and published
+- **THEN** the response includes product title, product handle, variant title, SKU when available, thumbnail, price amount, customizable flag, and whether customization is required
+
+#### Scenario: Reports stale cart line
+- **WHEN** a requested product is missing, unpublished, archived, or the variant no longer belongs to that product
+- **THEN** the response marks that line invalid with a shopper-safe reason
+
+#### Scenario: Reports Contact Price line
+- **WHEN** a requested variant has no numeric price
+- **THEN** the response marks that line unavailable for checkout because Contact Price items cannot be ordered
+
+#### Scenario: Leaves deep customization validation to order creation
+- **WHEN** a cart line includes customization values
+- **THEN** cart hydration does not perform full production customization validation
+
 ### Requirement: Storefront order creation accepts multi-item checkout submissions
-The system SHALL expose a public `POST /api/storefront/orders` endpoint that accepts customer details, shipping details, manual payment method, and one or more order items.
+The system SHALL expose a public `POST /api/storefront/orders` endpoint that accepts customer details, shipping details, and one or more checkout-ready cart lines without requiring a shopper payment method.
 
 #### Scenario: Creates order for multiple priced items
-- **WHEN** a shopper submits valid customer details, shipping details, `payment.method`, and two or more valid priced order items
+- **WHEN** a shopper submits valid customer details, shipping details, and two or more valid priced order items
 - **THEN** the system creates one order containing all submitted items and returns a confirmation summary with an order number
+
+#### Scenario: Creates manual order without payment selection
+- **WHEN** a shopper submits a valid order without `payment.method`
+- **THEN** the system creates the order with `status` pending, `paymentStatus` pending, and `fulfillmentStatus` unfulfilled
 
 #### Scenario: Rejects empty item list
 - **WHEN** a shopper submits an order request with no items
@@ -30,20 +92,9 @@ The system SHALL require customer name and phone, a primary shipping address, an
 - **WHEN** a shopper submits `shipToDifferentAddress` as true without different recipient name, recipient phone, or different address line
 - **THEN** the system rejects the request with a validation error and creates no order
 
-### Requirement: Storefront order creation supports manual payment methods
-The system SHALL accept only manual payment methods `bank_transfer` and `cash_on_delivery` for storefront order creation.
-
-#### Scenario: Creates bank transfer order
-- **WHEN** a shopper submits a valid order with `payment.method` set to `bank_transfer`
-- **THEN** the system creates the order with `status` pending, `paymentStatus` pending, and `fulfillmentStatus` unfulfilled
-
-#### Scenario: Creates cash on delivery order
-- **WHEN** a shopper submits a valid order with `payment.method` set to `cash_on_delivery`
-- **THEN** the system creates the order with `status` pending, `paymentStatus` pending, and `fulfillmentStatus` unfulfilled
-
-#### Scenario: Rejects unsupported payment method
-- **WHEN** a shopper submits an order with a payment method other than `bank_transfer` or `cash_on_delivery`
-- **THEN** the system rejects the request with a validation error and creates no order
+#### Scenario: Treats email as optional
+- **WHEN** a shopper submits valid required customer and shipping details without an email address
+- **THEN** the system accepts the order request
 
 ### Requirement: Storefront order items use server-authoritative product and price data
 The system SHALL treat `productId`, `variantId`, and `quantity` as the shopper's item selection and SHALL derive product, variant, and price snapshot data from the backend database at order creation time.
@@ -107,8 +158,61 @@ The system SHALL return a shopper-facing order confirmation summary after succes
 
 #### Scenario: Returns order summary
 - **WHEN** the system creates an order successfully
-- **THEN** the response includes order id, order number, status, payment status, fulfillment status, total amount, currency code, item count, and creation timestamp
+- **THEN** the response includes order number, status, total amount, currency code, item count, and creation timestamp
 
 #### Scenario: Uses order number for shopper confirmation
 - **WHEN** the system creates an order successfully
 - **THEN** the response includes an order number distinct from the internal database id
+
+### Requirement: Storefront order lookup requires order number and phone
+The system SHALL expose a shopper-facing order lookup flow that requires both order number and customer phone.
+
+#### Scenario: Looks up order with matching phone
+- **WHEN** a shopper provides an existing order number and the matching customer phone
+- **THEN** the system returns a shopper-safe order summary
+
+#### Scenario: Rejects lookup with wrong phone
+- **WHEN** a shopper provides an existing order number with a non-matching phone
+- **THEN** the system does not return that order's details
+
+#### Scenario: Rejects lookup by order number alone
+- **WHEN** a shopper provides only an order number
+- **THEN** the system rejects the lookup request
+
+#### Scenario: Hides internal order data from shopper lookup
+- **WHEN** a shopper lookup succeeds
+- **THEN** the response excludes raw rendered design JSON, template snapshots, production internals, admin notes, and other admin-only fields
+
+### Requirement: Storefront checkout clears cart only after successful order creation
+The storefront SHALL preserve cart contents until the backend confirms order creation.
+
+#### Scenario: Clears cart after successful order creation
+- **WHEN** checkout submission succeeds
+- **THEN** the storefront clears the browser cart and navigates to order confirmation
+
+#### Scenario: Preserves cart after failed order creation
+- **WHEN** checkout submission fails due to validation or network error
+- **THEN** the storefront keeps the cart contents and shows an actionable error
+
+### Requirement: Admin order list and detail read backend orders
+The admin app SHALL read storefront-created orders from authenticated backend admin order endpoints instead of mock order data.
+
+#### Scenario: Lists backend orders for admin
+- **WHEN** an authenticated admin opens the orders list
+- **THEN** the admin app displays orders returned by the backend admin order list endpoint
+
+#### Scenario: Shows backend order detail by order number
+- **WHEN** an authenticated admin opens `/orders/:orderNumber`
+- **THEN** the admin app displays the order detail returned by the backend admin order detail endpoint
+
+#### Scenario: Requires admin session for admin order reads
+- **WHEN** a request without a valid admin session calls an admin order endpoint
+- **THEN** the system rejects the request
+
+#### Scenario: Shows customization values read-only
+- **WHEN** an admin views a customized order item
+- **THEN** the admin detail shows shopper-entered customization values in a readable form without exposing raw database dumps
+
+#### Scenario: Does not provide status transition workflow in this slice
+- **WHEN** an admin views a backend-backed order
+- **THEN** capture, fulfill, cancel, production approval, and export workflows are absent or disabled until a later change

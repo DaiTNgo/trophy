@@ -3,7 +3,6 @@ import { AuthScreenState } from "./components/ui/medusa/auth-screen-state";
 import { AdminShell } from "./components/layout/admin-shell";
 import { AuthProvider, useAuth } from "./hooks/use-auth";
 import { CatalogProvider } from "./hooks/use-catalog";
-import { OrderProvider } from "./hooks/use-orders";
 import { LoginPage } from "./pages/login";
 import { OnboardingPage } from "./pages/onboarding";
 import { TeamPage } from "./pages/team";
@@ -48,7 +47,7 @@ const router = createBrowserRouter([
         children: [
           { index: true, Component: () => <Navigate to="/orders" replace /> },
           { path: "orders", Component: OrdersListPage },
-          { path: "orders/:orderId", Component: OrderDetailPage },
+          { path: "orders/:orderNumber", Component: OrderDetailPage },
           { path: "products", Component: ProductsListPage },
           { path: "products/new", Component: CreateProductPage },
           { path: "products/:productId", Component: ProductDetailPage },
@@ -112,11 +111,9 @@ const router = createBrowserRouter([
 function App() {
   return (
     <AuthProvider>
-      <OrderProvider>
-        <CatalogProvider>
-          <RouterProvider router={router} />
-        </CatalogProvider>
-      </OrderProvider>
+      <CatalogProvider>
+        <RouterProvider router={router} />
+      </CatalogProvider>
     </AuthProvider>
   );
 }
