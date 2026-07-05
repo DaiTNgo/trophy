@@ -10,7 +10,6 @@ import {
   productCustomizations,
   productOptions,
   productOptionValues,
-  productTypes,
   productVariantMedia,
   productVariantOptionValues,
   productVariants,
@@ -140,12 +139,9 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
           title: products.title,
           subtitle: products.subtitle,
           handle: products.handle,
-          hasVariants: products.hasVariants,
-          typeId: products.typeId,
-          typeValue: productTypes.value
+          hasVariants: products.hasVariants
         })
         .from(products)
-        .leftJoin(productTypes, eq(products.typeId, productTypes.id))
         .where(whereClause)
         .orderBy(desc(products.id))
         .limit(limit)
@@ -284,7 +280,6 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
     }
 
     const [
-      type,
       categoryRows,
       attributeRows,
       optionRows,
@@ -292,9 +287,6 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
       variantMediaRows,
       customizationRow
     ] = await Promise.all([
-      product.typeId
-        ? db.select().from(productTypes).where(eq(productTypes.id, product.typeId)).get()
-        : Promise.resolve(null),
       db
         .select({
           id: productCategories.id,
@@ -421,7 +413,6 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
       handle: product.handle,
       description: product.description,
       hasVariants: product.hasVariants,
-      type: type ? { id: type.id, value: type.value } : null,
       categories: categoryRows,
       attributes: attributeRows,
       options: optionRows.map((option) => ({
@@ -485,7 +476,6 @@ export function buildListingItem(
     title: string
     subtitle: string | null
     handle: string
-    typeValue: string | null
   },
   categories: string[],
   variants: Array<{ id: number; isDefault: boolean; priceAmount: number | null }>,
@@ -526,8 +516,7 @@ export function buildListingItem(
     priceAmount,
     priceFrom,
     thumbnail,
-    categorySummary: categories.join(', ') || item.typeValue || null,
-    typeValue: item.typeValue ?? null,
+    categorySummary: categories.join(', ') || null,
     customizable: customizationEnabled
   }
 }

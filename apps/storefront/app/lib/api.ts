@@ -167,6 +167,25 @@ export async function fetchStorefrontCategories(): Promise<StorefrontCategory[]>
   return data.items;
 }
 
+export type StorefrontCollection = {
+  id: number;
+  title: string;
+  handle: string;
+  description: string | null;
+  imageUrl: string | null;
+};
+
+export async function fetchStorefrontCollections(): Promise<StorefrontCollection[]> {
+  const res = await fetch(`${BACKEND_URL}/api/storefront/collections`);
+
+  if (!res.ok) {
+    throw new Response("Failed to load collections", { status: res.status });
+  }
+
+  const data = (await res.json()) as { items: StorefrontCollection[] };
+  return data.items;
+}
+
 export async function fetchStorefrontCollectionProducts(
   handle: string,
   params?: { page?: number; limit?: number }

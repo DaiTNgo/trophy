@@ -15,6 +15,29 @@ export const authClient = createAuthClient({
   },
 });
 
+export async function getCurrentAdminUser() {
+  const response = await backendFetch("/api/admin/me");
+  const body = (await response.json().catch(() => null)) as
+    | {
+        user?: {
+          id: string;
+          username?: string;
+          email: string;
+          name: string;
+          role?: string;
+          banned?: boolean | null;
+        };
+        message?: string;
+      }
+    | null;
+
+  if (!response.ok) {
+    throw new Error(body?.message || "Unable to load the current admin user.");
+  }
+
+  return body?.user ?? null;
+}
+
 export async function bootstrapFirstAdmin(input: {
   username: string;
   password: string;

@@ -129,15 +129,6 @@ export const samples = sqliteTable("samples", {
     .default(sql`CURRENT_TIMESTAMP`),
 });
 
-export const productTypes = sqliteTable(
-  "product_types",
-  {
-    id: integer("id").primaryKey({ autoIncrement: true }),
-    value: text("value").notNull(),
-  },
-  (table) => [uniqueIndex("product_types_value_idx").on(table.value)],
-);
-
 export const productCollections = sqliteTable(
   "product_collections",
   {
@@ -163,15 +154,6 @@ export const productCategories = sqliteTable(
   (table) => [uniqueIndex("product_categories_handle_idx").on(table.handle)],
 );
 
-export const productTags = sqliteTable(
-  "product_tags",
-  {
-    id: integer("id").primaryKey({ autoIncrement: true }),
-    value: text("value").notNull(),
-  },
-  (table) => [uniqueIndex("product_tags_value_idx").on(table.value)],
-);
-
 export const products = sqliteTable(
   "products",
   {
@@ -182,7 +164,6 @@ export const products = sqliteTable(
     description: text("description"),
     status: text("status").notNull().default("draft"),
     hasVariants: integer("has_variants", { mode: "boolean" }).notNull().default(false),
-    typeId: integer("type_id"),
     collectionId: integer("collection_id"),
     createdAt: text("created_at")
       .notNull()
@@ -201,15 +182,6 @@ export const productCategoryLinks = sqliteTable(
     categoryId: integer("category_id").notNull(),
   },
   (table) => [primaryKey({ columns: [table.productId, table.categoryId] })],
-);
-
-export const productTagLinks = sqliteTable(
-  "product_tag_links",
-  {
-    productId: integer("product_id").notNull(),
-    tagId: integer("tag_id").notNull(),
-  },
-  (table) => [primaryKey({ columns: [table.productId, table.tagId] })],
 );
 
 export const productOptions = sqliteTable("product_options", {

@@ -126,7 +126,7 @@ export async function fileToBackground(file: File): Promise<BackgroundAsset> {
       const ctx = canvas.getContext("2d");
       if (!ctx) throw new Error("Could not create canvas context");
       await page.render({ canvasContext: ctx, viewport } as any).promise;
-      const previewUrl = canvas.toDataURL("image/png");
+      const previewUrl = canvas.toDataURL("image/webp", 0.9);
       return {
         assetId: createId("background"),
         filename: file.name,

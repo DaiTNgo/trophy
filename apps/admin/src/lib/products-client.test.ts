@@ -9,8 +9,6 @@ const apiProduct = {
   subtitle: null,
   description: null,
   categories: [],
-  tags: [],
-  type: null,
   collection: null,
   attributes: [],
   media: [],

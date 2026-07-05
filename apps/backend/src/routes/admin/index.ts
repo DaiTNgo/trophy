@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { getAdminSession } from "../../lib/admin-session";
 import { requireAdminSession } from "../../lib/middleware";
 import type { AppEnv } from "../../lib/env";
 import { adminAccountsRoute } from "./accounts";
@@ -12,6 +13,27 @@ import { productsRoute as adminProductsRoute } from "./products";
 
 export const adminRoute = new Hono<AppEnv>()
   .route("/bootstrap", adminBootstrapRoute)
+  .get("/me", async (c) => {
+    const session = await getAdminSession(c.env, c.req.raw.headers);
+
+    if (!session?.user) {
+      return c.json({ message: "Unauthorized" }, 401);
+    }
+
+    return c.json(
+      {
+        user: {
+          id: session.user.id,
+          username: session.user.username ?? session.user.email,
+          email: session.user.email,
+          name: session.user.name,
+          role: session.user.role,
+          banned: session.user.banned,
+        },
+      },
+      200,
+    );
+  })
   .use("*", requireAdminSession)
   .route("/accounts", adminAccountsRoute)
   .route("/brand-assets", adminBrandAssetsRoute)

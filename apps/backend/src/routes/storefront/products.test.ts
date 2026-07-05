@@ -6,7 +6,6 @@ const baseItem = {
   title: "Champion Cup",
   subtitle: "Premium trophy",
   handle: "champion-cup",
-  typeValue: "Trophy",
 };
 
 const makeVariant = (overrides: {
@@ -150,21 +149,9 @@ describe("buildListingItem", () => {
     expect(item.categorySummary).toBe("Crystal, Premium");
   });
 
-  it("falls back to typeValue when no categories", () => {
+  it("returns null categorySummary when no categories", () => {
     const item = buildListingItem(
       baseItem,
-      [],
-      [makeVariant({ id: 1, isDefault: true })],
-      new Map(),
-      false,
-    );
-
-    expect(item.categorySummary).toBe("Trophy");
-  });
-
-  it("returns null categorySummary when no categories and no type", () => {
-    const item = buildListingItem(
-      { ...baseItem, typeValue: null },
       [],
       [makeVariant({ id: 1, isDefault: true })],
       new Map(),

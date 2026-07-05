@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate, useParams } from "react-router";
 import {
   Button,
@@ -12,6 +12,10 @@ import {
 import { backendFetch } from "../../lib/fetch";
 import { fetchProducts, assignProductsToCategory } from "../../lib/products-client";
 import { ProductSelectorDrawer } from "../../components/product-selector-drawer";
+import { uploadProductVariantMedia } from "../../lib/product-assets-client";
+import { AdminMedia } from "../../components/ui/admin-media";
+import { convertPdfToImageFile } from "../../lib/pdf-preview";
+import { Upload, X } from "lucide-react";
 
 export function CategoryDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -21,12 +25,26 @@ export function CategoryDetailPage() {
   const [name, setName] = useState("");
   const [handle, setHandle] = useState("");
   const [description, setDescription] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+  const [previewUrl, setPreviewUrl] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [products, setProducts] = useState<any[]>([]);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   const [isLoading, setIsLoading] = useState(!isNew);
   const [isSaving, setIsSaving] = useState(false);
+
+  // Cleanup object URLs
+  useEffect(() => {
+    return () => {
+      if (previewUrl && previewUrl.startsWith("blob:")) {
+        URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [previewUrl]);
 
   useEffect(() => {
     if (isNew) return;
@@ -45,6 +63,8 @@ export function CategoryDetailPage() {
             setName(category.name);
             setHandle(category.handle || "");
             setDescription(category.description || "");
+            setImageUrl(category.imageUrl || "");
+            setPreviewUrl(category.imageUrl || "");
           }
         }
         setProducts(prodRes || []);
@@ -82,13 +102,51 @@ export function CategoryDetailPage() {
     }
   }
 
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0];
+    if (!selectedFile) return;
+
+    try {
+      let fileToProcess = selectedFile;
+      if (selectedFile.type === "application/pdf") {
+        fileToProcess = await convertPdfToImageFile(selectedFile);
+      }
+      setFile(fileToProcess);
+      
+      const newPreviewUrl = URL.createObjectURL(fileToProcess);
+      setPreviewUrl(newPreviewUrl);
+      setImageUrl(""); // Clear the existing imageUrl since we have a new file
+    } catch (err) {
+      console.error("Failed to load file preview", err);
+    } finally {
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const handleRemoveImage = () => {
+    if (previewUrl && previewUrl.startsWith("blob:")) {
+      URL.revokeObjectURL(previewUrl);
+    }
+    setFile(null);
+    setPreviewUrl("");
+    setImageUrl("");
+  };
+
   async function handleSave() {
     setIsSaving(true);
     try {
+      let finalImageUrl = imageUrl;
+      
+      if (file) {
+        const media = await uploadProductVariantMedia(file);
+        finalImageUrl = media.contentUrl;
+      }
+
       const payload: any = { 
         name, 
         handle: handle || null, 
-        description: description || null 
+        description: description || null,
+        imageUrl: finalImageUrl || null 
       };
       
       const res = await backendFetch(
@@ -190,6 +248,48 @@ export function CategoryDetailPage() {
               value={handle}
               onChange={(e) => setHandle(e.target.value)}
               placeholder="e.g. t-shirts"
+            />
+          </div>
+
+          <div className="flex flex-col gap-y-2">
+            <Label className="text-ui-fg-base">Category Image (optional)</Label>
+            <Text size="small" className="text-ui-fg-subtle mb-2">
+              Upload an image to represent this category.
+            </Text>
+            {previewUrl ? (
+              <div className="relative overflow-hidden rounded-lg border border-ui-border-base bg-ui-bg-subtle w-48 h-48">
+                <AdminMedia
+                  src={previewUrl}
+                  mimeType={file?.type || (previewUrl.toLowerCase().endsWith(".pdf") ? "application/pdf" : "image/jpeg")}
+                  className="h-full w-full object-cover"
+                  alt="Category Preview"
+                />
+                <button
+                  type="button"
+                  onClick={handleRemoveImage}
+                  className="absolute right-2 top-2 rounded-full bg-ui-bg-overlay p-1 text-ui-fg-on-color shadow transition hover:bg-ui-bg-overlay-hover"
+                  aria-label="Remove image"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="flex flex-col items-center justify-center gap-y-2 rounded-lg border border-dashed border-ui-border-base bg-ui-bg-subtle text-ui-fg-muted transition hover:border-ui-border-strong hover:text-ui-fg-base w-48 h-48"
+                aria-label="Upload image"
+              >
+                <Upload className="h-6 w-6" />
+                <Text size="small">Upload Image</Text>
+              </button>
+            )}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*,application/pdf"
+              className="hidden"
+              onChange={handleFileSelect}
             />
           </div>
 

@@ -9,8 +9,6 @@ type ApiProduct = {
   description: string | null;
   status: "draft" | "published" | "archived" | "proposed" | "rejected";
   categories: Array<{ id: number; name: string }>;
-  tags: Array<{ id: number; value: string }>;
-  type: { id: number; value: string } | null;
   collection: { id: number; title: string } | null;
   attributes: Array<{ name: string; value: string }>;
   media: Array<{ url: string }>;
@@ -72,10 +70,8 @@ type CreateFullProductPayload = {
     description: string | null;
   };
   organization: {
-    typeId?: number | null;
     collectionId?: number | null;
     categoryIds?: number[];
-    tagValues?: string[];
   };
   attributes: Array<{ name: string; value: string; unit?: string | null }>;
   options: Array<{ title: string; values: string[] }>;
@@ -204,10 +200,8 @@ export async function updateProductOverview(id: string, payload: {
 }
 
 export async function updateProductOrganization(id: string, payload: {
-  typeId?: number | null;
   collectionId?: number | null;
   categoryIds?: number[];
-  tagIds?: number[];
 }) {
   const response = await backendFetch(`/api/admin/products/${id}/organize`, {
     method: "PATCH",
@@ -595,10 +589,8 @@ export function mapApiProductToCatalogProduct(product: Partial<ApiProduct> & Pic
     category: product.categories?.[0]?.name ?? "",
     collection: product.collection?.title ?? "",
     collectionId: product.collection?.id ?? null,
-    type: product.type?.value ?? "",
     categories: (product.categories || []).map((category) => category.name),
     categoryIds: (product.categories || []).map((category) => category.id),
-    tags: (product.tags || []).map((tag) => tag.value),
     media: (product.media || []).map((m) => m.url),
     attributes: (product.attributes || []).map((a) => ({
       key: a.name,

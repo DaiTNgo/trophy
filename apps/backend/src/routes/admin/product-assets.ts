@@ -2,7 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { Hono, type Context } from "hono";
 import { getDb } from "../../db/client";
 import { productAssets } from "../../db/schema";
-import { getAuth } from "../../lib/auth";
+import { getAdminSession } from "../../lib/admin-session";
 import {
   allowedMimeTypes,
   assetParamsSchema,
@@ -15,10 +15,7 @@ import { readImageDimensions } from "../../lib/image-dimensions";
 import { jsonError, parseParams } from "../../lib/validation";
 
 async function requireAdminSession(c: Context<AppEnv>) {
-  const auth = getAuth(c.env);
-  const session = await auth.api.getSession({
-    headers: c.req.raw.headers,
-  });
+  const session = await getAdminSession(c.env, c.req.raw.headers);
 
   if (!session?.user) {
     return {
@@ -61,17 +58,16 @@ export const productAssetsRoute = new Hono<AppEnv>()
     }
 
     let dimensions: { width: number; height: number } | null = null;
-    if (mimeType === "application/pdf") {
-      const widthStr = formData?.get("widthPx");
-      const heightStr = formData?.get("heightPx");
-      const clientWidth = widthStr ? Number(widthStr) : NaN;
-      const clientHeight = heightStr ? Number(heightStr) : NaN;
-      if (Number.isFinite(clientWidth) && Number.isFinite(clientHeight) && clientWidth > 0 && clientHeight > 0) {
-        dimensions = { width: clientWidth, height: clientHeight };
-      } else {
-        // Fallback for PDFs if client didn't provide dimensions
-        dimensions = { width: 800, height: 1131 };
-      }
+    const widthStr = formData?.get("widthPx");
+    const heightStr = formData?.get("heightPx");
+    const clientWidth = widthStr ? Number(widthStr) : NaN;
+    const clientHeight = heightStr ? Number(heightStr) : NaN;
+
+    if (Number.isFinite(clientWidth) && Number.isFinite(clientHeight) && clientWidth > 0 && clientHeight > 0) {
+      dimensions = { width: clientWidth, height: clientHeight };
+    } else if (mimeType === "application/pdf") {
+      // Fallback for PDFs if client didn't provide dimensions
+      dimensions = { width: 800, height: 1131 };
     } else {
       const bytes = new Uint8Array(buffer);
       dimensions = readImageDimensions(mimeType, bytes);

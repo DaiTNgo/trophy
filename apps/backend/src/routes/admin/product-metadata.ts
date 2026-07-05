@@ -6,9 +6,7 @@ import {
   productCategories,
   productCategoryLinks,
   productCollections,
-  products,
-  productTags,
-  productTypes
+  products
 } from '../../db/schema'
 import type { AppEnv } from '../../lib/env'
 import { jsonError, parseJson } from '../../lib/validation'
@@ -36,22 +34,16 @@ const slugify = (value: string) =>
     .replace(/^-+|-+$/g, '')
     .replace(/-{2,}/g, '-')
 
-const createTypeSchema = v.object({
-  value: trimmedString(1, 120)
-})
-
 const createCollectionSchema = v.object({
   title: trimmedString(1, 120),
-  handle: optionalHandle
+  handle: optionalHandle,
+  imageUrl: v.optional(v.nullable(v.string()))
 })
 
 const createCategorySchema = v.object({
   name: trimmedString(1, 120),
-  handle: optionalHandle
-})
-
-const createTagSchema = v.object({
-  value: trimmedString(1, 120)
+  handle: optionalHandle,
+  imageUrl: v.optional(v.nullable(v.string()))
 })
 
 const updateCollectionSchema = v.object({
@@ -111,38 +103,6 @@ const ensureUniqueHandle = async (
 }
 
 export const productMetadataRoute = new Hono<AppEnv>()
-  .get('/types', async (c) => {
-    const db = getDb(c.env)
-    const items = await db.select().from(productTypes).orderBy(asc(productTypes.value))
-
-    return c.json({ items }, 200)
-  })
-  .post('/types', async (c) => {
-    const parsed = await parseJson(c, createTypeSchema)
-
-    if (!parsed.success) {
-      return parsed.response
-    }
-
-    const db = getDb(c.env)
-    const existing = await db
-      .select({ id: productTypes.id })
-      .from(productTypes)
-      .where(eq(productTypes.value, parsed.output.value))
-      .get()
-
-    if (existing) {
-      return jsonError(c, 409, 'Product type already exists')
-    }
-
-    const item = await db
-      .insert(productTypes)
-      .values({ value: parsed.output.value })
-      .returning()
-      .get()
-
-    return c.json({ item }, 201)
-  })
   .get('/collections', async (c) => {
     const db = getDb(c.env)
     const items = await db
@@ -169,7 +129,8 @@ export const productMetadataRoute = new Hono<AppEnv>()
       .insert(productCollections)
       .values({
         title: parsed.output.title,
-        handle
+        handle,
+        imageUrl: parsed.output.imageUrl
       })
       .returning()
       .get()
@@ -277,7 +238,8 @@ export const productMetadataRoute = new Hono<AppEnv>()
       .insert(productCategories)
       .values({
         name: parsed.output.name,
-        handle
+        handle,
+        imageUrl: parsed.output.imageUrl
       })
       .returning()
       .get()
@@ -356,38 +318,6 @@ export const productMetadataRoute = new Hono<AppEnv>()
     await db.delete(productCategories).where(eq(productCategories.id, id)).run()
 
     return new Response(null, { status: 204 })
-  })
-  .get('/tags', async (c) => {
-    const db = getDb(c.env)
-    const items = await db.select().from(productTags).orderBy(asc(productTags.value))
-
-    return c.json({ items }, 200)
-  })
-  .post('/tags', async (c) => {
-    const parsed = await parseJson(c, createTagSchema)
-
-    if (!parsed.success) {
-      return parsed.response
-    }
-
-    const db = getDb(c.env)
-    const existing = await db
-      .select({ id: productTags.id })
-      .from(productTags)
-      .where(eq(productTags.value, parsed.output.value))
-      .get()
-
-    if (existing) {
-      return jsonError(c, 409, 'Product tag already exists')
-    }
-
-    const item = await db
-      .insert(productTags)
-      .values({ value: parsed.output.value })
-      .returning()
-      .get()
-
-    return c.json({ item }, 201)
   })
 
 const assignProductsSchema = v.object({

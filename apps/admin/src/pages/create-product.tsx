@@ -202,11 +202,6 @@ export function CreateProductPage() {
 
       <VariantGallery state={state} />
 
-      <datalist id="product-tag-suggestions">
-        {state.metadata.tags.map((option) => (
-          <option key={option} value={option} />
-        ))}
-      </datalist>
     </>
   );
 }

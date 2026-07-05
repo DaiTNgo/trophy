@@ -4,7 +4,6 @@ export const CATALOG_STORAGE_KEY = "trophy-admin-catalog";
 
 export const collectionOptions = ["Summer Drop", "Core Essentials", "Travel Edit", "Editorial Spotlight"];
 export const categoryOptions = ["Outerwear", "Tops", "Accessories", "Knitwear", "Headwear", "Footwear"];
-export const typeOptions = ["Merchandise", "Apparel", "Accessory", "Lifestyle"];
 
 export const initialOrders: Order[] = [
   {
@@ -152,10 +151,8 @@ export const initialProducts: CatalogProduct[] = [
     category: "Outerwear",
     collection: "Core Essentials",
     collectionId: null,
-    type: "Apparel",
     categories: ["Outerwear"],
     categoryIds: [],
-    tags: ["hoodie", "core"],
     media: [],
     attributes: [{ key: "Fabric", value: "430gsm cotton blend" }],
     optionDefinitions: [],
@@ -186,10 +183,8 @@ export const initialProducts: CatalogProduct[] = [
     category: "Accessories",
     collection: "Travel Edit",
     collectionId: null,
-    type: "Accessory",
     categories: ["Accessories", "Headwear"],
     categoryIds: [],
-    tags: ["cap"],
     media: [],
     attributes: [{ key: "Closure", value: "Adjustable strap" }],
     optionDefinitions: [],
@@ -220,10 +215,8 @@ export const initialProducts: CatalogProduct[] = [
     category: "Tops",
     collection: "Core Essentials",
     collectionId: null,
-    type: "Apparel",
     categories: ["Tops"],
     categoryIds: [],
-    tags: ["tee"],
     media: [],
     attributes: [{ key: "Fit", value: "Relaxed" }],
     optionDefinitions: [],
@@ -254,10 +247,8 @@ export const initialProducts: CatalogProduct[] = [
     category: "Accessories",
     collection: "Editorial Spotlight",
     collectionId: null,
-    type: "Lifestyle",
     categories: ["Accessories"],
     categoryIds: [],
-    tags: ["tote", "draft"],
     media: [],
     attributes: [{ key: "Capacity", value: "18L" }],
     optionDefinitions: [],
@@ -288,10 +279,8 @@ export const initialProducts: CatalogProduct[] = [
     category: "Knitwear",
     collection: "Travel Edit",
     collectionId: null,
-    type: "Apparel",
     categories: ["Knitwear"],
     categoryIds: [],
-    tags: ["crewneck"],
     media: [],
     attributes: [{ key: "Material", value: "Merino wool blend" }],
     optionDefinitions: [],

@@ -1,14 +1,11 @@
 import { createMiddleware } from 'hono/factory';
 import type { AppEnv } from './env';
-import { getAuth } from './auth';
+import { getAdminSession } from './admin-session';
 
 export const requireAdminSession = createMiddleware<AppEnv>(async (c, next) => {
-  const auth = getAuth(c.env);
-  const session = await auth.api.getSession({
-    headers: c.req.raw.headers,
-  });
+  const session = await getAdminSession(c.env, c.req.raw.headers);
 
-  if (!session?.user || (session.user.role !== 'admin' && session.user.role !== 'super-admin')) {
+  if (!session?.user) {
     return c.json({ message: 'Unauthorized' }, 401);
   }
 

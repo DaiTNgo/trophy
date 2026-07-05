@@ -368,7 +368,7 @@ export function useTemplateEditor(editParam: string | null) {
       formData.append("file", pendingPdfFile);
       const thumbnailRes = await fetch(template.background.previewUrl);
       const thumbnailBlob = await thumbnailRes.blob();
-      formData.append("thumbnail", thumbnailBlob, "preview.png");
+      formData.append("thumbnail", thumbnailBlob, "preview.webp");
 
       if (template.background.widthPx) formData.append("width", String(template.background.widthPx));
       if (template.background.heightPx) formData.append("height", String(template.background.heightPx));

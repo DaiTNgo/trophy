@@ -23,14 +23,31 @@ export function normalizeContentUrl(contentUrl: string) {
   return `${BACKEND_URL}${contentUrl.startsWith("/") ? contentUrl : `/${contentUrl}`}`;
 }
 
+import { getImageDimensions } from "./image-dimensions";
+
 export async function uploadProductVariantMedia(file: File, widthPx?: number, heightPx?: number): Promise<ProductVariantMedia> {
+  let finalWidthPx = widthPx;
+  let finalHeightPx = heightPx;
+
+  if (finalWidthPx === undefined || finalHeightPx === undefined) {
+    try {
+      if (file.type.startsWith("image/")) {
+        const dimensions = await getImageDimensions(file);
+        finalWidthPx = dimensions.width;
+        finalHeightPx = dimensions.height;
+      }
+    } catch (e) {
+      console.warn("Could not read image dimensions before upload", e);
+    }
+  }
+
   const formData = new FormData();
   formData.append("file", file);
-  if (widthPx !== undefined) {
-    formData.append("widthPx", String(widthPx));
+  if (finalWidthPx !== undefined) {
+    formData.append("widthPx", String(finalWidthPx));
   }
-  if (heightPx !== undefined) {
-    formData.append("heightPx", String(heightPx));
+  if (finalHeightPx !== undefined) {
+    formData.append("heightPx", String(finalHeightPx));
   }
 
   const response = await backendFetch(`/api/admin/products/assets`, {

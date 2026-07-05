@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import * as pdfjsLib from "pdfjs-dist";
 import { normalizeContentUrl } from "../../lib/product-assets-client";
+import { backendFetch } from "../../lib/fetch";
 import pdfjsWorkerUrl from "pdfjs-dist/build/pdf.worker?url";
 import { Package, FileText } from "lucide-react";
 
@@ -36,10 +37,8 @@ export function AdminMedia({ src, mimeType, className = "", fallback, alt = "Med
 
       const loadPdfPreview = async () => {
         try {
-          // Fetch the PDF manually to ensure credentials are sent correctly
-          // We must use getProductAssetUrl to ensure we hit the backend, not the Vite dev server (which returns index.html for unknown routes)
           const fullUrl = normalizeContentUrl(src);
-          const res = await fetch(fullUrl, { credentials: "include" });
+          const res = await backendFetch(fullUrl);
           if (!res.ok) throw new Error(`Failed to fetch PDF: ${res.status}`);
           const blob = await res.blob();
           if (isCancelled) return;
@@ -63,7 +62,7 @@ export function AdminMedia({ src, mimeType, className = "", fallback, alt = "Med
             if (ctx) {
               await page.render({ canvasContext: ctx, viewport } as any).promise;
               if (!isCancelled) {
-                setDataUrl(canvas.toDataURL("image/jpeg", 0.9));
+                setDataUrl(canvas.toDataURL("image/webp", 0.9));
               }
             }
           }
@@ -80,9 +79,38 @@ export function AdminMedia({ src, mimeType, className = "", fallback, alt = "Med
         isCancelled = true;
       };
     } else {
-      setDataUrl(src);
-      setError(false);
-      setIsLoadingPdf(false);
+      if (src.startsWith("blob:") || src.startsWith("data:")) {
+        setDataUrl(src);
+        setError(false);
+        setIsLoadingPdf(false);
+        return;
+      }
+
+      let isCancelled = false;
+      let generatedUrl: string | null = null;
+      const loadImageBlob = async () => {
+        try {
+          const fullUrl = normalizeContentUrl(src);
+          const res = await backendFetch(fullUrl);
+          if (!res.ok) throw new Error(`Failed to fetch image: ${res.status}`);
+          const blob = await res.blob();
+          if (isCancelled) return;
+          generatedUrl = URL.createObjectURL(blob);
+          setDataUrl(generatedUrl);
+          setError(false);
+        } catch (e) {
+          console.error("Failed to load authenticated image", e);
+          if (!isCancelled) setError(true);
+        }
+      };
+      
+      loadImageBlob();
+      return () => {
+        isCancelled = true;
+        if (generatedUrl) {
+          URL.revokeObjectURL(generatedUrl);
+        }
+      };
     }
   }, [src, mimeType]);
 

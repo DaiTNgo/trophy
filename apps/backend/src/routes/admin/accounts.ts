@@ -5,6 +5,7 @@ import { getDb } from '../../db/client'
 import { users } from '../../db/schema'
 import type { AppEnv } from '../../lib/env'
 import { getAuth } from '../../lib/auth'
+import { getAdminSession } from '../../lib/admin-session'
 
 const schema = v.object({
   username: v.pipe(
@@ -29,9 +30,7 @@ export const adminAccountsRoute = new Hono<AppEnv>()
 adminAccountsRoute.post('/create', async (c) => {
   const auth = getAuth(c.env)
 
-  const session = await auth.api.getSession({
-    headers: c.req.raw.headers,
-  })
+  const session = await getAdminSession(c.env, c.req.raw.headers)
 
   if (!session?.user || session.user.role !== 'super-admin') {
     return c.json({ message: 'Unauthorized' }, 403)

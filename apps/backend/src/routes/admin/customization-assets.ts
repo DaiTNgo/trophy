@@ -70,13 +70,11 @@ export const customizationAssetsRoute = new Hono<AppEnv>()
     let dimensions: { width: number; height: number } | null = null;
     let pageCount: number | undefined;
 
-    if (mimeType === "application/pdf") {
-      if (pdfWidth && pdfHeight) {
-        dimensions = { width: pdfWidth, height: pdfHeight };
-        pageCount = pdfPageCount;
-      } else {
-        return jsonError(c, 422, "Missing PDF dimensions in upload request");
-      }
+    if (pdfWidth && pdfHeight) {
+      dimensions = { width: pdfWidth, height: pdfHeight };
+      pageCount = pdfPageCount;
+    } else if (mimeType === "application/pdf") {
+      return jsonError(c, 422, "Missing PDF dimensions in upload request");
     } else {
       dimensions = readImageDimensions(mimeType, bytes);
     }
@@ -101,9 +99,9 @@ export const customizationAssetsRoute = new Hono<AppEnv>()
     });
 
     if (previewBuffer) {
-      previewObjectKey = `uploads/${ownerKey}/${id}/preview.png`;
+      previewObjectKey = `uploads/${ownerKey}/${id}/preview.webp`;
       await c.env.CUSTOMIZATION_ASSETS.put(previewObjectKey, previewBuffer, {
-        httpMetadata: { contentType: "image/png" },
+        httpMetadata: { contentType: "image/webp" },
         customMetadata: {
           assetId: id,
           ownerKey,

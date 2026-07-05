@@ -17,10 +17,7 @@ import {
   productMedia,
   productOptionValues,
   productOptions,
-  productTagLinks,
-  productTags,
   productVariantMedia,
-  productTypes,
   productVariantOptionValues,
   productVariants,
   products
@@ -121,10 +118,8 @@ const searchProductsQuerySchema = v.object({
       )
     ])
   ),
-  typeId: optionalQueryId,
   collectionId: optionalQueryId,
   categoryId: optionalQueryId,
-  tagId: optionalQueryId,
   page: v.optional(
     v.pipe(
       v.string(),
@@ -167,10 +162,8 @@ const updateProductSchema = v.object({
 })
 
 const organizeSchema = v.object({
-  typeId: optionalId,
   collectionId: optionalId,
-  categoryIds: v.optional(v.array(v.pipe(v.number(), v.integer(), v.minValue(1)))),
-  tagIds: v.optional(v.array(v.pipe(v.number(), v.integer(), v.minValue(1))))
+  categoryIds: v.optional(v.array(v.pipe(v.number(), v.integer(), v.minValue(1))))
 })
 
 const attributesSchema = v.object({
@@ -324,10 +317,8 @@ const fullCreateCustomizationSchema = v.object({
 })
 
 const fullCreateOrganizationSchema = v.object({
-  typeId: optionalId,
   collectionId: optionalId,
-  categoryIds: v.optional(v.array(v.pipe(v.number(), v.integer(), v.minValue(1)))),
-  tagValues: v.optional(v.array(trimmedString(1, 120)))
+  categoryIds: v.optional(v.array(v.pipe(v.number(), v.integer(), v.minValue(1))))
 })
 
 const fullCreateProductSchema = v.object({
@@ -422,10 +413,8 @@ const ensureUniqueHandle = async (
 const getRelatedCount = async (
   db: ReturnType<typeof getDb>,
   table:
-    | typeof productTypes
     | typeof productCollections
-    | typeof productCategories
-    | typeof productTags,
+    | typeof productCategories,
   ids: number[]
 ) => {
   if (ids.length === 0) {
@@ -443,10 +432,8 @@ const readProduct = async (db: ReturnType<typeof getDb>, productId: number) => {
   }
 
   const [
-    type,
     collection,
     categoryRows,
-    tagRows,
     attributeRows,
     mediaRows,
     optionRows,
@@ -454,9 +441,6 @@ const readProduct = async (db: ReturnType<typeof getDb>, productId: number) => {
     variantMediaRows,
     customizationRow
   ] = await Promise.all([
-    product.typeId
-      ? db.select().from(productTypes).where(eq(productTypes.id, product.typeId)).get()
-      : Promise.resolve(null),
     product.collectionId
       ? db
           .select()
@@ -476,14 +460,6 @@ const readProduct = async (db: ReturnType<typeof getDb>, productId: number) => {
         eq(productCategoryLinks.categoryId, productCategories.id)
       )
       .where(eq(productCategoryLinks.productId, productId)),
-    db
-      .select({
-        id: productTags.id,
-        value: productTags.value
-      })
-      .from(productTagLinks)
-      .innerJoin(productTags, eq(productTagLinks.tagId, productTags.id))
-      .where(eq(productTagLinks.productId, productId)),
     db
       .select()
       .from(productAttributes)
@@ -604,10 +580,8 @@ const readProduct = async (db: ReturnType<typeof getDb>, productId: number) => {
 
   return {
     ...product,
-    type,
     collection,
     categories: categoryRows,
-    tags: tagRows,
     attributes: attributeRows,
     media: mediaRows,
     options: optionRows.map((option) => ({
@@ -1236,19 +1210,10 @@ const replaceVariants = async (
 const validateOrganizeReferences = async (
   db: ReturnType<typeof getDb>,
   input: {
-    typeId?: number | null
     collectionId?: number | null
     categoryIds?: number[]
-    tagIds?: number[]
   }
 ) => {
-  if (input.typeId) {
-    const count = await getRelatedCount(db, productTypes, [input.typeId])
-    if (count !== 1) {
-      return 'Type not found'
-    }
-  }
-
   if (input.collectionId) {
     const count = await getRelatedCount(db, productCollections, [input.collectionId])
     if (count !== 1) {
@@ -1260,13 +1225,6 @@ const validateOrganizeReferences = async (
     const count = await getRelatedCount(db, productCategories, input.categoryIds)
     if (count !== input.categoryIds.length) {
       return 'One or more categories were not found'
-    }
-  }
-
-  if (input.tagIds && input.tagIds.length > 0) {
-    const count = await getRelatedCount(db, productTags, input.tagIds)
-    if (count !== input.tagIds.length) {
-      return 'One or more tags were not found'
     }
   }
 
@@ -1317,39 +1275,6 @@ const loadProductAssetsById = async (
     .where(inArray(productAssets.id, assetIds))
 
   return new Map(assetRows.map((asset) => [asset.id, asset]))
-}
-
-const resolveOrCreateTagIds = async (
-  db: ReturnType<typeof getDb>,
-  tagValues: string[]
-) => {
-  const normalizedValues = [...new Set(tagValues.map((value) => value.trim()).filter(Boolean))]
-
-  if (normalizedValues.length === 0) {
-    return [] as number[]
-  }
-
-  const existingTags = await db
-    .select({ id: productTags.id, value: productTags.value })
-    .from(productTags)
-    .where(inArray(productTags.value, normalizedValues))
-  const existingByValue = new Map(existingTags.map((tag) => [tag.value, tag.id] as const))
-  const missingValues = normalizedValues.filter((value) => !existingByValue.has(value))
-
-  if (missingValues.length > 0) {
-    const insertedTags = await db
-      .insert(productTags)
-      .values(missingValues.map((value) => ({ value })))
-      .returning({ id: productTags.id, value: productTags.value })
-
-    for (const tag of insertedTags) {
-      existingByValue.set(tag.value, tag.id)
-    }
-  }
-
-  return normalizedValues
-    .map((value) => existingByValue.get(value))
-    .filter((value): value is number => value !== undefined)
 }
 
 export const buildVariantMediaInsertRows = (
@@ -1600,10 +1525,6 @@ export const productsRoute = new Hono<AppEnv>()
       conditions.push(eq(products.status, parsedQuery.output.status))
     }
 
-    if (parsedQuery.output.typeId) {
-      conditions.push(eq(products.typeId, parsedQuery.output.typeId))
-    }
-
     if (parsedQuery.output.collectionId) {
       conditions.push(eq(products.collectionId, parsedQuery.output.collectionId))
     }
@@ -1615,17 +1536,6 @@ export const productsRoute = new Hono<AppEnv>()
           from ${productCategoryLinks}
           where ${productCategoryLinks.productId} = ${products.id}
             and ${productCategoryLinks.categoryId} = ${parsedQuery.output.categoryId}
-        )`
-      )
-    }
-
-    if (parsedQuery.output.tagId) {
-      conditions.push(
-        sql`exists (
-          select 1
-          from ${productTagLinks}
-          where ${productTagLinks.productId} = ${products.id}
-            and ${productTagLinks.tagId} = ${parsedQuery.output.tagId}
         )`
       )
     }
@@ -1643,10 +1553,6 @@ export const productsRoute = new Hono<AppEnv>()
           hasVariants: products.hasVariants,
           createdAt: products.createdAt,
           updatedAt: products.updatedAt,
-          type: {
-            id: productTypes.id,
-            value: productTypes.value
-          },
           collection: {
             id: productCollections.id,
             title: productCollections.title,
@@ -1654,7 +1560,6 @@ export const productsRoute = new Hono<AppEnv>()
           }
         })
         .from(products)
-        .leftJoin(productTypes, eq(products.typeId, productTypes.id))
         .leftJoin(
           productCollections,
           eq(products.collectionId, productCollections.id)
@@ -1739,15 +1644,6 @@ export const productsRoute = new Hono<AppEnv>()
     }
 
     const db = getDb(c.env)
-    const organizeError = await validateOrganizeReferences(db, parsed.output.organization)
-    if (organizeError) {
-      return jsonError(c, 404, organizeError)
-    }
-    const resolvedTagIds = await resolveOrCreateTagIds(
-      db,
-      parsed.output.organization.tagValues ?? []
-    )
-
     const allAssetIds = [
       ...new Set(
         parsed.output.variants.flatMap((variant) =>
@@ -1797,7 +1693,6 @@ export const productsRoute = new Hono<AppEnv>()
         description: parsed.output.details.description ?? null,
         status: 'draft',
         hasVariants: parsed.output.options.length > 0,
-        typeId: parsed.output.organization.typeId ?? null,
         collectionId: parsed.output.organization.collectionId ?? null
       })
       .returning()
@@ -1808,15 +1703,6 @@ export const productsRoute = new Hono<AppEnv>()
         [...new Set(parsed.output.organization.categoryIds)].map((categoryId) => ({
           productId: insertedProduct.id,
           categoryId
-        }))
-      )
-    }
-
-    if (resolvedTagIds.length > 0) {
-      await db.insert(productTagLinks).values(
-        [...new Set(resolvedTagIds)].map((tagId) => ({
-          productId: insertedProduct.id,
-          tagId
         }))
       )
     }
@@ -2026,10 +1912,6 @@ export const productsRoute = new Hono<AppEnv>()
     await db
       .update(products)
       .set({
-        typeId:
-          parsed.output.typeId !== undefined
-            ? parsed.output.typeId ?? null
-            : current.typeId,
         collectionId:
           parsed.output.collectionId !== undefined
             ? parsed.output.collectionId ?? null
@@ -2048,19 +1930,6 @@ export const productsRoute = new Hono<AppEnv>()
           [...new Set(parsed.output.categoryIds)].map((categoryId) => ({
             productId: current.id,
             categoryId
-          }))
-        )
-      }
-    }
-
-    if (parsed.output.tagIds !== undefined) {
-      await db.delete(productTagLinks).where(eq(productTagLinks.productId, current.id))
-
-      if (parsed.output.tagIds.length > 0) {
-        await db.insert(productTagLinks).values(
-          [...new Set(parsed.output.tagIds)].map((tagId) => ({
-            productId: current.id,
-            tagId
           }))
         )
       }

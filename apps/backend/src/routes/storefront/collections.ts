@@ -7,7 +7,6 @@ import {
   productCategoryLinks,
   productCollections,
   productCustomizations,
-  productTypes,
   productVariantMedia,
   productVariants,
   products
@@ -26,6 +25,22 @@ const handleParamsSchema = v.object({
 })
 
 export const storefrontCollectionsRoute = new Hono<AppEnv>()
+  .get('/', async (c) => {
+    const db = getDb(c.env)
+
+    const items = await db
+      .select({
+        id: productCollections.id,
+        title: productCollections.title,
+        handle: productCollections.handle,
+        description: productCollections.description,
+        imageUrl: productCollections.imageUrl,
+      })
+      .from(productCollections)
+      .orderBy(asc(productCollections.position))
+
+    return c.json({ items }, 200)
+  })
   .get('/:handle/products', async (c) => {
     const parsed = parseParams(c, handleParamsSchema)
     if (!parsed.success) return parsed.response
@@ -58,12 +73,9 @@ export const storefrontCollectionsRoute = new Hono<AppEnv>()
           title: products.title,
           subtitle: products.subtitle,
           handle: products.handle,
-          hasVariants: products.hasVariants,
-          typeId: products.typeId,
-          typeValue: productTypes.value
+          hasVariants: products.hasVariants
         })
         .from(products)
-        .leftJoin(productTypes, eq(products.typeId, productTypes.id))
         .where(whereClause)
         .orderBy(desc(products.id))
         .limit(limit)

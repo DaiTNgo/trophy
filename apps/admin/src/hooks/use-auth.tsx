@@ -7,7 +7,7 @@ import {
   type ReactNode,
 } from "react";
 import type { AuthUser, AuthContextValue } from "../types";
-import { authClient } from "../lib/auth-client";
+import { authClient, getCurrentAdminUser } from "../lib/auth-client";
 import { hasAdminAccess, getAuthErrorMessage, normalizeUsername } from "../lib/auth-utils";
 
 const authContext = createContext<AuthContextValue | null>(null);
@@ -17,8 +17,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   async function refreshSession() {
-    const { data } = await authClient.getSession();
-    const nextUser = data?.user;
+    const nextUser = await getCurrentAdminUser().catch(() => null);
 
     if (!nextUser || !hasAdminAccess(nextUser.role)) {
       setUser(null);
@@ -39,12 +38,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     async function loadSession() {
       try {
-        const { data } = await authClient.getSession();
+        const nextUser = await getCurrentAdminUser().catch(() => null);
         if (!active) {
           return;
         }
 
-        const nextUser = data?.user;
         if (!nextUser || !hasAdminAccess(nextUser.role)) {
           setUser(null);
           return;
@@ -94,8 +92,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           };
         }
 
-        const { data } = await authClient.getSession();
-        if (!hasAdminAccess(data?.user.role)) {
+        const nextUser = await getCurrentAdminUser().catch(() => null);
+        if (!hasAdminAccess(nextUser?.role)) {
           await authClient.signOut();
           localStorage.removeItem("admin_auth_token");
           setUser(null);

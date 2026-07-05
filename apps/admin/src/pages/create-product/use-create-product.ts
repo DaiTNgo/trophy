@@ -69,10 +69,8 @@ export function useCreateProduct() {
   const navigate = useNavigate();
 
   const [metadata, setMetadata] = useState<ProductMetadataSnapshot>({
-    types: [],
     collections: [],
     categories: [],
-    tags: [],
   });
   const [metadataError, setMetadataError] = useState<string | null>(null);
   const [isLoadingMetadata, setIsLoadingMetadata] = useState(true);

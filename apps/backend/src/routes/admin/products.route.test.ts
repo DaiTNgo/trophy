@@ -81,7 +81,6 @@ function queueReadProduct(
     description?: string | null;
     status?: string;
     hasVariants?: boolean;
-    typeId?: number | null;
     collectionId?: number | null;
     createdAt?: string;
     updatedAt?: string;
@@ -130,7 +129,6 @@ function queueReadProduct(
     description: product.description ?? null,
     status: product.status ?? "draft",
     hasVariants: product.hasVariants ?? true,
-    typeId: product.typeId ?? null,
     collectionId: product.collectionId ?? null,
     createdAt: product.createdAt ?? "2026-07-04T00:00:00.000Z",
     updatedAt: product.updatedAt ?? "2026-07-04T00:00:00.000Z",
@@ -138,7 +136,6 @@ function queueReadProduct(
 
   db.getQueue.push(baseProduct);
   db.selectQueue.push([]); // category rows
-  db.selectQueue.push([]); // tag rows
   db.selectQueue.push([]); // attribute rows
   db.selectQueue.push([]); // product media
   db.selectQueue.push(input?.optionRows ?? []);

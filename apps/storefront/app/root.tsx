@@ -5,6 +5,7 @@ import {
   Outlet,
   Scripts,
   ScrollRestoration,
+  useLoaderData,
 } from "react-router";
 
 import type { Route } from "./+types/root";
@@ -12,6 +13,21 @@ import "./app.css";
 
 import { Navbar } from "./components/layout/Navbar";
 import { Footer } from "./components/layout/Footer";
+import {
+  fetchStorefrontCategories,
+  fetchStorefrontCollections,
+  type StorefrontCategory,
+  type StorefrontCollection,
+} from "./lib/api";
+
+export async function loader() {
+  const [categories, collections] = await Promise.all([
+    fetchStorefrontCategories().catch(() => [] as StorefrontCategory[]),
+    fetchStorefrontCollections().catch(() => [] as StorefrontCollection[]),
+  ]);
+
+  return { categories, collections };
+}
 
 export const links: Route.LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -49,9 +65,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
+  const { categories, collections } = useLoaderData<typeof loader>();
   return (
     <div className="flex min-h-screen flex-col overflow-x-hidden">
-      <Navbar />
+      <Navbar categories={categories} collections={collections} />
       <div className="flex-1">
         <Outlet />
       </div>

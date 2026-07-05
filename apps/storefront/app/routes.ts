@@ -6,4 +6,5 @@ export default [
   route("cart", "routes/cart.tsx"),
   route("checkout", "routes/checkout.tsx"),
   route("order-confirmation", "routes/order-confirmation.tsx"),
+  route("collections/:handle", "routes/collections.$handle.tsx"),
 ] satisfies RouteConfig;
