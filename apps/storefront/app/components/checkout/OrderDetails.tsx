@@ -1,3 +1,5 @@
+import { Award, Info } from "lucide-react";
+
 export function OrderDetails() {
   return (
     <div className="bg-surface-container-lowest p-8 md:p-12 rounded-xl shadow-[0px_4px_20px_rgba(0,0,0,0.04)] border border-outline-variant/10">
@@ -30,7 +32,7 @@ export function OrderDetails() {
           <h3 className="font-label-md text-label-md uppercase tracking-widest text-on-surface-variant">Sản phẩm</h3>
           <div className="flex items-center gap-4">
             <div className="w-20 h-20 bg-surface-container rounded-lg flex-shrink-0 flex items-center justify-center p-2">
-              <span className="material-symbols-outlined text-primary-fixed-dim text-4xl">workspace_premium</span>
+              <Award className="text-primary-fixed-dim text-4xl" />
             </div>
             <div className="flex-grow">
               <p className="font-body-md text-body-md font-semibold">Cúp Pha Lê Vinh Danh Cao Cấp</p>
@@ -65,7 +67,7 @@ export function OrderDetails() {
 
         {/* Action Item */}
         <div className="bg-surface-container p-4 rounded-lg flex items-start gap-4">
-          <span className="material-symbols-outlined text-primary">info</span>
+          <Info className="text-primary" />
           <p className="text-sm text-on-surface-variant">Một email xác nhận chi tiết đã được gửi đến hòm thư của bạn. Vui lòng kiểm tra để theo dõi tiến độ sản xuất.</p>
         </div>
       </div>

@@ -1,10 +1,11 @@
 import { Link } from "react-router";
+import { CheckCircle, ArrowRight } from "lucide-react";
 
 export function OrderConfirmationMessage() {
   return (
     <div className="flex flex-col items-center lg:items-start text-center lg:text-left space-y-base">
       <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-primary-container/10 mb-8">
-        <span className="material-symbols-outlined text-primary text-5xl" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
+        <CheckCircle className="text-primary text-5xl" fill="currentColor" />
       </div>
       
       <h1 className="font-headline-lg text-[48px] md:text-headline-lg text-primary uppercase">Cảm ơn bạn!</h1>
@@ -41,7 +42,7 @@ export function OrderConfirmationMessage() {
           className="inline-flex items-center justify-center bg-primary text-on-primary px-12 py-5 rounded-full font-label-md text-label-md uppercase tracking-widest hover:bg-surface-tint transition-all duration-300 shadow-lg shadow-primary/20"
         >
           Tiếp Tục Mua Sắm
-          <span className="material-symbols-outlined ml-2">arrow_forward</span>
+          <ArrowRight className="ml-2" />
         </Link>
       </div>
     </div>

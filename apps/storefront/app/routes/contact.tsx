@@ -1,4 +1,5 @@
 import { Link, useSearchParams } from "react-router";
+import { ArrowLeft } from "lucide-react";
 import type { Route } from "./+types/contact";
 
 export function meta({}: Route.MetaArgs) {
@@ -70,7 +71,7 @@ export default function ContactRoute() {
               className="mt-8 inline-flex items-center gap-2 rounded-full border border-primary px-5 py-3 text-sm font-semibold uppercase tracking-wide text-primary"
             >
               Quay lại sản phẩm
-              <span className="material-symbols-outlined text-[18px]">arrow_back</span>
+              <ArrowLeft className="text-[18px]" />
             </Link>
           </aside>
         </div>

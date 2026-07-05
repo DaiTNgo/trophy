@@ -1,6 +1,7 @@
 import type { DynamicFontFamily, ProductCustomization } from "@trophy/customization";
 import { useEffect, useMemo, useState } from "react";
 import { useLoaderData } from "react-router";
+import { PenSquare } from "lucide-react";
 import { validateCustomizationValues } from "@trophy/customization";
 import { ProductBreadcrumbs } from "../components/product/ProductBreadcrumbs";
 import {
@@ -297,7 +298,7 @@ export default function ProductDetail() {
               customizationTemplate ? (
                 <div className="space-y-4 p-6 bg-surface-container-low rounded-lg">
                   <h3 className="font-headline-md text-[20px] uppercase text-on-surface tracking-wide flex items-center gap-2">
-                    <span className="material-symbols-outlined text-primary">edit_note</span>
+                    <PenSquare className="text-primary" />
                     Customization
                   </h3>
                   <p className="text-sm text-on-surface-variant">

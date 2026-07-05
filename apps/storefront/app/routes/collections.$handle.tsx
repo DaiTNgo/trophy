@@ -2,6 +2,7 @@ import { useSearchParams } from "react-router";
 import { ProductCard } from "../components/shared/ProductCard";
 import { Pagination } from "../components/shared/Pagination";
 import { fetchStorefrontCollectionProducts } from "../lib/api";
+import { Package } from "lucide-react";
 import type { Route } from "./+types/collections.$handle";
 
 export async function loader({ params, request }: Route.LoaderArgs) {
@@ -50,7 +51,7 @@ export default function CollectionPage({ loaderData }: Route.ComponentProps) {
 
         {products.length === 0 ? (
           <div className="text-center py-20">
-            <span className="material-symbols-outlined text-[64px] text-on-surface-variant/30">inventory_2</span>
+            <Package className="text-[64px] text-on-surface-variant/30" />
             <p className="mt-4 text-lg text-on-surface-variant">
               Không có sản phẩm nào trong bộ sưu tập này.
             </p>

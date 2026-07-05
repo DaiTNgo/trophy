@@ -1,3 +1,5 @@
+import { ShieldCheck } from "lucide-react";
+
 export function CheckoutSummary() {
   return (
     <div className="bg-white p-8 md:p-10 shadow-[0px_4px_20px_rgba(0,0,0,0.04)] rounded-xl sticky top-28">
@@ -43,7 +45,7 @@ export function CheckoutSummary() {
       </button>
 
       <div className="mt-8 flex items-center justify-center gap-4 text-on-surface-variant opacity-60">
-        <span className="material-symbols-outlined text-sm">verified_user</span>
+        <ShieldCheck className="text-sm" />
         <span className="text-xs uppercase tracking-widest font-semibold">Secure Checkout Guaranteed</span>
       </div>
     </div>

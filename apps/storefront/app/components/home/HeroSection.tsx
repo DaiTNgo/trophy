@@ -1,64 +1,86 @@
 import { Link } from "react-router";
-import { backendAssetUrl } from "../../lib/api";
-import type { StorefrontProductItem } from "../../lib/api";
+import { Trophy, PenSquare } from "lucide-react";
 
-interface HeroSectionProps {
-  product: StorefrontProductItem | null;
-}
+// Cinematic, brand-level hero — no product prop.
+// The award is the main character on the right; headline + CTAs live in the dark left zone.
+const HERO_IMAGE =
+  "https://lh3.googleusercontent.com/aida-public/AB6AXuB90_lWYrj8CHeTfe5v4IeTsK_jccQ7hfjKlUGyDzAE_2VQyHihcE0RYeeSzTHrJ7NaTWjH5OrEOsqCdW81uy7isGpX0K9vkN3r2KvwIbAouk5-6HuStftZiDZI0G6HaqG8xo5u911qOcj3AcceeX7ZA-VJUiZym64lQql7RwZ-cOqyN4T7ZVzTnUeFVqc_8DUI58IrGI7JxBWtyoidZXuDgp1_mPySh3xlToWIheWaPGeZyxz-EltiKtZPjoTqJemO2xHf8Hlzam4";
 
-function formatPrice(amount: number): string {
-  return new Intl.NumberFormat('vi-VN').format(amount) + 'đ';
-}
-
-export function HeroSection({ product }: HeroSectionProps) {
-  const title = product?.title ?? "CÚP HỢP KIM KL1 PREMIUM";
-  const subtitle = product?.subtitle ?? product?.categorySummary ?? null;
-  const thumbnailUrl = product?.thumbnail
-    ? backendAssetUrl(product.thumbnail)
-    : "https://lh3.googleusercontent.com/aida-public/AB6AXuB90_lWYrj8CHeTfe5v4IeTsK_jccQ7hfjKlUGyDzAE_2VQyHihcE0RYeeSzTHrJ7NaTWjH5OrEOsqCdW81uy7isGpX0K9vkN3r2KvwIbAouk5-6HuStftZiDZI0G6HaqG8xo5u911qOcj3AcceeX7ZA-VJUiZym64lQql7RwZ-cOqyN4T7ZVzTnUeFVqc_8DUI58IrGI7JxBWtyoidZXuDgp1_mPySh3xlToWIheWaPGeZyxz-EltiKtZPjoTqJemO2xHf8Hlzam4";
-  const productLink = product ? `/product/${product.handle}` : "#";
-
-  const titleWords = title.split(' ');
-  const midpoint = Math.ceil(titleWords.length / 2);
-  const titleLine1 = titleWords.slice(0, midpoint).join(' ');
-  const titleLine2 = titleWords.slice(midpoint).join(' ');
-
+export function HeroSection() {
   return (
-    <header className="relative w-full h-[85vh] flex items-center overflow-hidden bg-surface-container-low">
-      <div className="absolute inset-0 z-0 opacity-80">
-        <img className="w-full h-full object-cover" alt={title} src={thumbnailUrl} />
+    <section
+      className="relative w-full min-h-[90vh] flex items-center overflow-hidden bg-[#1c1b1b]"
+      aria-label="Giới thiệu Trophy"
+    >
+      {/* Background image — award as main character */}
+      <div className="absolute inset-0 z-0">
+        <img
+          className="w-full h-full object-cover object-center"
+          src={HERO_IMAGE}
+          alt="Cúp vinh danh cao cấp — Trophy"
+          fetchPriority="high"
+        />
       </div>
-      <div className="absolute inset-0 z-10 bg-gradient-to-r from-surface/90 via-surface/40 to-transparent" />
-      <div className="relative z-20 px-margin-desktop max-w-container-max mx-auto w-full">
-        <div className="max-w-2xl reveal active">
-          {product?.customizable && (
-            <div className="inline-block bg-primary-container text-on-primary-container px-4 py-1 rounded-full text-label-md font-bold mb-6">CÓ THỂ TÙY CHỈNH</div>
-          )}
-          {subtitle && (
-            <p className="font-label-md text-label-md uppercase tracking-[0.3em] text-primary mb-2">{subtitle}</p>
-          )}
-          <h1 className="font-display-lg text-display-lg leading-tight mb-4">
-            <span className="block text-on-surface">{titleLine1}</span>
-            {titleLine2 && <span className="block text-primary">{titleLine2}</span>}
+
+      {/* Gradient: dark left zone for text, fade to transparent on right */}
+      <div className="absolute inset-0 z-10 bg-gradient-to-r from-[#1c1b1b]/90 via-[#1c1b1b]/55 to-transparent" />
+      {/* Subtle bottom vignette for readability */}
+      <div className="absolute inset-x-0 bottom-0 h-32 z-10 bg-gradient-to-t from-[#1c1b1b]/60 to-transparent" />
+
+      {/* Content */}
+      <div className="relative z-20 px-4 md:px-margin-desktop max-w-container-max mx-auto w-full py-24">
+        <div className="max-w-xl reveal active">
+          {/* Eyebrow + accent rule */}
+          <div className="flex items-center gap-3 mb-5">
+            <div className="w-16 h-[3px] bg-[#fea00c]" />
+            <span className="font-label-md text-label-md uppercase tracking-[0.35em] text-[#fea00c]">
+              Phùng Thị
+            </span>
+          </div>
+
+          {/* H1 — Anton, three lines */}
+          <h1 className="font-heading uppercase text-white mb-6 leading-none tracking-wide">
+            <span className="block text-[56px] md:text-[72px] leading-[1]">VINH DANH</span>
+            <span className="block text-[56px] md:text-[72px] leading-[1]">XỨNG TẦM</span>
+            <span className="block text-[56px] md:text-[72px] leading-[1] text-[#fea00c]">THÀNH TỰU</span>
           </h1>
-          {product?.priceAmount != null && (
-            <div className="flex items-baseline gap-4 mb-8">
-              <span className="text-3xl font-bold text-on-surface">
-                {product.priceFrom ? 'Từ ' : ''}{formatPrice(product.priceAmount)}
-              </span>
-            </div>
-          )}
-          <div className="flex items-center gap-6">
-            <Link to={productLink} className="bg-primary text-white font-label-md text-label-md uppercase px-12 py-4 rounded-full tracking-widest hover:bg-primary-container transition-all duration-300 shadow-lg flex items-center gap-2">
-              <span className="material-symbols-outlined">shopping_bag</span>
-              Xem Chi Tiết
+
+          {/* Body */}
+          <p className="font-body-lg text-body-lg text-white/80 mb-8 leading-relaxed max-w-md">
+            Cúp, kỷ niệm chương và giải thưởng tùy chỉnh cho doanh nghiệp,
+            giải đấu và sự kiện.
+          </p>
+
+          {/* CTAs */}
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-10">
+            <Link
+              to="/products"
+              className="bg-[#875200] text-white font-label-md text-label-md uppercase px-8 py-4 rounded-lg tracking-widest hover:bg-[#fea00c] hover:text-[#1c1b1b] transition-all duration-300 text-center"
+            >
+              Khám phá sản phẩm
             </Link>
-            <Link to="/products" className="border-2 border-primary text-primary font-label-md text-label-md uppercase px-10 py-4 rounded-full tracking-widest hover:bg-primary-fixed transition-all duration-300">
-              Tất Cả Sản Phẩm
+            <Link
+              to="/contact"
+              className="border-2 border-white/50 text-white font-label-md text-label-md uppercase px-8 py-4 rounded-lg tracking-widest hover:border-white hover:bg-white/10 transition-all duration-300 text-center"
+            >
+              Tùy chỉnh theo yêu cầu
             </Link>
+          </div>
+
+          {/* Compact proof line */}
+          <div className="flex items-center gap-6 text-white/50 text-[13px] font-semibold uppercase tracking-wide">
+            <span className="flex items-center gap-1.5">
+              <Trophy className="text-[16px] text-[#fea00c]" />
+              600k+ sản phẩm vinh danh
+            </span>
+            <span className="w-1 h-1 rounded-full bg-white/30" />
+            <span className="flex items-center gap-1.5">
+              <PenSquare className="text-[16px] text-[#fea00c]" />
+              Khắc theo yêu cầu
+            </span>
           </div>
         </div>
       </div>
-    </header>
+    </section>
   );
 }

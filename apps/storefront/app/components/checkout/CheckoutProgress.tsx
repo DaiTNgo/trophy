@@ -1,10 +1,12 @@
+import { Check } from "lucide-react";
+
 export function CheckoutProgress() {
   return (
     <div className="max-w-3xl mx-auto mb-16">
       <div className="flex items-center justify-between relative">
         <div className="flex flex-col items-center z-10">
           <div className="w-10 h-10 rounded-full flex items-center justify-center bg-primary text-white mb-2">
-            <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>check</span>
+            <Check fill="currentColor" />
           </div>
           <span className="font-label-md text-label-md uppercase tracking-tighter text-on-surface-variant">Cart</span>
         </div>

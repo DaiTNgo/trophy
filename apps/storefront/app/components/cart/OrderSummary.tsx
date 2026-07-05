@@ -1,3 +1,5 @@
+import { ArrowRight, ShieldCheck, RefreshCw } from "lucide-react";
+
 export function OrderSummary() {
   return (
     <div className="bg-white shadow-[0px_4px_20px_rgba(0,0,0,0.04)] p-8 flex flex-col space-y-6 sticky top-24 border border-surface-container-high rounded">
@@ -35,17 +37,17 @@ export function OrderSummary() {
       {/* CTA Button */}
       <button className="w-full py-5 bg-primary-container text-on-primary-container font-headline-md text-[18px] uppercase tracking-widest rounded shadow-lg hover:shadow-xl transition-all active:scale-95 flex items-center justify-center space-x-3">
         <span>Tiến hành thanh toán</span>
-        <span className="material-symbols-outlined">trending_flat</span>
+        <ArrowRight />
       </button>
 
       {/* Trust Badges */}
       <div className="pt-4 grid grid-cols-2 gap-4 border-t border-outline-variant">
         <div className="flex flex-col items-center text-center space-y-2">
-          <span className="material-symbols-outlined text-primary text-[32px]">verified_user</span>
+          <ShieldCheck className="text-primary text-[32px]" />
           <span className="font-label-md text-[11px] text-on-surface-variant uppercase">Thanh toán an toàn</span>
         </div>
         <div className="flex flex-col items-center text-center space-y-2">
-          <span className="material-symbols-outlined text-primary text-[32px]">published_with_changes</span>
+          <RefreshCw className="text-primary text-[32px]" />
           <span className="font-label-md text-[11px] text-on-surface-variant uppercase">Đổi trả 7 ngày</span>
         </div>
       </div>

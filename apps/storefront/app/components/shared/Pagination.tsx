@@ -1,3 +1,5 @@
+import { ChevronLeft, ChevronRight } from "lucide-react";
+
 export interface PaginationProps {
   currentPage: number;
   totalPages: number;
@@ -12,7 +14,7 @@ export function Pagination({ currentPage, totalPages, onPageChange }: Pagination
         disabled={currentPage <= 1}
         className="w-12 h-12 flex items-center justify-center rounded-full border border-outline-variant text-on-surface-variant hover:bg-primary hover:text-on-primary transition-all disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-on-surface-variant"
       >
-        <span className="material-symbols-outlined">chevron_left</span>
+        <ChevronLeft />
       </button>
       <span className="font-label-md text-label-md text-on-surface-variant px-4">
         Trang {currentPage} / {totalPages}
@@ -22,7 +24,7 @@ export function Pagination({ currentPage, totalPages, onPageChange }: Pagination
         disabled={currentPage >= totalPages}
         className="w-12 h-12 flex items-center justify-center rounded-full border border-outline-variant text-on-surface-variant hover:bg-primary hover:text-on-primary transition-all disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-on-surface-variant"
       >
-        <span className="material-symbols-outlined">chevron_right</span>
+        <ChevronRight />
       </button>
     </div>
   );

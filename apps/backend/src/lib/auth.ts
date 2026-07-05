@@ -2,6 +2,7 @@ import { betterAuth } from 'better-auth/minimal'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
 import { admin } from 'better-auth/plugins/admin'
 import { username } from 'better-auth/plugins/username'
+import { bearer } from 'better-auth/plugins'
 import { adminAc, userAc } from 'better-auth/plugins/admin/access'
 import { getDb } from '../db/client'
 import * as schema from '../db/schema'
@@ -58,15 +59,10 @@ export function getAuth(bindings: AppBindings) {
       minPasswordLength: 8
     },
     advanced: {
-      crossSubDomainCookies: {
-        enabled: true // Hỗ trợ share cookie giữa api.domain.com và admin.domain.com
-      },
-      defaultCookieAttributes: {
-        sameSite: 'none', // Bắt buộc cho Cross-Origin (backend & frontend khác domain)
-        secure: true // Bắt buộc đi kèm với sameSite: none trên production
-      }
+      generateAuthToken: true,
     },
     plugins: [
+      bearer(),
       username(),
       admin({
         defaultRole: 'admin',

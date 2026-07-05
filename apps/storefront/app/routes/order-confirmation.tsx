@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import type { Route } from "./+types/order-confirmation";
+import { CheckCircle } from "lucide-react";
 import { formatCurrency } from "../lib/utils";
 
 const ORDER_SUMMARY_STORAGE_KEY = "trophy-order-confirmation";
@@ -73,9 +74,7 @@ export default function OrderConfirmation() {
         <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_380px]">
           <section className="rounded-[28px] border border-outline bg-white px-8 py-12">
             <div className="flex h-20 w-20 items-center justify-center rounded-full bg-primary-container/15">
-              <span className="material-symbols-outlined text-5xl text-primary" style={{ fontVariationSettings: "'FILL' 1" }}>
-                check_circle
-              </span>
+              <CheckCircle className="text-5xl text-primary" fill="currentColor" />
             </div>
             <h1 className="mt-8 font-headline-lg text-[42px] uppercase text-primary">Cảm ơn bạn!</h1>
             <p className="mt-4 max-w-2xl text-lg text-on-surface-variant">

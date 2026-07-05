@@ -1,4 +1,5 @@
 import { Link } from "react-router";
+import { Image, Star, StarHalf, Headset } from "lucide-react";
 
 function formatPrice(cents: number | null): string {
   if (cents === null) {
@@ -61,7 +62,7 @@ export function ProductCard({
           />
         ) : (
           <div className="w-full h-full bg-surface-container-low flex items-center justify-center">
-            <span className="material-symbols-outlined text-4xl text-on-surface-variant">image</span>
+            <Image className="text-4xl text-on-surface-variant" />
           </div>
         )}
       </Link>
@@ -75,9 +76,9 @@ export function ProductCard({
           <div className="flex items-center justify-center gap-2 mb-2">
             <div className="flex text-[#FFC107]">
               {Array.from({ length: fullStars }).map((_, i) => (
-                <span key={`full-${i}`} className="material-symbols-outlined !text-[16px] [font-variation-settings:'FILL'1]">star</span>
+                <Star key={`full-${i}`} className="!text-[16px]" fill="currentColor" />
               ))}
-              {hasHalfStar && <span className="material-symbols-outlined !text-[16px] [font-variation-settings:'FILL'1]">star_half</span>}
+              {hasHalfStar && <StarHalf className="!text-[16px]" fill="currentColor" />}
             </div>
             {reviewsCount > 0 && (
               <span className="text-xs text-on-surface-variant">({reviewsCount})</span>
@@ -88,7 +89,7 @@ export function ProductCard({
         <span className="font-bold text-on-surface mt-auto">
           {isContactPrice ? (
             <span className="text-primary">
-              <span className="material-symbols-outlined !text-[14px] align-text-bottom">contact_support</span> Liên Hệ
+              <Headset className="!text-[14px] inline align-text-bottom" /> Liên Hệ
             </span>
           ) : (
             <>{priceFrom ? "Từ " : ""}{displayPrice}</>

@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router";
+import { Star, StarHalf, Phone, ShoppingBag, Award, Truck, ShieldCheck, ScrollText, ChevronDown } from "lucide-react";
 
 export function ProductInfo({
   title,
@@ -44,21 +45,17 @@ export function ProductInfo({
         <div className="flex items-center gap-4 mb-4">
           <div className="flex text-primary">
             {Array.from({ length: fullStars }).map((_, i) => (
-              <span
+              <Star
                 key={`full-${i}`}
-                className="material-symbols-outlined"
-                style={{ fontVariationSettings: "'FILL' 1" }}
-              >
-                star
-              </span>
+                className="text-primary"
+                fill="currentColor"
+              />
             ))}
             {hasHalfStar ? (
-              <span
-                className="material-symbols-outlined"
-                style={{ fontVariationSettings: "'FILL' 1" }}
-              >
-                star_half
-              </span>
+              <StarHalf
+                className="text-primary"
+                fill="currentColor"
+              />
             ) : null}
           </div>
           <span className="text-on-surface-variant font-label-md">({reviewsCount} Reviews)</span>
@@ -81,7 +78,7 @@ export function ProductInfo({
             to={contactHref ?? "/contact"}
             className="w-full bg-surface-variant text-on-surface-variant py-5 font-label-md tracking-[2px] uppercase flex items-center justify-center gap-3 opacity-80"
           >
-            <span className="material-symbols-outlined">call</span>
+            <Phone />
             Contact for Pricing
           </Link>
         ) : (
@@ -92,7 +89,7 @@ export function ProductInfo({
               disabled={primaryActionDisabled}
               className="w-full bg-primary text-white py-5 font-label-md tracking-[2px] uppercase shadow-md hover:bg-surface-tint transition-all active:scale-[0.98] flex items-center justify-center gap-3 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              <span className="material-symbols-outlined">shopping_bag</span>
+              <ShoppingBag />
               {primaryActionLabel}
             </button>
             <Link
@@ -109,29 +106,29 @@ export function ProductInfo({
       </div>
 
       <div className="grid grid-cols-2 gap-4">
-        <div className="flex items-center gap-3 p-4 bg-surface-container-lowest border border-outline-variant rounded-lg">
-          <span className="material-symbols-outlined text-primary">workspace_premium</span>
+          <div className="flex items-center gap-3 p-4 bg-surface-container-lowest border border-outline-variant rounded-lg">
+            <Award className="text-primary" />
           <div>
             <p className="font-label-md text-on-surface uppercase leading-none">Handcrafted</p>
             <p className="text-[11px] text-on-surface-variant mt-1">Premium materials only</p>
           </div>
         </div>
         <div className="flex items-center gap-3 p-4 bg-surface-container-lowest border border-outline-variant rounded-lg">
-          <span className="material-symbols-outlined text-primary">local_shipping</span>
+          <Truck className="text-primary" />
           <div>
             <p className="font-label-md text-on-surface uppercase leading-none">Fast Shipping</p>
             <p className="text-[11px] text-on-surface-variant mt-1">Global express delivery</p>
           </div>
         </div>
         <div className="flex items-center gap-3 p-4 bg-surface-container-lowest border border-outline-variant rounded-lg">
-          <span className="material-symbols-outlined text-primary">verified_user</span>
+          <ShieldCheck className="text-primary" />
           <div>
             <p className="font-label-md text-on-surface uppercase leading-none">Safe Payment</p>
             <p className="text-[11px] text-on-surface-variant mt-1">Secure encryption</p>
           </div>
         </div>
         <div className="flex items-center gap-3 p-4 bg-surface-container-lowest border border-outline-variant rounded-lg">
-          <span className="material-symbols-outlined text-primary">history_edu</span>
+          <ScrollText className="text-primary" />
           <div>
             <p className="font-label-md text-on-surface uppercase leading-none">Legacy Brand</p>
             <p className="text-[11px] text-on-surface-variant mt-1">Since 1988</p>
@@ -143,9 +140,7 @@ export function ProductInfo({
         <details className="group py-6" open>
           <summary className="flex justify-between items-center cursor-pointer list-none font-label-md uppercase text-on-surface">
             Product Description
-            <span className="material-symbols-outlined transition-transform duration-300 group-open:rotate-180">
-              expand_more
-            </span>
+            <ChevronDown className="transition-transform duration-300 group-open:rotate-180" />
           </summary>
           <div className="mt-4 text-on-surface-variant font-body-md leading-relaxed">
             {description}
@@ -154,9 +149,7 @@ export function ProductInfo({
         <details className="group py-6">
           <summary className="flex justify-between items-center cursor-pointer list-none font-label-md uppercase text-on-surface">
             Specifications
-            <span className="material-symbols-outlined transition-transform duration-300 group-open:rotate-180">
-              expand_more
-            </span>
+            <ChevronDown className="transition-transform duration-300 group-open:rotate-180" />
           </summary>
           <div className="mt-4 grid grid-cols-2 gap-y-3 text-[14px]">
             {Object.entries(specs).map(([name, value]) => (

@@ -44,7 +44,6 @@ export async function bootstrapFirstAdmin(input: {
 }) {
   const response = await backendFetch(`/api/admin/bootstrap`, {
     method: "POST",
-    credentials: "include",
     headers: {
       "Content-Type": "application/json",
     },
@@ -68,7 +67,6 @@ export async function createAdminAccount(input: {
 }) {
   const response = await backendFetch(`/api/admin/accounts/create`, {
     method: "POST",
-    credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),
   });

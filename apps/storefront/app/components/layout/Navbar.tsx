@@ -1,59 +1,28 @@
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
 import { Link } from "react-router";
-import { useNavbarScroll } from "../../hooks/useNavbarScroll";
+import { ChevronDown, Menu, Search, ShoppingCart, Package } from "lucide-react";
+import { useNavbarScroll } from "@/hooks/useNavbarScroll";
+import { useLockBody } from "@/hooks/useLockBody";
+import { useClickOutside } from "@/hooks/useClickOutside";
+import { useCart } from "@/hooks/use-cart";
 import {
-  Dialog,
-  DialogContent,
-  DialogTrigger,
-  DialogTitle,
-} from "../ui/dialog";
-import { Input } from "../ui/input";
-import { backendAssetUrl } from "../../lib/api";
-import type { StorefrontCategory, StorefrontCollection } from "../../lib/api";
-import { useCart } from "../../hooks/use-cart";
-
-interface MegaMenuGridProps {
-  items: Array<{
-    title: string;
-    imageUrl: string | null;
-    href: string;
-  }>;
-}
-
-function MegaMenuGrid({ items }: MegaMenuGridProps) {
-  if (items.length === 0) return null;
-  return (
-    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 border-gray-100">
-      {items.map((item, i) => (
-        <Link
-          key={i}
-          to={item.href}
-          className="flex flex-row items-center justify-start px-8 py-6 bg-white hover:bg-gray-50 transition-colors gap-4 border-r border-b border-gray-100 group [&:nth-child(5n)]:border-r-0 lg:[&:nth-child(5n)]:border-r-0 md:[&:nth-child(4n)]:border-r-0 max-md:[&:nth-child(2n)]:border-r-0"
-        >
-          <div className="w-[50px] flex-shrink-0 flex items-center justify-center">
-            {item.imageUrl ? (
-              <img
-                src={backendAssetUrl(item.imageUrl)}
-                alt={item.title}
-                className="max-w-[50px] max-h-[50px] object-contain group-hover:scale-110 transition-transform"
-                loading="lazy"
-              />
-            ) : (
-              <div className="w-[50px] h-[50px] bg-gray-100 rounded flex items-center justify-center">
-                <span className="material-symbols-outlined text-[24px] text-gray-400">
-                  category
-                </span>
-              </div>
-            )}
-          </div>
-          <span className="text-[12px] font-bold text-[#1a2e44] group-hover:text-primary uppercase tracking-wider text-left leading-tight">
-            {item.title}
-          </span>
-        </Link>
-      ))}
-    </div>
-  );
-}
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@/components/ui/input-group";
+import { Container } from "@/components/container";
+import { MegaMenuGrid } from "./navbar/mega-menu-grid";
+import { NavbarMobileMenu } from "./navbar/mobile-menu";
+import { NavbarSearchDialog } from "./navbar/search-dialog";
+import { NavbarMoreDropdown } from "./navbar/more-dropdown";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselPrevious,
+  CarouselNext,
+} from "@/components/ui/carousel";
+import type { StorefrontCategory, StorefrontCollection } from "@/lib/api";
 
 interface NavbarProps {
   categories: StorefrontCategory[];
@@ -63,36 +32,18 @@ interface NavbarProps {
 export function Navbar({ categories, collections }: NavbarProps) {
   const { itemCount } = useCart();
   useNavbarScroll();
+
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [isMoreOpen, setIsMoreOpen] = useState(false);
-  const [isProductsOpen, setIsProductsOpen] = useState(false);
-  const [isThemesOpen, setIsThemesOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [activeDropdown, setActiveDropdown] = useState<
+    "products" | "themes" | null
+  >(null);
 
-  const moreRef = useRef<HTMLDivElement>(null);
-  const productsRef = useRef<HTMLDivElement>(null);
-  const themesRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useClickOutside<HTMLDivElement>(() =>
+    setActiveDropdown(null),
+  );
 
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (moreRef.current && !moreRef.current.contains(event.target as Node)) {
-        setIsMoreOpen(false);
-      }
-      if (
-        productsRef.current &&
-        !productsRef.current.contains(event.target as Node)
-      ) {
-        setIsProductsOpen(false);
-      }
-      if (
-        themesRef.current &&
-        !themesRef.current.contains(event.target as Node)
-      ) {
-        setIsThemesOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  useLockBody(isMobileMenuOpen);
 
   const productMenuItems = categories.map((cat) => ({
     title: cat.name,
@@ -107,188 +58,189 @@ export function Navbar({ categories, collections }: NavbarProps) {
   }));
 
   return (
-    <header
-      className="w-full bg-white flex flex-col z-50 sticky top-0 shadow-sm transition-all duration-300"
-      id="main-nav"
-    >
-      <div className="flex items-center justify-between px-4 md:px-8 h-20 max-w-[1600px] w-full mx-auto gap-4 lg:gap-8 bg-white relative z-20">
-        <Link to="/" className="flex-shrink-0">
-          <img
-            alt="PHÙNG THỊ"
-            className="h-12 md:h-14 w-auto object-contain"
-            src="/logo.png"
-          />
-        </Link>
-
-        <div className="hidden xl:flex items-center gap-2 text-[13px] font-bold text-[#1a2e44] tracking-wide shrink-0 h-full">
-          <div
-            className="h-[40px] flex items-center relative"
-            ref={productsRef}
-          >
-            <button
-              onClick={() => {
-                setIsProductsOpen(!isProductsOpen);
-                setIsThemesOpen(false);
-              }}
-              className={`flex items-center gap-1 px-4 h-full transition-colors uppercase relative z-[51] hover:text-primary `}
-              style={{
-                marginBottom: isProductsOpen ? "-1px" : "0",
-                borderBottomColor: isProductsOpen ? "white" : "transparent",
-              }}
-            >
-              <span
-                className={`material-symbols-outlined text-[20px] transition-transform duration-300 ${isProductsOpen ? "rotate-180" : ""}`}
-              >
-                expand_more
-              </span>
-              SẢN PHẨM
-            </button>
-          </div>
-
-          {collections.length > 0 && (
-            <div className="h-10 flex items-center relative" ref={themesRef}>
+    <div className="shadow-sm">
+      <header
+        className="w-full bg-white flex flex-col relative transition-all duration-300"
+        id="main-nav"
+      >
+        <div ref={dropdownRef}>
+          <Container className="flex items-center justify-between xl:justify-start gap-4 h-20 lg:gap-8 bg-white relative z-20">
+            <div className="flex xl:hidden shrink-0 w-10">
               <button
-                onClick={() => {
-                  setIsThemesOpen(!isThemesOpen);
-                  setIsProductsOpen(false);
-                }}
-                className={`flex items-center gap-1 px-4 h-full transition-colors uppercase relative z-[51] hover:text-primary`}
-                style={{
-                  marginBottom: isThemesOpen ? "-1px" : "0",
-                  borderBottomColor: isThemesOpen ? "white" : "transparent",
-                }}
+                onClick={() => setIsMobileMenuOpen(true)}
+                className="p-2 -ml-2 text-[#1a2e44]"
+                aria-label="Mở menu"
               >
-                <span
-                  className={`material-symbols-outlined text-[20px] transition-transform duration-300 ${isThemesOpen ? "rotate-180" : ""}`}
-                >
-                  expand_more
-                </span>
-                CHỦ ĐỀ
+                <Menu className="w-6 h-6" />
               </button>
+            </div>
+
+            <Link
+              to="/"
+              className="shrink-0 xl:mr-4 absolute left-1/2 -translate-x-1/2 xl:relative xl:left-0 xl:translate-x-0"
+            >
+              <img
+                alt="PHÙNG THỊ"
+                className="h-12 md:h-20 w-auto object-contain"
+                src="/logo.png"
+              />
+            </Link>
+
+            <div className="hidden xl:flex items-center gap-2 text-[13px] font-bold text-[#1a2e44] tracking-wide shrink-0 h-full">
+              <div className="h-[40px] flex items-center relative">
+                <button
+                  onClick={() =>
+                    setActiveDropdown(
+                      activeDropdown === "products" ? null : "products",
+                    )
+                  }
+                  className={`flex items-center gap-1 px-4 h-full transition-colors uppercase relative z-[51] hover:text-primary ${activeDropdown === "products" ? "text-primary" : ""}`}
+                  style={{
+                    marginBottom: activeDropdown === "products" ? "-1px" : "0",
+                    borderBottomColor:
+                      activeDropdown === "products" ? "white" : "transparent",
+                  }}
+                >
+                  <ChevronDown
+                    className={`text-[20px] transition-transform duration-300 ${activeDropdown === "products" ? "rotate-180" : ""}`}
+                  />
+                  SẢN PHẨM
+                </button>
+              </div>
+
+              {collections.length > 0 && (
+                <div className="h-10 flex items-center relative">
+                  <button
+                    onClick={() =>
+                      setActiveDropdown(
+                        activeDropdown === "themes" ? null : "themes",
+                      )
+                    }
+                    className={`flex items-center gap-1 px-4 h-full transition-colors uppercase relative z-[51] hover:text-primary ${activeDropdown === "themes" ? "text-primary" : ""}`}
+                    style={{
+                      marginBottom: activeDropdown === "themes" ? "-1px" : "0",
+                      borderBottomColor:
+                        activeDropdown === "themes" ? "white" : "transparent",
+                    }}
+                  >
+                    <ChevronDown
+                      className={`text-[20px] transition-transform duration-300 ${activeDropdown === "themes" ? "rotate-180" : ""}`}
+                    />
+                    CHỦ ĐỀ
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <NavbarSearchDialog
+              isOpen={isSearchOpen}
+              onOpenChange={setIsSearchOpen}
+              className="hidden"
+            />
+
+            <div className="flex items-center gap-4 text-[#1a2e44] shrink-0 justify-end w-10 xl:w-auto">
+              <NavbarMoreDropdown />
+
+              <Link
+                to="/cart"
+                className="flex items-center justify-center h-10 w-10 rounded-full hover:bg-gray-100 transition-colors relative text-[#1a2e44] hover:text-primary"
+              >
+                <ShoppingCart className="text-[24px]" />
+                <div className="absolute top-0 right-0 bg-[#e03a3a] text-white text-[10px] font-bold h-[16px] min-w-[16px] px-1 rounded-full flex items-center justify-center border-2 border-white leading-none">
+                  {itemCount}
+                </div>
+              </Link>
+            </div>
+          </Container>
+
+          {activeDropdown && (
+            <div className="absolute left-0 right-0 top-full border-t border-gray-100 bg-white shadow-xl z-50 animate-in fade-in slide-in-from-top-2">
+              <MegaMenuGrid
+                items={
+                  activeDropdown === "products"
+                    ? productMenuItems
+                    : themeMenuItems
+                }
+              />
             </div>
           )}
         </div>
 
-        {isProductsOpen && (
-          <div className="absolute left-0 right-0 top-[calc(100%+1px)] bg-white  shadow-xl z-50 animate-in fade-in slide-in-from-top-2">
-            <MegaMenuGrid items={productMenuItems} />
-          </div>
-        )}
+        <Container className="xl:hidden mb-4">
+          <NavbarSearchDialog
+            isOpen={isSearchOpen}
+            onOpenChange={setIsSearchOpen}
+            className="w-full max-w-none"
+          />
+        </Container>
 
-        {isThemesOpen && (
-          <div className="absolute left-0 right-0 top-[calc(100%+1px)] bg-white shadow-xl z-50 animate-in fade-in slide-in-from-top-2">
-            <div className="max-w-[1600px] mx-auto px-4 md:px-8">
-              <MegaMenuGrid items={themeMenuItems} />
-            </div>
-          </div>
-        )}
-
-        <div className="flex-grow hidden md:flex items-center max-w-3xl">
-          <Dialog open={isSearchOpen} onOpenChange={setIsSearchOpen}>
-            <DialogTrigger asChild>
-              <div className="relative w-full cursor-text group">
-                <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 text-[22px]">
-                  search
-                </span>
-                <div className="w-full bg-gray-50 border border-gray-200 rounded-full py-2.5 pl-12 pr-4 text-left text-[14px] text-gray-500 hover:border-gray-300 hover:bg-gray-100 transition-all">
-                  Tìm kiếm sản phẩm, danh mục...
-                </div>
-              </div>
-            </DialogTrigger>
-            <DialogContent className="max-w-none w-screen h-screen m-0 !p-0 rounded-none border-none bg-surface/95 backdrop-blur-md flex flex-col top-0 !translate-y-0 data-[state=closed]:slide-out-to-top-0 data-[state=open]:slide-in-from-top-0 duration-300">
-              <DialogTitle className="sr-only">Tìm kiếm</DialogTitle>
-              <div className="flex flex-col h-full w-full max-w-container-max mx-auto px-margin-desktop py-8">
-                <div className="relative w-full max-w-3xl mx-auto mt-12 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-150 fill-mode-both">
-                  <Input
-                    autoFocus
-                    className="w-full bg-transparent border-0 border-b-2 border-on-surface-variant/20 rounded-none px-0 pb-4 h-auto text-3xl font-light text-on-surface focus-visible:outline-none focus-visible:ring-0 focus-visible:border-primary placeholder:text-on-surface-variant/30"
-                    placeholder="Nhập từ khóa tìm kiếm..."
-                    type="text"
-                  />
-                  <span className="material-symbols-outlined absolute right-0 top-1 text-3xl text-on-surface-variant/50">
-                    search
-                  </span>
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
-        </div>
-
-        <div className="flex items-center gap-4 text-[#1a2e44] shrink-0">
-          <div className="relative hidden md:block" ref={moreRef}>
-            <button
-              onClick={() => setIsMoreOpen(!isMoreOpen)}
-              className={`flex items-center gap-1 text-[13px] font-bold uppercase tracking-wide hover:text-primary transition-colors ${isMoreOpen ? "text-primary" : ""}`}
-            >
-              <span className="material-symbols-outlined text-[18px]">
-                add_circle
-              </span>
-              THÊM
-            </button>
-
-            {isMoreOpen && (
-              <div className="absolute top-full right-0 mt-6 w-56 bg-white border border-gray-100 rounded-xl shadow-xl py-2 flex flex-col z-50 animate-in fade-in slide-in-from-top-2">
-                <Link
-                  onClick={() => setIsMoreOpen(false)}
-                  to="/news"
-                  className="px-5 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-primary transition-colors"
-                >
-                  Tin tức
-                </Link>
-                <Link
-                  onClick={() => setIsMoreOpen(false)}
-                  to="/contact"
-                  className="px-5 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-primary transition-colors"
-                >
-                  Thông tin liên hệ
-                </Link>
-                <Link
-                  onClick={() => setIsMoreOpen(false)}
-                  to="/about"
-                  className="px-5 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-primary transition-colors"
-                >
-                  Về chúng tôi
-                </Link>
-                <Link
-                  onClick={() => setIsMoreOpen(false)}
-                  to="/order-lookup"
-                  className="px-5 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-primary transition-colors"
-                >
-                  Tra cứu đơn hàng
-                </Link>
-              </div>
-            )}
-          </div>
-
-          <Link
-            to="/cart"
-            className="flex items-center justify-center h-10 w-10 rounded-full hover:bg-gray-100 transition-colors relative text-[#1a2e44] hover:text-primary"
-          >
-            <span className="material-symbols-outlined text-[24px]">
-              shopping_cart
-            </span>
-            <div className="absolute top-0 right-0 bg-[#e03a3a] text-white text-[10px] font-bold h-[16px] min-w-[16px] px-1 rounded-full flex items-center justify-center border-2 border-white leading-none">
-              {itemCount}
-            </div>
-          </Link>
-        </div>
-      </div>
+        <NavbarMobileMenu
+          isOpen={isMobileMenuOpen}
+          onClose={() => setIsMobileMenuOpen(false)}
+          categories={categories}
+          collections={collections}
+        />
+      </header>
 
       {categories.length > 0 && (
-        <div className="w-full border-t border-b border-gray-100 bg-white relative z-10">
-          <div className="flex items-center gap-8 px-4 md:px-8 py-3 max-w-[1600px] w-full mx-auto overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-            {categories.map((cat) => (
-              <Link
-                key={cat.id}
-                to={`/products?category=${encodeURIComponent(cat.handle)}`}
-                className="text-[13px] font-bold text-[#1a2e44] uppercase tracking-wide whitespace-nowrap hover:text-primary transition-colors flex-shrink-0"
-              >
-                {cat.name}
-              </Link>
-            ))}
-          </div>
+        <div className="hidden sm:block w-full border-t border-b border-gray-100 bg-white relative z-10">
+          <Container className="relative py-3">
+            <Carousel
+              opts={{
+                align: "start",
+                loop: false,
+                dragFree: true,
+                duration: 5,
+
+              }}
+              className="px-8 sm:px-8"
+            >
+              <CarouselContent className="gap-4 md:gap-8 ml-0">
+                {categories.map((cat) => (
+                  <CarouselItem
+                    key={cat.id}
+                    className="pl-0 basis-1/4 md:basis-1/5 lg:basis-auto"
+                  >
+                    <Link
+                      to={`/products?category=${encodeURIComponent(cat.handle)}`}
+                      className="block"
+                    >
+                      <div className="lg:hidden w-[65px] h-[65px] mx-auto rounded-lg overflow-hidden bg-gray-100 mb-1">
+                        {cat.imageUrl ? (
+                          <img
+                            src={cat.imageUrl}
+                            alt={cat.name}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-gray-300">
+                            <Package className="w-5 h-5" />
+                          </div>
+                        )}
+                      </div>
+                      <span className="block text-center lg:text-left text-[11px] lg:text-[13px] font-bold text-[#1a2e44] uppercase tracking-wide lg:whitespace-nowrap leading-tight hover:text-primary transition-colors">
+                        {cat.name}
+                      </span>
+                    </Link>
+                  </CarouselItem>
+                ))}
+              </CarouselContent>
+              <CarouselPrevious
+                size={"icon"}
+                variant={"default"}
+                className="absolute -left-2 top-1/2 -translate-y-1/2 z-10"
+                classNameIfDisabled="hidden"
+              />
+              <CarouselNext
+                size={"icon"}
+                variant={"default"}
+                className="absolute -right-2 top-1/2 -translate-y-1/2 z-10"
+                classNameIfDisabled="hidden"
+              />
+            </Carousel>
+          </Container>
         </div>
       )}
-    </header>
+    </div>
   );
 }

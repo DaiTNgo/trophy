@@ -1,4 +1,5 @@
 import { Link } from "react-router";
+import { Minus, Plus, Trash2 } from "lucide-react";
 
 // In a real application, you would pass cart items as props.
 export function CartItemList() {
@@ -47,7 +48,7 @@ function CartItemRow() {
         <div className="flex items-center justify-center">
           <div className="flex items-center border border-outline-variant rounded bg-white overflow-hidden">
             <button className="px-3 py-1 hover:bg-surface-container transition-colors active:scale-95">
-              <span className="material-symbols-outlined text-[18px]">remove</span>
+              <Minus className="text-[18px]" />
             </button>
             <input 
               className="w-12 text-center border-none focus:ring-0 font-label-md text-label-md appearance-none m-0 p-0" 
@@ -57,7 +58,7 @@ function CartItemRow() {
               defaultValue="1"
             />
             <button className="px-3 py-1 hover:bg-surface-container transition-colors active:scale-95">
-              <span className="material-symbols-outlined text-[18px]">add</span>
+              <Plus className="text-[18px]" />
             </button>
           </div>
         </div>
@@ -67,7 +68,7 @@ function CartItemRow() {
       </td>
       <td className="py-8 align-middle text-right">
         <button className="text-on-surface-variant hover:text-error transition-colors active:scale-95">
-          <span className="material-symbols-outlined">delete</span>
+          <Trash2 />
         </button>
       </td>
     </tr>

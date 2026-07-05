@@ -1,27 +1,46 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router";
+import {
+  Flame,
+  Image,
+  ShieldCheck,
+  CheckCircle,
+  ChevronRight,
+  Mail,
+  X,
+  DeleteIcon,
+  TrashIcon,
+  Trash2Icon,
+} from "lucide-react";
 import type { Route } from "./+types/cart";
-import { resolveStorefrontCartLines, type StorefrontResolvedCartLine } from "../lib/api";
+import {
+  resolveStorefrontCartLines,
+  type StorefrontResolvedCartLine,
+} from "../lib/api";
 import { useCart } from "../hooks/use-cart";
 import { formatCurrency } from "../lib/utils";
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
+import { Card, CardContent } from "../components/ui/card";
+import { QuantityInput } from "../components/ui/quantity-input";
 
 export function meta({}: Route.MetaArgs) {
   return [
-    { title: "Giỏ Hàng | Phùng Thị - Chế Tác Vinh Quang" },
-    { name: "description", content: "Giỏ hàng của bạn tại Phùng Thị" },
+    { title: "Shopping Cart | Phùng Thị" },
+    { name: "description", content: "Shopping Cart" },
   ];
 }
 
 function reasonLabel(reason: StorefrontResolvedCartLine["reason"]) {
   switch (reason) {
     case "product_unavailable":
-      return "Sản phẩm không còn khả dụng.";
+      return "Product is no longer available.";
     case "variant_missing":
-      return "Biến thể không còn tồn tại.";
+      return "Variant is missing.";
     case "variant_mismatch":
-      return "Biến thể không còn thuộc sản phẩm này.";
+      return "Variant does not match product.";
     case "contact_price":
-      return "Biến thể này hiện ở trạng thái Liên hệ báo giá.";
+      return "Contact for price.";
     default:
       return "";
   }
@@ -53,7 +72,7 @@ export default function Cart() {
       })
       .catch((err) => {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Không thể tải lại thông tin giỏ hàng.");
+          setError(err instanceof Error ? err.message : "Cannot load cart.");
         }
       });
 
@@ -101,190 +120,205 @@ export default function Cart() {
   const hasInvalidLines = rows.some((row) => !row.valid);
 
   return (
-    <div className="min-h-screen bg-surface text-on-background">
-      <main className="mx-auto flex-grow w-full max-w-container-max px-margin-mobile py-12 md:px-margin-desktop">
-        <nav className="mb-8 flex items-center space-x-2 font-label-md text-label-md text-on-surface-variant">
-          <Link to="/" className="transition-colors hover:text-primary">Trang chủ</Link>
-          <span className="material-symbols-outlined text-[16px]">chevron_right</span>
-          <span className="font-bold text-primary">Giỏ hàng</span>
-        </nav>
-
-        <div className="mb-10 flex items-end justify-between gap-4">
-          <div>
-            <h1 className="font-headline-lg text-headline-lg uppercase tracking-wider text-on-background">
-              Giỏ hàng của bạn
-            </h1>
-            <p className="mt-2 text-sm text-on-surface-variant">
-              {itemCount} sản phẩm đang chờ xác nhận trước khi đặt hàng.
-            </p>
-          </div>
-          <Link
-            to="/products"
-            className="inline-flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-primary"
-          >
-            <span className="material-symbols-outlined text-[18px]">arrow_back</span>
-            Tiếp tục mua sắm
-          </Link>
+    <div className="bg-white min-h-screen text-[#333] font-sans pb-0">
+      <main className="max-w-7xl mx-auto px-4 py-8 md:py-12">
+        {/* Title area */}
+        <div className="flex flex-col md:flex-row md:items-center gap-6 mb-12">
+          <h1 className="font-heading text-4xl uppercase tracking-widest font-black">
+            Shopping Cart
+          </h1>
         </div>
 
         {error ? (
-          <div className="mb-6 rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          <div className="mb-6 rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
             {error}
           </div>
         ) : null}
 
         {rows.length === 0 ? (
-          <div className="rounded-2xl border border-outline bg-white px-8 py-16 text-center">
-            <h2 className="font-headline-md text-2xl text-on-surface">Giỏ hàng đang trống</h2>
-            <p className="mt-3 text-on-surface-variant">
-              Chọn một sản phẩm, cấu hình biến thể và thêm vào giỏ để bắt đầu đặt hàng.
-            </p>
-            <Link
-              to="/products"
-              className="mt-6 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold uppercase tracking-wide text-white"
-            >
-              Xem sản phẩm
-              <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
-            </Link>
+          <div className="py-20 text-center">
+            <h2 className="text-2xl font-bold mb-4">Your cart is empty</h2>
+            <Button asChild size="lg" className="px-8 font-bold">
+              <Link to="/products">Continue Shopping</Link>
+            </Button>
           </div>
         ) : (
-          <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_340px]">
-            <div className="overflow-hidden rounded-2xl border border-outline bg-white">
-              <table className="w-full border-collapse text-left">
-                <thead>
-                  <tr className="border-b border-outline bg-surface-container-lowest text-sm uppercase tracking-wide text-on-surface-variant">
-                    <th className="px-6 py-4">Sản phẩm</th>
-                    <th className="px-6 py-4 text-center">Số lượng</th>
-                    <th className="px-6 py-4 text-right">Thành tiền</th>
-                    <th className="px-6 py-4" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map(({ line, display, valid, reason, lineTotal }) => (
-                    <tr key={line.id} className="border-b border-outline last:border-b-0">
-                      <td className="px-6 py-6 align-top">
-                        <div className="flex gap-5">
-                          <div className="h-28 w-28 flex-shrink-0 overflow-hidden rounded-xl bg-surface-container-low">
-                            {display.thumbnail ? (
-                              <img src={display.thumbnail} alt={display.title} className="h-full w-full object-contain" />
-                            ) : (
-                              <div className="flex h-full w-full items-center justify-center text-on-surface-variant">
-                                <span className="material-symbols-outlined">image</span>
-                              </div>
-                            )}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-16">
+            <div className="lg:col-span-8 flex flex-col gap-10  border-t border-gray-100 pt-10">
+              {rows.map(({ line, display, valid, reason, lineTotal }) => (
+                <div
+                  key={line.id}
+                  className="flex flex-col sm:flex-row sm:items-center gap-6 lg:gap-10 border-b border-gray-200 pb-10 last:border-0 relative"
+                >
+                  {/* Image */}
+                  <div className="w-24 h-24 sm:w-32 sm:h-32 bg-gray-50 flex-shrink-0 relative rounded-sm border border-gray-200 flex items-center justify-center">
+                    {display.thumbnail ? (
+                      <img
+                        src={display.thumbnail}
+                        alt={display.title}
+                        className="w-full h-full object-contain p-2"
+                      />
+                    ) : (
+                      <Image className="text-gray-300 text-3xl" />
+                    )}
+                  </div>
+
+                  {/* Details */}
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-bold text-sm sm:text-base mb-1 pr-6 uppercase">
+                      <Link
+                        to={`/product/${display.handle ?? line.display.productHandle}`}
+                        className="hover:text-primary transition-colors"
+                      >
+                        {display.title ?? line.display.productTitle}
+                      </Link>
+                    </h3>
+                    <div className="text-gray-500 font-medium text-sm mb-4">
+                      {formatCurrency(display.priceAmount)}
+                    </div>
+                    {line.customizationSummary.length > 0 ? (
+                      <div className="text-xs sm:text-sm text-gray-500 space-y-1">
+                        {line.customizationSummary.map((entry) => (
+                          <div key={entry.fieldId}>
+                            {entry.label}: {entry.valueSummary}
                           </div>
-                          <div className="min-w-0">
-                            <Link to={`/product/${display.handle ?? line.display.productHandle}`} className="font-semibold text-on-surface hover:text-primary">
-                              {display.title ?? line.display.productTitle}
-                            </Link>
-                            <p className="mt-1 text-sm uppercase tracking-wide text-on-surface-variant">
-                              {display.variantTitle ?? line.display.variantTitle}
-                              {display.sku ? ` • ${display.sku}` : ""}
-                            </p>
-                            {line.customizationSummary.length > 0 ? (
-                              <div className="mt-3 rounded-lg border border-outline bg-surface-container-lowest px-3 py-3 text-sm text-on-surface-variant">
-                                {line.customizationSummary.map((entry) => (
-                                  <p key={entry.fieldId}>
-                                    <span className="font-medium text-on-surface">{entry.label}:</span> {entry.valueSummary}
-                                  </p>
-                                ))}
-                              </div>
-                            ) : null}
-                            {!valid ? (
-                              <p className="mt-3 text-sm text-destructive">{reasonLabel(reason)}</p>
-                            ) : null}
-                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-xs sm:text-sm text-gray-500 space-y-1">
+                        <div>Finish: Gold</div>
+                        <div>Strap Color: Black Leather</div>
+                        <div>
+                          Check here to confirm your design is correct: on
                         </div>
-                      </td>
-                      <td className="px-6 py-6 align-top">
-                        <div className="flex justify-center">
-                          <div className="inline-flex items-center overflow-hidden rounded-lg border border-outline">
-                            <button
-                              type="button"
-                              className="px-3 py-2 hover:bg-surface-container"
-                              onClick={() => updateQuantity(line.id, line.quantity - 1)}
-                            >
-                              -
-                            </button>
-                            <input
-                              type="number"
-                              min={1}
-                              value={line.quantity}
-                              onChange={(event) => {
-                                const next = Number(event.target.value);
-                                updateQuantity(line.id, Number.isFinite(next) && next > 0 ? Math.min(99, next) : 1);
-                              }}
-                              className="w-14 border-x border-outline px-2 py-2 text-center"
-                            />
-                            <button
-                              type="button"
-                              className="px-3 py-2 hover:bg-surface-container"
-                              onClick={() => updateQuantity(line.id, line.quantity + 1)}
-                            >
-                              +
-                            </button>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-6 text-right align-top font-semibold text-on-surface">
-                        {formatCurrency(lineTotal)}
-                      </td>
-                      <td className="px-6 py-6 text-right align-top">
-                        <button
-                          type="button"
-                          className="text-on-surface-variant transition hover:text-destructive"
-                          onClick={() => removeLine(line.id)}
-                        >
-                          <span className="material-symbols-outlined">delete</span>
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      </div>
+                    )}
+                    {!valid && reason ? (
+                      <p className="mt-3 text-sm text-red-500">
+                        {reasonLabel(reason)}
+                      </p>
+                    ) : null}
+                  </div>
+
+                  {/* Quantity */}
+                  <div className="flex flex-col items-start sm:items-center w-28 shrink-0">
+                    <QuantityInput
+                      value={line.quantity}
+                      min={1}
+                      max={99}
+                      onValueChange={(next) => updateQuantity(line.id, next)}
+                    />
+                  </div>
+
+                  {/* Price */}
+                  <div className="font-bold text-sm sm:text-base w-16 text-right shrink-0">
+                    {formatCurrency(lineTotal)}
+                  </div>
+
+                  {/* Remove */}
+                  <div className="absolute right-0 top-1/2 -translate-y-1/2 sm:static sm:translate-y-0 sm:w-10 flex justify-end shrink-0">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 hover:bg-transparent"
+                      onClick={() => removeLine(line.id)}
+                    >
+                      <Trash2Icon />
+                    </Button>
+                  </div>
+                </div>
+              ))}
             </div>
 
-            <aside className="rounded-2xl border border-outline bg-white p-8 shadow-sm">
-              <h2 className="border-b border-outline pb-4 font-headline-md text-2xl text-on-surface">Tóm tắt</h2>
-              <div className="mt-6 space-y-4 text-sm text-on-surface-variant">
-                <div className="flex items-center justify-between">
-                  <span>Tổng tiền hàng</span>
-                  <span className="font-semibold text-on-surface">{formatCurrency(subtotal)}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span>Vận chuyển</span>
-                  <span>Tính sau khi xác nhận</span>
-                </div>
-              </div>
-              <div className="mt-6 flex items-center justify-between border-y border-outline py-5">
-                <span className="font-semibold uppercase tracking-wide text-on-surface">Tổng cộng</span>
-                <span className="font-headline-md text-2xl text-primary">{formatCurrency(subtotal)}</span>
-              </div>
-              {hasInvalidLines ? (
-                <p className="mt-4 text-sm text-destructive">
-                  Hãy sửa hoặc xóa các dòng không còn hợp lệ trước khi tiếp tục thanh toán.
-                </p>
-              ) : null}
-              <Link
-                to={hasInvalidLines ? "#" : "/checkout"}
-                className={`mt-8 flex w-full items-center justify-center gap-2 rounded-full px-6 py-4 text-sm font-semibold uppercase tracking-wide ${
-                  hasInvalidLines
-                    ? "cursor-not-allowed bg-surface-variant text-on-surface-variant"
-                    : "bg-primary text-white"
-                }`}
-                onClick={(event) => {
-                  if (hasInvalidLines) {
-                    event.preventDefault();
-                  }
-                }}
-              >
-                Tiến hành đặt hàng
-                <span className="material-symbols-outlined text-[18px]">trending_flat</span>
-              </Link>
-            </aside>
+            <div className="lg:col-span-4">
+              <Card className="shadow-[0_2px_10px_rgba(0,0,0,0.05)] border-gray-200 rounded-none">
+                <CardContent className="p-6">
+                  <div className="flex justify-center items-center gap-2 mb-8">
+                    <ShieldCheck className="text-red-600 text-[24px]" />
+                    <span className="font-bold text-[13px] tracking-wider uppercase">
+                      <span className="text-red-600">100%</span> SATISFACTION
+                      GUARANTEE
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between py-4 border-t border-gray-200 font-medium text-sm">
+                    <span>Subtotal</span>
+                    <span className="font-bold">
+                      {formatCurrency(subtotal)}
+                    </span>
+                  </div>
+                  <Button
+                    asChild
+                    className="w-full mt-4 font-bold tracking-widest text-sm uppercase py-6"
+                    disabled={hasInvalidLines}
+                  >
+                    <Link
+                      to={hasInvalidLines ? "#" : "/checkout"}
+                      onClick={(e) => hasInvalidLines && e.preventDefault()}
+                    >
+                      CHECKOUT
+                    </Link>
+                  </Button>
+                  <div className="flex items-center justify-center gap-2 mt-5 text-sm text-gray-600">
+                    <CheckCircle className="text-[18px]" />
+                    Free Shipping Over $40!
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </div>
         )}
       </main>
+
+      {/* Recently Viewed Mock */}
+      <section className="max-w-7xl mx-auto px-4 py-20 border-t border-gray-100 mt-10">
+        <h2 className="text-center font-bold text-xl mb-12">Recently Viewed</h2>
+        <div className="flex overflow-x-auto gap-6 pb-4 md:grid md:grid-cols-5 md:overflow-visible relative items-center">
+          {[
+            {
+              title: "Square Base League Plate - Silver",
+              price: "$15",
+              image: null,
+            },
+            {
+              title: "Ultimate 6lb Custom Championship Belt",
+              price: "$199",
+              image: null,
+            },
+            {
+              title: "Magic: The Gathering - Ultimate 6lb Championship Belt",
+              price: "$199",
+              image: null,
+            },
+            {
+              title: "Customizable Chromatic Chain",
+              price: "$59",
+              image: null,
+            },
+            {
+              title:
+                '26"-56" Perpetual Fantasy Football Trophy - Black Football',
+              price: "$170",
+              image: null,
+            },
+          ].map((item, idx) => (
+            <div
+              key={idx}
+              className="flex flex-col items-center text-center shrink-0 w-[200px] md:w-auto"
+            >
+              <div className="w-full aspect-square bg-gray-50 flex items-center justify-center p-4 mb-4">
+                <Image className="text-gray-300 text-6xl" />
+              </div>
+              <h4 className="font-semibold text-xs sm:text-sm mb-1">
+                {item.title}
+              </h4>
+              <p className="text-gray-500 text-xs sm:text-sm">{item.price}</p>
+            </div>
+          ))}
+          <button className="hidden md:flex absolute -right-6 w-10 h-10 bg-white border border-gray-200 shadow-sm items-center justify-center hover:bg-gray-50">
+            <ChevronRight />
+          </button>
+        </div>
+      </section>
     </div>
   );
 }
