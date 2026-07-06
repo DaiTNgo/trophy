@@ -32,6 +32,8 @@ import type {
   ProductOptionDefinition,
   ProductVariant,
   ProductVariantMedia,
+  AdminLocale,
+  LocalizedTextValue,
 } from "../../types";
 
 export type CreateProductStep = "details" | "organize" | "variants" | "customization";
@@ -514,8 +516,39 @@ export function useCreateProduct() {
   function updateOptionDefinition(optionId: string, title: string) {
     setOptionDefinitions((current) =>
       current.map((option) =>
-        option.id === optionId ? { ...option, title } : option,
+        option.id === optionId
+          ? {
+              ...option,
+              title,
+              titleTranslations: {
+                vi: title,
+                en: option.titleTranslations?.en ?? "",
+              },
+            }
+          : option,
       ),
+    );
+  }
+
+  function updateOptionTitleTranslation(optionId: string, locale: AdminLocale, nextValue: string) {
+    setOptionDefinitions((current) =>
+      current.map((option) => {
+        if (option.id !== optionId) {
+          return option;
+        }
+
+        const nextTranslations: LocalizedTextValue = {
+          vi: option.titleTranslations?.vi ?? option.title,
+          en: option.titleTranslations?.en ?? "",
+          [locale]: nextValue,
+        };
+
+        return {
+          ...option,
+          title: nextTranslations.vi,
+          titleTranslations: nextTranslations,
+        };
+      }),
     );
   }
 
@@ -523,7 +556,7 @@ export function useCreateProduct() {
     setOptionValueDrafts((current) => ({ ...current, [optionId]: draft }));
   }
 
-  function appendOptionValue(optionId: string) {
+  function appendOptionValue(optionId: string, locale: AdminLocale = "vi") {
     const draft = optionValueDrafts[optionId] ?? "";
     const nextValues = draft
       .split(",")
@@ -540,11 +573,24 @@ export function useCreateProduct() {
         }
 
         const existing = new Set(
-          option.values.map((value) => value.value.toLowerCase()),
+          option.values.map((value) => {
+            const translations = value.valueTranslations ?? { vi: value.value, en: "" };
+            return (translations[locale] || value.value).toLowerCase();
+          }),
         );
         const appended = nextValues
           .filter((value) => !existing.has(value.toLowerCase()))
-          .map((value) => createOptionValueDefinition(value));
+          .map((value) => {
+            const nextValue = createOptionValueDefinition(locale === "vi" ? value : "");
+            return {
+              ...nextValue,
+              value: locale === "vi" ? value : "",
+              valueTranslations: {
+                vi: locale === "vi" ? value : "",
+                en: locale === "en" ? value : "",
+              },
+            };
+          });
         return {
           ...option,
           values: [...option.values, ...appended],
@@ -561,6 +607,31 @@ export function useCreateProduct() {
           ? {
               ...option,
               values: option.values.filter((value) => value.id !== valueId),
+            }
+          : option,
+      ),
+    );
+  }
+
+  function updateOptionValueTranslation(
+    optionId: string,
+    valueId: string,
+    translations: LocalizedTextValue,
+  ) {
+    setOptionDefinitions((current) =>
+      current.map((option) =>
+        option.id === optionId
+          ? {
+              ...option,
+              values: option.values.map((value) =>
+                value.id === valueId
+                  ? {
+                      ...value,
+                      value: translations.vi,
+                      valueTranslations: translations,
+                    }
+                  : value,
+              ),
             }
           : option,
       ),
@@ -810,10 +881,12 @@ export function useCreateProduct() {
     addOptionDefinition,
     removeOptionDefinition,
     updateOptionDefinition,
+    updateOptionTitleTranslation,
     setOptionValueDrafts,
     setOptionDraftValue,
     appendOptionValue,
     removeOptionValue,
+    updateOptionValueTranslation,
     setActiveStep,
     goToStep,
     continueToNextStep,

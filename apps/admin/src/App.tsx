@@ -3,6 +3,7 @@ import { AuthScreenState } from "./components/ui/medusa/auth-screen-state";
 import { AdminShell } from "./components/layout/admin-shell";
 import { AuthProvider, useAuth } from "./hooks/use-auth";
 import { CatalogProvider } from "./hooks/use-catalog";
+import { BreadcrumbProvider } from "./hooks/use-breadcrumbs";
 import { LoginPage } from "./pages/login";
 import { OnboardingPage } from "./pages/onboarding";
 import { TeamPage } from "./pages/team";
@@ -112,7 +113,9 @@ function App() {
   return (
     <AuthProvider>
       <CatalogProvider>
-        <RouterProvider router={router} />
+        <BreadcrumbProvider>
+          <RouterProvider router={router} />
+        </BreadcrumbProvider>
       </CatalogProvider>
     </AuthProvider>
   );

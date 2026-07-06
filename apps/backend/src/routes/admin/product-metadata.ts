@@ -49,7 +49,6 @@ const createCategorySchema = v.object({
 const updateCollectionSchema = v.object({
   title: v.optional(trimmedString(1, 120)),
   handle: optionalHandle,
-  description: v.optional(v.nullable(v.string())),
   imageUrl: v.optional(v.nullable(v.string())),
   position: v.optional(v.number())
 })
@@ -58,7 +57,17 @@ const updateCategorySchema = v.object({
   name: v.optional(trimmedString(1, 120)),
   handle: optionalHandle,
   description: v.optional(v.nullable(v.string())),
-  imageUrl: v.optional(v.nullable(v.string()))
+  imageUrl: v.optional(v.nullable(v.string())),
+  position: v.optional(v.number())
+})
+
+const updateCategoryRankingSchema = v.object({
+  categories: v.array(
+    v.object({
+      id: v.number(),
+      position: v.number()
+    })
+  )
 })
 
 const idParamSchema = v.object({
@@ -162,7 +171,6 @@ export const productMetadataRoute = new Hono<AppEnv>()
 
     const updates: Partial<typeof productCollections.$inferInsert> = {}
     if (parsed.output.title !== undefined) updates.title = parsed.output.title
-    if (parsed.output.description !== undefined) updates.description = parsed.output.description
     if (parsed.output.imageUrl !== undefined) updates.imageUrl = parsed.output.imageUrl
     if (parsed.output.position !== undefined) updates.position = parsed.output.position
 
@@ -216,9 +224,9 @@ export const productMetadataRoute = new Hono<AppEnv>()
     const items = await db
       .select()
       .from(productCategories)
-      .orderBy(asc(productCategories.name))
+      .orderBy(asc(productCategories.position), asc(productCategories.id))
 
-    return c.json({ items }, 200)
+    return c.json({ categories: items }, 200)
   })
   .post('/categories', async (c) => {
     const parsed = await parseJson(c, createCategorySchema)
@@ -273,6 +281,7 @@ export const productMetadataRoute = new Hono<AppEnv>()
     if (parsed.output.name !== undefined) updates.name = parsed.output.name
     if (parsed.output.description !== undefined) updates.description = parsed.output.description
     if (parsed.output.imageUrl !== undefined) updates.imageUrl = parsed.output.imageUrl
+    if (parsed.output.position !== undefined) updates.position = parsed.output.position
 
     if (parsed.output.handle !== undefined) {
       if (parsed.output.handle !== existing.handle) {
@@ -296,6 +305,23 @@ export const productMetadataRoute = new Hono<AppEnv>()
     }
 
     return c.json({ item: existing }, 200)
+  })
+  .put('/categories/ranking', async (c) => {
+    const parsed = await parseJson(c, updateCategoryRankingSchema)
+    if (!parsed.success) {
+      return parsed.response
+    }
+
+    const db = getDb(c.env)
+    const statements = parsed.output.categories.map((cat) =>
+      db
+        .update(productCategories)
+        .set({ position: cat.position })
+        .where(eq(productCategories.id, cat.id))
+    )
+
+    await db.batch(statements as any)
+    return c.json({ success: true }, 200)
   })
   .delete('/categories/:id', async (c) => {
     const idParam = v.safeParse(idParamSchema, { id: c.req.param('id') })

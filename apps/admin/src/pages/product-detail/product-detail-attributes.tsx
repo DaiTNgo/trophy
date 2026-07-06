@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Button, Container, Heading, Text, Drawer, Input } from "@medusajs/ui";
-import { ListFilter, Plus, Trash2, Edit } from "lucide-react";
+import { Button, Container, Heading, Text, Drawer, Input, DropdownMenu, IconButton } from "@medusajs/ui";
+import { Plus, Trash2, MoreHorizontal } from "lucide-react";
 import { updateProductAttributes } from "../../lib/products-client";
 import type { CatalogProduct } from "../../types";
 import { InlineError } from "../../components/ui/medusa/inline-error";
@@ -56,98 +56,97 @@ export function ProductDetailAttributes({ product, mutate }: ProductDetailAttrib
   };
 
   return (
-    <Container>
-      <div className="flex flex-col gap-y-3">
-        <div className="flex items-start justify-between">
-          <div className="flex flex-col gap-y-1">
-            <Heading level="h3">
-              <ListFilter className="-ml-1 mr-1 inline h-4 w-4 text-ui-fg-muted" />
-              Attributes
-            </Heading>
-            <Text size="small" className="text-ui-fg-subtle">
-              Optional product properties that do not affect variant combinations.
-            </Text>
-          </div>
-          <Drawer open={open} onOpenChange={handleOpen}>
-            <Drawer.Trigger asChild>
-              <Button variant="secondary" size="small">
-                <Edit className="h-4 w-4" />
+    <Container className="p-0 overflow-hidden">
+      <div className="flex flex-col">
+        <div className="flex items-center justify-between px-6 py-4">
+          <Heading level="h2" className="text-xl font-semibold">Attributes</Heading>
+          <DropdownMenu>
+            <DropdownMenu.Trigger asChild>
+              <IconButton variant="transparent" size="small">
+                <MoreHorizontal className="h-4 w-4 text-ui-fg-muted" />
+              </IconButton>
+            </DropdownMenu.Trigger>
+            <DropdownMenu.Content align="end">
+              <DropdownMenu.Item onClick={() => setOpen(true)}>
                 Edit
-              </Button>
-            </Drawer.Trigger>
-            <Drawer.Content>
-              <Drawer.Header>
-                <Drawer.Title>Edit Attributes</Drawer.Title>
-              </Drawer.Header>
-              <Drawer.Body className="flex flex-col gap-y-6 overflow-y-auto">
-                {error && <InlineError message={error} />}
-                <div className="flex flex-col gap-y-3">
-                  <div className="flex items-center justify-between">
-                    <Text size="small" className="text-ui-fg-subtle">
-                      Attributes
-                    </Text>
-                    <Button type="button" variant="secondary" size="small" onClick={addAttributeRow}>
-                      <Plus className="h-4 w-4" />
-                      Add attribute
-                    </Button>
-                  </div>
-                  {attributes.map((attribute, index) => (
-                    <div
-                      key={index}
-                      className="grid gap-3 md:grid-cols-[1fr_1fr_auto]"
-                    >
-                      <Input
-                        value={attribute.key}
-                        onChange={(e) => updateAttribute(index, "key", e.target.value)}
-                        placeholder="Attribute name"
-                      />
-                      <Input
-                        value={attribute.value}
-                        onChange={(e) => updateAttribute(index, "value", e.target.value)}
-                        placeholder="Attribute value"
-                      />
-                      <div className="flex items-end">
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          size="small"
-                          onClick={() => removeAttributeRow(index)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </Drawer.Body>
-              <Drawer.Footer>
-                <Drawer.Close asChild>
-                  <Button variant="secondary" disabled={isSubmitting}>Cancel</Button>
-                </Drawer.Close>
-                <Button onClick={() => void handleSave()} isLoading={isSubmitting}>
-                  Save
-                </Button>
-              </Drawer.Footer>
-            </Drawer.Content>
-          </Drawer>
+              </DropdownMenu.Item>
+            </DropdownMenu.Content>
+          </DropdownMenu>
         </div>
 
-        <div className="flex flex-col gap-y-4 mt-2">
-          <div>
-            <Text size="small" className="text-ui-fg-subtle font-medium">Attributes</Text>
-            {product.attributes && product.attributes.length > 0 ? (
-              <div className="grid grid-cols-2 gap-4 mt-2">
-                {product.attributes.map((attr, idx) => (
-                  <div key={idx} className="flex flex-col">
-                    <Text size="xsmall" className="text-ui-fg-muted">{attr.key}</Text>
-                    <Text size="small" className="text-ui-fg-base">{attr.value}</Text>
+        <Drawer open={open} onOpenChange={handleOpen}>
+          <Drawer.Content>
+            <Drawer.Header>
+              <Drawer.Title>Edit Attributes</Drawer.Title>
+            </Drawer.Header>
+            <Drawer.Body className="flex flex-col gap-y-6 overflow-y-auto">
+              {error && <InlineError message={error} />}
+              <div className="flex flex-col gap-y-3">
+                <div className="flex items-center justify-between">
+                  <Text size="small" className="text-ui-fg-subtle">
+                    Attributes
+                  </Text>
+                  <Button type="button" variant="secondary" size="small" onClick={addAttributeRow}>
+                    <Plus className="h-4 w-4" />
+                    Add attribute
+                  </Button>
+                </div>
+                {attributes.map((attribute, index) => (
+                  <div
+                    key={index}
+                    className="grid gap-3 md:grid-cols-[1fr_1fr_auto]"
+                  >
+                    <Input
+                      value={attribute.key}
+                      onChange={(e) => updateAttribute(index, "key", e.target.value)}
+                      placeholder="Attribute name"
+                    />
+                    <Input
+                      value={attribute.value}
+                      onChange={(e) => updateAttribute(index, "value", e.target.value)}
+                      placeholder="Attribute value"
+                    />
+                    <div className="flex items-end">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="small"
+                        onClick={() => removeAttributeRow(index)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 ))}
               </div>
-            ) : (
-              <Text size="small" className="text-ui-fg-base">No attributes defined.</Text>
-            )}
-          </div>
+            </Drawer.Body>
+            <Drawer.Footer>
+              <Drawer.Close asChild>
+                <Button variant="secondary" disabled={isSubmitting}>Cancel</Button>
+              </Drawer.Close>
+              <Button onClick={() => void handleSave()} isLoading={isSubmitting}>
+                Save
+              </Button>
+            </Drawer.Footer>
+          </Drawer.Content>
+        </Drawer>
+
+        <div className="flex flex-col">
+          {product.attributes && product.attributes.length > 0 ? (
+            product.attributes.map((attr, idx) => (
+              <div 
+                key={idx} 
+                className="grid grid-cols-2 px-6 py-4 border-t border-ui-border-base"
+              >
+                <Text size="small" className="text-ui-fg-subtle font-medium">{attr.key}</Text>
+                <Text size="small" className="text-ui-fg-base">{attr.value}</Text>
+              </div>
+            ))
+          ) : (
+            <div className="border-t border-ui-border-base px-6 py-4 flex items-center justify-center">
+              <Text size="small" className="text-ui-fg-muted">No attributes defined.</Text>
+            </div>
+          )}
         </div>
       </div>
     </Container>

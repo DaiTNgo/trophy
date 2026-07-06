@@ -33,7 +33,6 @@ export const storefrontCollectionsRoute = new Hono<AppEnv>()
         id: productCollections.id,
         title: productCollections.title,
         handle: productCollections.handle,
-        description: productCollections.description,
         imageUrl: productCollections.imageUrl,
       })
       .from(productCollections)

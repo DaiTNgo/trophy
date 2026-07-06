@@ -12,6 +12,20 @@ import type {
 } from "../types";
 import { createDraftId, slugify, splitCommaValues, buildSku } from "./utils";
 
+function createLocalizedText(value = "") {
+  return {
+    vi: value,
+    en: "",
+  };
+}
+
+function normalizeLocalizedText(value: { vi?: string; en?: string } | undefined, fallback: string) {
+  return {
+    vi: (value?.vi ?? fallback).trim(),
+    en: (value?.en ?? "").trim(),
+  };
+}
+
 const createProductSchema = v.object({
   title: v.pipe(v.string(), v.trim(), v.nonEmpty("Title is required.")),
   handle: v.optional(
@@ -28,6 +42,7 @@ export function createEmptyOptionDefinition() {
   return {
     id: createDraftId("option"),
     title: "",
+    titleTranslations: createLocalizedText(),
     values: [],
   } satisfies ProductOptionDefinition;
 }
@@ -36,6 +51,7 @@ export function createOptionValueDefinition(value: string) {
   return {
     id: createDraftId("value"),
     value: value.trim(),
+    valueTranslations: createLocalizedText(value.trim()),
   } satisfies ProductOptionValueDefinition;
 }
 
@@ -57,10 +73,12 @@ function buildOptionDefinitionsFromLegacyValues(values: CreateProductFormValues)
 function sanitizeOptionDefinitions(optionDefinitions: ProductOptionDefinition[]) {
   return optionDefinitions.map((option) => ({
     ...option,
-    title: option.title.trim(),
+    title: normalizeLocalizedText(option.titleTranslations, option.title).vi,
+    titleTranslations: normalizeLocalizedText(option.titleTranslations, option.title),
     values: option.values.map((value) => ({
       ...value,
-      value: value.value.trim(),
+      value: normalizeLocalizedText(value.valueTranslations, value.value).vi,
+      valueTranslations: normalizeLocalizedText(value.valueTranslations, value.value),
     })),
   }));
 }

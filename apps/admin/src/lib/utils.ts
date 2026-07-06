@@ -1,3 +1,9 @@
+import { clx } from "@medusajs/ui";
+
+export function cn(...inputs: any[]) {
+  return clx(...inputs);
+}
+
 export function createDraftId(prefix: string) {
   return `${prefix}_${Math.random().toString(36).slice(2, 9)}`;
 }

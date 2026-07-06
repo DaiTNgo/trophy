@@ -20,9 +20,21 @@ _Avoid_: separate product search service, admin search
 A storefront product price state where no variant has a public price amount, so the shopper is prompted to contact the business instead of seeing a numeric price.
 _Avoid_: missing price, price error
 
+**Contact Price Variant Selection**:
+The rule that a variant with Contact Price remains a valid storefront selection and can be chosen by auto-reselection. Contact Price changes the shopper call to action, not whether the variant is selectable.
+_Avoid_: unselectable quote variant, skip contact-price variant
+
+**Contact Price CTA Precedence**:
+The storefront rule that Contact Price determines the primary call to action before inventory and backorder states. A selected Contact Price variant shows the contact/inquiry action labeled "Contact for price" as primary even if inventory is zero; stock context may be shown separately.
+_Avoid_: out-of-stock quote CTA, add-to-cart contact price
+
 **Contact Price Inquiry**:
-A shopper contact flow for products or variants without a public price. It is separate from order creation because an order requires a price snapshot and total.
+A shopper contact flow for products or variants without a public price. Clicking "Contact for price" opens this inquiry flow and captures the selected product, variant, option labels/values, any customization values the shopper has entered, and shopper contact details. It does not create a cart line, checkout item, order, or order draft because an order requires a price snapshot and total, and it does not require checkout-ready customization.
 _Avoid_: zero-price order, draft checkout, unpriced order
+
+**Inquiry-Ready Variant Selection**:
+The storefront condition for starting a Contact Price inquiry: the shopper must have a valid selected variant so the inquiry can capture a variant ID and option snapshot. If the current selection is invalid, storefront auto-reselection should choose a valid variant first; if no valid variant exists, the inquiry action is disabled.
+_Avoid_: product-only inquiry, inquiry for missing variant
 
 **Admin Product Catalog**:
 The operator-facing product list used for catalog management. It may include draft, published, and archived products with fields needed for administration rather than shopper browsing.
@@ -35,6 +47,58 @@ _Avoid_: local product detail, mock product editor
 **Product Option Definition**:
 An admin-defined variation axis for a product, such as color or size, whose values can be selected by product variants.
 _Avoid_: Medusa option model, variant category
+
+**Default Product Option**:
+The product option automatically created for a product that does not have operator-defined variation axes. In the domain model it is equivalent to an operator enabling variants and defining one option titled "Default option" with one value "Default option value"; it is real option data shown in admin product detail and available to storefront variant-selection logic.
+_Avoid_: hidden option, variantless product
+
+**Product Option Rename**:
+An edit to the title of an existing product option, including the default product option. Renaming "Default option" does not convert the product into a different product mode; it edits the same option record.
+_Avoid_: convert simple product, replace option on rename
+
+**Product Option Value Edit**:
+An edit to the label of an existing product option value. The option value's identity remains the same, so variants already using it continue to point at the same value and display the renamed label.
+_Avoid_: replace option value for rename, delete-and-recreate for label changes
+
+**Product Option Value Deletion**:
+An operator action that removes an option value even if product variants currently use it. Affected variants must be reconciled by assigning another value for that option or by removing the variant.
+_Avoid_: block used value deletion, require value to be unused before deletion
+
+**Unreconciled Variant Option**:
+A temporary variant state caused by deleting an option value that the variant used. The variant may remain saved while the operator continues editing, and admin variants tables show the affected option as "Missing value". It blocks new product publish attempts; if already-published catalog data later contains an unreconciled variant, storefront keeps the product visible but disables option selections that cannot resolve to a valid variant.
+_Avoid_: forced replacement flow, hiding the whole product
+
+**Variant Option Publish Readiness**:
+The product-level publish condition that every variant must have exactly one valid value for every current product option. If any variant has an unreconciled variant option, the whole product cannot be published.
+_Avoid_: publish valid variants only, partial variant publication
+
+**Disabled Storefront Option Selection**:
+A shopper-facing option value in the current selection context that remains visible but cannot be selected because choosing it with the already selected option values would not resolve to a valid purchasable variant. Availability is evaluated by combination, not by globally hiding or disabling the option value everywhere.
+_Avoid_: hidden unavailable option, broken option click
+
+**Storefront Purchase Availability**:
+The shopper-facing state that determines whether the selected valid variant can be purchased immediately. Inventory and backorder settings affect the call to action, but they do not make an existing option combination invalid or unselectable.
+_Avoid_: disable option by stock, hide out-of-stock variant
+
+**Out of Stock CTA**:
+The storefront call to action for a selected valid variant with zero inventory and backorders disabled. The option combination remains selected, but the purchase button is disabled and labeled "Out of stock".
+_Avoid_: unavailable option, missing variant
+
+**Backorder CTA**:
+The storefront call to action for a selected valid variant with zero inventory and backorders enabled. The variant remains purchasable; until a dedicated backorder flow exists, the primary button remains "Add to cart" with backorder context shown separately.
+_Avoid_: out-of-stock backorder, disable backorder purchase
+
+**Storefront Variant Auto-Reselection**:
+The storefront behavior that moves the shopper to the first valid purchasable variant when the current option selection does not resolve to a valid variant, including initial product load and selection changes that invalidate the previous combination. "First" is determined by variant position, then variant ID as a stable tie-breaker.
+_Avoid_: dead variant selection, require shopper recovery
+
+**Default Option Value Preservation**:
+The rule that a product's default option/value remains part of the option model when real product options are added later, matching Medusa Admin behavior. Existing variants receive a default value for newly introduced options until the operator edits them.
+_Avoid_: replace default option, discard simple-product option
+
+**Default Option Auto-Selection**:
+The storefront behavior for a product whose only selectable option path is "Default option" / "Default option value": the option is treated as real product data but may be selected automatically so shoppers are not forced to click a meaningless single choice before purchase.
+_Avoid_: hidden default option, required default click
 
 **Product Variant**:
 A purchasable product row representing one concrete option selection, with its own title, SKU, price, inventory, backorder setting, and variant media.

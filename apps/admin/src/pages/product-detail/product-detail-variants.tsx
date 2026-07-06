@@ -16,23 +16,18 @@ import {
 import {
   Boxes,
   DollarSign,
+  Image as ImageIcon,
   ImagePlus,
-  Package,
+  MoreHorizontal,
   Pencil,
-  Plus,
   Trash,
 } from "lucide-react";
+import { DropdownMenu } from "@medusajs/ui";
 import { AdminMedia } from "../../components/ui/admin-media";
 import { InlineError } from "../../components/ui/medusa/inline-error";
 import {
-  createProductOption,
-  createProductOptionValue,
   createProductVariant,
-  deleteProductOption,
-  deleteProductOptionValue,
   deleteProductVariant,
-  updateProductOption,
-  updateProductOptionValue,
   updateProductVariantDetails,
   updateProductVariantMedia,
   updateProductVariantPrices,
@@ -40,18 +35,11 @@ import {
 } from "../../lib/products-client";
 import { uploadProductVariantMedia } from "../../lib/product-assets-client";
 import { convertPdfToImageFile } from "../../lib/pdf-preview";
-import { formatCurrency } from "../../lib/utils";
 import type { CatalogProduct } from "../../types";
 
 type ProductDetailVariantsProps = {
   product: CatalogProduct;
   mutate: () => Promise<void>;
-};
-
-type OptionDraft = {
-  id: number | null;
-  title: string;
-  values: Array<{ id: number | null; value: string }>;
 };
 
 type VariantFormState = {
@@ -68,28 +56,6 @@ type MediaDraft = {
   mimeType: string;
   fileName: string;
 };
-
-function getBadgeColor(status: string): "green" | "red" | "blue" | "orange" | "grey" | "purple" {
-  switch (status) {
-    case "Published":
-      return "green";
-    case "Draft":
-      return "grey";
-    default:
-      return "grey";
-  }
-}
-
-function buildOptionDrafts(product: CatalogProduct): OptionDraft[] {
-  return product.optionDefinitions.map((option) => ({
-    id: Number(option.id),
-    title: option.title,
-    values: option.values.map((value) => ({
-      id: Number(value.id),
-      value: value.value,
-    })),
-  }));
-}
 
 function buildVariantForm(product: CatalogProduct, variant?: CatalogProduct["variants"][number]): VariantFormState {
   const optionSelections = Object.fromEntries(
@@ -120,26 +86,22 @@ function buildMediaDraft(variant: CatalogProduct["variants"][number]): MediaDraf
 }
 
 export function ProductDetailVariants({ product, mutate }: ProductDetailVariantsProps) {
-  const [optionsOpen, setOptionsOpen] = useState(false);
   const [priceOpen, setPriceOpen] = useState(false);
   const [stockOpen, setStockOpen] = useState(false);
   const [variantOpen, setVariantOpen] = useState(false);
   const [mediaOpen, setMediaOpen] = useState(false);
 
-  const [optionsDrafts, setOptionsDrafts] = useState<OptionDraft[]>([]);
   const [priceRows, setPriceRows] = useState<Array<{ id: number; title: string; priceAmount: string }>>([]);
   const [stockRows, setStockRows] = useState<Array<{ id: number; title: string; inventoryQuantity: string }>>([]);
   const [variantForm, setVariantForm] = useState<VariantFormState>(() => buildVariantForm(product));
   const [mediaVariantId, setMediaVariantId] = useState<number | null>(null);
   const [mediaDrafts, setMediaDrafts] = useState<MediaDraft[]>([]);
 
-  const [optionsError, setOptionsError] = useState<string | null>(null);
   const [priceError, setPriceError] = useState<string | null>(null);
   const [stockError, setStockError] = useState<string | null>(null);
   const [variantError, setVariantError] = useState<string | null>(null);
   const [mediaError, setMediaError] = useState<string | null>(null);
 
-  const [isSavingOptions, setIsSavingOptions] = useState(false);
   const [isSavingPrices, setIsSavingPrices] = useState(false);
   const [isSavingStock, setIsSavingStock] = useState(false);
   const [isSavingVariant, setIsSavingVariant] = useState(false);
@@ -147,12 +109,6 @@ export function ProductDetailVariants({ product, mutate }: ProductDetailVariants
   const [isUploadingMedia, setIsUploadingMedia] = useState(false);
 
   const mediaInputRef = useRef<HTMLInputElement | null>(null);
-
-  function openOptions() {
-    setOptionsDrafts(buildOptionDrafts(product));
-    setOptionsError(null);
-    setOptionsOpen(true);
-  }
 
   function openPrices() {
     setPriceRows(
@@ -191,78 +147,6 @@ export function ProductDetailVariants({ product, mutate }: ProductDetailVariants
     setMediaOpen(true);
   }
 
-  async function saveOptions() {
-    setIsSavingOptions(true);
-    setOptionsError(null);
-
-    try {
-      const snapshot = buildOptionDrafts(product);
-      const nextDrafts = optionsDrafts
-        .map((option) => ({
-          ...option,
-          title: option.title.trim(),
-          values: option.values
-            .map((value) => ({ ...value, value: value.value.trim() }))
-            .filter((value) => value.value !== ""),
-        }))
-        .filter((option) => option.title !== "");
-
-      const removedOptionIds = snapshot
-        .filter((option) => !nextDrafts.some((draft) => draft.id === option.id))
-        .map((option) => option.id!)
-        .filter(Boolean);
-
-      for (const optionId of removedOptionIds) {
-        await deleteProductOption(product.id, optionId);
-      }
-
-      const existingDrafts = nextDrafts.filter((option) => option.id !== null);
-      for (const draft of existingDrafts) {
-        const original = snapshot.find((option) => option.id === draft.id);
-        if (!original) {
-          continue;
-        }
-
-        if (original.title !== draft.title) {
-          await updateProductOption(product.id, draft.id!, { title: draft.title });
-        }
-
-        const removedValueIds = original.values
-          .filter((value) => !draft.values.some((draftValue) => draftValue.id === value.id))
-          .map((value) => value.id!)
-          .filter(Boolean);
-
-        for (const valueId of removedValueIds) {
-          await deleteProductOptionValue(product.id, valueId);
-        }
-
-        for (const valueDraft of draft.values.filter((value) => value.id !== null)) {
-          const originalValue = original.values.find((value) => value.id === valueDraft.id);
-          if (originalValue && originalValue.value !== valueDraft.value) {
-            await updateProductOptionValue(product.id, valueDraft.id!, { value: valueDraft.value });
-          }
-        }
-
-        for (const valueDraft of draft.values.filter((value) => value.id === null)) {
-          await createProductOptionValue(product.id, draft.id!, { value: valueDraft.value });
-        }
-      }
-
-      for (const draft of nextDrafts.filter((option) => option.id === null)) {
-        await createProductOption(product.id, {
-          title: draft.title,
-          values: draft.values.map((value) => value.value),
-        });
-      }
-
-      await mutate();
-      setOptionsOpen(false);
-    } catch (error) {
-      setOptionsError(error instanceof Error ? error.message : "Failed to save option changes.");
-    } finally {
-      setIsSavingOptions(false);
-    }
-  }
 
   async function savePrices() {
     setIsSavingPrices(true);
@@ -419,51 +303,52 @@ export function ProductDetailVariants({ product, mutate }: ProductDetailVariants
   }
 
   return (
-    <Container>
-      <div className="flex flex-col gap-y-4">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-          <div className="flex flex-col gap-y-1">
-            <Heading level="h3">
-              <Package className="-ml-1 mr-1 inline h-4 w-4 text-ui-fg-muted" />
-              Variants and pricing
-            </Heading>
-            <Text size="small" className="text-ui-fg-subtle">
-              Manage product options, variant rows, prices, stock, and variant media.
-            </Text>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button variant="secondary" size="small" onClick={openOptions}>
-              <Pencil className="h-4 w-4" />
-              Manage options
-            </Button>
-            <Button variant="secondary" size="small" onClick={() => openVariantEditor()}>
-              <Plus className="h-4 w-4" />
-              Create variant
-            </Button>
-            <Button variant="secondary" size="small" onClick={openPrices}>
-              <DollarSign className="h-4 w-4" />
-              Edit prices
-            </Button>
-            <Button variant="secondary" size="small" onClick={openStock}>
-              <Boxes className="h-4 w-4" />
-              Edit stock
+    <Container className="p-0 overflow-hidden">
+      <div className="flex flex-col">
+        <div className="flex flex-col gap-3 px-6 py-4 lg:flex-row lg:items-center lg:justify-between ">
+          <Heading level="h2" className="text-xl font-semibold">
+            Variants
+          </Heading>
+          <div className="flex flex-wrap items-center gap-2">
+            <DropdownMenu>
+              <DropdownMenu.Trigger asChild>
+                <Button variant="secondary" size="small" className="px-2 flex items-center justify-center h-[28px]">
+                  <span className="sr-only">More</span>
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenu.Trigger>
+              <DropdownMenu.Content align="end">
+                <DropdownMenu.Item onClick={openPrices}>
+                  <DollarSign className="mr-2 h-4 w-4" />
+                  Edit prices
+                </DropdownMenu.Item>
+                <DropdownMenu.Item onClick={openStock}>
+                  <Boxes className="mr-2 h-4 w-4" />
+                  Edit stock
+                </DropdownMenu.Item>
+              </DropdownMenu.Content>
+            </DropdownMenu>
+            <Button variant="secondary" size="small" className="h-[28px]" onClick={() => openVariantEditor()}>
+              Create
             </Button>
           </div>
         </div>
 
-        {variantError ? <InlineError message={variantError} /> : null}
+        <div className="flex flex-col">
+          {variantError ? <div className="px-6 pt-4"><InlineError message={variantError} /></div> : null}
 
-        <div className="overflow-x-auto rounded-lg border border-ui-border-base">
-          <Table>
+          <div className="overflow-x-auto">
+            <Table>
             <Table.Header>
               <Table.Row>
-                <Table.HeaderCell>Variant</Table.HeaderCell>
-                <Table.HeaderCell>Options</Table.HeaderCell>
-                <Table.HeaderCell>Price</Table.HeaderCell>
-                <Table.HeaderCell>Stock</Table.HeaderCell>
-                <Table.HeaderCell>Backorder</Table.HeaderCell>
-                <Table.HeaderCell>Media</Table.HeaderCell>
-                <Table.HeaderCell>Actions</Table.HeaderCell>
+                <Table.HeaderCell className="w-12 pl-6" />
+                <Table.HeaderCell>Title</Table.HeaderCell>
+                <Table.HeaderCell>SKU</Table.HeaderCell>
+                {product.optionDefinitions.map((opt) => (
+                  <Table.HeaderCell key={opt.id}>{opt.title}</Table.HeaderCell>
+                ))}
+                <Table.HeaderCell>Inventory</Table.HeaderCell>
+                <Table.HeaderCell className="w-12 pr-6" />
               </Table.Row>
             </Table.Header>
             <Table.Body>
@@ -484,211 +369,80 @@ export function ProductDetailVariants({ product, mutate }: ProductDetailVariants
               ) : null}
               {product.variants.map((variant) => (
                 <Table.Row key={variant.id}>
-                  <Table.Cell>
-                    <div className="flex flex-col gap-y-1">
-                      <Text size="small" weight="plus">
-                        {variant.title}
-                      </Text>
-                      <Text size="small" className="text-ui-fg-subtle">
-                        {variant.sku || "No SKU"}
-                      </Text>
+                  <Table.Cell className="pl-6">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-md border border-ui-border-base bg-ui-bg-subtle overflow-hidden">
+                      {variant.media.length > 0 ? (
+                        <AdminMedia
+                          src={variant.media[0].contentUrl}
+                          mimeType={variant.media[0].mimeType}
+                          alt={variant.title}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <ImageIcon className="h-4 w-4 text-ui-fg-muted" />
+                      )}
                     </div>
+                  </Table.Cell>
+                  <Table.Cell>
+                    <Text size="small" className="text-ui-fg-base">
+                      {variant.title}
+                    </Text>
                   </Table.Cell>
                   <Table.Cell>
                     <Text size="small" className="text-ui-fg-subtle">
-                      {variant.options.length > 0
-                        ? variant.options.map((item) => `${item.option}: ${item.value}`).join(" • ")
-                        : "No option selections"}
+                      {variant.sku || "-"}
                     </Text>
                   </Table.Cell>
+                  {product.optionDefinitions.map((opt) => {
+                    const selected = variant.options.find((o) => o.option === opt.title);
+                    return (
+                      <Table.Cell key={opt.id}>
+                        {selected ? (
+                          <Badge size="xsmall" className="font-normal text-ui-fg-subtle">
+                            {selected.value}
+                          </Badge>
+                        ) : (
+                          <Text size="small" className="text-ui-fg-subtle">-</Text>
+                        )}
+                      </Table.Cell>
+                    );
+                  })}
                   <Table.Cell>
-                    <Text size="small">
-                      {variant.price > 0 ? formatCurrency(variant.price) : "Contact price"}
+                    <Text size="small" className="text-ui-fg-subtle">
+                      {variant.inventory} available
                     </Text>
                   </Table.Cell>
-                  <Table.Cell>
-                    <Text size="small">{variant.inventory}</Text>
-                  </Table.Cell>
-                  <Table.Cell>
-                    <Badge color={variant.allowBackorder ? "orange" : "grey"} size="xsmall">
-                      {variant.allowBackorder ? "Allowed" : "Disabled"}
-                    </Badge>
-                  </Table.Cell>
-                  <Table.Cell>
-                    <Button
-                      variant="transparent"
-                      size="small"
-                      onClick={() => openMediaEditor(variant)}
-                    >
-                      <ImagePlus className="h-4 w-4" />
-                      {variant.media.length} assets
-                    </Button>
-                  </Table.Cell>
-                  <Table.Cell>
-                    <div className="flex flex-wrap gap-2">
-                      <Button
-                        variant="secondary"
-                        size="small"
-                        onClick={() => openVariantEditor(variant)}
-                      >
-                        <Pencil className="h-4 w-4" />
-                        Edit
-                      </Button>
-                      <Button
-                        variant="secondary"
-                        size="small"
-                        onClick={() => void handleDeleteVariant(Number(variant.id))}
-                      >
-                        <Trash className="h-4 w-4" />
-                        Delete
-                      </Button>
-                    </div>
+                  <Table.Cell className="pr-6">
+                    <DropdownMenu>
+                      <DropdownMenu.Trigger asChild>
+                        <IconButton variant="transparent" size="small">
+                          <MoreHorizontal className="h-4 w-4 text-ui-fg-muted" />
+                        </IconButton>
+                      </DropdownMenu.Trigger>
+                      <DropdownMenu.Content align="end">
+                        <DropdownMenu.Item onClick={() => openVariantEditor(variant)}>
+                          <Pencil className="mr-2 h-4 w-4" />
+                          Edit
+                        </DropdownMenu.Item>
+                        <DropdownMenu.Item onClick={() => openMediaEditor(variant)}>
+                          <ImagePlus className="mr-2 h-4 w-4" />
+                          Edit Media
+                        </DropdownMenu.Item>
+                        <DropdownMenu.Separator />
+                        <DropdownMenu.Item onClick={() => void handleDeleteVariant(Number(variant.id))}>
+                          <Trash className="mr-2 h-4 w-4 text-ui-fg-error" />
+                          Delete
+                        </DropdownMenu.Item>
+                      </DropdownMenu.Content>
+                    </DropdownMenu>
                   </Table.Cell>
                 </Table.Row>
               ))}
             </Table.Body>
           </Table>
         </div>
-
-        <div className="rounded-lg border border-ui-border-base bg-ui-bg-subtle p-4">
-          <div className="flex items-center justify-between">
-            <Text size="small" weight="plus">
-              Product status
-            </Text>
-            <Badge color={getBadgeColor(product.status)} size="xsmall" rounded="full">
-              {product.status}
-            </Badge>
-          </div>
-          <Text size="small" className="mt-2 text-ui-fg-subtle">
-            Product detail now manages options, variants, prices, stock, and variant media through
-            separate actions. This page edits Trophy product fields only.
-          </Text>
         </div>
       </div>
-
-      <Drawer open={optionsOpen} onOpenChange={setOptionsOpen}>
-        <Drawer.Content>
-          <Drawer.Header>
-            <Drawer.Title>Manage options</Drawer.Title>
-          </Drawer.Header>
-          <Drawer.Body className="flex flex-col gap-y-6 overflow-y-auto">
-            {optionsError ? <InlineError message={optionsError} /> : null}
-            {optionsDrafts.map((option, optionIndex) => (
-              <div key={`${option.id ?? "new"}-${optionIndex}`} className="rounded-lg border border-ui-border-base p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex-1 space-y-3">
-                    <div className="space-y-1.5">
-                      <Label size="small">Option title</Label>
-                      <Input
-                        value={option.title}
-                        onChange={(event) =>
-                          setOptionsDrafts((current) =>
-                            current.map((item, currentIndex) =>
-                              currentIndex === optionIndex ? { ...item, title: event.target.value } : item,
-                            ),
-                          )
-                        }
-                        placeholder="Color"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label size="small">Values</Label>
-                      {option.values.map((value, valueIndex) => (
-                        <div key={`${value.id ?? "new"}-${valueIndex}`} className="flex gap-2">
-                          <Input
-                            value={value.value}
-                            onChange={(event) =>
-                              setOptionsDrafts((current) =>
-                                current.map((item, currentIndex) =>
-                                  currentIndex === optionIndex
-                                    ? {
-                                        ...item,
-                                        values: item.values.map((innerValue, innerIndex) =>
-                                          innerIndex === valueIndex
-                                            ? { ...innerValue, value: event.target.value }
-                                            : innerValue,
-                                        ),
-                                      }
-                                    : item,
-                                ),
-                              )
-                            }
-                            placeholder="Red"
-                          />
-                          <IconButton
-                            type="button"
-                            variant="transparent"
-                            onClick={() =>
-                              setOptionsDrafts((current) =>
-                                current.map((item, currentIndex) =>
-                                  currentIndex === optionIndex
-                                    ? {
-                                        ...item,
-                                        values: item.values.filter((_, innerIndex) => innerIndex !== valueIndex),
-                                      }
-                                    : item,
-                                ),
-                              )
-                            }
-                          >
-                            <Trash className="h-4 w-4 text-ui-fg-error" />
-                          </IconButton>
-                        </div>
-                      ))}
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="small"
-                        onClick={() =>
-                          setOptionsDrafts((current) =>
-                            current.map((item, currentIndex) =>
-                              currentIndex === optionIndex
-                                ? { ...item, values: [...item.values, { id: null, value: "" }] }
-                                : item,
-                            ),
-                          )
-                        }
-                      >
-                        <Plus className="h-4 w-4" />
-                        Add value
-                      </Button>
-                    </div>
-                  </div>
-                  <IconButton
-                    type="button"
-                    variant="transparent"
-                    onClick={() =>
-                      setOptionsDrafts((current) => current.filter((_, currentIndex) => currentIndex !== optionIndex))
-                    }
-                  >
-                    <Trash className="h-4 w-4 text-ui-fg-error" />
-                  </IconButton>
-                </div>
-              </div>
-            ))}
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() =>
-                setOptionsDrafts((current) => [...current, { id: null, title: "", values: [] }])
-              }
-            >
-              <Plus className="h-4 w-4" />
-              Add option
-            </Button>
-          </Drawer.Body>
-          <Drawer.Footer>
-            <Drawer.Close asChild>
-              <Button variant="secondary" disabled={isSavingOptions}>
-                Cancel
-              </Button>
-            </Drawer.Close>
-            <Button onClick={() => void saveOptions()} isLoading={isSavingOptions}>
-              Save option changes
-            </Button>
-          </Drawer.Footer>
-        </Drawer.Content>
-      </Drawer>
 
       <Drawer open={priceOpen} onOpenChange={setPriceOpen}>
         <Drawer.Content>

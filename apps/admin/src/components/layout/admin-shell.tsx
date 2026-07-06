@@ -2,7 +2,9 @@ import { useCallback, useEffect, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router";
 import { IconButton, Text } from "@medusajs/ui";
 import { Bell, PanelLeft } from "lucide-react";
+import { Link } from "react-router";
 import { useAuth } from "../../hooks/use-auth";
+import { useBreadcrumbs } from "../../hooks/use-breadcrumbs";
 import { shellSections } from "../../lib/sidebar-config";
 import {
   Shell,
@@ -39,6 +41,7 @@ export function AdminShell() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const accountLabel = auth.user?.username ?? auth.user?.name ?? "admin";
+  const { breadcrumbs } = useBreadcrumbs();
   const currentSection =
     shellSections.find((s) =>
       s.prefixes.some((p) => location.pathname === p || location.pathname.startsWith(`${p}/`)),
@@ -88,9 +91,26 @@ export function AdminShell() {
             <IconButton variant="transparent" onClick={handleToggle}>
               <PanelLeft className="h-4 w-4" />
             </IconButton>
-            <Text size="small" weight="plus" className="text-gray-500">
-              {currentSection}
-            </Text>
+            {breadcrumbs.length > 0 ? (
+              <div className="flex items-center gap-x-2 text-sm">
+                {breadcrumbs.map((crumb, idx) => (
+                  <span key={idx} className="flex items-center gap-x-2">
+                    {idx > 0 && <span className="text-ui-fg-muted">▸</span>}
+                    {crumb.path ? (
+                      <Link to={crumb.path} className="text-ui-fg-muted hover:text-ui-fg-base transition-colors">
+                        {crumb.label}
+                      </Link>
+                    ) : (
+                      <span className="text-ui-fg-base">{crumb.label}</span>
+                    )}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <Text size="small" weight="plus" className="text-gray-500">
+                {currentSection}
+              </Text>
+            )}
           </div>
           <IconButton variant="transparent">
             <Bell className="h-4 w-4" />

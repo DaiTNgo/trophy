@@ -93,6 +93,10 @@ export type ProductVariantMedia = {
   isPending?: boolean;
 };
 
+export type AdminLocale = "vi" | "en";
+
+export type LocalizedTextValue = Record<AdminLocale, string>;
+
 export type ProductVariant = {
   id: string;
   title: string;
@@ -114,12 +118,14 @@ export type VariantOptionValue = {
 export type ProductOptionDefinition = {
   id: string;
   title: string;
+  titleTranslations?: LocalizedTextValue;
   values: ProductOptionValueDefinition[];
 };
 
 export type ProductOptionValueDefinition = {
   id: string;
   value: string;
+  valueTranslations?: LocalizedTextValue;
 };
 
 export type ProductAttribute = {

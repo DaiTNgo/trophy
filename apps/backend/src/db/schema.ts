@@ -135,7 +135,6 @@ export const productCollections = sqliteTable(
     id: integer("id").primaryKey({ autoIncrement: true }),
     title: text("title").notNull(),
     handle: text("handle").notNull(),
-    description: text("description"),
     imageUrl: text("image_url"),
     position: integer("position").notNull().default(0),
   },
@@ -150,6 +149,7 @@ export const productCategories = sqliteTable(
     handle: text("handle").notNull(),
     description: text("description"),
     imageUrl: text("image_url"),
+    position: integer("position").notNull().default(0),
   },
   (table) => [uniqueIndex("product_categories_handle_idx").on(table.handle)],
 );

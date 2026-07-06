@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router";
 import { Badge, Button, Container, Heading, Text } from "@medusajs/ui";
-import { Paintbrush, Play, Trash2 } from "lucide-react";
+import { Play, Trash2 } from "lucide-react";
 import { updateProductCustomization } from "../../lib/products-client";
 import type { CatalogProduct } from "../../types";
 import { InlineError } from "../../components/ui/medusa/inline-error";
@@ -50,12 +50,11 @@ export function ProductDetailCustomization({ product, mutate }: ProductDetailCus
   };
 
   return (
-    <Container>
-      <div className="flex flex-col gap-y-3">
-        <div className="flex items-start justify-between">
+    <Container className="p-0 overflow-hidden">
+      <div className="flex flex-col">
+        <div className="flex items-center justify-between px-6 py-4">
           <div className="flex flex-col gap-y-1">
-            <Heading level="h3">
-              <Paintbrush className="-ml-1 mr-1 inline h-4 w-4 text-ui-fg-muted" />
+            <Heading level="h2" className="text-xl font-semibold">
               Customization
             </Heading>
             <Text size="small" className="text-ui-fg-subtle">
@@ -79,45 +78,47 @@ export function ProductDetailCustomization({ product, mutate }: ProductDetailCus
         {error && <InlineError message={error} />}
 
         {customization?.enabled && (
-          <div className="rounded-lg border border-ui-border-base bg-ui-bg-subtle p-5 mt-2">
-            <div className="flex items-center justify-between">
-              <div className="flex flex-col gap-y-1">
-                <Text size="small" className="text-ui-fg-base font-medium">
-                  Customization Editor
-                </Text>
-                <Text size="xsmall" className="text-ui-fg-muted">
-                  Design the layout and inputs for this product.
-                </Text>
+          <div className="border-t border-ui-border-base px-6 py-4">
+            <div className="rounded-lg border border-ui-border-base bg-ui-bg-subtle p-5">
+              <div className="flex items-center justify-between">
+                <div className="flex flex-col gap-y-1">
+                  <Text size="small" className="text-ui-fg-base font-medium">
+                    Customization Editor
+                  </Text>
+                  <Text size="xsmall" className="text-ui-fg-muted">
+                    Design the layout and inputs for this product.
+                  </Text>
+                </div>
+                <Badge color="green" size="xsmall" rounded="full">
+                  Enabled
+                </Badge>
               </div>
-              <Badge color="green" size="xsmall" rounded="full">
-                Enabled
-              </Badge>
-            </div>
-            
-            <div className="mt-4 grid gap-4 grid-cols-2 md:grid-cols-4">
-              <div className="flex flex-col">
-                <Text size="xsmall" className="text-ui-fg-muted">Canvas size</Text>
-                <Text size="small" className="text-ui-fg-base">
-                  {customization.canvasWidthPx && customization.canvasHeightPx 
-                    ? `${customization.canvasWidthPx}x${customization.canvasHeightPx}`
-                    : "Not set"}
-                </Text>
-              </div>
-              <div className="flex flex-col">
-                <Text size="xsmall" className="text-ui-fg-muted">Layers</Text>
-                <Text size="small" className="text-ui-fg-base">{customization.layerCount}</Text>
-              </div>
-              <div className="flex flex-col">
-                <Text size="xsmall" className="text-ui-fg-muted">Form fields</Text>
-                <Text size="small" className="text-ui-fg-base">{customization.formFieldCount}</Text>
-              </div>
-              <div className="flex items-center justify-end">
-                <Button variant="secondary" size="small" asChild>
-                  <Link to={`/products/${product.id}/customization`}>
-                    <Play className="h-4 w-4" />
-                    Open Editor
-                  </Link>
-                </Button>
+              
+              <div className="mt-4 grid gap-4 grid-cols-2 md:grid-cols-4">
+                <div className="flex flex-col">
+                  <Text size="xsmall" className="text-ui-fg-muted">Canvas size</Text>
+                  <Text size="small" className="text-ui-fg-base">
+                    {customization.canvasWidthPx && customization.canvasHeightPx 
+                      ? `${customization.canvasWidthPx}x${customization.canvasHeightPx}`
+                      : "Not set"}
+                  </Text>
+                </div>
+                <div className="flex flex-col">
+                  <Text size="xsmall" className="text-ui-fg-muted">Layers</Text>
+                  <Text size="small" className="text-ui-fg-base">{customization.layerCount}</Text>
+                </div>
+                <div className="flex flex-col">
+                  <Text size="xsmall" className="text-ui-fg-muted">Form fields</Text>
+                  <Text size="small" className="text-ui-fg-base">{customization.formFieldCount}</Text>
+                </div>
+                <div className="flex items-center justify-end">
+                  <Button variant="secondary" size="small" asChild>
+                    <Link to={`/products/${product.id}/customization`}>
+                      <Play className="h-4 w-4" />
+                      Open Editor
+                    </Link>
+                  </Button>
+                </div>
               </div>
             </div>
           </div>

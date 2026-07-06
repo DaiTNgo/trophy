@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   Badge,
   Button,
@@ -10,9 +11,15 @@ import {
   Textarea,
 } from "@medusajs/ui";
 import { X } from "lucide-react";
-import { InlineError } from "../../components/ui/medusa/inline-error";
+import {
+  InlineError,
+  LocalizedTextField,
+  createLocalizedText,
+  getMissingLocalizedTextLocales,
+} from "../../components/ui/medusa";
 import { buildVariantSignature } from "./use-create-product";
 import { hasEmbeddedCustomizationDraft } from "../create-product-helpers";
+import type { AdminLocale, LocalizedTextValue, ProductOptionValueDefinition } from "../../types";
 import type { useCreateProduct } from "./use-create-product";
 
 type CreateProductDetailsProps = {
@@ -20,6 +27,8 @@ type CreateProductDetailsProps = {
 };
 
 export function CreateProductDetails({ state }: CreateProductDetailsProps) {
+  const [optionTitleLocales, setOptionTitleLocales] = useState<Record<string, AdminLocale>>({});
+
   const {
     values,
     setValue,
@@ -38,9 +47,22 @@ export function CreateProductDetails({ state }: CreateProductDetailsProps) {
     optionValueDrafts,
     appendOptionValue,
     removeOptionValue,
-    updateOptionDefinition,
+    updateOptionTitleTranslation,
+    updateOptionValueTranslation,
     removeOptionDefinition,
   } = state;
+
+  function getOptionTitleLocale(optionId: string) {
+    return optionTitleLocales[optionId] ?? "vi";
+  }
+
+  function setOptionTitleLocale(optionId: string, locale: AdminLocale) {
+    setOptionTitleLocales((current) => ({ ...current, [optionId]: locale }));
+  }
+
+  function getOptionValueTranslations(value: ProductOptionValueDefinition): LocalizedTextValue {
+    return value.valueTranslations ?? createLocalizedText(value.value);
+  }
 
   return (
     <div className="space-y-8 ">
@@ -242,7 +264,11 @@ export function CreateProductDetails({ state }: CreateProductDetailsProps) {
           ) : null}
 
           <div className="space-y-4">
-            {optionDefinitions.map((option) => (
+            {optionDefinitions.map((option) => {
+              const optionTitleLocale = getOptionTitleLocale(option.id);
+              const optionTitleTranslations = option.titleTranslations ?? createLocalizedText(option.title);
+
+              return (
               <div
                 key={option.id}
                 className="rounded-xl border border-ui-border-base p-4"
@@ -257,30 +283,76 @@ export function CreateProductDetails({ state }: CreateProductDetailsProps) {
                     </Text>
                   </div>
                   <div className="space-y-3">
-                    <Input
-                      value={option.title}
-                      onChange={(event) =>
-                        updateOptionDefinition(option.id, event.target.value)
+                    <LocalizedTextField
+                      id={`option-${option.id}-title`}
+                      value={optionTitleTranslations}
+                      locale={optionTitleLocale}
+                      onLocaleChange={(locale) => setOptionTitleLocale(option.id, locale)}
+                      onChange={(translations) =>
+                        updateOptionTitleTranslation(
+                          option.id,
+                          optionTitleLocale,
+                          translations[optionTitleLocale],
+                        )
                       }
-                      placeholder="Color"
+                      placeholder={{
+                        vi: "Mau sac",
+                        en: "Color",
+                      }}
                     />
                     <div className="rounded-md border border-ui-border-base bg-ui-bg-field px-3 py-2 shadow-buttons-neutral">
                       <div className="flex flex-wrap gap-2">
-                        {option.values.map((value) => (
-                          <Badge key={value.id} size="xsmall" color="blue">
-                            {value.value}
+                        {option.values.map((value) => {
+                          const valueTranslations = getOptionValueTranslations(value);
+                          const missingLocales = getMissingLocalizedTextLocales(valueTranslations);
+
+                          return (
+                          <Badge
+                            key={value.id}
+                            size="xsmall"
+                            color={missingLocales.length > 0 ? "orange" : "blue"}
+                            className="gap-x-1.5 py-1"
+                          >
+                            <input
+                              value={valueTranslations.vi}
+                              onChange={(event) =>
+                                updateOptionValueTranslation(option.id, value.id, {
+                                  ...valueTranslations,
+                                  vi: event.target.value,
+                                })
+                              }
+                              className="min-w-[2ch] max-w-[16ch] bg-transparent text-xs outline-none placeholder:text-ui-fg-muted"
+                              style={{ width: `${Math.max(valueTranslations.vi.length, 2)}ch` }}
+                              placeholder="__"
+                              aria-label="Vietnamese option value"
+                            />
+                            <span className="text-ui-fg-muted">/</span>
+                            <input
+                              value={valueTranslations.en}
+                              onChange={(event) =>
+                                updateOptionValueTranslation(option.id, value.id, {
+                                  ...valueTranslations,
+                                  en: event.target.value,
+                                })
+                              }
+                              className="min-w-[2ch] max-w-[16ch] bg-transparent text-xs outline-none placeholder:text-ui-fg-muted"
+                              style={{ width: `${Math.max(valueTranslations.en.length, 2)}ch` }}
+                              placeholder="__"
+                              aria-label="English option value"
+                            />
                             <button
                               type="button"
-                              className="ml-1 inline-flex"
+                              className="inline-flex"
                               onClick={() =>
                                 removeOptionValue(option.id, value.id)
                               }
-                              aria-label={`Remove ${value.value}`}
+                              aria-label="Remove option value"
                             >
                               <X className="size-3" />
                             </button>
                           </Badge>
-                        ))}
+                          );
+                        })}
                         <input
                           value={optionValueDrafts[option.id] ?? ""}
                           onChange={(event) =>
@@ -290,7 +362,7 @@ export function CreateProductDetails({ state }: CreateProductDetailsProps) {
                           onKeyDown={(event) => {
                             if (event.key === "Enter" || event.key === ",") {
                               event.preventDefault();
-                              appendOptionValue(option.id);
+                              appendOptionValue(option.id, "vi");
                             }
                           }}
                           className="min-w-[180px] flex-1 border-0 bg-transparent text-sm outline-none placeholder:text-ui-fg-muted"
@@ -315,7 +387,8 @@ export function CreateProductDetails({ state }: CreateProductDetailsProps) {
                   </div>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
 
           {errors.optionDefinitions ? (
