@@ -1,6 +1,13 @@
 import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm'
 import { Hono } from 'hono'
 import * as v from 'valibot'
+import {
+  buildRuntimeImageIconLayer,
+  getFormFieldForLayer,
+  type CustomizationFormField,
+  type CustomizationLayer,
+  type ProductCustomization,
+} from "@trophy/customization";
 import { getDb } from '../../db/client'
 import {
   productAttributes,
@@ -89,6 +96,50 @@ function parseQuery<TOutput>(
   }
 
   return { success: true as const, output: result.output }
+}
+
+export function sanitizeShopperCustomization(customization: ProductCustomization) {
+  return {
+    enabled: customization.enabled,
+    canvasWidthPx: customization.canvasWidthPx,
+    canvasHeightPx: customization.canvasHeightPx,
+    layers: customization.layers.map((layer) => {
+      if (layer.type !== "image_shape") {
+        return layer;
+      }
+
+      const field = getFormFieldForLayer(
+        {
+          id: "runtime",
+          productId: customization.productId,
+          name: "runtime",
+          revision: 1,
+          status: "published",
+          background: null,
+          layers: customization.layers,
+          formFields: customization.formFields,
+        },
+        layer.id,
+      );
+
+      const runtime = buildRuntimeImageIconLayer({
+        layer,
+        fieldId: field?.id,
+        required: field?.required ?? false,
+      });
+
+      return {
+        ...layer,
+        sourcePolicy: runtime.sourcePolicy,
+        presentation: runtime.presentation,
+        fixedIcon: runtime.fixedIcon,
+        fixedCategory: runtime.fixedCategory,
+        allowedIcons: runtime.allowedIcons,
+        upload: runtime.upload,
+      };
+    }) as CustomizationLayer[],
+    formFields: customization.formFields,
+  };
 }
 
 export const storefrontProductsRoute = new Hono<AppEnv>()
@@ -424,24 +475,23 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
 
     let customization: any = null;
     if (customizationRow && customizationRow.enabled) {
-      customization = {
+      const parsedCustomization = {
         enabled: true,
         canvasWidthPx: customizationRow.canvasWidthPx,
         canvasHeightPx: customizationRow.canvasHeightPx,
         layers: JSON.parse(customizationRow.layersJson),
         formFields: JSON.parse(customizationRow.formFieldsJson)
       };
-      await hydrateCustomization(db, customization);
+      await hydrateCustomization(db, parsedCustomization);
+      customization = sanitizeShopperCustomization({
+        productId: String(product.id),
+        enabled: true,
+        canvasWidthPx: parsedCustomization.canvasWidthPx,
+        canvasHeightPx: parsedCustomization.canvasHeightPx,
+        layers: parsedCustomization.layers as ProductCustomization["layers"],
+        formFields: parsedCustomization.formFields as CustomizationFormField[],
+      });
     }
-    const dummy = customizationRow && customizationRow.enabled
-      ? {
-          enabled: true,
-          canvasWidthPx: customizationRow.canvasWidthPx,
-          canvasHeightPx: customizationRow.canvasHeightPx,
-          layers: JSON.parse(customizationRow.layersJson),
-          formFields: JSON.parse(customizationRow.formFieldsJson)
-        }
-      : null
 
     const detail = {
       id: product.id,

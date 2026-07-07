@@ -192,6 +192,10 @@ export default function ProductDetail() {
               return { fieldId: field.id, label: field.label, valueSummary: "Uploaded image" };
             }
 
+            if (typeof value === "object" && value && "source" in value && value.source === "icon") {
+              return { fieldId: field.id, label: field.label, valueSummary: value.iconName };
+            }
+
             return { fieldId: field.id, label: field.label, valueSummary: "Custom value" };
           })
           .filter((entry): entry is { fieldId: string; label: string; valueSummary: string } => entry !== null)

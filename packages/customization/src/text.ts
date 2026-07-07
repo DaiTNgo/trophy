@@ -13,7 +13,7 @@ import type {
   TextPath,
 } from "./types";
 import { clamp } from "./geometry";
-import { normalizeSingleLine, getLayerById } from "./template";
+import { getLayerById, getOrderedFormFields, normalizeSingleLine } from "./template";
 import { resolveFontVariant, type DynamicFontFamily } from "./constants";
 
 const resolveColor = (policy: TextColorPolicy, selected?: string) => {
@@ -55,7 +55,7 @@ export const createDefaultTextValue = (layer: TextEditorLayer): TextFieldValue =
 
 export const createDefaultFormValues = (template: CustomizationTemplate): CustomizationFormValues => {
   const values: CustomizationFormValues = {};
-  for (const field of template.formFields) {
+  for (const field of getOrderedFormFields(template)) {
     const layer = getLayerById(template, field.layerId);
     if (!layer) continue;
     values[field.id] = layer.type === "text" ? createDefaultTextValue(layer) : null;

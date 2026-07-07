@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { buildListingItem } from "./products";
+import { DEFAULT_TEMPLATE, type ProductCustomization } from "@trophy/customization";
+import { buildListingItem, sanitizeShopperCustomization } from "./products";
 
 const baseItem = {
   id: 1,
@@ -183,5 +184,130 @@ describe("buildListingItem", () => {
     );
 
     expect(item.customizable).toBe(false);
+  });
+});
+
+describe("sanitizeShopperCustomization", () => {
+  it("keeps only an active fixed icon for fixed-clipart layers", () => {
+    const customization: ProductCustomization = {
+      productId: "1",
+      enabled: true,
+      canvasWidthPx: 1200,
+      canvasHeightPx: 900,
+      layers: DEFAULT_TEMPLATE.layers.map((layer) =>
+        layer.id === "badge_shape" && layer.type === "image_shape"
+          ? {
+              ...layer,
+              sourcePolicy: "fixed_clipart",
+              fixedIcon: {
+                id: "icon_fixed",
+                sourceAssetId: "asset_fixed",
+                name: "Fixed Star",
+                categoryId: "sports",
+                categoryLabel: "Sports",
+                tags: ["star"],
+                previewUrl: "/api/assets/customizations/asset_fixed/content",
+                mimeType: "image/svg+xml",
+                sourceWidthPx: 200,
+                sourceHeightPx: 200,
+                active: true,
+              },
+              allowedIcons: [
+                {
+                  id: "icon_inactive",
+                  sourceAssetId: "asset_inactive",
+                  name: "Inactive Star",
+                  categoryId: "sports",
+                  categoryLabel: "Sports",
+                  tags: ["inactive"],
+                  previewUrl: "/api/assets/customizations/asset_inactive/content",
+                  mimeType: "image/png",
+                  sourceWidthPx: 200,
+                  sourceHeightPx: 200,
+                  active: false,
+                },
+              ],
+            }
+          : layer,
+      ),
+      formFields: DEFAULT_TEMPLATE.formFields,
+    };
+
+    const result = sanitizeShopperCustomization(customization);
+    const imageLayer = result.layers.find((layer) => layer.id === "badge_shape");
+
+    expect(imageLayer).toMatchObject({
+      sourcePolicy: "fixed_clipart",
+      fixedIcon: {
+        id: "icon_fixed",
+        sourceAssetId: "asset_fixed",
+        name: "Fixed Star",
+      },
+      allowedIcons: [],
+    });
+  });
+
+  it("keeps only shopper-safe allowed icons for clipart-enabled layers", () => {
+    const customization: ProductCustomization = {
+      productId: "1",
+      enabled: true,
+      canvasWidthPx: 1200,
+      canvasHeightPx: 900,
+      layers: DEFAULT_TEMPLATE.layers.map((layer) =>
+        layer.id === "badge_shape" && layer.type === "image_shape"
+          ? {
+              ...layer,
+              sourcePolicy: "upload_or_clipart_category",
+              presentation: "source_select",
+              fixedCategory: { id: "sports", label: "Sports" },
+              allowedIcons: [
+                {
+                  id: "icon_active",
+                  sourceAssetId: "asset_active",
+                  name: "Active Icon",
+                  categoryId: "sports",
+                  categoryLabel: "Sports",
+                  tags: ["active"],
+                  previewUrl: "/api/assets/customizations/asset_active/content",
+                  mimeType: "image/svg+xml",
+                  sourceWidthPx: 200,
+                  sourceHeightPx: 200,
+                  active: true,
+                },
+                {
+                  id: "icon_inactive",
+                  sourceAssetId: "asset_inactive",
+                  name: "Inactive Icon",
+                  categoryId: "sports",
+                  categoryLabel: "Sports",
+                  tags: ["inactive"],
+                  previewUrl: "/api/assets/customizations/asset_inactive/content",
+                  mimeType: "image/png",
+                  sourceWidthPx: 200,
+                  sourceHeightPx: 200,
+                  active: false,
+                },
+              ],
+            }
+          : layer,
+      ),
+      formFields: DEFAULT_TEMPLATE.formFields,
+    };
+
+    const result = sanitizeShopperCustomization(customization);
+    const imageLayer = result.layers.find((layer) => layer.id === "badge_shape");
+
+    expect(imageLayer).toMatchObject({
+      sourcePolicy: "upload_or_clipart_category",
+      presentation: "source_select",
+      fixedCategory: { id: "sports", label: "Sports" },
+    });
+    expect((imageLayer as any).allowedIcons).toEqual([
+      expect.objectContaining({
+        id: "icon_active",
+        sourceAssetId: "asset_active",
+      }),
+    ]);
+    expect((imageLayer as any).allowedIcons).toHaveLength(1);
   });
 });

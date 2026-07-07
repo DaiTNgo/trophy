@@ -12,7 +12,9 @@ import {
   type CustomizationLayer,
   type CustomizationTemplate,
   type DynamicFontFamily,
+  type IconFieldValue,
   type ImageShapeFieldValue,
+  type ImageShapeEditorLayer,
   type RuntimeLayer,
   type TextFieldValue,
 } from "@trophy/customization";
@@ -409,6 +411,7 @@ function FormField({
   onChange: (value: CustomizationFieldValue) => void;
   onUpload: (file: File) => void;
 }) {
+  const imageLayer = layer.type === "image_shape" ? (layer as ImageShapeEditorLayer) : null;
   return (
     <div>
       <label className="mb-2 block text-sm font-semibold text-on-surface">
@@ -417,7 +420,7 @@ function FormField({
       {layer.type === "text" ? (
         <TextField field={field} layer={layer} value={value} onChange={onChange} />
       ) : (
-        <ImageField value={value} uploading={uploading} onChange={onChange} onUpload={onUpload} />
+        <ImageField layer={imageLayer} value={value} uploading={uploading} onChange={onChange} onUpload={onUpload} />
       )}
       {field.helpText ? <p className="mt-2 text-xs text-on-surface-variant">{field.helpText}</p> : null}
       {issue ? <p className="mt-2 text-xs font-medium text-destructive">{issue}</p> : null}
@@ -484,19 +487,34 @@ function TextField({
 }
 
 function ImageField({
+  layer,
   value,
   uploading,
   onChange,
   onUpload,
 }: {
+  layer: ImageShapeEditorLayer | null;
   value: CustomizationFieldValue | undefined;
   uploading: boolean;
-  onChange: (value: ImageShapeFieldValue | null) => void;
+  onChange: (value: ImageShapeFieldValue | IconFieldValue | null) => void;
   onUpload: (file: File) => void;
 }) {
-  const uploaded = value && "assetId" in value ? value : null;
+  const sourcePolicy = layer?.sourcePolicy ?? "upload_only";
+  const uploaded = value && typeof value === "object" && "assetId" in value ? value : null;
+  const iconValue = value && typeof value === "object" && "source" in value && value.source === "icon" ? value : null;
+  const availableIcons = (layer?.allowedIcons ?? []).filter((icon) => {
+    if (!icon.active) return false;
+    if (layer?.fixedCategory?.id) return icon.categoryId === layer.fixedCategory.id;
+    return true;
+  });
+  const currentSource =
+    sourcePolicy === "clipart_category_only" ? "icon" : iconValue ? "icon" : "upload";
 
-  return (
+  if (sourcePolicy === "fixed_clipart") {
+    return null;
+  }
+
+  const uploadSection = (
     <div className="space-y-3">
       <label className="block cursor-pointer rounded-lg border border-dashed border-outline bg-surface-container-low px-4 py-5 text-center text-sm font-semibold text-on-surface">
         {uploaded ? <img src={uploaded.previewUrl} alt="" className="mx-auto mb-3 h-24 object-contain" /> : null}
@@ -543,6 +561,112 @@ function ImageField({
           >
             Remove image
           </button>
+        </div>
+      ) : null}
+    </div>
+  );
+
+  const iconSection = (
+    <div className="space-y-3">
+      {layer?.fixedCategory?.label ? (
+        <p className="text-xs text-on-surface-variant">Category: {layer.fixedCategory.label}</p>
+      ) : null}
+      <div className="grid grid-cols-3 gap-2">
+        {availableIcons.map((icon) => {
+          const selected = iconValue && "iconAssetId" in iconValue && iconValue.iconAssetId === icon.id;
+          return (
+            <button
+              key={icon.id}
+              type="button"
+              onClick={() =>
+                onChange({
+                  source: "icon",
+                  iconAssetId: icon.id,
+                  iconName: icon.name,
+                  sourceAssetId: icon.sourceAssetId,
+                  previewUrl: icon.previewUrl,
+                  mimeType: icon.mimeType,
+                  sourceWidthPx: icon.sourceWidthPx,
+                  sourceHeightPx: icon.sourceHeightPx,
+                  categoryId: icon.categoryId,
+                  categoryLabel: icon.categoryLabel,
+                  tags: icon.tags,
+                })
+              }
+              className={`rounded-lg border p-2 ${
+                selected ? "border-primary ring-1 ring-primary" : "border-outline"
+              }`}
+            >
+              <img src={icon.previewUrl} alt={icon.name} className="mx-auto h-16 w-16 object-contain" />
+              <span className="mt-2 block truncate text-xs">{icon.name}</span>
+            </button>
+          );
+        })}
+      </div>
+      {iconValue ? (
+        <button
+          type="button"
+          onClick={() => onChange(null)}
+          className="text-xs font-semibold text-destructive"
+        >
+          Clear clipart
+        </button>
+      ) : null}
+    </div>
+  );
+
+  return (
+    <div className="space-y-3">
+      {sourcePolicy === "upload_only" ? uploadSection : null}
+      {sourcePolicy === "clipart_category_only" ? iconSection : null}
+      {sourcePolicy === "upload_or_clipart_category" && layer?.presentation === "source_select" ? (
+        <>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                if (availableIcons[0]) {
+                  const icon = availableIcons[0];
+                  onChange({
+                    source: "icon",
+                    iconAssetId: icon.id,
+                    iconName: icon.name,
+                    sourceAssetId: icon.sourceAssetId,
+                    previewUrl: icon.previewUrl,
+                    mimeType: icon.mimeType,
+                    sourceWidthPx: icon.sourceWidthPx,
+                    sourceHeightPx: icon.sourceHeightPx,
+                    categoryId: icon.categoryId,
+                    categoryLabel: icon.categoryLabel,
+                    tags: icon.tags,
+                  });
+                }
+              }}
+              className={`rounded-lg border px-4 py-3 text-sm font-semibold ${currentSource === "icon" ? "border-primary bg-primary text-white" : "border-outline"}`}
+            >
+              Clipart
+            </button>
+            <button
+              type="button"
+              onClick={() => onChange(uploaded ?? null)}
+              className={`rounded-lg border px-4 py-3 text-sm font-semibold ${currentSource === "upload" ? "border-primary bg-primary text-white" : "border-outline"}`}
+            >
+              Upload image
+            </button>
+          </div>
+          {currentSource === "icon" ? iconSection : uploadSection}
+        </>
+      ) : null}
+      {sourcePolicy === "upload_or_clipart_category" && layer?.presentation === "side_by_side" ? (
+        <div className="grid gap-4 md:grid-cols-2">
+          <div>
+            <p className="mb-2 text-xs font-semibold text-on-surface-variant">Clipart</p>
+            {iconSection}
+          </div>
+          <div>
+            <p className="mb-2 text-xs font-semibold text-on-surface-variant">Upload image</p>
+            {uploadSection}
+          </div>
         </div>
       ) : null}
     </div>

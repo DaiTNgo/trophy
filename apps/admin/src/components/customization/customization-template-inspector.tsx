@@ -100,11 +100,120 @@ function TextInspector({
 }
 
 function ImageShapeInspector({ template, layer, onUpdate }: { template: CustomizationTemplate; layer: ImageShapeEditorLayer; onUpdate: (updater: (layer: CustomizationLayer) => CustomizationLayer) => void }) {
+  const { icons } = useBrandAssets();
+  const activeIcons = icons.filter((icon) => icon.active);
+  const selectedIconIds = new Set((layer.allowedIcons ?? []).map((icon) => icon.id));
+  const sourcePolicy = layer.sourcePolicy ?? "upload_only";
+  const categories = Array.from(
+    new Map(
+      activeIcons
+        .filter((icon) => icon.categoryId && icon.categoryLabel)
+        .map((icon) => [icon.categoryId as string, { id: icon.categoryId as string, label: icon.categoryLabel as string }]),
+    ).values(),
+  );
+
+  function updateImageLayer(next: Partial<ImageShapeEditorLayer>) {
+    onUpdate((current) => ({ ...(current as ImageShapeEditorLayer), ...next }) as CustomizationLayer);
+  }
+
   return (
     <div className="space-y-5">
       <PanelTitle title="Image Shape" subtitle={layer.name} />
       <LayerName layer={layer} onUpdate={onUpdate} />
       <PositionFields template={template} layer={layer} onUpdate={onUpdate} />
+      <Select
+        label="Source policy"
+        value={sourcePolicy}
+        options={[
+          { value: "fixed_clipart", label: "Fixed clipart" },
+          { value: "upload_only", label: "Upload only" },
+          { value: "clipart_category_only", label: "Clipart category only" },
+          { value: "upload_or_clipart_category", label: "Upload or clipart category" },
+        ]}
+        onChange={(value) =>
+          updateImageLayer({
+            sourcePolicy: value as ImageShapeEditorLayer["sourcePolicy"],
+            presentation: value === "upload_or_clipart_category" ? layer.presentation ?? "source_select" : undefined,
+            fixedIcon: value === "fixed_clipart" ? layer.fixedIcon ?? activeIcons[0] ?? null : null,
+            fixedCategory:
+              value === "clipart_category_only" || value === "upload_or_clipart_category"
+                ? layer.fixedCategory ?? categories[0] ?? null
+                : null,
+            allowedIcons:
+              value === "fixed_clipart"
+                ? layer.fixedIcon
+                  ? [layer.fixedIcon]
+                  : activeIcons[0]
+                    ? [activeIcons[0]]
+                    : []
+                : layer.allowedIcons ?? [],
+          })
+        }
+      />
+      {sourcePolicy === "fixed_clipart" ? (
+        <Select
+          label="Fixed clipart"
+          value={layer.fixedIcon?.id ?? ""}
+          options={activeIcons.map((icon) => ({ value: icon.id, label: icon.name }))}
+          onChange={(iconId) => {
+            const nextIcon = activeIcons.find((icon) => icon.id === iconId) ?? null;
+            updateImageLayer({
+              fixedIcon: nextIcon,
+              allowedIcons: nextIcon ? [nextIcon] : [],
+            });
+          }}
+        />
+      ) : null}
+      {(sourcePolicy === "clipart_category_only" || sourcePolicy === "upload_or_clipart_category") ? (
+        <>
+          <Select
+            label="Fixed category"
+            value={layer.fixedCategory?.id ?? ""}
+            options={categories.map((category) => ({ value: category.id, label: category.label }))}
+            onChange={(categoryId) => {
+              const nextCategory = categories.find((category) => category.id === categoryId) ?? null;
+              updateImageLayer({
+                fixedCategory: nextCategory,
+                allowedIcons: activeIcons.filter((icon) => !nextCategory || icon.categoryId === nextCategory.id),
+              });
+            }}
+          />
+          <div className="space-y-2">
+            <p className="text-xs font-medium text-ui-fg-muted">Allowed clipart icons</p>
+            <div className="max-h-56 space-y-2 overflow-y-auto rounded-md border border-ui-border-base p-2">
+              {activeIcons
+                .filter((icon) => !layer.fixedCategory?.id || icon.categoryId === layer.fixedCategory.id)
+                .map((icon) => (
+                  <label key={icon.id} className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={selectedIconIds.has(icon.id)}
+                      onChange={(event) => {
+                        const current = layer.allowedIcons ?? [];
+                        const next = event.target.checked
+                          ? [...current, icon].filter((entry, index, array) => array.findIndex((candidate) => candidate.id === entry.id) === index)
+                          : current.filter((entry) => entry.id !== icon.id);
+                        updateImageLayer({ allowedIcons: next });
+                      }}
+                    />
+                    <span>{icon.name}</span>
+                  </label>
+                ))}
+            </div>
+          </div>
+        </>
+      ) : null}
+      {sourcePolicy === "upload_or_clipart_category" ? (
+        <Select
+          label="Presentation"
+          value={layer.presentation ?? "source_select"}
+          options={[
+            { value: "source_select", label: "Source select" },
+            { value: "side_by_side", label: "Side by side" },
+          ]}
+          onChange={(value) => updateImageLayer({ presentation: value as ImageShapeEditorLayer["presentation"] })}
+        />
+      ) : null}
       <p className="text-sm text-ui-fg-subtle">Shape: {shapeLabel(layer.shape.type)}</p>
       {layer.shape.type === "vector" && layer.shape.vectorPath ? (
         <VectorPointsTable
@@ -453,5 +562,4 @@ function LayerName({ layer, onUpdate }: { layer: CustomizationLayer; onUpdate: (
 function updateText(onUpdate: (updater: (layer: CustomizationLayer) => CustomizationLayer) => void, patch: Partial<TextEditorLayer["text"]>) {
   onUpdate((current) => ({ ...current, text: { ...(current as TextEditorLayer).text, ...patch } }) as CustomizationLayer);
 }
-
 

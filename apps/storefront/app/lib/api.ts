@@ -64,7 +64,7 @@ export type StorefrontDetailResponse = {
       enabled: boolean;
       canvasWidthPx: number | null;
       canvasHeightPx: number | null;
-      layers: unknown[];
+      layers: Array<Record<string, unknown>>;
       formFields: unknown[];
     } | null;
   };

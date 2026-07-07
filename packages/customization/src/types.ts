@@ -40,6 +40,36 @@ export type LayerGeometry = {
   rotationDeg: number;
 };
 
+export type IconAssetMimeType = "image/svg+xml" | "image/png" | "image/webp";
+
+export type CustomizationIconAsset = {
+  id: string;
+  sourceAssetId: string;
+  name: string;
+  categoryId?: string | null;
+  categoryLabel?: string | null;
+  tags: string[];
+  previewUrl: string;
+  mimeType: IconAssetMimeType;
+  sourceWidthPx: number | null;
+  sourceHeightPx: number | null;
+  active: boolean;
+};
+
+export type FixedClipartCategory = {
+  id: string;
+  label: string;
+};
+
+export type ImageIconSourcePolicy =
+  | "fixed_clipart"
+  | "upload_only"
+  | "clipart_category_only"
+  | "upload_or_clipart_category";
+
+export type UploadClipartPresentation = "source_select" | "side_by_side";
+export type ImageShapeSelectedSource = "upload" | "clipart";
+
 export type ChoiceOption = {
   value: string;
   label: string;
@@ -126,6 +156,11 @@ export type ImageShapeEditorLayer = LayerBase & {
     fit: "cover";
     defaultCrop?: ImageCrop;
   };
+  sourcePolicy?: ImageIconSourcePolicy;
+  presentation?: UploadClipartPresentation;
+  fixedIcon?: CustomizationIconAsset | null;
+  fixedCategory?: FixedClipartCategory | null;
+  allowedIcons?: CustomizationIconAsset[];
 };
 
 export type CustomizationLayer = TextEditorLayer | ImageShapeEditorLayer;
@@ -171,6 +206,7 @@ export type TextFieldValue = {
 };
 
 export type ImageShapeFieldValue = {
+  source?: "upload";
   assetId: string;
   previewUrl: string;
   sourceWidthPx: number;
@@ -180,8 +216,43 @@ export type ImageShapeFieldValue = {
   cropYRatio?: number;
 };
 
-export type CustomizationFieldValue = TextFieldValue | ImageShapeFieldValue | null;
+export type IconFieldValue = {
+  source: "icon";
+  iconAssetId: string;
+  iconName: string;
+  sourceAssetId: string;
+  previewUrl: string;
+  mimeType: IconAssetMimeType;
+  sourceWidthPx: number | null;
+  sourceHeightPx: number | null;
+  categoryId?: string | null;
+  categoryLabel?: string | null;
+  tags?: string[];
+};
+
+export type CustomizationFieldValue = TextFieldValue | ImageShapeFieldValue | IconFieldValue | null;
 export type CustomizationFormValues = Record<string, CustomizationFieldValue>;
+
+export type RuntimeImageIconLayer = {
+  id: string;
+  layerId: string;
+  type: "image_icon_runtime";
+  fieldId?: string;
+  required: boolean;
+  geometry: Required<LayerGeometry>;
+  shape: ImageShapeEditorLayer["shape"];
+  sourcePolicy: ImageIconSourcePolicy;
+  presentation?: UploadClipartPresentation;
+  fixedIcon?: CustomizationIconAsset;
+  fixedCategory?: FixedClipartCategory;
+  allowedIcons: CustomizationIconAsset[];
+  upload: {
+    enabled: boolean;
+    fit: "cover" | "contain";
+    panEnabled: boolean;
+    zoomEnabled: boolean;
+  };
+};
 
 export type RuntimeTextLayer = {
   id: string;
@@ -215,6 +286,10 @@ export type RuntimeImageShapeLayer = {
   cropXRatio: number;
   cropYRatio: number;
   zIndex: number;
+  contentSource?: "upload" | "icon";
+  iconAssetId?: string;
+  iconName?: string;
+  mimeType?: IconAssetMimeType;
 };
 
 export type RuntimeLayer = RuntimeTextLayer | RuntimeImageShapeLayer;
@@ -246,6 +321,7 @@ export type ValidationIssue = {
     | "FONT_SIZE_RANGE_INVALID"
     | "TEXT_PATH_REQUIRES_SINGLE_LINE"
     | "STYLE_POLICY_INVALID"
+    | "ICON_POLICY_INVALID"
     | "REQUIRED_VALUE_MISSING"
     | "LOCALIZATION_INCOMPLETE"
     | "OPTION_NOT_ALLOWED"

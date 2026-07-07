@@ -95,6 +95,54 @@ describe("cart helpers", () => {
     expect(mergedAgain[1]?.quantity).toBe(1);
   });
 
+  it("keeps different selected icons as separate customized cart lines", () => {
+    const clipartA = makeInput({
+      customizationValues: {
+        badge_shape: {
+          source: "icon",
+          iconAssetId: "icon_star",
+          iconName: "Star",
+          sourceAssetId: "asset_star",
+          previewUrl: "/api/assets/customizations/asset_star/content",
+          mimeType: "image/svg+xml",
+          sourceWidthPx: 200,
+          sourceHeightPx: 200,
+        },
+      },
+      customizationSummary: [{ fieldId: "badge_shape", label: "Badge", valueSummary: "Star" }],
+      display: {
+        ...makeInput().display,
+        customizable: true,
+        requiresCustomization: true,
+      },
+    });
+    const clipartB = makeInput({
+      customizationValues: {
+        badge_shape: {
+          source: "icon",
+          iconAssetId: "icon_shield",
+          iconName: "Shield",
+          sourceAssetId: "asset_shield",
+          previewUrl: "/api/assets/customizations/asset_shield/content",
+          mimeType: "image/png",
+          sourceWidthPx: 200,
+          sourceHeightPx: 200,
+        },
+      },
+      customizationSummary: [{ fieldId: "badge_shape", label: "Badge", valueSummary: "Shield" }],
+      display: {
+        ...makeInput().display,
+        customizable: true,
+        requiresCustomization: true,
+      },
+    });
+
+    const withFirst = addCartLine([], clipartA, () => "line-a");
+    const withSecond = addCartLine(withFirst, clipartB, () => "line-b");
+
+    expect(withSecond).toHaveLength(2);
+  });
+
   it("updates quantity and removes lines", () => {
     const lines = [
       makeLine(),

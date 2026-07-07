@@ -6,12 +6,14 @@ import {
   type CustomizationFormValues,
   type CustomizationLayer,
   type CustomizationTemplate,
+  type IconFieldValue,
   type ImageShapeFieldValue,
   type ShapeType,
   type TextFieldValue,
   type VectorPoint,
 } from "@trophy/customization";
 import { createId, shapeLabel, type RailTab } from "../components/customization/customization-template-ui";
+import { getProductCustomizationPublishIssue } from "./product-customization-publish";
 
 const maxZ = (layers: CustomizationLayer[]) => layers.length > 0 ? Math.max(...layers.map((layer) => layer.zIndex)) : 0;
 
@@ -146,7 +148,8 @@ export function useProductCustomizationEditor(
       },
       upload: {
         fit: "cover"
-      }
+      },
+      sourcePolicy: "upload_only",
     };
     const newField: CustomizationFormField = {
       id: fieldId,
@@ -312,6 +315,14 @@ export function useProductCustomizationEditor(
 
   async function publish() {
     try {
+      const publishIssue = getProductCustomizationPublishIssue({
+        productId,
+        template,
+        initialCustomization,
+      });
+      if (publishIssue) {
+        throw new Error(publishIssue);
+      }
       await saveDraft();
       flashMessage("Published");
     } catch (e: any) {
@@ -336,22 +347,8 @@ export function useProductCustomizationEditor(
     }));
   }
 
-  function handlePreviewChange(fieldId: string, value: any) {
-    setPreviewValues((prev) => {
-      const field = template.formFields.find((f) => f.id === fieldId);
-      if (!field) return prev;
-      if ((field as any).type === "text") {
-        const next = { ...prev };
-        next[fieldId] = { ...((next[fieldId] as TextFieldValue) || {}), text: value ?? "" };
-        return next;
-      }
-      if ((field as any).type === "image") {
-        const next = { ...prev };
-        next[fieldId] = { ...((next[fieldId] as ImageShapeFieldValue) || {}), assetId: value ?? "" };
-        return next;
-      }
-      return prev;
-    });
+  function handlePreviewChange(fieldId: string, value: TextFieldValue | ImageShapeFieldValue | IconFieldValue | null) {
+    setPreviewValues((prev) => ({ ...prev, [fieldId]: value }));
   }
 
   function resetPreviewValues() {

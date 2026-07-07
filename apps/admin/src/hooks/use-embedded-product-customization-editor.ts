@@ -7,6 +7,7 @@ import {
   type CustomizationFormValues,
   type CustomizationLayer,
   type CustomizationTemplate,
+  type IconFieldValue,
   type ImageShapeFieldValue,
   type ProductCustomization,
   type ShapeType,
@@ -439,7 +440,7 @@ export function useEmbeddedProductCustomizationEditor({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [deleted, isDrawing, pathEditingLayerId, selectedLayer, template.background]);
 
-  function handlePreviewChange(fieldId: string, value: TextFieldValue | ImageShapeFieldValue | null) {
+  function handlePreviewChange(fieldId: string, value: TextFieldValue | ImageShapeFieldValue | IconFieldValue | null) {
     setPreviewValues((current) => ({ ...current, [fieldId]: value }));
   }
 

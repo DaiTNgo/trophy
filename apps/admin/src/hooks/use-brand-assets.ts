@@ -1,9 +1,41 @@
 import { useEffect, useState } from "react";
 import { backendFetch } from "../lib/fetch";
 
-export function useBrandAssets() {
-  const [colors, setColors] = useState<{ id: string; name: string; hexCode: string }[]>([]);
-  const [fonts, setFonts] = useState<{ id: string; name: string }[]>([]);
+export type BrandColor = {
+  id: string;
+  name: string;
+  hexCode: string;
+};
+
+export type BrandFont = {
+  id: string;
+  name: string;
+  regularAssetId?: string | null;
+  boldAssetId?: string | null;
+  italicAssetId?: string | null;
+  boldItalicAssetId?: string | null;
+};
+
+export type BrandIconAsset = {
+  id: string;
+  sourceAssetId: string;
+  name: string;
+  categoryId?: string | null;
+  categoryLabel?: string | null;
+  tags: string[];
+  previewUrl: string;
+  mimeType: "image/svg+xml" | "image/png" | "image/webp";
+  sourceWidthPx: number | null;
+  sourceHeightPx: number | null;
+  active: boolean;
+  createdAt: number;
+  updatedAt: number;
+};
+
+export function useBrandAssets(refreshKey = 0) {
+  const [colors, setColors] = useState<BrandColor[]>([]);
+  const [fonts, setFonts] = useState<BrandFont[]>([]);
+  const [icons, setIcons] = useState<BrandIconAsset[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -11,9 +43,10 @@ export function useBrandAssets() {
 
     async function load() {
       try {
-        const [colorsRes, fontsRes] = await Promise.all([
+        const [colorsRes, fontsRes, iconsRes] = await Promise.all([
           backendFetch("/api/admin/brand-assets/colors"),
-          backendFetch("/api/admin/brand-assets/fonts")
+          backendFetch("/api/admin/brand-assets/fonts"),
+          backendFetch("/api/admin/brand-assets/icons"),
         ]);
 
         if (mounted) {
@@ -24,6 +57,10 @@ export function useBrandAssets() {
           if (fontsRes.ok) {
             const data = await fontsRes.json();
             setFonts(data.fonts);
+          }
+          if (iconsRes.ok) {
+            const data = await iconsRes.json();
+            setIcons(data.icons);
           }
         }
       } finally {
@@ -38,7 +75,7 @@ export function useBrandAssets() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [refreshKey]);
 
-  return { colors, fonts, isLoading };
+  return { colors, fonts, icons, isLoading };
 }

@@ -386,6 +386,27 @@ export const customizationAssets = sqliteTable("customization_assets", {
     .default(sql`CURRENT_TIMESTAMP`),
 });
 
+export const customizationIconAssets = sqliteTable("customization_icon_assets", {
+  id: text("id").primaryKey(),
+  sourceAssetId: text("source_asset_id").notNull(),
+  name: text("name").notNull(),
+  categoryId: text("category_id"),
+  categoryLabel: text("category_label"),
+  tagsJson: text("tags_json").notNull().default("[]"),
+  previewUrl: text("preview_url").notNull(),
+  mimeType: text("mime_type").notNull(),
+  sourceWidthPx: integer("source_width_px"),
+  sourceHeightPx: integer("source_height_px"),
+  active: integer("active", { mode: "boolean" }).notNull().default(true),
+  createdAt: integer("created_at", { mode: "timestamp_ms" })
+    .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+    .notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+    .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+    .$onUpdate(() => new Date())
+    .notNull(),
+});
+
 // ─── Orders ────────────────────────────────────────────────────────────────────
 
 export const orders = sqliteTable("orders", {

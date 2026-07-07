@@ -10,15 +10,18 @@ import {
   type CustomizationFormValues,
   type CustomizationLayer,
   type CustomizationTemplate,
+  type IconFieldValue,
   type ImageShapeFieldValue,
+  type ImageShapeEditorLayer,
   type RuntimeImageShapeLayer,
   type RuntimeTextLayer,
   type TextFieldValue,
 } from "@trophy/customization";
 import { createId, cssShapeClip, fileToBackground, FontLoader, Select, ShapeClipPaths } from "./customization-template-ui";
 import { exportVectorPdfClientSide } from "../../lib/pdf-export";
+import { useBrandAssets } from "../../hooks/use-brand-assets";
 
-type PreviewChange = (fieldId: string, value: TextFieldValue | ImageShapeFieldValue | null) => void;
+type PreviewChange = (fieldId: string, value: TextFieldValue | ImageShapeFieldValue | IconFieldValue | null) => void;
 type PreviewMode = "edit" | "view";
 type ResizeCorner = "nw" | "ne" | "sw" | "se";
 type PanState = { x: number; y: number };
@@ -347,21 +350,49 @@ function PreviewCanvas({
 
             const field = fieldsByLayerId.get(layer.layerId);
             const value = field ? values[field.id] : null;
-            const imageValue = value && typeof value === "object" && "assetId" in value ? value as ImageShapeFieldValue : null;
-            if (!field || !imageValue) return null;
+            const uploadValue = value && typeof value === "object" && "assetId" in value ? value as ImageShapeFieldValue : null;
+            const iconValue = value && typeof value === "object" && "source" in value && value.source === "icon" ? value as IconFieldValue : null;
+            const derivedValue: ImageShapeFieldValue | null =
+              uploadValue ??
+              (layer.contentSource === "icon"
+                ? {
+                    source: "upload",
+                    assetId: layer.assetId,
+                    previewUrl: layer.previewUrl,
+                    sourceWidthPx: layer.sourceWidthPx,
+                    sourceHeightPx: layer.sourceHeightPx,
+                    cropScale: layer.cropScale,
+                    cropXRatio: layer.cropXRatio,
+                    cropYRatio: layer.cropYRatio,
+                  }
+                : iconValue
+                  ? {
+                      source: "upload",
+                      assetId: iconValue.sourceAssetId,
+                      previewUrl: iconValue.previewUrl,
+                      sourceWidthPx: iconValue.sourceWidthPx ?? width,
+                      sourceHeightPx: iconValue.sourceHeightPx ?? height,
+                      cropScale: 1,
+                      cropXRatio: 0,
+                      cropYRatio: 0,
+                    }
+                  : null);
+            if (!derivedValue) return null;
 
             return (
               <PreviewImageShapeLayer
                 key={layer.id}
                 layer={layer}
-                fieldId={field.id}
-                value={imageValue}
+                fieldId={field?.id ?? ""}
+                value={derivedValue}
                 width={width}
                 height={height}
                 scale={scale}
                 mode={mode}
-                selected={selectedFieldId === field.id}
-                onSelect={() => setSelectedFieldId(field.id)}
+                selected={field ? selectedFieldId === field.id : false}
+                onSelect={() => {
+                  if (field) setSelectedFieldId(field.id);
+                }}
                 onChange={onChange}
               />
             );
@@ -467,6 +498,7 @@ function PreviewImageShapeLayer({
   const clipPath = cssShapeClip(layer.shape.type, layer.id);
 
   function updateFromImageRect(next: { centerXPx: number; centerYPx: number; widthPx: number }) {
+    if (!fieldId) return;
     onChange(fieldId, {
       ...value,
       cropScale: Math.max(MIN_FREE_IMAGE_SCALE, next.widthPx / imageRect.widthPx * imageRect.cropScale),
@@ -554,6 +586,7 @@ function PreviewImageShapeLayer({
           event.preventDefault();
           event.stopPropagation();
           onSelect();
+          if (!fieldId) return;
           const startX = event.clientX;
           const startY = event.clientY;
           const startCropX = imageRect.cropXRatio;
@@ -637,7 +670,7 @@ function PreviewField({
   field: CustomizationFormField;
   layer: CustomizationLayer;
   value: unknown;
-  onChange: (value: TextFieldValue | ImageShapeFieldValue | null) => void;
+  onChange: (value: TextFieldValue | ImageShapeFieldValue | IconFieldValue | null) => void;
 }) {
   if (layer.type === "text") {
     const textValue = value && typeof value === "object" && "text" in value ? value as TextFieldValue : { text: "" };
@@ -764,10 +797,36 @@ function PreviewField({
     );
   }
 
-  const imageValue = value && typeof value === "object" && "assetId" in value ? value as ImageShapeFieldValue : null;
-  return (
-    <div className="space-y-2">
-      <label className="text-sm font-medium">{field.label}{field.required ? " *" : ""}</label>
+  const typedLayer = layer as ImageShapeEditorLayer;
+  const sourcePolicy = typedLayer.sourcePolicy ?? "upload_only";
+  const uploadValue = value && typeof value === "object" && "assetId" in value ? value as ImageShapeFieldValue : null;
+  const iconValue = value && typeof value === "object" && "source" in value && value.source === "icon" ? value as IconFieldValue : null;
+  const currentSource =
+    sourcePolicy === "upload_or_clipart_category"
+      ? iconValue
+        ? "icon"
+        : "upload"
+      : sourcePolicy === "clipart_category_only"
+        ? "icon"
+        : "upload";
+  const clipartOptions = (typedLayer.allowedIcons ?? []).filter((icon) => {
+    if (!icon.active) return false;
+    if (typedLayer.fixedCategory?.id) {
+      return icon.categoryId === typedLayer.fixedCategory.id;
+    }
+    return true;
+  });
+  const { icons: globalIcons } = useBrandAssets();
+  const selectedIcon = iconValue
+    ? clipartOptions.find((icon) => icon.id === iconValue.iconAssetId) ?? globalIcons.find((icon) => icon.id === iconValue.iconAssetId)
+    : null;
+
+  if (sourcePolicy === "fixed_clipart") {
+    return null;
+  }
+
+  const uploadControls = (
+    <>
       <input
         type="file"
         accept="image/*"
@@ -776,6 +835,7 @@ function PreviewField({
           if (!file) return;
           void fileToBackground(file).then((asset) =>
             onChange({
+              source: "upload",
               assetId: createId("local_asset"),
               previewUrl: asset.previewUrl,
               sourceWidthPx: asset.widthPx,
@@ -787,19 +847,119 @@ function PreviewField({
           );
         }}
       />
-      {imageValue ? (
+      {uploadValue ? (
         <div className="flex flex-wrap items-center gap-2">
-          <button type="button" onClick={() => onChange({ ...imageValue, cropScale: Math.max(MIN_FREE_IMAGE_SCALE, (imageValue.cropScale ?? 1) / 1.1) })} className="rounded border border-ui-border-base px-3 py-2 text-sm">
+          <button type="button" onClick={() => onChange({ ...uploadValue, cropScale: Math.max(MIN_FREE_IMAGE_SCALE, (uploadValue.cropScale ?? 1) / 1.1) })} className="rounded border border-ui-border-base px-3 py-2 text-sm">
             - Zoom
           </button>
-          <button type="button" onClick={() => onChange({ ...imageValue, cropScale: (imageValue.cropScale ?? 1) * 1.1 })} className="rounded border border-ui-border-base px-3 py-2 text-sm">
+          <button type="button" onClick={() => onChange({ ...uploadValue, cropScale: (uploadValue.cropScale ?? 1) * 1.1 })} className="rounded border border-ui-border-base px-3 py-2 text-sm">
             + Zoom
           </button>
-          <button type="button" onClick={() => onChange({ ...imageValue, cropScale: 1, cropXRatio: 0, cropYRatio: 0 })} className="rounded border border-ui-border-base px-3 py-2 text-sm">
+          <button type="button" onClick={() => onChange({ ...uploadValue, cropScale: 1, cropXRatio: 0, cropYRatio: 0 })} className="rounded border border-ui-border-base px-3 py-2 text-sm">
             Reset crop
           </button>
         </div>
       ) : null}
+    </>
+  );
+
+  const clipartControls = (
+    <div className="space-y-2">
+      {typedLayer.fixedCategory?.label ? (
+        <TextLabel value={`Category: ${typedLayer.fixedCategory.label}`} />
+      ) : null}
+      <div className="grid grid-cols-3 gap-2">
+        {clipartOptions.map((icon) => {
+          const selected = selectedIcon?.id === icon.id;
+          return (
+            <button
+              key={icon.id}
+              type="button"
+              onClick={() =>
+                onChange({
+                  source: "icon",
+                  iconAssetId: icon.id,
+                  iconName: icon.name,
+                  sourceAssetId: icon.sourceAssetId,
+                  previewUrl: icon.previewUrl,
+                  mimeType: icon.mimeType,
+                  sourceWidthPx: icon.sourceWidthPx,
+                  sourceHeightPx: icon.sourceHeightPx,
+                  categoryId: icon.categoryId,
+                  categoryLabel: icon.categoryLabel,
+                  tags: icon.tags,
+                })
+              }
+              className={`flex flex-col items-center gap-2 rounded-md border p-2 text-left ${
+                selected ? "border-ui-fg-interactive ring-1 ring-ui-fg-interactive" : "border-ui-border-base"
+              }`}
+            >
+              <img src={icon.previewUrl} alt={icon.name} className="h-12 w-12 object-contain" />
+              <span className="w-full truncate text-xs">{icon.name}</span>
+            </button>
+          );
+        })}
+      </div>
+      {!clipartOptions.length ? <p className="text-xs text-ui-fg-muted">No active clipart options available for this layer.</p> : null}
     </div>
   );
+
+  return (
+    <div className="space-y-2">
+      <label className="text-sm font-medium">{field.label}{field.required ? " *" : ""}</label>
+      {sourcePolicy === "upload_or_clipart_category" && typedLayer.presentation === "source_select" ? (
+        <Select
+          label="Source"
+          value={currentSource}
+          options={[
+            { value: "icon", label: "Clipart" },
+            { value: "upload", label: "Upload image" },
+          ]}
+          onChange={(nextSource) => {
+            if (nextSource === "icon" && clipartOptions[0]) {
+              const first = clipartOptions[0];
+              onChange({
+                source: "icon",
+                iconAssetId: first.id,
+                iconName: first.name,
+                sourceAssetId: first.sourceAssetId,
+                previewUrl: first.previewUrl,
+                mimeType: first.mimeType,
+                sourceWidthPx: first.sourceWidthPx,
+                sourceHeightPx: first.sourceHeightPx,
+                categoryId: first.categoryId,
+                categoryLabel: first.categoryLabel,
+                tags: first.tags,
+              });
+            } else if (nextSource === "upload") {
+              onChange(uploadValue ?? null);
+            }
+          }}
+        />
+      ) : null}
+      {sourcePolicy === "clipart_category_only" ? clipartControls : null}
+      {sourcePolicy === "upload_only" ? uploadControls : null}
+      {sourcePolicy === "upload_or_clipart_category" && typedLayer.presentation === "source_select"
+        ? currentSource === "icon"
+          ? clipartControls
+          : uploadControls
+        : null}
+      {sourcePolicy === "upload_or_clipart_category" && typedLayer.presentation === "side_by_side" ? (
+        <div className="grid gap-3 md:grid-cols-2">
+          <div className="space-y-2">
+            <p className="text-xs font-medium text-ui-fg-muted">Clipart</p>
+            {clipartControls}
+          </div>
+          <div className="space-y-2">
+            <p className="text-xs font-medium text-ui-fg-muted">Upload image</p>
+            {uploadControls}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function TextLabel({ value }: { value: string }) {
+  return <p className="text-xs text-ui-fg-muted">{value}</p>;
 }

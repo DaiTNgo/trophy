@@ -119,6 +119,12 @@ function summarizeCustomizationValue(value: CustomizationFieldValue) {
     return "Uploaded image";
   }
 
+  if (typeof value === "object" && "source" in value && value.source === "icon") {
+    return typeof (value as { iconName?: unknown }).iconName === "string"
+      ? (value as { iconName: string }).iconName
+      : "Selected icon";
+  }
+
   return "Custom value";
 }
 
