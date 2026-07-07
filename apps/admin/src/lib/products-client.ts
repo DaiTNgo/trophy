@@ -579,10 +579,10 @@ export function mapApiProductToCatalogProduct(product: Partial<ApiProduct> & Pic
 
   return {
     id: String(product.id),
-    title: product.title,
+    title: { vi: product.title ?? "", en: "" },
     handle: product.handle,
-    subtitle: product.subtitle ?? "",
-    description: product.description ?? "",
+    subtitle: { vi: product.subtitle ?? "", en: "" },
+    description: { vi: product.description ?? "", en: "" },
     status: mapApiProductStatus(product.status),
     inventory: 0,
     price: leadPrice,

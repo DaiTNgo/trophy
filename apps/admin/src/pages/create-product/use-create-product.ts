@@ -39,10 +39,10 @@ import type {
 export type CreateProductStep = "details" | "organize" | "variants" | "customization";
 
 export const defaultCreateProductValues: CreateProductFormValues = {
-  title: "",
+  title: { vi: "", en: "" },
   handle: "",
-  subtitle: "",
-  description: "",
+  subtitle: { vi: "", en: "" },
+  description: { vi: "", en: "" },
   customizationEnabled: false,
   collection: "",
   categories: [],
@@ -174,8 +174,8 @@ export function useCreateProduct() {
   });
 
   const embeddedEditor = useEmbeddedProductCustomizationEditor({
-    productTitle: values.title,
-    productId: values.handle.trim() || slugify(values.title || "new-product"),
+    productTitle: values.title.vi,
+    productId: values.handle.trim() || slugify(values.title.vi || "new-product"),
     background: selectedPreviewBackground,
     draft: embeddedCustomization,
     onDraftChange: setEmbeddedCustomization,
@@ -450,10 +450,10 @@ export function useCreateProduct() {
       const createdProduct = await createFullProduct({
         mode,
         details: {
-          title: values.title.trim(),
-          subtitle: values.subtitle.trim() || null,
+          title: values.title.vi.trim(),
+          subtitle: values.subtitle.vi.trim() || null,
           handle: values.handle.trim() || null,
-          description: values.description.trim() || null,
+          description: values.description.vi.trim() || null,
         },
         organization: {
           collectionId: selectedCollectionId ? Number(selectedCollectionId) : null,

@@ -28,6 +28,8 @@ type CreateProductDetailsProps = {
 
 export function CreateProductDetails({ state }: CreateProductDetailsProps) {
   const [optionTitleLocales, setOptionTitleLocales] = useState<Record<string, AdminLocale>>({});
+  const [titleLocale, setTitleLocale] = useState<AdminLocale>("vi");
+  const [subtitleLocale, setSubtitleLocale] = useState<AdminLocale>("vi");
 
   const {
     values,
@@ -76,11 +78,13 @@ export function CreateProductDetails({ state }: CreateProductDetailsProps) {
       <div className="grid gap-5 md:grid-cols-3">
         <div className="space-y-2">
           <Label htmlFor="product-title">Title</Label>
-          <Input
+          <LocalizedTextField
             id="product-title"
             value={values.title}
-            onChange={(event) => setValue("title", event.target.value)}
-            placeholder="Winter jacket"
+            locale={titleLocale}
+            onLocaleChange={setTitleLocale}
+            onChange={(value) => setValue("title", value)}
+            placeholder={{ vi: "Ao khoac mua dong", en: "Winter jacket" }}
           />
           {errors.title ? (
             <Text size="small" className="text-rose-700">
@@ -90,11 +94,13 @@ export function CreateProductDetails({ state }: CreateProductDetailsProps) {
         </div>
         <div className="space-y-2">
           <Label htmlFor="product-subtitle">Subtitle</Label>
-          <Input
+          <LocalizedTextField
             id="product-subtitle"
             value={values.subtitle}
-            onChange={(event) => setValue("subtitle", event.target.value)}
-            placeholder="Warm and cosy"
+            locale={subtitleLocale}
+            onLocaleChange={setSubtitleLocale}
+            onChange={(value) => setValue("subtitle", value)}
+            placeholder={{ vi: "Am ap va de chiu", en: "Warm and cosy" }}
           />
         </div>
         <div className="space-y-2">
@@ -127,8 +133,8 @@ export function CreateProductDetails({ state }: CreateProductDetailsProps) {
         <Label htmlFor="product-description">Description</Label>
         <Textarea
           id="product-description"
-          value={values.description}
-          onChange={(event) => setValue("description", event.target.value)}
+          value={values.description.vi}
+          onChange={(event) => setValue("description", { ...values.description, vi: event.target.value })}
           placeholder="A warm and cozy jacket"
         />
       </div>

@@ -64,7 +64,8 @@ export function ProductDetailAside({ product, mutate }: ProductDetailAsideProps)
               Feedback aligned to Medusa-like publish gating rules.
             </Text>
           </div>
-          <ChecklistItem label="Product title exists" complete={product.title.trim().length > 0} />
+          <ChecklistItem label="Vietnamese product title exists" complete={!!product.title?.vi?.trim()} />
+          <ChecklistItem label="English product title exists" complete={!!product.title?.en?.trim()} />
           <ChecklistItem label="At least one variant exists" complete={product.variants.length > 0} />
           <ChecklistItem
             label="Variants have prices"

@@ -27,7 +27,10 @@ function normalizeLocalizedText(value: { vi?: string; en?: string } | undefined,
 }
 
 const createProductSchema = v.object({
-  title: v.pipe(v.string(), v.trim(), v.nonEmpty("Title is required.")),
+  title: v.object({
+    vi: v.pipe(v.string(), v.trim(), v.nonEmpty("Vietnamese title is required.")),
+    en: v.optional(v.string())
+  }),
   handle: v.optional(
     v.pipe(
       v.string(),
@@ -242,7 +245,7 @@ export function validateCreateProduct({
     }
   }
 
-  const normalizedHandle = values.handle.trim() ? slugify(values.handle) : slugify(values.title);
+  const normalizedHandle = values.handle.trim() ? slugify(values.handle) : slugify(values.title.vi || "product");
   if (normalizedHandle && products.some((product) => product.handle === normalizedHandle)) {
     nextErrors.handle = "Handle already exists in the mock catalog.";
   }
@@ -353,13 +356,13 @@ export function isPublishReady(
   const variantPricingValid = effectiveVariantRows.every((variant) => Number(variant.price || 0) > 0);
 
   return {
-    ready: values.title.trim() !== "" && variantStructureValid && variantPricingValid,
+    ready: values.title.vi.trim() !== "" && variantStructureValid && variantPricingValid,
     variantStructureValid,
   };
 }
 
 export function createMockProduct(existingProducts: CatalogProduct[], input: CreateProductSubmission): CatalogProduct {
-  const handle = ensureUniqueHandle(input.values.handle || input.values.title, existingProducts);
+  const handle = ensureUniqueHandle(input.values.handle || input.values.title.vi, existingProducts);
   const today = "2026-06-21";
   const optionDefinitions = getEffectiveOptionDefinitions(input.values, input.optionDefinitions);
   const variantRows = getEffectiveVariantRows(input.values, input.variantRows, input.optionDefinitions);
@@ -381,10 +384,10 @@ export function createMockProduct(existingProducts: CatalogProduct[], input: Cre
 
   return {
     id: `prod_${handle}`,
-    title: input.values.title.trim(),
+    title: input.values.title,
     handle,
-    subtitle: input.values.subtitle.trim(),
-    description: input.values.description.trim(),
+    subtitle: input.values.subtitle,
+    description: input.values.description,
     status,
     inventory: highestInventory,
     price: leadPrice,
@@ -410,10 +413,10 @@ export function buildUpdatedProduct(current: CatalogProduct, input: CreateProduc
 
   return {
     ...current,
-    title: input.values.title.trim(),
-    handle: slugify(input.values.handle || input.values.title || current.handle),
-    subtitle: input.values.subtitle.trim(),
-    description: input.values.description.trim(),
+    title: input.values.title,
+    handle: slugify(input.values.handle || input.values.title.vi || current.handle),
+    subtitle: input.values.subtitle,
+    description: input.values.description,
     status,
     inventory: totalInventory,
     price: leadPrice,
@@ -429,7 +432,7 @@ export function buildUpdatedProduct(current: CatalogProduct, input: CreateProduc
     variants: variantRows.map((variant, index) => ({
       ...variant,
       id: `${current.id}-variant-${index + 1}`,
-      sku: variant.sku.trim() || buildSku(input.values.handle || input.values.title || current.handle, index),
+      sku: variant.sku.trim() || buildSku(input.values.handle || input.values.title.vi || current.handle, index),
       title: variant.title.trim() || "Default variant",
     })),
     updatedAt: "2026-06-21",

@@ -113,7 +113,7 @@ export function ProductCustomizationEditor() {
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Back to Product
               </Button>
-              <h2 className="text-sm font-medium">Customization Editor: {product.title}</h2>
+              <h2 className="text-sm font-medium">Customization Editor: {product.title?.vi || product.title?.en}</h2>
             </div>
             <div className="flex items-center gap-x-2">
               <span className="text-ui-fg-subtle text-xs">{flash}</span>

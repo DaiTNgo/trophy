@@ -3,11 +3,9 @@ import {
   Button,
   FocusModal,
   Heading,
-  Input,
   Label,
   Text,
   Badge,
-  Textarea,
   Select,
   ProgressTabs,
 } from "@medusajs/ui";
@@ -16,6 +14,7 @@ import { combine } from "@atlaskit/pragmatic-drag-and-drop/combine";
 import { attachClosestEdge, extractClosestEdge } from "@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge";
 import { autoScrollForElements } from "@atlaskit/pragmatic-drag-and-drop-auto-scroll/element";
 import { TagSolid } from "@medusajs/icons";
+import { LocalizedTextField, createEmptyLocalizedText, type AdminLocale, type LocalizedTextValue } from "../../../components/ui/medusa";
 import { backendFetch } from "../../../lib/fetch";
 import { useNavigate } from "react-router";
 
@@ -105,9 +104,11 @@ interface CreateCategoryModalProps {
 
 export function CreateCategoryModal({ open, onOpenChange, categories, onSuccess }: CreateCategoryModalProps) {
   const [step, setStep] = useState<1 | 2>(1);
-  const [title, setTitle] = useState("");
+  const [title, setTitle] = useState<LocalizedTextValue>(() => createEmptyLocalizedText());
+  const [titleLocale, setTitleLocale] = useState<AdminLocale>("vi");
   const [handle, setHandle] = useState("");
-  const [description, setDescription] = useState("");
+  const [description, setDescription] = useState<LocalizedTextValue>(() => createEmptyLocalizedText());
+  const [descriptionLocale, setDescriptionLocale] = useState<AdminLocale>("vi");
   const [isSaving, setIsSaving] = useState(false);
   const [orderedItems, setOrderedItems] = useState<CategoryItem[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -117,9 +118,11 @@ export function CreateCategoryModal({ open, onOpenChange, categories, onSuccess 
   useEffect(() => {
     if (open) {
       setStep(1);
-      setTitle("");
+      setTitle(createEmptyLocalizedText());
+      setTitleLocale("vi");
       setHandle("");
-      setDescription("");
+      setDescription(createEmptyLocalizedText());
+      setDescriptionLocale("vi");
       setOrderedItems([...categories]);
     }
   }, [open, categories]);
@@ -132,14 +135,14 @@ export function CreateCategoryModal({ open, onOpenChange, categories, onSuccess 
   }, [step]);
 
   const handleGoToStep2 = () => {
-    if (!title.trim()) return;
+    if (!title.vi.trim()) return;
     if (!orderedItems.find(i => i.id === "new-item")) {
       setOrderedItems([
-        { id: "new-item", name: title, isNew: true },
+        { id: "new-item", name: title.vi, isNew: true },
         ...categories
       ]);
     } else {
-      setOrderedItems(orderedItems.map(i => i.id === "new-item" ? { ...i, name: title } : i));
+      setOrderedItems(orderedItems.map(i => i.id === "new-item" ? { ...i, name: title.vi } : i));
     }
     setStep(2);
   };
@@ -159,7 +162,7 @@ export function CreateCategoryModal({ open, onOpenChange, categories, onSuccess 
   };
 
   const handleSave = async () => {
-    if (!title.trim()) return;
+    if (!title.vi.trim()) return;
     setIsSaving(true);
     try {
       // 1. Create the new category
@@ -167,9 +170,9 @@ export function CreateCategoryModal({ open, onOpenChange, categories, onSuccess 
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
-          name: title, 
+          name: title.vi, 
           handle: handle || undefined,
-          description: description || undefined 
+          description: description.vi || undefined 
         })
       });
       if (!res.ok) throw new Error("Failed to create category");
@@ -218,7 +221,7 @@ export function CreateCategoryModal({ open, onOpenChange, categories, onSuccess 
               <ProgressTabs.Trigger
                 value="2"
                 status={step === 2 ? "in-progress" : "not-started"}
-                disabled={step === 1 && !title.trim()}
+                disabled={step === 1 && !title.vi.trim()}
               >
                 Organize Ranking
               </ProgressTabs.Trigger>
@@ -236,11 +239,14 @@ export function CreateCategoryModal({ open, onOpenChange, categories, onSuccess 
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="flex flex-col gap-y-2">
-                    <Label htmlFor="title" weight="plus">Title</Label>
-                    <Input
+                    <LocalizedTextField
                       id="title"
+                      label="Title"
                       value={title}
-                      onChange={(e) => setTitle(e.target.value)}
+                      locale={titleLocale}
+                      onLocaleChange={setTitleLocale}
+                      onChange={setTitle}
+                      placeholder={{ vi: "Tieu de", en: "Title" }}
                     />
                   </div>
                   <div className="flex flex-col gap-y-2">
@@ -262,13 +268,15 @@ export function CreateCategoryModal({ open, onOpenChange, categories, onSuccess 
                 </div>
 
                 <div className="flex flex-col gap-y-2">
-                  <Label htmlFor="description" weight="plus" className="flex items-center gap-x-1">
-                    Description <span className="text-ui-fg-muted font-normal">(Optional)</span>
-                  </Label>
-                  <Textarea
+                  <LocalizedTextField
                     id="description"
+                    label="Description (Optional)"
                     value={description}
-                    onChange={(e) => setDescription(e.target.value)}
+                    locale={descriptionLocale}
+                    onLocaleChange={setDescriptionLocale}
+                    onChange={setDescription}
+                    placeholder={{ vi: "Mo ta", en: "Description" }}
+                    multiline
                     rows={4}
                   />
                 </div>
@@ -308,7 +316,7 @@ export function CreateCategoryModal({ open, onOpenChange, categories, onSuccess 
               <Button variant="secondary">Cancel</Button>
             </FocusModal.Close>
             {step === 1 ? (
-              <Button onClick={handleGoToStep2} disabled={!title.trim()}>
+              <Button onClick={handleGoToStep2} disabled={!title.vi.trim()}>
                 Continue
               </Button>
             ) : (

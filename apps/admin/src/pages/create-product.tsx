@@ -149,7 +149,7 @@ export function CreateProductPage() {
                 Handle:{" "}
                 <span className="text-ui-fg-base">
                   {values.handle.trim() ||
-                    slugify(values.title || "new-product")}
+                    slugify(values.title.vi || "new-product")}
                 </span>
               </Text>
               <Text size="small" className="text-ui-fg-subtle">

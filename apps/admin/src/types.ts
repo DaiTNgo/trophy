@@ -47,10 +47,10 @@ export type OrderContextValue = {
 
 export type CatalogProduct = {
   id: string;
-  title: string;
+  title: LocalizedTextValue;
   handle: string;
-  subtitle: string;
-  description: string;
+  subtitle: LocalizedTextValue;
+  description: LocalizedTextValue;
   status: ProductStatus;
   inventory: number;
   price: number;
@@ -134,10 +134,10 @@ export type ProductAttribute = {
 };
 
 export type CreateProductFormValues = {
-  title: string;
+  title: LocalizedTextValue;
   handle: string;
-  subtitle: string;
-  description: string;
+  subtitle: LocalizedTextValue;
+  description: LocalizedTextValue;
   customizationEnabled: boolean;
   collection: string;
   categories: string[];

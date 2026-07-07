@@ -1,9 +1,11 @@
 import { useState } from "react";
-import { Container, Heading, Text, Drawer, Button, Input, Textarea, StatusBadge, DropdownMenu, IconButton, Select, Label } from "@medusajs/ui";
+import { Container, Heading, Text, Drawer, Button, Input, StatusBadge, DropdownMenu, IconButton, Select, Label } from "@medusajs/ui";
 import { MoreHorizontal } from "lucide-react";
 import type { CatalogProduct } from "../../types";
 import { updateProductOverview, publishProduct, archiveProduct } from "../../lib/products-client";
 import { InlineError } from "../../components/ui/medusa/inline-error";
+import { LocalizedTextField } from "../../components/ui/medusa";
+import type { AdminLocale } from "../../types";
 
 type ProductDetailOverviewProps = {
   product: CatalogProduct;
@@ -15,8 +17,11 @@ export function ProductDetailOverview({ product, mutate }: ProductDetailOverview
   const [title, setTitle] = useState(product.title);
   const [handle, setHandle] = useState(product.handle);
   const [subtitle, setSubtitle] = useState(product.subtitle ?? "");
-  const [description, setDescription] = useState(product.description ?? "");
+  const [description, setDescription] = useState(product.description ?? { vi: "", en: "" });
   const [status, setStatus] = useState<string>(product.status);
+  const [titleLocale, setTitleLocale] = useState<AdminLocale>("vi");
+  const [subtitleLocale, setSubtitleLocale] = useState<AdminLocale>("vi");
+  const [descriptionLocale, setDescriptionLocale] = useState<AdminLocale>("vi");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -24,8 +29,8 @@ export function ProductDetailOverview({ product, mutate }: ProductDetailOverview
     if (isOpen) {
       setTitle(product.title);
       setHandle(product.handle);
-      setSubtitle(product.subtitle ?? "");
-      setDescription(product.description ?? "");
+      setSubtitle(product.subtitle ?? { vi: "", en: "" });
+      setDescription(product.description ?? { vi: "", en: "" });
       setStatus(product.status);
       setError(null);
     }
@@ -37,10 +42,10 @@ export function ProductDetailOverview({ product, mutate }: ProductDetailOverview
     setError(null);
     try {
       await updateProductOverview(product.id, {
-        title,
+        title: title.vi,
         handle,
-        subtitle: subtitle || null,
-        description: description || null,
+        subtitle: subtitle.vi || null,
+        description: description.vi || null,
       });
 
       if (status !== product.status) {
@@ -64,7 +69,7 @@ export function ProductDetailOverview({ product, mutate }: ProductDetailOverview
     <Container className="p-0 overflow-hidden">
       <div className="flex flex-col">
         <div className="flex items-center justify-between px-6 py-4">
-          <Heading level="h2" className="text-xl font-semibold">{product.title}</Heading>
+          <Heading level="h2" className="text-xl font-semibold">{product.title?.vi || product.title?.en}</Heading>
           <div className="flex items-center gap-x-2">
             <StatusBadge color={product.status === "Published" ? "green" : "grey"}>
               {product.status}
@@ -109,10 +114,13 @@ export function ProductDetailOverview({ product, mutate }: ProductDetailOverview
               <div className="grid gap-5 md:grid-cols-2">
                 <div className="flex flex-col gap-y-1.5">
                   <span className="text-sm text-ui-fg-subtle">Title</span>
-                  <Input
+                  <LocalizedTextField
+                    id="edit-title"
                     value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    placeholder="Product title"
+                    locale={titleLocale}
+                    onLocaleChange={setTitleLocale}
+                    onChange={setTitle}
+                    placeholder={{ vi: "Tieu de", en: "Product title" }}
                   />
                 </div>
                 <div className="flex flex-col gap-y-1.5">
@@ -126,18 +134,25 @@ export function ProductDetailOverview({ product, mutate }: ProductDetailOverview
               </div>
               <div className="flex flex-col gap-y-1.5">
                 <span className="text-sm text-ui-fg-subtle">Subtitle</span>
-                <Input
+                <LocalizedTextField
+                  id="edit-subtitle"
                   value={subtitle}
-                  onChange={(e) => setSubtitle(e.target.value)}
-                  placeholder="Optional subtitle"
+                  locale={subtitleLocale}
+                  onLocaleChange={setSubtitleLocale}
+                  onChange={setSubtitle}
+                  placeholder={{ vi: "Tieu de phu", en: "Optional subtitle" }}
                 />
               </div>
               <div className="flex flex-col gap-y-1.5">
                 <span className="text-sm text-ui-fg-subtle">Description</span>
-                <Textarea
+                <LocalizedTextField
+                  id="edit-description"
                   value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Product description"
+                  locale={descriptionLocale}
+                  onLocaleChange={setDescriptionLocale}
+                  onChange={setDescription}
+                  placeholder={{ vi: "Mo ta", en: "Product description" }}
+                  multiline
                 />
               </div>
             </Drawer.Body>
@@ -155,11 +170,11 @@ export function ProductDetailOverview({ product, mutate }: ProductDetailOverview
         <div className="flex flex-col">
           <div className="grid grid-cols-2 px-6 py-4 border-t border-ui-border-base">
             <Text size="small" className="text-ui-fg-subtle font-medium">Description</Text>
-            <Text size="small" className="text-ui-fg-base pr-4">{product.description || "—"}</Text>
+            <Text size="small" className="text-ui-fg-base pr-4">{product.description?.vi || product.description?.en || "—"}</Text>
           </div>
           <div className="grid grid-cols-2 px-6 py-4 border-t border-ui-border-base">
             <Text size="small" className="text-ui-fg-subtle font-medium">Subtitle</Text>
-            <Text size="small" className="text-ui-fg-base">{product.subtitle || "—"}</Text>
+            <Text size="small" className="text-ui-fg-base">{product.subtitle?.vi || product.subtitle?.en || "—"}</Text>
           </div>
           <div className="grid grid-cols-2 px-6 py-4 border-t border-ui-border-base">
             <Text size="small" className="text-ui-fg-subtle font-medium">Handle</Text>

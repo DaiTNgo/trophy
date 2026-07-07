@@ -21,7 +21,7 @@ export function ProductDetailPage() {
     if (product) {
       setBreadcrumbs([
         { label: "Products", path: "/products" },
-        { label: product.title }
+        { label: product.title?.vi || product.title?.en || "Product" }
       ]);
     }
     return () => setBreadcrumbs([]);

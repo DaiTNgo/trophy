@@ -65,7 +65,8 @@ export function ProductsListPage() {
       result = result.filter((product) =>
         [
           product.id,
-          product.title,
+          product.title?.vi || "",
+          product.title?.en || "",
           product.status,
           product.category,
           product.collection,
@@ -375,7 +376,7 @@ export function ProductsListPage() {
                           <div className="h-8 w-6 overflow-hidden rounded bg-ui-bg-subtle flex-shrink-0">
                             <img
                               src={product.media[0]}
-                              alt={product.title}
+                              alt={product.title?.vi || product.title?.en}
                               className="h-full w-full object-cover"
                             />
                           </div>
@@ -385,7 +386,7 @@ export function ProductsListPage() {
                             to={`/products/${product.id}`}
                             className="text-ui-fg-base font-medium"
                           >
-                            {product.title}
+                            {product.title?.vi || product.title?.en}
                           </Link>
                         </div>
                       </div>
