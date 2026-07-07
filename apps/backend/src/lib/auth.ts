@@ -59,7 +59,6 @@ export function getAuth(bindings: AppBindings) {
       minPasswordLength: 8
     },
     advanced: {
-      generateAuthToken: true,
     },
     plugins: [
       bearer(),

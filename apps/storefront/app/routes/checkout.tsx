@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router";
+import { Link, useNavigate, useSearchParams } from "react-router";
 import type { Route } from "./+types/checkout";
 import { ShoppingCart, ChevronUp, ChevronDown } from "lucide-react";
 import { createStorefrontOrder, resolveStorefrontCartLines } from "../lib/api";
 import { useCart } from "../hooks/use-cart";
 import { formatCurrency } from "../lib/utils";
+import { getLocalized } from "../lib/translation";
 
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
@@ -27,6 +28,8 @@ export function meta({}: Route.MetaArgs) {
 
 export default function Checkout() {
   const { lines, isReady, clearCart } = useCart();
+  const [searchParams] = useSearchParams();
+  const locale = (searchParams.get('locale') === 'en' ? 'en' : 'vi') as 'vi' | 'en';
   const navigate = useNavigate();
   const [resolved, setResolved] = useState<
     Array<{
@@ -54,6 +57,7 @@ export default function Checkout() {
 
     let cancelled = false;
     resolveStorefrontCartLines({
+      locale,
       items: lines.map((line) => ({
         productId: line.productId,
         variantId: line.variantId,
@@ -87,7 +91,7 @@ export default function Checkout() {
           valid: resolvedLine?.valid ?? true,
           priceAmount:
             resolvedLine?.product?.priceAmount ?? line.display.priceAmount,
-          title: resolvedLine?.product?.title ?? line.display.productTitle,
+          title: getLocalized(resolvedLine?.product?.title, locale) ?? getLocalized(line.display.productTitle, locale),
           variantTitle:
             resolvedLine?.product?.variantTitle ?? line.display.variantTitle,
           thumbnail: resolvedLine?.product?.thumbnail ?? line.display.thumbnail,
@@ -116,6 +120,7 @@ export default function Checkout() {
 
     try {
       const response = await createStorefrontOrder({
+      locale,
         customer: {
           name: String(formData.get("customer.name") ?? ""),
           phone: String(formData.get("customer.phone") ?? ""),
@@ -159,7 +164,7 @@ export default function Checkout() {
             formData.get("shipping.primaryAddress.province") ?? "",
           ),
           items: checkoutItems.map((item) => ({
-            title: item.title,
+            title: getLocalized(item.title, locale),
             variantTitle: item.variantTitle,
             quantity: item.line.quantity,
             lineSubtotalAmount: (item.priceAmount ?? 0) * item.line.quantity,
@@ -294,7 +299,7 @@ export default function Checkout() {
                       {item.thumbnail ? (
                         <img
                           src={item.thumbnail}
-                          alt={item.title}
+                          alt={getLocalized(item.title, locale)}
                           className="w-full h-full object-contain rounded-lg p-1"
                         />
                       ) : null}
@@ -306,7 +311,7 @@ export default function Checkout() {
                     <div className="flex-grow min-w-0 pt-0.5">
                       <div className="flex justify-between items-start gap-4">
                         <h4 className="text-[14px] font-medium text-[#323232] leading-tight">
-                          {item.title}
+                          {getLocalized(item.title, locale)}
                         </h4>
                         <p className="text-[14px] text-[#323232] whitespace-nowrap">
                           {formatCurrency(item.priceAmount)}
@@ -643,7 +648,7 @@ export default function Checkout() {
                           {item.thumbnail ? (
                             <img
                               src={item.thumbnail}
-                              alt={item.title}
+                              alt={getLocalized(item.title, locale)}
                               className="w-full h-full object-contain rounded-lg p-1"
                             />
                           ) : null}
@@ -655,7 +660,7 @@ export default function Checkout() {
                         <div className="flex-grow min-w-0 pt-0.5">
                           <div className="flex justify-between items-start gap-4">
                             <h4 className="text-[14px] font-medium text-[#323232] leading-tight">
-                              {item.title}
+                              {getLocalized(item.title, locale)}
                             </h4>
                             <p className="text-[14px] text-[#323232] whitespace-nowrap">
                               {formatCurrency(item.priceAmount)}

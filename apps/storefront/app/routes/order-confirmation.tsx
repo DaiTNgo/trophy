@@ -3,6 +3,7 @@ import { Link, useSearchParams } from "react-router";
 import type { Route } from "./+types/order-confirmation";
 import { CheckCircle } from "lucide-react";
 import { formatCurrency } from "../lib/utils";
+import { getLocalized } from "../lib/translation";
 
 const ORDER_SUMMARY_STORAGE_KEY = "trophy-order-confirmation";
 
@@ -38,6 +39,7 @@ export function meta({}: Route.MetaArgs) {
 
 export default function OrderConfirmation() {
   const [searchParams] = useSearchParams();
+  const locale = searchParams.get("locale") || "vi";
   const orderNumber = searchParams.get("orderNumber") ?? "";
   const [summary, setSummary] = useState<StoredConfirmation | null>(null);
 
@@ -118,12 +120,12 @@ export default function OrderConfirmation() {
 
                 <div className="space-y-4 border-t border-outline pt-6">
                   {summary.items.map((item, index) => (
-                    <div key={`${item.title}-${index}`} className="flex gap-4">
+                    <div key={`${getLocalized(item.title, locale)}-${index}`} className="flex gap-4">
                       <div className="h-16 w-16 overflow-hidden rounded-xl bg-surface-container-low">
-                        {item.thumbnail ? <img src={item.thumbnail} alt={item.title} className="h-full w-full object-contain" /> : null}
+                        {item.thumbnail ? <img src={item.thumbnail} alt={getLocalized(item.title, locale)} className="h-full w-full object-contain" /> : null}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="font-semibold text-on-surface">{item.title}</p>
+                        <p className="font-semibold text-on-surface">{getLocalized(item.title, locale)}</p>
                         <p className="text-sm text-on-surface-variant">{item.variantTitle}</p>
                         <p className="text-sm text-on-surface-variant">SL: {item.quantity}</p>
                       </div>

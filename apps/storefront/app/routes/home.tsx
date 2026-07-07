@@ -1,4 +1,5 @@
 import type { Route } from "./+types/home";
+import { getLocaleFromRequest } from "../lib/locale";
 import { useScrollReveal } from "../hooks/useScrollReveal";
 import { TrustBar } from "../components/home/TrustBar";
 import { HeroSection } from "../components/home/HeroSection";
@@ -27,7 +28,8 @@ export function meta({}: Route.MetaArgs) {
   ];
 }
 
-export async function loader({}: Route.LoaderArgs) {
+export async function loader({ request }: Route.LoaderArgs) {
+  const locale = getLocaleFromRequest(request);
   const [categories, bestSellersData] = await Promise.all([
     fetchStorefrontCategories().catch(() => []),
     fetchStorefrontCollectionProducts("best-sellers", { limit: 8 }).catch(
@@ -46,11 +48,12 @@ export async function loader({}: Route.LoaderArgs) {
   return {
     categories,
     bestSellers,
+    locale,
   };
 }
 
 export default function Home({ loaderData }: Route.ComponentProps) {
-  const { categories, bestSellers } = loaderData;
+  const { categories, bestSellers, locale } = loaderData;
   useScrollReveal();
 
   return (

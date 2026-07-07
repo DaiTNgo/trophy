@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { FocusModal, Button, Text } from "@medusajs/ui";
-import { Tag } from "lucide-react";
-import { SortableItem, DragHandle, reorderWithEdge, autoScrollForElements } from "./sortable-list";
+import { FocusModal, Button } from "@medusajs/ui";
+import { reorderWithEdge, autoScrollForElements } from "./sortable-list";
 import type { Edge } from "./sortable-list";
+import { RankingList } from "./ranking-list";
 
 export function EditRankingModal({
   open,
@@ -68,23 +68,7 @@ export function EditRankingModal({
         </FocusModal.Header>
         <FocusModal.Body className="flex flex-col items-center overflow-y-auto h-full" ref={scrollContainerRef}>
           <div className="w-full flex flex-col py-8 px-4">
-            <div className="flex flex-col border border-ui-border-base rounded-md overflow-hidden bg-ui-bg-base shadow-sm">
-              {orderedItems.map((item, index) => (
-                <SortableItem
-                  key={item.id}
-                  id={item.id}
-                  items={orderedItems}
-                  onReorder={reorder}
-                  className={index !== orderedItems.length - 1 ? "border-b border-ui-border-base" : ""}
-                >
-                  <div className="flex items-center gap-x-4 bg-ui-bg-base px-4 py-3">
-                    <DragHandle label={`Move ${item.name}`} />
-                    <Tag className="h-4 w-4 text-ui-fg-subtle" />
-                    <Text size="small">{item.name}</Text>
-                  </div>
-                </SortableItem>
-              ))}
-            </div>
+            <RankingList items={orderedItems} onReorder={reorder} />
           </div>
         </FocusModal.Body>
       </FocusModal.Content>

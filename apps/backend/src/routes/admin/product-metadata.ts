@@ -10,6 +10,8 @@ import {
 } from '../../db/schema'
 import type { AppEnv } from '../../lib/env'
 import { jsonError, parseJson } from '../../lib/validation'
+import { localizedString, localizedNullableText } from '../../lib/locale'
+import { hydrateTranslations, upsertTranslations } from '../../lib/catalog-translation'
 
 const trimmedString = (min = 1, max = 255) =>
   v.pipe(v.string(), v.trim(), v.minLength(min), v.maxLength(max))
@@ -35,28 +37,28 @@ const slugify = (value: string) =>
     .replace(/-{2,}/g, '-')
 
 const createCollectionSchema = v.object({
-  title: trimmedString(1, 120),
+  title: localizedString(1, 120),
   handle: optionalHandle,
   imageUrl: v.optional(v.nullable(v.string()))
 })
 
 const createCategorySchema = v.object({
-  name: trimmedString(1, 120),
+  name: localizedString(1, 120),
   handle: optionalHandle,
   imageUrl: v.optional(v.nullable(v.string()))
 })
 
 const updateCollectionSchema = v.object({
-  title: v.optional(trimmedString(1, 120)),
+  title: v.optional(localizedString(1, 120)),
   handle: optionalHandle,
   imageUrl: v.optional(v.nullable(v.string())),
   position: v.optional(v.number())
 })
 
 const updateCategorySchema = v.object({
-  name: v.optional(trimmedString(1, 120)),
+  name: v.optional(localizedString(1, 120)),
   handle: optionalHandle,
-  description: v.optional(v.nullable(v.string())),
+  description: v.optional(localizedNullableText()),
   imageUrl: v.optional(v.nullable(v.string())),
   position: v.optional(v.number())
 })
@@ -83,7 +85,7 @@ const idParamSchema = v.object({
 const ensureUniqueHandle = async (
   db: ReturnType<typeof getDb>,
   desiredHandle: string,
-  kind: 'collection' | 'category'
+  kind: 'product_collection' | 'product_category'
 ) => {
   const base = slugify(desiredHandle) || kind
   let suffix = 0
@@ -91,7 +93,7 @@ const ensureUniqueHandle = async (
   while (true) {
     const candidate = suffix === 0 ? base : `${base}-${suffix}`
     const existing =
-      kind === 'collection'
+      kind === 'product_collection'
         ? await db
             .select({ id: productCollections.id })
             .from(productCollections)
@@ -119,7 +121,16 @@ export const productMetadataRoute = new Hono<AppEnv>()
       .from(productCollections)
       .orderBy(asc(productCollections.title))
 
-    return c.json({ items }, 200)
+    const hydratedItems = await hydrateTranslations(
+      db,
+      'product_collection',
+      items,
+      (item) => String(item.id),
+      [{ fieldName: 'title', objectKey: 'title' }],
+      [{ fieldName: 'title', objectKey: 'title' }]
+    )
+
+    return c.json({ items: hydratedItems }, 200)
   })
   .post('/collections', async (c) => {
     const parsed = await parseJson(c, createCollectionSchema)
@@ -131,18 +142,20 @@ export const productMetadataRoute = new Hono<AppEnv>()
     const db = getDb(c.env)
     const handle = await ensureUniqueHandle(
       db,
-      parsed.output.handle ?? parsed.output.title,
-      'collection'
+      parsed.output.handle ?? parsed.output.title.vi,
+      'product_collection'
     )
     const item = await db
       .insert(productCollections)
       .values({
-        title: parsed.output.title,
+        title: parsed.output.title.vi,
         handle,
         imageUrl: parsed.output.imageUrl
       })
       .returning()
       .get()
+
+    await upsertTranslations(db, 'product_collection', String(item.id), 'title', parsed.output.title)
 
     return c.json({ item }, 201)
   })
@@ -170,7 +183,7 @@ export const productMetadataRoute = new Hono<AppEnv>()
     }
 
     const updates: Partial<typeof productCollections.$inferInsert> = {}
-    if (parsed.output.title !== undefined) updates.title = parsed.output.title
+    if (parsed.output.title !== undefined) updates.title = parsed.output.title.vi
     if (parsed.output.imageUrl !== undefined) updates.imageUrl = parsed.output.imageUrl
     if (parsed.output.position !== undefined) updates.position = parsed.output.position
 
@@ -178,24 +191,37 @@ export const productMetadataRoute = new Hono<AppEnv>()
       if (parsed.output.handle !== existing.handle) {
         updates.handle = await ensureUniqueHandle(
           db,
-          parsed.output.handle ?? parsed.output.title ?? existing.title,
-          'collection'
+          parsed.output.handle ?? parsed.output.title?.vi ?? existing.title,
+          'product_collection'
         )
       }
     }
 
+    let item = existing
+
     if (Object.keys(updates).length > 0) {
-      const item = await db
+      item = await db
         .update(productCollections)
         .set(updates)
         .where(eq(productCollections.id, id))
         .returning()
         .get()
-
-      return c.json({ item }, 200)
     }
 
-    return c.json({ item: existing }, 200)
+    if (parsed.output.title !== undefined) {
+      await upsertTranslations(db, 'product_collection', String(item.id), 'title', parsed.output.title)
+    }
+
+    const [hydratedItem] = await hydrateTranslations(
+      db,
+      'product_collection',
+      [item],
+      (i) => String(i.id),
+      [{ fieldName: 'title', objectKey: 'title' }],
+      [{ fieldName: 'title', objectKey: 'title' }]
+    )
+
+    return c.json({ item: hydratedItem }, 200)
   })
   .delete('/collections/:id', async (c) => {
     const idParam = v.safeParse(idParamSchema, { id: c.req.param('id') })
@@ -226,7 +252,22 @@ export const productMetadataRoute = new Hono<AppEnv>()
       .from(productCategories)
       .orderBy(asc(productCategories.position), asc(productCategories.id))
 
-    return c.json({ categories: items }, 200)
+    const hydratedItems = await hydrateTranslations(
+      db,
+      'product_category',
+      items,
+      (item) => String(item.id),
+      [
+        { fieldName: 'name', objectKey: 'name' },
+        { fieldName: 'description', objectKey: 'description' }
+      ],
+      [
+        { fieldName: 'name', objectKey: 'name' },
+        { fieldName: 'description', objectKey: 'description' }
+      ]
+    )
+
+    return c.json({ categories: hydratedItems }, 200)
   })
   .post('/categories', async (c) => {
     const parsed = await parseJson(c, createCategorySchema)
@@ -239,20 +280,39 @@ export const productMetadataRoute = new Hono<AppEnv>()
 
     const handle = await ensureUniqueHandle(
       db,
-      parsed.output.handle ?? parsed.output.name,
-      'category'
+      parsed.output.handle ?? parsed.output.name.vi,
+      'product_category'
     )
     const item = await db
       .insert(productCategories)
       .values({
-        name: parsed.output.name,
+        name: parsed.output.name.vi,
         handle,
         imageUrl: parsed.output.imageUrl
       })
       .returning()
       .get()
 
+    await upsertTranslations(db, 'product_category', String(item.id), 'name', parsed.output.name)
+
     return c.json({ item }, 201)
+  })
+  .put('/categories/ranking', async (c) => {
+    const parsed = await parseJson(c, updateCategoryRankingSchema)
+    if (!parsed.success) {
+      return parsed.response
+    }
+
+    const db = getDb(c.env)
+    const statements = parsed.output.categories.map((cat) =>
+      db
+        .update(productCategories)
+        .set({ position: cat.position })
+        .where(eq(productCategories.id, cat.id))
+    )
+
+    await db.batch(statements as any)
+    return c.json({ success: true }, 200)
   })
   .put('/categories/:id', async (c) => {
     const idParam = v.safeParse(idParamSchema, { id: c.req.param('id') })
@@ -278,8 +338,10 @@ export const productMetadataRoute = new Hono<AppEnv>()
     }
 
     const updates: Partial<typeof productCategories.$inferInsert> = {}
-    if (parsed.output.name !== undefined) updates.name = parsed.output.name
-    if (parsed.output.description !== undefined) updates.description = parsed.output.description
+    if (parsed.output.name !== undefined) updates.name = parsed.output.name.vi
+    if (parsed.output.description !== undefined) {
+      updates.description = parsed.output.description ? parsed.output.description.vi : null
+    }
     if (parsed.output.imageUrl !== undefined) updates.imageUrl = parsed.output.imageUrl
     if (parsed.output.position !== undefined) updates.position = parsed.output.position
 
@@ -287,41 +349,47 @@ export const productMetadataRoute = new Hono<AppEnv>()
       if (parsed.output.handle !== existing.handle) {
         updates.handle = await ensureUniqueHandle(
           db,
-          parsed.output.handle ?? parsed.output.name ?? existing.name,
-          'category'
+          parsed.output.handle ?? parsed.output.name?.vi ?? existing.name,
+          'product_category'
         )
       }
     }
 
+    let item = existing
+
     if (Object.keys(updates).length > 0) {
-      const item = await db
+      item = await db
         .update(productCategories)
         .set(updates)
         .where(eq(productCategories.id, id))
         .returning()
         .get()
-
-      return c.json({ item }, 200)
     }
 
-    return c.json({ item: existing }, 200)
-  })
-  .put('/categories/ranking', async (c) => {
-    const parsed = await parseJson(c, updateCategoryRankingSchema)
-    if (!parsed.success) {
-      return parsed.response
+    if (parsed.output.name !== undefined) {
+      await upsertTranslations(db, 'product_category', String(item.id), 'name', parsed.output.name)
     }
 
-    const db = getDb(c.env)
-    const statements = parsed.output.categories.map((cat) =>
-      db
-        .update(productCategories)
-        .set({ position: cat.position })
-        .where(eq(productCategories.id, cat.id))
+    if (parsed.output.description !== undefined) {
+      await upsertTranslations(db, 'product_category', String(item.id), 'description', parsed.output.description)
+    }
+
+    const [hydratedItem] = await hydrateTranslations(
+      db,
+      'product_category',
+      [item],
+      (i) => String(i.id),
+      [
+        { fieldName: 'name', objectKey: 'name' },
+        { fieldName: 'description', objectKey: 'description' }
+      ],
+      [
+        { fieldName: 'name', objectKey: 'name' },
+        { fieldName: 'description', objectKey: 'description' }
+      ]
     )
 
-    await db.batch(statements as any)
-    return c.json({ success: true }, 200)
+    return c.json({ item: hydratedItem }, 200)
   })
   .delete('/categories/:id', async (c) => {
     const idParam = v.safeParse(idParamSchema, { id: c.req.param('id') })

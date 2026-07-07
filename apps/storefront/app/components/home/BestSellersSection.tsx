@@ -3,12 +3,14 @@ import { ProductCard } from "../shared/ProductCard";
 import type { StorefrontProductItem } from "../../lib/api";
 import { backendAssetUrl } from "../../lib/api";
 import { ArrowRight } from "lucide-react";
+import { getLocalized } from "../../lib/translation";
 
 interface BestSellersSectionProps {
   products: StorefrontProductItem[];
+  locale?: string;
 }
 
-export function BestSellersSection({ products }: BestSellersSectionProps) {
+export function BestSellersSection({ products, locale = "vi" }: BestSellersSectionProps) {
   if (products.length === 0) return null;
 
   // Cap at 8 per spec
@@ -47,6 +49,7 @@ export function BestSellersSection({ products }: BestSellersSectionProps) {
                 key={product.id}
                 {...product}
                 thumbnail={imgSrc}
+                title={getLocalized(product.title, locale)}
               />
             );
           })}

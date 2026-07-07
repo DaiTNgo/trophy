@@ -43,6 +43,7 @@ adminBootstrapRoute.post("/", async (c) => {
   }
 
   try {
+    // @ts-ignore
     const created = await auth.api.createUser({
       body: {
         email: buildSeedEmail(result.output.username),

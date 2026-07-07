@@ -17,6 +17,9 @@ import {
 } from '../../db/schema'
 import type { AppEnv } from '../../lib/env'
 import { jsonError, parseParams } from '../../lib/validation'
+import { hydrateTranslations } from '../../lib/catalog-translation'
+import { hydrateCustomization } from '../../lib/customization-translation'
+import { localeSchema, DEFAULT_LOCALE } from '../../lib/locale'
 
 const optionalQueryText = v.optional(
   v.pipe(
@@ -28,6 +31,7 @@ const optionalQueryText = v.optional(
 )
 
 const storefrontListingQuerySchema = v.object({
+  locale: v.optional(localeSchema, DEFAULT_LOCALE),
   q: optionalQueryText,
   category: optionalQueryText,
   page: v.optional(
@@ -51,6 +55,10 @@ const storefrontListingQuerySchema = v.object({
       v.maxValue(100)
     )
   )
+})
+
+const handleQuerySchema = v.object({
+  locale: v.optional(localeSchema, DEFAULT_LOCALE)
 })
 
 const handleParamsSchema = v.object({
@@ -94,6 +102,7 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
     const db = getDb(c.env)
     const page = parsedQuery.output.page ?? 1
     const limit = parsedQuery.output.limit ?? 20
+    const locale = parsedQuery.output.locale ?? DEFAULT_LOCALE
     const offset = (page - 1) * limit
 
     const conditions = [eq(products.status, 'published')]
@@ -160,6 +169,7 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
         ? db
             .select({
               productId: productCategoryLinks.productId,
+              categoryId: productCategories.id,
               name: productCategories.name
             })
             .from(productCategoryLinks)
@@ -168,7 +178,7 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
               eq(productCategoryLinks.categoryId, productCategories.id)
             )
             .where(inArray(productCategoryLinks.productId, productIds))
-        : Promise.resolve([] as Array<{ productId: number; name: string }>),
+        : Promise.resolve([] as Array<{ productId: number; categoryId: number; name: string }>),
       productIds.length > 0
         ? db
             .select()
@@ -211,20 +221,6 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
         : Promise.resolve([] as Array<{ productId: number; enabled: boolean }>)
     ])
 
-    const categoriesByProductId = new Map<number, string[]>()
-    for (const row of categoryRows) {
-      const current = categoriesByProductId.get(row.productId) ?? []
-      current.push(row.name)
-      categoriesByProductId.set(row.productId, current)
-    }
-
-    const variantsByProductId = new Map<number, (typeof variantRows)[number][]>()
-    for (const row of variantRows) {
-      const current = variantsByProductId.get(row.productId) ?? []
-      current.push(row)
-      variantsByProductId.set(row.productId, current)
-    }
-
     const variantMediaByVariantId = new Map<
       number,
       (typeof variantMediaRows)[number][]
@@ -239,7 +235,25 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
       customizationRows.map((row) => [row.productId, row])
     )
 
-    const listingItems = items.map((item) =>
+    const variantsByProductId = new Map<number, (typeof variantRows)[number][]>()
+    for (const row of variantRows) {
+      const current = variantsByProductId.get(row.productId) ?? []
+      current.push(row)
+      variantsByProductId.set(row.productId, current)
+    }
+
+    
+    const resolvedItems = await hydrateTranslations(db, 'product', items, i => String(i.id), [{fieldName: 'title', objectKey: 'title'}, {fieldName: 'subtitle', objectKey: 'subtitle'}], [{fieldName: 'title', objectKey: 'title'}, {fieldName: 'subtitle', objectKey: 'subtitle'}]);
+    const resolvedCategories = await hydrateTranslations(db, 'product_category', categoryRows, c => String(c.categoryId), [{fieldName: 'name', objectKey: 'name'}], [{fieldName: 'name', objectKey: 'name'}]);
+
+    const categoriesByProductId = new Map<number, string[]>()
+    for (const row of resolvedCategories) {
+      const current = categoriesByProductId.get(row.productId) ?? []
+      current.push(row.name)
+      categoriesByProductId.set(row.productId, current)
+    }
+
+    const listingItems = resolvedItems.map((item) =>
       buildListingItem(
         item,
         categoriesByProductId.get(item.id) ?? [],
@@ -269,7 +283,10 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
     const db = getDb(c.env)
     const handle = parsed.output.handle
 
-    const product = await db
+    const parsedQuery = parseQuery(c.req.query(), handleQuerySchema)
+    const locale = parsedQuery.success ? (parsedQuery.output.locale ?? DEFAULT_LOCALE) : DEFAULT_LOCALE
+
+    let product = await db
       .select()
       .from(products)
       .where(and(eq(products.handle, handle), eq(products.status, 'published')))
@@ -278,6 +295,9 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
     if (!product) {
       return jsonError(c, 404, 'Product not found')
     }
+
+    [product] = await hydrateTranslations(db, 'product', [product], p => String(p.id), [{fieldName: 'title', objectKey: 'title'}, {fieldName: 'subtitle', objectKey: 'subtitle'}, {fieldName: 'description', objectKey: 'description'}], [{fieldName: 'title', objectKey: 'title'}, {fieldName: 'subtitle', objectKey: 'subtitle'}, {fieldName: 'description', objectKey: 'description'}
+      ]);
 
     const [
       categoryRows,
@@ -346,10 +366,14 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
         .get()
     ])
 
-    const optionIds = optionRows.map((row) => row.id)
+    
+    const resolvedCategories = await hydrateTranslations(db, 'product_category', categoryRows, c => String(c.id), [{fieldName: 'name', objectKey: 'name'}], [{fieldName: 'name', objectKey: 'name'}]);
+    const resolvedAttributes = await hydrateTranslations(db, 'product_attribute', attributeRows, a => String(a.id), [{fieldName: 'name', objectKey: 'name'}, {fieldName: 'value', objectKey: 'value'}], [{fieldName: 'name', objectKey: 'name'}, {fieldName: 'value', objectKey: 'value'}]);
+    const resolvedOptions = await hydrateTranslations(db, 'product_option', optionRows, o => String(o.id), [{fieldName: 'title', objectKey: 'title'}], [{fieldName: 'title', objectKey: 'title'}]);
+    const optionIds = resolvedOptions.map((row) => row.id)
     const variantIds = variantRows.map((row) => row.id)
 
-    const [optionValueRows, variantOptionRows] = await Promise.all([
+    const [rawOptionValueRows, variantOptionRows] = await Promise.all([
       optionIds.length > 0
         ? db
             .select()
@@ -365,6 +389,8 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
         : Promise.resolve([] as Array<typeof productVariantOptionValues.$inferSelect>)
     ])
 
+    
+    const optionValueRows = await hydrateTranslations(db, 'product_option_value', rawOptionValueRows, ov => String(ov.id), [{fieldName: 'value', objectKey: 'value'}], [{fieldName: 'value', objectKey: 'value'}]);
     const optionValuesByOptionId = new Map<
       number,
       (typeof optionValueRows)[number][]
@@ -377,7 +403,7 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
       optionValueById.set(ov.id, ov)
     }
 
-    const optionById = new Map(optionRows.map((row) => [row.id, row]))
+    const optionById = new Map(resolvedOptions.map((row) => [row.id, row]))
     const variantOptionIdsMap = new Map<number, number[]>()
     const variantMediaByVariantId = new Map<
       number,
@@ -396,7 +422,18 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
       variantMediaByVariantId.set(vm.variantId, current)
     }
 
-    const customization = customizationRow && customizationRow.enabled
+    let customization: any = null;
+    if (customizationRow && customizationRow.enabled) {
+      customization = {
+        enabled: true,
+        canvasWidthPx: customizationRow.canvasWidthPx,
+        canvasHeightPx: customizationRow.canvasHeightPx,
+        layers: JSON.parse(customizationRow.layersJson),
+        formFields: JSON.parse(customizationRow.formFieldsJson)
+      };
+      await hydrateCustomization(db, customization);
+    }
+    const dummy = customizationRow && customizationRow.enabled
       ? {
           enabled: true,
           canvasWidthPx: customizationRow.canvasWidthPx,
@@ -413,9 +450,9 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
       handle: product.handle,
       description: product.description,
       hasVariants: product.hasVariants,
-      categories: categoryRows,
-      attributes: attributeRows,
-      options: optionRows.map((option) => ({
+      categories: resolvedCategories,
+      attributes: resolvedAttributes,
+      options: resolvedOptions.map((option) => ({
         ...option,
         values: optionValuesByOptionId.get(option.id) ?? []
       })),

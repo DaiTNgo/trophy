@@ -86,7 +86,7 @@ export function useCreateProduct() {
     () => createEmptyEmbeddedCustomizationDraft(),
   );
   const [attributes, setAttributes] = useState<ProductAttribute[]>([
-    { key: "", value: "" },
+    { key: { vi: "", en: "" }, value: { vi: "", en: "" } },
   ]);
   const [errors, setErrors] = useState<CreateProductErrors>({});
   const [optionDefinitions, setOptionDefinitions] = useState<
@@ -294,7 +294,7 @@ export function useCreateProduct() {
   function updateAttribute(
     index: number,
     key: keyof ProductAttribute,
-    nextValue: string,
+    nextValue: LocalizedTextValue,
   ) {
     setAttributes((current) =>
       current.map((attribute, currentIndex) =>
@@ -304,7 +304,7 @@ export function useCreateProduct() {
   }
 
   function addAttributeRow() {
-    setAttributes((current) => [...current, { key: "", value: "" }]);
+    setAttributes((current) => [...current, { key: { vi: "", en: "" }, value: { vi: "", en: "" } }]);
   }
 
   function removeAttributeRow(index: number) {
@@ -403,10 +403,12 @@ export function useCreateProduct() {
         optionDefinitions,
       )
         .map((option) => ({
-          title: option.title.trim(),
-          values: option.values.map((value) => value.value.trim()).filter(Boolean),
+          title: option.titleTranslations ?? { vi: option.title.trim(), en: "" },
+          values: option.values.filter(v => v.value.trim() !== "").map((value) => ({
+            value: value.valueTranslations ?? { vi: value.value.trim(), en: "" }
+          })),
         }))
-        .filter((option) => option.title !== "" && option.values.length > 0);
+        .filter((option) => option.title.vi.trim() !== "" && option.values.length > 0);
       const variantRowsWithUploadedMedia = await Promise.all(
         effectiveVariantRows.map(async (variant) => {
           const uploadedMedia = await Promise.all(
@@ -450,20 +452,20 @@ export function useCreateProduct() {
       const createdProduct = await createFullProduct({
         mode,
         details: {
-          title: values.title.vi.trim(),
-          subtitle: values.subtitle.vi.trim() || null,
+          title: values.title,
+          subtitle: values.subtitle.vi.trim() !== "" ? values.subtitle : null,
           handle: values.handle.trim() || null,
-          description: values.description.vi.trim() || null,
+          description: values.description.vi.trim() !== "" ? values.description : null,
         },
         organization: {
           collectionId: selectedCollectionId ? Number(selectedCollectionId) : null,
           categoryIds: selectedCategoryIds.map((id) => Number(id)),
         },
         attributes: attributes
-          .filter((attribute) => attribute.key.trim() !== "" && attribute.value.trim() !== "")
+          .filter((attribute) => attribute.key.vi.trim() !== "" && attribute.value.vi.trim() !== "")
           .map((attribute) => ({
-            name: attribute.key.trim(),
-            value: attribute.value.trim(),
+            name: attribute.key,
+            value: attribute.value,
             unit: null,
           })),
         options: enabledOptionDefinitions,

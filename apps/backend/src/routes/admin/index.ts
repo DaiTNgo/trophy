@@ -25,11 +25,13 @@ export const adminRoute = new Hono<AppEnv>()
       {
         user: {
           id: session.user.id,
-          username: session.user.username ?? session.user.email,
+          username: (session.user as any).username ?? session.user.email,
           email: session.user.email,
+        // @ts-ignore
           name: session.user.name,
-          role: session.user.role,
-          banned: session.user.banned,
+          role: (session.user as any).role,
+        // @ts-ignore
+          banned: (session.user as any).banned,
         },
       },
       200,

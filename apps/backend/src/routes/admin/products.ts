@@ -4,6 +4,7 @@ import {
   type ProductCustomization
 } from '@trophy/customization'
 import { and, asc, desc, eq, inArray, like, or, sql } from 'drizzle-orm'
+import { hydrateTranslations, upsertTranslations } from '../../lib/catalog-translation'
 import { Hono } from 'hono'
 import * as v from 'valibot'
 import { getDb } from '../../db/client'
@@ -27,6 +28,7 @@ import { jsonError, parseJson, parseParams } from '../../lib/validation'
 import {
   parseStoredProductCustomizationModel
 } from './customizations/helpers'
+import { hydrateCustomization, persistCustomizationTranslations } from '../../lib/customization-translation'
 
 const trimmedString = (min = 1, max = 255) =>
   v.pipe(v.string(), v.trim(), v.minLength(min), v.maxLength(max))
@@ -143,11 +145,13 @@ const searchProductsQuerySchema = v.object({
   )
 })
 
+import { localizedNullableText, localizedString } from "../../lib/locale"
+
 const createProductSchema = v.object({
-  title: trimmedString(1, 200),
-  subtitle: nullableText(255),
+  title: localizedString(1, 200),
+  subtitle: localizedNullableText(255),
   handle: optionalHandle,
-  description: nullableText(),
+  description: localizedNullableText(),
   defaultVariantTitle: nullableText(255),
   priceAmount: v.optional(
     v.nullable(v.pipe(v.number(), v.integer(), v.minValue(0)))
@@ -155,10 +159,10 @@ const createProductSchema = v.object({
 })
 
 const updateProductSchema = v.object({
-  title: v.optional(trimmedString(1, 200)),
-  subtitle: nullableText(255),
+  title: v.optional(localizedString(1, 200)),
+  subtitle: localizedNullableText(255),
   handle: optionalHandle,
-  description: nullableText()
+  description: localizedNullableText()
 })
 
 const organizeSchema = v.object({
@@ -169,8 +173,8 @@ const organizeSchema = v.object({
 const attributesSchema = v.object({
   items: v.array(
     v.object({
-      name: trimmedString(1, 120),
-      value: trimmedString(1, 255),
+      name: localizedString(1, 120),
+      value: localizedString(1, 255),
       unit: nullableText(50)
     })
   )
@@ -188,11 +192,17 @@ const mediaSchema = v.object({
 const optionsSchema = v.object({
   items: v.array(
     v.object({
-      title: trimmedString(1, 120),
+      id: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1))),
+      title: localizedString(1, 120),
       values: v.pipe(
-        v.array(trimmedString(1, 120)),
+        v.array(
+          v.object({
+            id: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1))),
+            value: localizedString(1, 120)
+          })
+        ),
         v.check(
-          (values) => new Set(values.map((value) => value.toLowerCase())).size === values.length,
+          (values) => new Set(values.map((vItem) => vItem.value.vi.toLowerCase())).size === values.length,
           'Option values must be unique within the same option'
         )
       )
@@ -201,12 +211,16 @@ const optionsSchema = v.object({
 })
 
 const optionCreateSchema = v.object({
-  title: trimmedString(1, 120),
+  title: localizedString(1, 120),
   values: v.optional(
     v.pipe(
-      v.array(trimmedString(1, 120)),
+      v.array(
+        v.object({
+          value: localizedString(1, 120)
+        })
+      ),
       v.check(
-        (values) => new Set(values.map((value) => value.toLowerCase())).size === values.length,
+        (values) => new Set(values.map((vItem) => vItem.value.vi.toLowerCase())).size === values.length,
         'Option values must be unique within the same option'
       )
     )
@@ -214,15 +228,15 @@ const optionCreateSchema = v.object({
 })
 
 const optionUpdateSchema = v.object({
-  title: trimmedString(1, 120)
+  title: localizedString(1, 120)
 })
 
 const optionValueCreateSchema = v.object({
-  value: trimmedString(1, 120)
+  value: localizedString(1, 120)
 })
 
 const optionValueUpdateSchema = v.object({
-  value: trimmedString(1, 120)
+  value: localizedString(1, 120)
 })
 
 const assetIdSchema = v.pipe(v.string(), v.uuid())
@@ -324,26 +338,30 @@ const fullCreateOrganizationSchema = v.object({
 const fullCreateProductSchema = v.object({
   mode: v.union([v.literal('draft'), v.literal('publish')]),
   details: v.object({
-    title: trimmedString(1, 200),
-    subtitle: nullableText(255),
+    title: localizedString(1, 200),
+    subtitle: localizedNullableText(255),
     handle: optionalHandle,
-    description: nullableText()
+    description: localizedNullableText()
   }),
   organization: fullCreateOrganizationSchema,
   attributes: v.array(
     v.object({
-      name: trimmedString(1, 120),
-      value: trimmedString(1, 255),
+      name: localizedString(1, 120),
+      value: localizedString(1, 255),
       unit: nullableText(50)
     })
   ),
   options: v.array(
     v.object({
-      title: trimmedString(1, 120),
+      title: localizedString(1, 120),
       values: v.pipe(
-        v.array(trimmedString(1, 120)),
+        v.array(
+          v.object({
+            value: localizedString(1, 120)
+          })
+        ),
         v.check(
-          (values) => new Set(values.map((value) => value.toLowerCase())).size === values.length,
+          (values) => new Set(values.map((v) => (typeof v.value === 'string' ? v.value : v.value.vi).toLowerCase())).size === values.length,
           'Option values must be unique within the same option'
         )
       )
@@ -530,6 +548,46 @@ const readProduct = async (db: ReturnType<typeof getDb>, productId: number) => {
           .where(inArray(productVariantOptionValues.variantId, variantIds))
       : []
 
+  if (attributeRows.length > 0) {
+    await hydrateTranslations(
+      db,
+      'product_attribute',
+      attributeRows,
+      (a) => String(a.id),
+      [
+        { fieldName: 'name', objectKey: 'name' },
+        { fieldName: 'value', objectKey: 'value' }
+      ],
+      [
+        { fieldName: 'name', objectKey: 'name' },
+        { fieldName: 'value', objectKey: 'value' }
+      ]
+    )
+  }
+
+  if (optionRows.length > 0) {
+    await hydrateTranslations(
+      db,
+      'product_option',
+      optionRows,
+      (o) => String(o.id),
+      [{ fieldName: 'title', objectKey: 'title' }],
+      [{ fieldName: 'title', objectKey: 'title' }]
+    )
+  }
+
+  if (optionValueRows.length > 0) {
+    await hydrateTranslations(
+      db,
+      'product_option_value',
+      optionValueRows,
+      (ov) => String(ov.id),
+      [{ fieldName: 'value', objectKey: 'value' }],
+      [{ fieldName: 'value', objectKey: 'value' }]
+    )
+  }
+
+
   const optionValuesByOptionId = new Map<number, typeof optionValueRows>()
   const optionValueById = new Map<number, (typeof optionValueRows)[number]>()
   for (const optionValue of optionValueRows) {
@@ -578,7 +636,11 @@ const readProduct = async (db: ReturnType<typeof getDb>, productId: number) => {
       })()
     : null
 
-  return {
+  if (customization) {
+    await hydrateCustomization(db, customization)
+  }
+
+  const baseProduct = {
     ...product,
     collection,
     categories: categoryRows,
@@ -626,12 +688,31 @@ const readProduct = async (db: ReturnType<typeof getDb>, productId: number) => {
       }
     })
   }
+
+  const [hydratedProduct] = await hydrateTranslations(
+    db,
+    'product',
+    [baseProduct],
+    (p) => String(p.id),
+    [
+      { fieldName: 'title', objectKey: 'title' },
+      { fieldName: 'subtitle', objectKey: 'subtitle' },
+      { fieldName: 'description', objectKey: 'description' }
+    ],
+    [
+      { fieldName: 'title', objectKey: 'title' },
+      { fieldName: 'subtitle', objectKey: 'subtitle' },
+      { fieldName: 'description', objectKey: 'description' }
+    ]
+  )
+
+  return hydratedProduct
 }
 
 const replaceAttributes = async (
   db: ReturnType<typeof getDb>,
   productId: number,
-  items: Array<{ name: string; value: string; unit?: string | null }>
+  items: Array<any>
 ) => {
   await db.delete(productAttributes).where(eq(productAttributes.productId, productId))
 
@@ -639,15 +720,20 @@ const replaceAttributes = async (
     return
   }
 
-  await db.insert(productAttributes).values(
+  const insertedAttributes = await db.insert(productAttributes).values(
     items.map((item, index) => ({
       productId,
-      name: item.name,
-      value: item.value,
+      name: typeof item.name === 'string' ? item.name : item.name.vi,
+      value: typeof item.value === 'string' ? item.value : item.value.vi,
       unit: item.unit ?? null,
       position: index
     }))
-  )
+  ).returning()
+
+  for (let i = 0; i < insertedAttributes.length; i++) {
+    await upsertTranslations(db, 'product_attribute', String(insertedAttributes[i].id), 'name', items[i].name)
+    await upsertTranslations(db, 'product_attribute', String(insertedAttributes[i].id), 'value', items[i].value)
+  }
 }
 
 const replaceMedia = async (
@@ -674,7 +760,7 @@ const replaceMedia = async (
 const replaceOptions = async (
   db: ReturnType<typeof getDb>,
   productId: number,
-  items: Array<{ title: string; values: string[] }>
+  items: Array<any>
 ) => {
   const product = await db.select().from(products).where(eq(products.id, productId)).get()
 
@@ -722,22 +808,30 @@ const replaceOptions = async (
       .values(
         items.map((item, index) => ({
           productId,
-          title: item.title,
+          title: typeof item.title === 'string' ? item.title : item.title.vi,
           position: index
         }))
       )
       .returning()
 
+    for (let i = 0; i < insertedOptions.length; i++) {
+      await upsertTranslations(db, 'product_option', String(insertedOptions[i].id), 'title', items[i].title)
+    }
+
     const optionValuesPayload = insertedOptions.flatMap((option, optionIndex) =>
-      items[optionIndex].values.map((value, valueIndex) => ({
+      items[optionIndex].values.map((vItem: any, valueIndex: number) => ({
         optionId: option.id,
-        value,
-        position: valueIndex
+        value: typeof vItem.value === 'string' ? vItem.value : vItem.value.vi,
+        position: valueIndex,
+        _originalValue: vItem.value
       }))
     )
 
     if (optionValuesPayload.length > 0) {
-      await db.insert(productOptionValues).values(optionValuesPayload)
+      const insertedValues = await db.insert(productOptionValues).values(optionValuesPayload.map(({ _originalValue, ...rest }) => rest)).returning()
+      for (let i = 0; i < insertedValues.length; i++) {
+        await upsertTranslations(db, 'product_option_value', String(insertedValues[i].id), 'value', optionValuesPayload[i]._originalValue)
+      }
     }
   }
 
@@ -1407,9 +1501,32 @@ export const validateCustomizationPublishReadiness = ({
   return null
 }
 
+
+const isLocComplete = (val: any) => {
+  if (typeof val === 'string') return val.trim().length > 0;
+  if (!val) return false;
+  return (val.vi || '').trim().length > 0 && (val.en || '').trim().length > 0;
+}
 export const validatePublishable = (product: NonNullable<Awaited<ReturnType<typeof readProduct>>>) => {
-  if (product.title.trim().length === 0) {
-    return 'Product title is required'
+  if (!isLocComplete(product.title)) {
+    return 'Product title is missing required translations for publish (requires both Vietnamese and English)'
+  }
+
+  for (const attr of product.attributes) {
+    if (!isLocComplete(attr.name) || !isLocComplete(attr.value)) {
+      return 'All product attributes must have translated names and values before publish'
+    }
+  }
+
+  for (const opt of product.options) {
+    if (!isLocComplete(opt.title)) {
+      return 'All product options must have translated titles before publish'
+    }
+    for (const val of opt.values) {
+      if (!isLocComplete(val.value)) {
+        return 'All product option values must have translated labels before publish'
+      }
+    }
   }
 
   if (product.variants.length === 0) {
@@ -1597,22 +1714,30 @@ export const productsRoute = new Hono<AppEnv>()
     const db = getDb(c.env)
     const handle = await ensureUniqueHandle(
       db,
-      parsed.output.handle ?? parsed.output.title
+      parsed.output.handle ?? parsed.output.title.vi
     )
     const defaultVariantTitle =
-      parsed.output.defaultVariantTitle ?? `${parsed.output.title} Default`
+      parsed.output.defaultVariantTitle ?? `${parsed.output.title.vi} Default`
     const insertedProduct = await db
       .insert(products)
       .values({
-        title: parsed.output.title,
-        subtitle: parsed.output.subtitle ?? null,
+        title: parsed.output.title.vi,
+        subtitle: parsed.output.subtitle?.vi ?? null,
         handle,
-        description: parsed.output.description ?? null,
+        description: parsed.output.description?.vi ?? null,
         status: 'draft',
         hasVariants: false
       })
       .returning()
       .get()
+
+    await upsertTranslations(db, 'product', String(insertedProduct.id), 'title', parsed.output.title)
+    if (parsed.output.subtitle) {
+      await upsertTranslations(db, 'product', String(insertedProduct.id), 'subtitle', parsed.output.subtitle)
+    }
+    if (parsed.output.description) {
+      await upsertTranslations(db, 'product', String(insertedProduct.id), 'description', parsed.output.description)
+    }
 
     await db.insert(productVariants).values({
       productId: insertedProduct.id,
@@ -1637,7 +1762,7 @@ export const productsRoute = new Hono<AppEnv>()
     }
 
     if (
-      new Set(parsed.output.options.map((item) => item.title.toLowerCase())).size !==
+      new Set(parsed.output.options.map((item) => (typeof item.title === 'string' ? item.title : item.title.vi).toLowerCase())).size !==
       parsed.output.options.length
     ) {
       return jsonError(c, 409, 'Option titles must be unique')
@@ -1681,22 +1806,30 @@ export const productsRoute = new Hono<AppEnv>()
 
     const handle = await ensureUniqueHandle(
       db,
-      parsed.output.details.handle ?? parsed.output.details.title
+      parsed.output.details.handle ?? (typeof parsed.output.details.title === 'string' ? parsed.output.details.title : parsed.output.details.title.vi)
     )
 
     const insertedProduct = await db
       .insert(products)
       .values({
-        title: parsed.output.details.title,
-        subtitle: parsed.output.details.subtitle ?? null,
+        title: typeof parsed.output.details.title === 'string' ? parsed.output.details.title : parsed.output.details.title.vi,
+        subtitle: (typeof parsed.output.details.subtitle === 'string' ? parsed.output.details.subtitle : parsed.output.details.subtitle?.vi) ?? null,
         handle,
-        description: parsed.output.details.description ?? null,
+        description: (typeof parsed.output.details.description === 'string' ? parsed.output.details.description : parsed.output.details.description?.vi) ?? null,
         status: 'draft',
         hasVariants: parsed.output.options.length > 0,
         collectionId: parsed.output.organization.collectionId ?? null
       })
       .returning()
       .get()
+
+    await upsertTranslations(db, 'product', String(insertedProduct.id), 'title', parsed.output.details.title)
+    if (parsed.output.details.subtitle) {
+      await upsertTranslations(db, 'product', String(insertedProduct.id), 'subtitle', parsed.output.details.subtitle)
+    }
+    if (parsed.output.details.description) {
+      await upsertTranslations(db, 'product', String(insertedProduct.id), 'description', parsed.output.details.description)
+    }
 
     if (parsed.output.organization.categoryIds && parsed.output.organization.categoryIds.length > 0) {
       await db.insert(productCategoryLinks).values(
@@ -1780,6 +1913,10 @@ export const productsRoute = new Hono<AppEnv>()
       })
 
       if (customizationRow) {
+        await persistCustomizationTranslations(db, parsed.output.customization)
+        // ensure layersJson/formFieldsJson reflect canonical fields after extraction
+        customizationRow.layersJson = JSON.stringify(parsed.output.customization.layers)
+        customizationRow.formFieldsJson = JSON.stringify(parsed.output.customization.formFields)
         await db.insert(productCustomizations).values(customizationRow)
       }
     }
@@ -1847,7 +1984,7 @@ export const productsRoute = new Hono<AppEnv>()
       return jsonError(c, 404, 'Product not found')
     }
 
-    const nextTitle = parsed.output.title ?? current.title
+    const nextTitle = parsed.output.title?.vi ?? current.title
     let nextHandle = current.handle
 
     if (parsed.output.handle !== undefined) {
@@ -1866,16 +2003,26 @@ export const productsRoute = new Hono<AppEnv>()
         title: nextTitle,
         subtitle:
           parsed.output.subtitle !== undefined
-            ? parsed.output.subtitle ?? null
+            ? parsed.output.subtitle?.vi ?? null
             : current.subtitle,
         handle: nextHandle,
         description:
           parsed.output.description !== undefined
-            ? parsed.output.description ?? null
+            ? parsed.output.description?.vi ?? null
             : current.description,
         updatedAt: nowIso()
       })
       .where(eq(products.id, current.id))
+
+    if (parsed.output.title !== undefined) {
+      await upsertTranslations(db, 'product', String(current.id), 'title', parsed.output.title)
+    }
+    if (parsed.output.subtitle !== undefined) {
+      await upsertTranslations(db, 'product', String(current.id), 'subtitle', parsed.output.subtitle)
+    }
+    if (parsed.output.description !== undefined) {
+      await upsertTranslations(db, 'product', String(current.id), 'description', parsed.output.description)
+    }
 
     const product = await readProduct(db, current.id)
     return c.json({ item: product }, 200)
@@ -2035,7 +2182,7 @@ export const productsRoute = new Hono<AppEnv>()
     const uniqueTitleError = await validateOptionTitleUniquenessForProduct(
       db,
       product.id,
-      parsed.output.title
+      parsed.output.title.vi
     )
     if (uniqueTitleError) {
       return jsonError(c, uniqueTitleError.status, uniqueTitleError.error)
@@ -2050,21 +2197,27 @@ export const productsRoute = new Hono<AppEnv>()
       .insert(productOptions)
       .values({
         productId: product.id,
-        title: parsed.output.title,
+        title: parsed.output.title.vi,
         position: currentOptions.length
       })
       .returning()
       .get()
 
+    await upsertTranslations(db, 'product_option', String(insertedOption.id), 'title', parsed.output.title)
+
     const values = parsed.output.values ?? []
     if (values.length > 0) {
-      await db.insert(productOptionValues).values(
-        values.map((value, index) => ({
+      const insertedValues = await db.insert(productOptionValues).values(
+        values.map((vItem, index) => ({
           optionId: insertedOption.id,
-          value,
+          value: vItem.value.vi,
           position: index
         }))
-      )
+      ).returning()
+      
+      for (let i = 0; i < insertedValues.length; i++) {
+        await upsertTranslations(db, 'product_option_value', String(insertedValues[i].id), 'value', values[i].value)
+      }
     }
 
     await db
@@ -2101,7 +2254,7 @@ export const productsRoute = new Hono<AppEnv>()
     const uniqueTitleError = await validateOptionTitleUniquenessForProduct(
       db,
       params.output.id,
-      parsed.output.title,
+      parsed.output.title.vi,
       option.id
     )
     if (uniqueTitleError) {
@@ -2110,8 +2263,10 @@ export const productsRoute = new Hono<AppEnv>()
 
     await db
       .update(productOptions)
-      .set({ title: parsed.output.title })
+      .set({ title: parsed.output.title.vi })
       .where(eq(productOptions.id, option.id))
+
+    await upsertTranslations(db, 'product_option', String(option.id), 'title', parsed.output.title)
 
     await updateProductTimestamp(db, params.output.id)
 
@@ -2234,7 +2389,7 @@ export const productsRoute = new Hono<AppEnv>()
     const uniqueValueError = await validateOptionValueUniquenessForOption(
       db,
       option.id,
-      parsed.output.value
+      parsed.output.value.vi
     )
     if (uniqueValueError) {
       return jsonError(c, uniqueValueError.status, uniqueValueError.error)
@@ -2245,11 +2400,13 @@ export const productsRoute = new Hono<AppEnv>()
       .from(productOptionValues)
       .where(eq(productOptionValues.optionId, option.id))
 
-    await db.insert(productOptionValues).values({
+    const insertedValue = await db.insert(productOptionValues).values({
       optionId: option.id,
-      value: parsed.output.value,
+      value: parsed.output.value.vi,
       position: existingValues.length
-    })
+    }).returning().get()
+
+    await upsertTranslations(db, 'product_option_value', String(insertedValue.id), 'value', parsed.output.value)
 
     await updateProductTimestamp(db, params.output.id)
 
@@ -2279,7 +2436,7 @@ export const productsRoute = new Hono<AppEnv>()
     const uniqueValueError = await validateOptionValueUniquenessForOption(
       db,
       optionValue.optionId,
-      parsed.output.value,
+      parsed.output.value.vi,
       optionValue.id
     )
     if (uniqueValueError) {
@@ -2288,8 +2445,10 @@ export const productsRoute = new Hono<AppEnv>()
 
     await db
       .update(productOptionValues)
-      .set({ value: parsed.output.value })
+      .set({ value: parsed.output.value.vi })
       .where(eq(productOptionValues.id, optionValue.id))
+
+    await upsertTranslations(db, 'product_option_value', String(optionValue.id), 'value', parsed.output.value)
 
     await updateProductTimestamp(db, params.output.id)
 
@@ -2341,7 +2500,7 @@ export const productsRoute = new Hono<AppEnv>()
     }
 
     if (
-      new Set(parsed.output.items.map((item) => item.title.toLowerCase())).size !==
+      new Set(parsed.output.items.map((item) => item.title.vi.toLowerCase())).size !==
       parsed.output.items.length
     ) {
       return jsonError(c, 409, 'Option titles must be unique')
@@ -2908,6 +3067,8 @@ export const productsRoute = new Hono<AppEnv>()
     await db.delete(productCustomizations).where(eq(productCustomizations.productId, product.id))
 
     if (parsed.output.enabled) {
+      await persistCustomizationTranslations(db, parsed.output)
+
       await db.insert(productCustomizations).values({
         productId: product.id,
         enabled: true,

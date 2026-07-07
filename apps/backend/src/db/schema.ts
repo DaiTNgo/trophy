@@ -469,3 +469,31 @@ export const customizationExports = sqliteTable(
     ),
   ],
 );
+
+// ─── Translations ──────────────────────────────────────────────────────────────
+
+export const catalogTranslations = sqliteTable(
+  "catalog_translations",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    ownerType: text("owner_type").notNull(),
+    ownerKey: text("owner_key").notNull(),
+    fieldName: text("field_name").notNull(),
+    locale: text("locale").notNull(),
+    value: text("value").notNull(),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+    updatedAt: text("updated_at")
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    uniqueIndex("catalog_translations_unique_idx").on(
+      table.ownerType,
+      table.ownerKey,
+      table.fieldName,
+      table.locale,
+    ),
+  ],
+);

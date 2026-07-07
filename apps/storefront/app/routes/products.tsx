@@ -3,9 +3,12 @@ import { FilterChips } from "../components/products/FilterChips";
 import { ProductCard } from "../components/shared/ProductCard";
 import { Pagination } from "../components/shared/Pagination";
 import { fetchStorefrontCategories, fetchStorefrontProducts } from "../lib/api";
+import { getLocaleFromRequest } from "../lib/locale";
+import { getLocalized } from "../lib/translation";
 import type { Route } from "./+types/products";
 
 export async function loader({ request }: Route.LoaderArgs) {
+  const locale = getLocaleFromRequest(request);
   const url = new URL(request.url);
   const activeCategory = url.searchParams.get("category") || "";
   const currentPage = Number(url.searchParams.get("page")) || 1;
@@ -33,11 +36,12 @@ export async function loader({ request }: Route.LoaderArgs) {
     activeCategory,
     currentPage: data.page,
     totalPages: Math.max(1, Math.ceil(data.total / data.limit)),
+    locale,
   };
 }
 
 export default function Products({ loaderData }: Route.ComponentProps) {
-  const { categories, products, activeCategory, currentPage, totalPages } = loaderData;
+  const { categories, products, activeCategory, currentPage, totalPages, locale } = loaderData;
   const [searchParams, setSearchParams] = useSearchParams();
 
   const handleCategorySelect = (category: string) => {
@@ -73,7 +77,7 @@ export default function Products({ loaderData }: Route.ComponentProps) {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-gutter gap-y-16">
           {products.map((product, index) => (
-            <ProductCard key={index} {...product} />
+            <ProductCard key={index} {...product} title={getLocalized(product.title, locale)} />
           ))}
         </div>
 

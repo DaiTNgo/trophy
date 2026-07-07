@@ -154,7 +154,7 @@ export const initialProducts: CatalogProduct[] = [
     categories: ["Outerwear"],
     categoryIds: [],
     media: [],
-    attributes: [{ key: "Fabric", value: "430gsm cotton blend" }],
+    attributes: [{ key: { vi: "Fabric", en: "Fabric" }, value: { vi: "430gsm cotton blend", en: "430gsm cotton blend" } }],
     optionDefinitions: [],
     variants: [
       {
@@ -186,7 +186,7 @@ export const initialProducts: CatalogProduct[] = [
     categories: ["Accessories", "Headwear"],
     categoryIds: [],
     media: [],
-    attributes: [{ key: "Closure", value: "Adjustable strap" }],
+    attributes: [{ key: { vi: "Closure", en: "Closure" }, value: { vi: "Adjustable strap", en: "Adjustable strap" } }],
     optionDefinitions: [],
     variants: [
       {
@@ -218,7 +218,7 @@ export const initialProducts: CatalogProduct[] = [
     categories: ["Tops"],
     categoryIds: [],
     media: [],
-    attributes: [{ key: "Fit", value: "Relaxed" }],
+    attributes: [{ key: { vi: "Fit", en: "Fit" }, value: { vi: "Relaxed", en: "Relaxed" } }],
     optionDefinitions: [],
     variants: [
       {
@@ -250,7 +250,7 @@ export const initialProducts: CatalogProduct[] = [
     categories: ["Accessories"],
     categoryIds: [],
     media: [],
-    attributes: [{ key: "Capacity", value: "18L" }],
+    attributes: [{ key: { vi: "Capacity", en: "Capacity" }, value: { vi: "18L", en: "18L" } }],
     optionDefinitions: [],
     variants: [
       {
@@ -282,7 +282,10 @@ export const initialProducts: CatalogProduct[] = [
     categories: ["Knitwear"],
     categoryIds: [],
     media: [],
-    attributes: [{ key: "Material", value: "Merino wool blend" }],
+    attributes: [
+      { key: { vi: "Chất liệu", en: "Material" }, value: { vi: "Cotton", en: "Cotton" } },
+      { key: { vi: "Xuất xứ", en: "Origin" }, value: { vi: "Việt Nam", en: "Vietnam" } },
+    ],
     optionDefinitions: [],
     variants: [
       {

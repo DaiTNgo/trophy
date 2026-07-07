@@ -5,16 +5,15 @@ import {
   Heading,
   Label,
   Text,
-  Badge,
   Select,
   ProgressTabs,
 } from "@medusajs/ui";
-import { TagSolid } from "@medusajs/icons";
 import { LocalizedTextField, createEmptyLocalizedText, type AdminLocale, type LocalizedTextValue } from "../../../components/ui/medusa";
 import { backendFetch } from "../../../lib/fetch";
 import { useNavigate } from "react-router";
-import { SortableItem, DragHandle, reorderWithEdge, autoScrollForElements } from "./sortable-list";
+import { reorderWithEdge, autoScrollForElements } from "./sortable-list";
 import type { Edge } from "./sortable-list";
+import { RankingList } from "./ranking-list";
 
 type CategoryItem = {
   id: string;
@@ -158,7 +157,7 @@ export function CreateCategoryModal({ open, onOpenChange, categories, onSuccess 
               </ProgressTabs.Trigger>
             </ProgressTabs.List>
           </FocusModal.Header>
-          <FocusModal.Body className="flex flex-col h-full" ref={scrollRef}>
+          <FocusModal.Body className="flex flex-col flex-1 min-h-0 overflow-y-auto" ref={scrollRef}>
             <ProgressTabs.Content value="1" className="outline-none h-full">
               <div className="flex-1 flex flex-col items-center pt-16">
                 <div className="w-full max-w-[720px] flex flex-col gap-y-8 px-8">
@@ -231,30 +230,9 @@ export function CreateCategoryModal({ open, onOpenChange, categories, onSuccess 
                 </div>
               </div>
             </ProgressTabs.Content>
-            <ProgressTabs.Content value="2" className="outline-none h-full">
-              <div className="flex-1 overflow-y-auto">
-                <div className="flex flex-col border-b border-ui-border-base">
-                  {orderedItems.map((item, index) => (
-                    <SortableItem
-                      key={item.id}
-                      id={item.id}
-                      items={orderedItems}
-                      onReorder={reorder}
-                      className={index !== orderedItems.length - 1 ? "border-b border-ui-border-base" : ""}
-                    >
-                      <div className="flex items-center gap-x-4 bg-ui-bg-base px-4 py-3">
-                        <DragHandle label={`Move ${item.name}`} />
-                        <TagSolid className="w-5 h-5 text-blue-500" />
-                        <Text size="small" className="text-ui-fg-base flex items-center gap-x-2">
-                          {item.name}
-                          {item.isNew && (
-                            <Badge color="blue" size="small">New</Badge>
-                          )}
-                        </Text>
-                      </div>
-                    </SortableItem>
-                  ))}
-                </div>
+            <ProgressTabs.Content value="2" className="outline-none">
+              <div className="w-full flex flex-col py-8 px-4">
+                <RankingList items={orderedItems} onReorder={reorder} />
               </div>
             </ProgressTabs.Content>
           </FocusModal.Body>

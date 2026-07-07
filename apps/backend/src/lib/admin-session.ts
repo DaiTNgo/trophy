@@ -32,8 +32,9 @@ export function extractBearerToken(headers: Headers) {
 }
 
 export function hasAdminSessionAccess(session: AdminSession | null | undefined) {
-  const role = session?.user?.role;
-  return Boolean(role && ADMIN_ROLES.has(role) && !session?.user?.banned);
+  const user = session?.user as Record<string, any> | undefined;
+  const role = user?.role as string | null | undefined;
+  return Boolean(role && ADMIN_ROLES.has(role) && !user?.banned);
 }
 
 export async function getAdminSession(bindings: AppBindings, headers: Headers): Promise<AdminSession | null> {

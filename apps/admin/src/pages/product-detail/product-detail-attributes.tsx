@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button, Container, Heading, Text, Drawer, Input, DropdownMenu, IconButton } from "@medusajs/ui";
 import { Plus, Trash2, MoreHorizontal } from "lucide-react";
 import { updateProductAttributes } from "../../lib/products-client";
-import type { CatalogProduct } from "../../types";
+import type { CatalogProduct, ProductAttribute } from "../../types";
 import { InlineError } from "../../components/ui/medusa/inline-error";
 
 type ProductDetailAttributesProps = {
@@ -12,7 +12,7 @@ type ProductDetailAttributesProps = {
 
 export function ProductDetailAttributes({ product, mutate }: ProductDetailAttributesProps) {
   const [open, setOpen] = useState(false);
-  const [attributes, setAttributes] = useState<{ key: string; value: string }[]>(
+  const [attributes, setAttributes] = useState<ProductAttribute[]>(
     product.attributes.map((a) => ({ key: a.key, value: a.value }))
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -28,12 +28,12 @@ export function ProductDetailAttributes({ product, mutate }: ProductDetailAttrib
 
   const updateAttribute = (index: number, field: "key" | "value", value: string) => {
     const newAttrs = [...attributes];
-    newAttrs[index][field] = value;
+    newAttrs[index][field] = { ...newAttrs[index][field], vi: value };
     setAttributes(newAttrs);
   };
 
   const addAttributeRow = () => {
-    setAttributes([...attributes, { key: "", value: "" }]);
+    setAttributes([...attributes, { key: { vi: "", en: "" }, value: { vi: "", en: "" } }]);
   };
 
   const removeAttributeRow = (index: number) => {
@@ -44,8 +44,8 @@ export function ProductDetailAttributes({ product, mutate }: ProductDetailAttrib
     setIsSubmitting(true);
     setError(null);
     try {
-      const validAttrs = attributes.filter(a => a.key.trim() && a.value.trim());
-      await updateProductAttributes(product.id, validAttrs.map(a => ({ name: { vi: a.key, en: "" }, value: { vi: a.value, en: "" } })));
+      const validAttrs = attributes.filter(a => a.key.vi.trim() && a.value.vi.trim());
+      await updateProductAttributes(product.id, validAttrs.map(a => ({ name: a.key, value: a.value })));
       await mutate();
       setOpen(false);
     } catch (err) {
@@ -97,12 +97,12 @@ export function ProductDetailAttributes({ product, mutate }: ProductDetailAttrib
                     className="grid gap-3 md:grid-cols-[1fr_1fr_auto]"
                   >
                     <Input
-                      value={attribute.key}
+                      value={attribute.key.vi}
                       onChange={(e) => updateAttribute(index, "key", e.target.value)}
                       placeholder="Attribute name"
                     />
                     <Input
-                      value={attribute.value}
+                      value={attribute.value.vi}
                       onChange={(e) => updateAttribute(index, "value", e.target.value)}
                       placeholder="Attribute value"
                     />
@@ -138,8 +138,8 @@ export function ProductDetailAttributes({ product, mutate }: ProductDetailAttrib
                 key={idx} 
                 className="grid grid-cols-2 px-6 py-4 border-t border-ui-border-base"
               >
-                <Text size="small" className="text-ui-fg-subtle font-medium">{attr.key}</Text>
-                <Text size="small" className="text-ui-fg-base">{attr.value}</Text>
+                <Text size="small" className="text-ui-fg-subtle font-medium">{attr.key.vi}</Text>
+                <Text size="small" className="text-ui-fg-base">{attr.value.vi}</Text>
               </div>
             ))
           ) : (

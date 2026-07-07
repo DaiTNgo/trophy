@@ -13,7 +13,13 @@ import {
 } from '../../db/schema'
 import type { AppEnv } from '../../lib/env'
 import { jsonError, parseParams } from '../../lib/validation'
+import { hydrateTranslations } from '../../lib/catalog-translation'
+import { localeSchema, DEFAULT_LOCALE } from '../../lib/locale'
 import { buildListingItem } from './products'
+
+const querySchema = v.object({
+  locale: v.optional(localeSchema, DEFAULT_LOCALE)
+})
 
 const handleParamsSchema = v.object({
   handle: v.pipe(
@@ -27,6 +33,8 @@ const handleParamsSchema = v.object({
 export const storefrontCollectionsRoute = new Hono<AppEnv>()
   .get('/', async (c) => {
     const db = getDb(c.env)
+    const parsedQuery = v.safeParse(querySchema, c.req.query())
+    const locale = parsedQuery.success ? parsedQuery.output.locale : DEFAULT_LOCALE
 
     const items = await db
       .select({
@@ -38,13 +46,16 @@ export const storefrontCollectionsRoute = new Hono<AppEnv>()
       .from(productCollections)
       .orderBy(asc(productCollections.position))
 
-    return c.json({ items }, 200)
+    const resolvedItems = await hydrateTranslations(db, 'product_collection', items, i => String(i.id), [{fieldName: 'title', objectKey: 'title'}], [{fieldName: 'title', objectKey: 'title'}])
+    return c.json({ items: resolvedItems }, 200)
   })
   .get('/:handle/products', async (c) => {
     const parsed = parseParams(c, handleParamsSchema)
     if (!parsed.success) return parsed.response
 
     const db = getDb(c.env)
+    const parsedQuery = v.safeParse(querySchema, c.req.query())
+    const locale = parsedQuery.success ? parsedQuery.output.locale : DEFAULT_LOCALE
     const page = Math.max(1, Number(c.req.query('page')) || 1)
     const limit = Math.min(100, Math.max(1, Number(c.req.query('limit')) || 20))
     const offset = (page - 1) * limit
@@ -93,6 +104,7 @@ export const storefrontCollectionsRoute = new Hono<AppEnv>()
         ? db
             .select({
               productId: productCategoryLinks.productId,
+              categoryId: productCategories.id,
               name: productCategories.name
             })
             .from(productCategoryLinks)
@@ -101,7 +113,7 @@ export const storefrontCollectionsRoute = new Hono<AppEnv>()
               eq(productCategoryLinks.categoryId, productCategories.id)
             )
             .where(inArray(productCategoryLinks.productId, productIds))
-        : Promise.resolve([] as Array<{ productId: number; name: string }>),
+        : Promise.resolve([] as Array<{ productId: number; categoryId: number; name: string }>),
       productIds.length > 0
         ? db
             .select()
@@ -144,8 +156,11 @@ export const storefrontCollectionsRoute = new Hono<AppEnv>()
         : Promise.resolve([] as Array<{ productId: number; enabled: boolean }>)
     ])
 
+    const resolvedItems = await hydrateTranslations(db, 'product', items, i => String(i.id), [{fieldName: 'title', objectKey: 'title'}, {fieldName: 'subtitle', objectKey: 'subtitle'}], [{fieldName: 'title', objectKey: 'title'}, {fieldName: 'subtitle', objectKey: 'subtitle'}]);
+    const resolvedCategories = await hydrateTranslations(db, 'product_category', categoryRows, c => String(c.categoryId), [{fieldName: 'name', objectKey: 'name'}], [{fieldName: 'name', objectKey: 'name'}]);
+
     const categoriesByProductId = new Map<number, string[]>()
-    for (const row of categoryRows) {
+    for (const row of resolvedCategories) {
       const current = categoriesByProductId.get(row.productId) ?? []
       current.push(row.name)
       categoriesByProductId.set(row.productId, current)
@@ -172,7 +187,7 @@ export const storefrontCollectionsRoute = new Hono<AppEnv>()
       customizationRows.map((row) => [row.productId, row])
     )
 
-    const listingItems = items.map((item) =>
+    const listingItems = resolvedItems.map((item) =>
       buildListingItem(
         item,
         categoriesByProductId.get(item.id) ?? [],

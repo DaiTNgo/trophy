@@ -3,6 +3,24 @@
 ## 1. Overview
 The goal is to provide advanced text formatting capabilities (Bold, Italic, Underline) and text alignment controls (Left, Center, Right, Justified) to both the Template Admin and the Shopper Preview. The shopper's access to these tools is configurable by the Admin.
 
+This requirement sits on top of the broader text customization model: shoppers enter product-specific text, while admins control the text layer position, fit area, allowed typography choices, and production-safe constraints.
+
+## Current Coverage Check
+
+The current customization editor already covers these text capabilities:
+
+- Shopper text entry through form fields linked to admin-defined text layers.
+- Fixed or shopper-selectable text color.
+- Preset color options plus an admin-controlled custom color picker.
+- Fixed or shopper-selectable font family.
+- Bold, italic, and underline policy with shopper-selectable defaults.
+- Fixed or shopper-selectable alignment.
+- Straight text and text-on-path rendering.
+- Max lines and min/max font size controls for fit behavior.
+- Live admin preview using the same shopper-facing controls.
+
+Decision update: the current text customization capability is sufficient for the next customization pass. Do not add new text controls or shopper-facing text requirements until a concrete production issue proves they are needed.
+
 ## 2. UI / UX Design
 
 ### Admin (Template Inspector)
@@ -31,3 +49,5 @@ Instead of simulating faux bold/italic which fails or looks bad in PDF exports, 
 1. **`TextColorPolicy` / `TextFontPolicy` extension:** Add `formatPolicy` and `alignPolicy` inside `TextEditorLayer` to manage shopper access.
 2. **`TextFieldValue` extension:** Add `isBold`, `isItalic`, `isUnderline`, `align` properties to track the dynamic state chosen by the shopper.
 3. **`FontFamily` mapping:** Refactor `constants.ts` to use font families instead of discrete font variants.
+
+No additional text model changes are required for the current scope.

@@ -5,12 +5,22 @@ import {
   Outlet,
   Scripts,
   ScrollRestoration,
+  useLoaderData,
 } from "react-router";
 
 import type { Route } from "./+types/root";
 import "./app.css";
 
 import { CartProvider } from "./hooks/use-cart";
+import { useTranslation } from "react-i18next";
+import { i18nextMiddleware, getLocale } from "./i18n.server";
+
+export const middleware = [i18nextMiddleware];
+
+export async function loader({ context }: Route.LoaderArgs) {
+  const locale = getLocale(context);
+  return { locale };
+}
 
 export const links: Route.LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -30,8 +40,12 @@ export const links: Route.LinksFunction = () => [
 ];
 
 export function Layout({ children }: { children: React.ReactNode }) {
+  // Get the locale from the loader
+  const { locale } = useLoaderData<typeof loader>();
+  const { i18n } = useTranslation();
+
   return (
-    <html lang="en">
+    <html lang={locale} dir={i18n.dir()}>
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />

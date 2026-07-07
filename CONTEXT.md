@@ -44,6 +44,26 @@ _Avoid_: storefront catalog, public product list
 The operator-facing product management page for one product, backed by the admin route surface as the source of truth after creation.
 _Avoid_: local product detail, mock product editor
 
+**Storefront Locale**:
+The shopper-facing language context used to choose localized catalog content. Trophy supports Vietnamese and English storefront locales while prices remain VND-only.
+_Avoid_: country, market, currency
+
+**Default Catalog Locale**:
+The Vietnamese catalog content used as the canonical fallback when a localized English value is not available during editing or migration. It is not a separate market and does not imply a different price.
+_Avoid_: source country, base currency locale
+
+**Localized Catalog Content**:
+Shopper-facing catalog text that can have Vietnamese and English values, such as product titles, subtitles, descriptions, option titles, option value labels, category names, collection titles, attributes, and customization form labels.
+_Avoid_: translated product record, language-specific product
+
+**Catalog Translation Completeness**:
+The readiness state describing whether all required localized catalog content exists for both Vietnamese and English. It affects admin warnings and publish readiness, but it does not create separate products, variants, or prices.
+_Avoid_: market readiness, currency readiness
+
+**Canonical Catalog Identity**:
+The language-neutral identity of a catalog record, such as a product, option, option value, category, collection, or variant. Translations change display labels but must not change the identity used by variants, links, orders, or customization snapshots.
+_Avoid_: translated ID, language-specific variant
+
 **Product Option Definition**:
 An admin-defined variation axis for a product, such as color or size, whose values can be selected by product variants.
 _Avoid_: Medusa option model, variant category
@@ -132,6 +152,14 @@ _Avoid_: public font API, storefront brand editing
 The shopper-safe read model of brand colors and font families needed to render storefront customization experiences.
 _Avoid_: brand asset management, public upload API
 
+**Customization Icon Asset**:
+An admin-managed reusable graphic that shoppers may choose inside a customization form, such as a sport symbol, badge, mascot, frame, star, trophy mark, or decorative emblem. It is selected from an approved library and differs from a shopper-uploaded image.
+_Avoid_: uploaded logo, product image, UI icon
+
+**Icon Choice Field**:
+A shopper customization field where the shopper selects one customization icon asset from the admin-approved choices for that product layer. The selected icon becomes part of the order customization snapshot.
+_Avoid_: file upload, free icon search, variant option
+
 **Customization Template**:
 The admin-defined configuration for a customizable product, including editable layers, form fields, and visual placement rules. Its background images are derived from the product's variant images rather than stored as independent customization data.
 _Avoid_: customization config, editor setup
@@ -163,6 +191,22 @@ _Avoid_: same-size warning, image dimension hint
 **Customization Publish Readiness**:
 The product-level condition that a customizable product must satisfy before it can be published, including complete variant backgrounds, matching image dimensions, and a valid customization editor model.
 _Avoid_: template publish validation, customization status
+
+**Shopper Text Field**:
+A text customization field that a shopper fills for one customizable product, such as a winner name, team name, year, inscription, or award message. It is defined by an admin-owned text layer and form field, then captured as shopper-entered order item data.
+_Avoid_: product title, catalog text, freeform note
+
+**Text Style Policy**:
+The admin-defined rule for what a shopper may change on a shopper text field, including whether color, font family, bold, italic, underline, and alignment are fixed or shopper-selectable. It controls shopper formatting choices without giving the shopper control over layer geometry.
+_Avoid_: rich text editor, unrestricted formatting
+
+**Text Fit Rule**:
+The admin-defined boundary for rendering shopper text inside its assigned product area, including max lines, min/max font size, path behavior, and overflow handling. It protects production layout when shopper-entered text is longer than the visual area can support.
+_Avoid_: manual font size, free resize, layout suggestion
+
+**Text Content Constraint**:
+The admin-defined input rule for shopper text, such as required state, line-count capacity, whitespace behavior, or allowed character set. It limits what the shopper can submit before rendering and production export, while text size is handled by fit rules instead of character-count limits.
+_Avoid_: validation error copy, typography setting
 
 **Order**:
 A shopper's checkout submission containing customer details and one or more purchased items. Each item is captured with its own immutable order item snapshot.

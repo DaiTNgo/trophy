@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router";
+import { Link, useSearchParams } from "react-router";
 import {
   Flame,
   Image,
@@ -18,6 +18,7 @@ import {
   type StorefrontResolvedCartLine,
 } from "../lib/api";
 import { useCart } from "../hooks/use-cart";
+import { getLocalized } from "../lib/translation";
 import { formatCurrency } from "../lib/utils";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -48,6 +49,8 @@ function reasonLabel(reason: StorefrontResolvedCartLine["reason"]) {
 
 export default function Cart() {
   const { lines, isReady, updateQuantity, removeLine, itemCount } = useCart();
+  const [searchParams] = useSearchParams();
+  const locale = (searchParams.get('locale') === 'en' ? 'en' : 'vi') as 'vi' | 'en';
   const [resolved, setResolved] = useState<StorefrontResolvedCartLine[]>([]);
   const [error, setError] = useState("");
 
@@ -59,6 +62,7 @@ export default function Cart() {
 
     let cancelled = false;
     resolveStorefrontCartLines({
+      locale,
       items: lines.map((line) => ({
         productId: line.productId,
         variantId: line.variantId,
@@ -87,7 +91,7 @@ export default function Cart() {
         const resolvedLine = resolved[index];
         const display = resolvedLine?.product
           ? {
-              title: resolvedLine.product.title,
+              title: getLocalized(resolvedLine.product.title, locale),
               handle: resolvedLine.product.handle,
               variantTitle: resolvedLine.product.variantTitle,
               sku: resolvedLine.product.sku,
@@ -95,7 +99,7 @@ export default function Cart() {
               priceAmount: resolvedLine.product.priceAmount,
             }
           : {
-              title: line.display.productTitle,
+              title: getLocalized(line.display.productTitle, locale),
               handle: line.display.productHandle,
               variantTitle: line.display.variantTitle,
               sku: line.display.sku,
@@ -155,7 +159,7 @@ export default function Cart() {
                     {display.thumbnail ? (
                       <img
                         src={display.thumbnail}
-                        alt={display.title}
+                        alt={getLocalized(display.title, locale)}
                         className="w-full h-full object-contain p-2"
                       />
                     ) : (
@@ -170,7 +174,7 @@ export default function Cart() {
                         to={`/product/${display.handle ?? line.display.productHandle}`}
                         className="hover:text-primary transition-colors"
                       >
-                        {display.title ?? line.display.productTitle}
+                        {getLocalized(display.title, locale) ?? getLocalized(line.display.productTitle, locale)}
                       </Link>
                     </h3>
                     <div className="text-gray-500 font-medium text-sm mb-4">
@@ -309,7 +313,7 @@ export default function Cart() {
                 <Image className="text-gray-300 text-6xl" />
               </div>
               <h4 className="font-semibold text-xs sm:text-sm mb-1">
-                {item.title}
+                {getLocalized(item.title, locale)}
               </h4>
               <p className="text-gray-500 text-xs sm:text-sm">{item.price}</p>
             </div>

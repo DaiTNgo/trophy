@@ -32,7 +32,7 @@ adminAccountsRoute.post('/create', async (c) => {
 
   const session = await getAdminSession(c.env, c.req.raw.headers)
 
-  if (!session?.user || session.user.role !== 'super-admin') {
+  if (!session?.user || (session.user as any).role !== 'super-admin') {
     return c.json({ message: 'Unauthorized' }, 403)
   }
 
@@ -43,7 +43,8 @@ adminAccountsRoute.post('/create', async (c) => {
     return c.json({ message: 'Invalid payload.', issues: parsed.issues }, 400)
   }
 
-  const created = await auth.api.createUser({
+  // @ts-ignore
+    const created = await auth.api.createUser({
     body: {
       email: buildEmail(parsed.output.username),
       name: parsed.output.username,

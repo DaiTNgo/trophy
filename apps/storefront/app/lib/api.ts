@@ -84,12 +84,14 @@ export async function fetchStorefrontProducts(params: {
   category?: string;
   page?: number;
   limit?: number;
+  locale?: string;
 }): Promise<StorefrontListingResponse> {
   const searchParams = new URLSearchParams();
   if (params.q) searchParams.set("q", params.q);
   if (params.category) searchParams.set("category", params.category);
   if (params.page) searchParams.set("page", String(params.page));
   if (params.limit) searchParams.set("limit", String(params.limit));
+  if (params.locale) searchParams.set("locale", params.locale);
 
   const qs = searchParams.toString();
   const url = `${BACKEND_URL}/api/storefront/products${qs ? `?${qs}` : ""}`;
@@ -111,8 +113,8 @@ export async function fetchStorefrontProducts(params: {
   };
 }
 
-export async function fetchStorefrontProduct(handle: string): Promise<StorefrontDetailResponse["item"]> {
-  const url = `${BACKEND_URL}/api/storefront/products/${encodeURIComponent(handle)}`;
+export async function fetchStorefrontProduct(handle: string, locale?: string): Promise<StorefrontDetailResponse["item"]> {
+  const url = `${BACKEND_URL}/api/storefront/products/${encodeURIComponent(handle)}${locale ? `?locale=${locale}` : ''}`;
 
   const res = await fetch(url);
 
@@ -156,8 +158,8 @@ export type StorefrontCategory = {
   parentId: number | null;
 };
 
-export async function fetchStorefrontCategories(): Promise<StorefrontCategory[]> {
-  const res = await fetch(`${BACKEND_URL}/api/storefront/categories`);
+export async function fetchStorefrontCategories(locale?: string): Promise<StorefrontCategory[]> {
+  const res = await fetch(`${BACKEND_URL}/api/storefront/categories${locale ? `?locale=${locale}` : ''}`);
 
   if (!res.ok) {
     throw new Response("Failed to load categories", { status: res.status });
@@ -175,8 +177,8 @@ export type StorefrontCollection = {
   imageUrl: string | null;
 };
 
-export async function fetchStorefrontCollections(): Promise<StorefrontCollection[]> {
-  const res = await fetch(`${BACKEND_URL}/api/storefront/collections`);
+export async function fetchStorefrontCollections(locale?: string): Promise<StorefrontCollection[]> {
+  const res = await fetch(`${BACKEND_URL}/api/storefront/collections${locale ? `?locale=${locale}` : ''}`);
 
   if (!res.ok) {
     throw new Response("Failed to load collections", { status: res.status });
@@ -188,11 +190,12 @@ export async function fetchStorefrontCollections(): Promise<StorefrontCollection
 
 export async function fetchStorefrontCollectionProducts(
   handle: string,
-  params?: { page?: number; limit?: number }
+  params?: { page?: number; limit?: number; locale?: string }
 ): Promise<StorefrontListingResponse> {
   const searchParams = new URLSearchParams();
   if (params?.page) searchParams.set("page", String(params.page));
   if (params?.limit) searchParams.set("limit", String(params.limit));
+  if (params?.locale) searchParams.set("locale", params.locale);
 
   const qs = searchParams.toString();
   const url = `${BACKEND_URL}/api/storefront/collections/${encodeURIComponent(handle)}/products${qs ? `?${qs}` : ""}`;
@@ -215,6 +218,7 @@ export async function fetchStorefrontCollectionProducts(
 }
 
 export type StorefrontOrderRequest = {
+  locale?: 'vi' | 'en';
   customer: {
     name: string;
     phone: string;
@@ -366,7 +370,7 @@ export async function createStorefrontOrder(
 }
 
 export async function resolveStorefrontCartLines(
-  payload: { items: Array<{ productId: number; variantId: number }> },
+  payload: { items: Array<{ productId: number; variantId: number }>, locale?: string },
 ): Promise<StorefrontResolvedCartResponse> {
   const res = await fetch(`${BACKEND_URL}/api/storefront/orders/resolve`, {
     method: "POST",

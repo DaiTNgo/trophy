@@ -2,10 +2,13 @@ import { useSearchParams } from "react-router";
 import { ProductCard } from "../components/shared/ProductCard";
 import { Pagination } from "../components/shared/Pagination";
 import { fetchStorefrontCollectionProducts } from "../lib/api";
+import { getLocaleFromRequest } from "../lib/locale";
+import { getLocalized } from "../lib/translation";
 import { Package } from "lucide-react";
 import type { Route } from "./+types/collections.$handle";
 
 export async function loader({ params, request }: Route.LoaderArgs) {
+  const locale = getLocaleFromRequest(request);
   const url = new URL(request.url);
   const currentPage = Number(url.searchParams.get("page")) || 1;
 
@@ -19,11 +22,12 @@ export async function loader({ params, request }: Route.LoaderArgs) {
     products: data.items,
     currentPage: data.page,
     totalPages: Math.max(1, Math.ceil(data.total / data.limit)),
+    locale,
   };
 }
 
 export default function CollectionPage({ loaderData }: Route.ComponentProps) {
-  const { collectionHandle, products, currentPage, totalPages } = loaderData;
+  const { collectionHandle, products, currentPage, totalPages, locale } = loaderData;
   const [, setSearchParams] = useSearchParams();
 
   const handlePageChange = (page: number) => {
@@ -66,7 +70,7 @@ export default function CollectionPage({ loaderData }: Route.ComponentProps) {
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-gutter gap-y-16">
               {products.map((product, index) => (
-                <ProductCard key={index} {...product} />
+                <ProductCard key={index} {...product} title={getLocalized(product.title, locale)} />
               ))}
             </div>
 

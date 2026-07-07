@@ -281,8 +281,8 @@ export function validateCreateProduct({
     }
   }
 
-  const cleanedAttributes = attributes.filter((attribute) => attribute.key.trim() !== "" || attribute.value.trim() !== "");
-  if (cleanedAttributes.some((attribute) => attribute.key.trim() === "" || attribute.value.trim() === "")) {
+  const cleanedAttributes = attributes.filter((attribute) => attribute.key.vi.trim() !== "" || attribute.value.vi.trim() !== "");
+  if (cleanedAttributes.some((attribute) => attribute.key.vi.trim() === "" || attribute.value.vi.trim() === "")) {
     nextErrors.attributes = "Each attribute row must have both a name and a value.";
   }
 
@@ -370,7 +370,7 @@ export function createMockProduct(existingProducts: CatalogProduct[], input: Cre
     .split("\n")
     .map((value) => value.trim())
     .filter(Boolean);
-  const attributes = input.attributes.filter((attribute) => attribute.key.trim() !== "" && attribute.value.trim() !== "");
+  const attributes = input.attributes.filter((attribute) => attribute.key.vi.trim() !== "" && attribute.value.vi.trim() !== "");
   const highestInventory = variantRows.reduce((total, variant) => total + variant.inventory, 0);
   const leadPrice = variantRows[0]?.price ?? 0;
   const status = input.mode === "draft" ? "Draft" : "Published";
@@ -427,7 +427,7 @@ export function buildUpdatedProduct(current: CatalogProduct, input: CreateProduc
       .split("\n")
       .map((value) => value.trim())
       .filter(Boolean),
-    attributes: input.attributes.filter((attribute) => attribute.key.trim() !== "" && attribute.value.trim() !== ""),
+    attributes: input.attributes.filter((attribute) => attribute.key.vi.trim() !== "" && attribute.value.vi.trim() !== ""),
     optionDefinitions,
     variants: variantRows.map((variant, index) => ({
       ...variant,

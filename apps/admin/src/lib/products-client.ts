@@ -72,17 +72,17 @@ function mapApiProductStatus(status: ApiProduct["status"]): CatalogProduct["stat
 type CreateFullProductPayload = {
   mode: "draft" | "publish";
   details: {
-    title: string;
-    subtitle: string | null;
+    title: LocalizedInput;
+    subtitle: LocalizedInput | null;
     handle: string | null;
-    description: string | null;
+    description: LocalizedInput | null;
   };
   organization: {
     collectionId?: number | null;
     categoryIds?: number[];
   };
-  attributes: Array<{ name: string; value: string; unit?: string | null }>;
-  options: Array<{ title: string; values: string[] }>;
+  attributes: Array<{ name: LocalizedInput; value: LocalizedInput; unit?: string | null }>;
+  options: Array<{ title: LocalizedInput; values: Array<{ value: LocalizedInput }> }>;
   variants: Array<{
     title: string;
     sku: string | null;
@@ -600,8 +600,8 @@ export function mapApiProductToCatalogProduct(product: Partial<ApiProduct> & Pic
     categoryIds: (product.categories || []).map((c) => c.id),
     media: (product.media || []).map((m) => m.url),
     attributes: (product.attributes || []).map((a) => ({
-      key: toLocalized(a.name).vi,
-      value: toLocalized(a.value).vi,
+      key: toLocalized(a.name),
+      value: toLocalized(a.value),
     })),
     optionDefinitions: (product.options || []).map((option) => ({
       id: String(option.id),

@@ -1,6 +1,16 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { storefrontCollectionsRoute } from "./collections";
 import * as dbClient from "../../db/client";
+import { hydrateAndResolveTranslations } from "../../lib/catalog-translation";
+
+vi.mock("../../lib/catalog-translation", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../lib/catalog-translation")>();
+  return {
+    ...actual,
+    hydrateTranslations: vi.fn().mockImplementation(async (db, entityType, rows) => rows),
+    hydrateAndResolveTranslations: vi.fn(),
+  };
+});
 
 vi.mock("../../db/client", () => ({
   getDb: vi.fn(),
@@ -30,6 +40,7 @@ describe("GET /api/storefront/collections", () => {
       { id: 1, title: "Bộ Sưu Tập 1", handle: "bo-suu-tap-1", description: "First", imageUrl: "/images/col1.png" },
     ];
     mockDb.orderBy.mockResolvedValue(rows);
+    vi.mocked(hydrateAndResolveTranslations).mockResolvedValue(rows);
 
     const res = await storefrontCollectionsRoute.request("/");
     expect(res.status).toBe(200);
@@ -40,6 +51,7 @@ describe("GET /api/storefront/collections", () => {
 
   it("returns empty array when no collections exist", async () => {
     mockDb.orderBy.mockResolvedValue([]);
+    vi.mocked(hydrateAndResolveTranslations).mockResolvedValue([]);
 
     const res = await storefrontCollectionsRoute.request("/");
     expect(res.status).toBe(200);

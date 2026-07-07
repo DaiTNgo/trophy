@@ -17,29 +17,32 @@ import {
 } from "../lib/product-customization";
 import { useCart } from "../hooks/use-cart";
 import { formatCurrency } from "../lib/utils";
+import { getLocalized } from "../lib/translation";
 import {
   fetchStorefrontDynamicFonts,
   fetchStorefrontProduct,
   type StorefrontDetailResponse,
 } from "../lib/api";
 import type { Route } from "./+types/product.$handle";
+import { getLocaleFromRequest } from "../lib/locale";
 
-export async function loader({ params }: Route.LoaderArgs) {
-  const product = await fetchStorefrontProduct(params.handle);
+export async function loader({ params, request }: Route.LoaderArgs) {
+  const locale = getLocaleFromRequest(request);
+  const product = await fetchStorefrontProduct(params.handle, locale);
   const dynamicFonts = product.customization
     ? await fetchStorefrontDynamicFonts()
     : [];
 
-  return { product, dynamicFonts };
+  return { product, dynamicFonts, locale };
 }
 
 export function meta({ loaderData }: Route.MetaArgs) {
-  const title = loaderData?.product?.title || "Sản Phẩm";
+  const title = getLocalized(loaderData?.product?.title, loaderData?.locale || 'vi') || "Sản Phẩm";
   return [{ title: `${title} | TROPHY PRESTIGE` }];
 }
 
 export default function ProductDetail() {
-  const { product, dynamicFonts } = useLoaderData<typeof loader>();
+  const { product, dynamicFonts, locale } = useLoaderData<typeof loader>();
   const { addLine } = useCart();
   const defaultVariantId =
     product.variants.find((variant) => variant.isDefault && variant.priceAmount !== null)?.id ??
@@ -76,12 +79,12 @@ export default function ProductDetail() {
       customization
         ? buildProductCustomizationTemplate({
             productId: product.id,
-            productTitle: product.title,
+            productTitle: getLocalized(product.title, locale),
             customization,
             selectedVariant,
           })
         : null,
-    [customization, product.id, product.title, selectedVariant],
+    [customization, product.id, getLocalized(product.title, locale), selectedVariant],
   );
 
   const [customizationValues, setCustomizationValues] = useState(() =>
@@ -128,7 +131,7 @@ export default function ProductDetail() {
             : "border-outline hover:border-primary"
         }`}
       >
-        <div className="font-label-md uppercase">{variant.title}</div>
+        <div className="font-label-md uppercase">{getLocalized(variant.title, locale)}</div>
         {optionSummary ? <div className="mt-1 text-xs opacity-80">{optionSummary}</div> : null}
       </button>
     );
@@ -140,12 +143,12 @@ export default function ProductDetail() {
     .map((variant) => ({
       id: String(variant.id),
       src: variant.media[0]!.contentUrl,
-      alt: `${product.title} - ${variant.title}`,
+      alt: `${getLocalized(product.title, locale)} - ${getLocalized(variant.title, locale)}`,
       active: variant.id === selectedVariant?.id,
       onClick: () => setSelectedVariantId(variant.id),
     }));
-  const contactHref = `/contact?product=${encodeURIComponent(product.title)}${
-    selectedVariant ? `&variant=${encodeURIComponent(selectedVariant.title)}` : ""
+  const contactHref = `/contact?product=${encodeURIComponent(getLocalized(product.title, locale))}${
+    selectedVariant ? `&variant=${encodeURIComponent(getLocalized(selectedVariant.title, locale))}` : ""
   }${selectedVariant?.sku ? `&sku=${encodeURIComponent(selectedVariant.sku)}` : ""}`;
 
   const addToCartDisabled =
@@ -201,9 +204,9 @@ export default function ProductDetail() {
       customizationValues: customizationTemplate ? customizationValues : null,
       customizationSummary,
       display: {
-        productTitle: product.title,
+        productTitle: getLocalized(product.title, locale),
         productHandle: product.handle,
-        variantTitle: selectedVariant.title,
+        variantTitle: getLocalized(selectedVariant.title, locale),
         sku: selectedVariant.sku,
         thumbnail: selectedVariant.media[0]?.contentUrl ?? null,
         priceAmount: selectedVariant.priceAmount,
@@ -218,7 +221,7 @@ export default function ProductDetail() {
   return (
     <div className="bg-background text-on-surface font-body-md selection:bg-primary-fixed selection:text-on-primary-fixed">
       <main className="max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop py-12 md:py-20">
-        <ProductBreadcrumbs title={product.title} />
+        <ProductBreadcrumbs title={getLocalized(product.title, locale)} />
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-16">
           <ProductGallery
             mainContent={
@@ -239,7 +242,7 @@ export default function ProductDetail() {
                   <img
                     className="w-full h-full object-contain transition-transform duration-700 group-hover:scale-105"
                     src={mainMedia.contentUrl}
-                    alt={product.title}
+                    alt={getLocalized(product.title, locale)}
                   />
                 </div>
               ) : (
@@ -251,11 +254,11 @@ export default function ProductDetail() {
             thumbnails={galleryThumbnails}
           />
           <ProductInfo
-            title={product.title}
+            title={getLocalized(product.title, locale)}
             price={displayPrice}
             rating={5}
             reviewsCount={0}
-            description={product.description || ""}
+            description={getLocalized(product.description, locale) || ""}
             specs={specs}
             variantSelector={
               product.variants.length > 0 ? (

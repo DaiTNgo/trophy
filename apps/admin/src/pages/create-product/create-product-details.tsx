@@ -8,7 +8,6 @@ import {
   Label,
   Switch,
   Text,
-  Textarea,
 } from "@medusajs/ui";
 import { X } from "lucide-react";
 import {
@@ -30,6 +29,8 @@ export function CreateProductDetails({ state }: CreateProductDetailsProps) {
   const [optionTitleLocales, setOptionTitleLocales] = useState<Record<string, AdminLocale>>({});
   const [titleLocale, setTitleLocale] = useState<AdminLocale>("vi");
   const [subtitleLocale, setSubtitleLocale] = useState<AdminLocale>("vi");
+  const [descriptionLocale, setDescriptionLocale] = useState<AdminLocale>("vi");
+  const [attributeLocales, setAttributeLocales] = useState<Record<number, { key: AdminLocale, value: AdminLocale }>>({});
 
   const {
     values,
@@ -64,6 +65,16 @@ export function CreateProductDetails({ state }: CreateProductDetailsProps) {
 
   function getOptionValueTranslations(value: ProductOptionValueDefinition): LocalizedTextValue {
     return value.valueTranslations ?? createLocalizedText(value.value);
+  }
+
+  function setAttributeLocale(index: number, field: "key" | "value", locale: AdminLocale) {
+    setAttributeLocales((current) => ({
+      ...current,
+      [index]: {
+        ...(current[index] ?? { key: "vi", value: "vi" }),
+        [field]: locale,
+      },
+    }));
   }
 
   return (
@@ -131,11 +142,14 @@ export function CreateProductDetails({ state }: CreateProductDetailsProps) {
 
       <div className="space-y-2">
         <Label htmlFor="product-description">Description</Label>
-        <Textarea
+        <LocalizedTextField
           id="product-description"
-          value={values.description.vi}
-          onChange={(event) => setValue("description", { ...values.description, vi: event.target.value })}
-          placeholder="A warm and cozy jacket"
+          value={values.description}
+          locale={descriptionLocale}
+          onLocaleChange={setDescriptionLocale}
+          onChange={(value) => setValue("description", value)}
+          placeholder={{ vi: "Một chiếc áo ấm áp", en: "A warm and cozy jacket" }}
+          multiline
         />
       </div>
 
@@ -186,19 +200,21 @@ export function CreateProductDetails({ state }: CreateProductDetailsProps) {
               key={index}
               className="grid gap-3 md:grid-cols-[1fr_1fr_auto]"
             >
-              <Input
+              <LocalizedTextField
+                id={`attribute-key-${index}`}
                 value={attribute.key}
-                onChange={(event) =>
-                  updateAttribute(index, "key", event.target.value)
-                }
-                placeholder="Material"
+                locale={attributeLocales[index]?.key ?? "vi"}
+                onLocaleChange={(locale) => setAttributeLocale(index, "key", locale)}
+                onChange={(value) => updateAttribute(index, "key", value)}
+                placeholder={{ vi: "Chất liệu", en: "Material" }}
               />
-              <Input
+              <LocalizedTextField
+                id={`attribute-value-${index}`}
                 value={attribute.value}
-                onChange={(event) =>
-                  updateAttribute(index, "value", event.target.value)
-                }
-                placeholder="Cotton blend"
+                locale={attributeLocales[index]?.value ?? "vi"}
+                onLocaleChange={(locale) => setAttributeLocale(index, "value", locale)}
+                onChange={(value) => updateAttribute(index, "value", value)}
+                placeholder={{ vi: "Cotton", en: "Cotton blend" }}
               />
               <Button
                 type="button"

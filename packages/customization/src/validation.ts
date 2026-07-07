@@ -114,13 +114,38 @@ export const validateProductCustomizationDraft = (
   return { valid: issues.length === 0, issues };
 };
 
+const isLocComplete = (val: any) => {
+  if (typeof val === 'string') return val.trim().length > 0;
+  if (!val) return false;
+  return (val.vi || '').trim().length > 0 && (val.en || '').trim().length > 0;
+}
+
 export const validateProductCustomizationForPublish = (customization: ProductCustomization) => {
   const issues = [
     ...collectCanvasDimensionIssues(customization),
     ...collectEditorModelIssues(customization),
   ];
 
-  return { valid: issues.length === 0, issues };
+  for (const field of customization.formFields) {
+    if (!isLocComplete(field.label)) {
+      issues.push({ code: "LOCALIZATION_INCOMPLETE", fieldId: field.id, message: `${(field.label as any)?.vi || (field.label as any)?.en || "Field"} is missing required translations for publish (requires both Vietnamese and English).` });
+    }
+    if (field.placeholder && !isLocComplete(field.placeholder)) {
+      issues.push({ code: "LOCALIZATION_INCOMPLETE", fieldId: field.id, message: `${(field.label as any)?.vi || "Field"} placeholder is missing required translations for publish.` });
+    }
+    if (field.helpText && !isLocComplete(field.helpText)) {
+      issues.push({ code: "LOCALIZATION_INCOMPLETE", fieldId: field.id, message: `${(field.label as any)?.vi || "Field"} help text is missing required translations for publish.` });
+    }
+    if ((field as any).type === 'select') {
+      for (const choice of (field as any).choices) {
+        if (!isLocComplete(choice.label)) {
+          issues.push({ code: "LOCALIZATION_INCOMPLETE", fieldId: field.id, message: `${(field.label as any)?.vi || "Field"} choice "${(choice.label as any)?.vi || (choice.label as any)?.en}" is missing required translations for publish.` });
+        }
+      }
+    }
+  }
+
+    return { valid: issues.length === 0, issues };
 };
 
 export const validateCustomizationValues = ({

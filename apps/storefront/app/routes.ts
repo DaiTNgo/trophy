@@ -12,4 +12,6 @@ export default [
     route("collections/:handle", "routes/collections.$handle.tsx"),
   ]),
   route("checkout", "routes/checkout.tsx"),
+  route("api/locale", "routes/api.locale.ts"),
+  route("*", "routes/catchall.tsx"),
 ] satisfies RouteConfig;

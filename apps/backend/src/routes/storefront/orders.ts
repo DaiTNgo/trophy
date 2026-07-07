@@ -8,7 +8,10 @@ import {
   type CustomizationFormValues,
   type CustomizationTemplate,
 } from "@trophy/customization";
-import { getDb } from "../../db/client";
+import { getDb, type Database } from "../../db/client";
+import { hydrateAndResolveTranslations } from "../../lib/catalog-translation";
+import { hydrateAndResolveCustomization } from "../../lib/customization-translation";
+import { localeSchema, DEFAULT_LOCALE } from "../../lib/locale";
 import {
   orderItems,
   orders,
@@ -75,6 +78,7 @@ const createOrderSchema = v.object({
     differentAddress: v.optional(differentShippingAddressSchema),
   }),
   items: v.pipe(v.array(orderItemInputSchema), v.minLength(1, "At least one item is required")),
+  locale: v.optional(localeSchema, DEFAULT_LOCALE),
 });
 
 const resolveCartLinesSchema = v.object({
@@ -87,6 +91,7 @@ const resolveCartLinesSchema = v.object({
     ),
     v.minLength(1, "At least one item is required"),
   ),
+  locale: v.optional(localeSchema, DEFAULT_LOCALE),
 });
 
 const lookupOrderSchema = v.object({
@@ -128,14 +133,16 @@ type ItemValidationResult =
     }
   | { ok: false; error: string; status: number };
 
-async function lookupPublishedProduct(db: DbType, productId: number): Promise<ProductRow | null> {
+async function lookupPublishedProduct(db: DbType, productId: number, locale: "vi" | "en"): Promise<ProductRow | null> {
   const product = await db
     .select()
     .from(products)
     .where(and(eq(products.id, productId), eq(products.status, "published")))
     .get();
 
-  return product ?? null;
+  if (!product) return null;
+  const hydrated = await hydrateAndResolveTranslations(db, 'product', [product], p => String(p.id), [{fieldName: 'title', objectKey: 'title'}, {fieldName: 'subtitle', objectKey: 'subtitle'}], [{fieldName: 'title', objectKey: 'title'}, {fieldName: 'subtitle', objectKey: 'subtitle'}], locale);
+  return hydrated[0];
 }
 
 async function lookupVariantById(db: DbType, variantId: number): Promise<VariantRow | null> {
@@ -227,8 +234,9 @@ function buildBackendCustomizationTemplate(
 async function validateAndBuildItemSnapshot(
   db: DbType,
   item: OrderItemInput,
+  locale: "vi" | "en"
 ): Promise<ItemValidationResult> {
-  const product = await lookupPublishedProduct(db, item.productId);
+  const product = await lookupPublishedProduct(db, item.productId, locale);
   if (!product) {
     return {
       ok: false,
@@ -309,12 +317,18 @@ async function validateAndBuildItemSnapshot(
       };
     }
 
+    const parsedCustomization = {
+      layers: JSON.parse(customizationRow.layersJson),
+      formFields: JSON.parse(customizationRow.formFieldsJson)
+    };
+    await hydrateAndResolveCustomization(db, parsedCustomization, locale);
+
     customizationSnapshot = {
       values,
       design: buildDesignFromForm({ template, values }),
       templateSnapshot: {
-        layers: JSON.parse(customizationRow.layersJson) as unknown[],
-        formFields: JSON.parse(customizationRow.formFieldsJson) as CustomizationFormField[],
+        layers: parsedCustomization.layers as unknown[],
+        formFields: parsedCustomization.formFields as CustomizationFormField[],
         canvasWidthPx: customizationRow.canvasWidthPx,
         canvasHeightPx: customizationRow.canvasHeightPx,
       },
@@ -418,7 +432,7 @@ export const storefrontOrdersRoute = new Hono<AppEnv>()
 
     const results = await Promise.all(
       input.items.map(async (item) => {
-        const product = await lookupPublishedProduct(db, item.productId);
+        const product = await lookupPublishedProduct(db, item.productId, input.locale as "vi"|"en");
         if (!product) {
           return {
             productId: item.productId,
@@ -549,7 +563,7 @@ export const storefrontOrdersRoute = new Hono<AppEnv>()
     }> = [];
 
     for (const item of input.items) {
-      const result = await validateAndBuildItemSnapshot(db, item);
+      const result = await validateAndBuildItemSnapshot(db, item, input.locale as "vi"|"en");
       if (!result.ok) {
         return c.json({ error: result.error }, result.status as 422);
       }

@@ -22,6 +22,7 @@ import {
   CarouselPrevious,
   CarouselNext,
 } from "@/components/ui/carousel";
+import { LanguageSwitcher } from "./language-switcher";
 import type { StorefrontCategory, StorefrontCollection } from "@/lib/api";
 
 interface NavbarProps {
@@ -139,6 +140,7 @@ export function Navbar({ categories, collections }: NavbarProps) {
             />
 
             <div className="flex items-center gap-4 text-[#1a2e44] shrink-0 justify-end w-10 xl:w-auto">
+              <LanguageSwitcher />
               <NavbarMoreDropdown />
 
               <Link

@@ -129,8 +129,8 @@ export type ProductOptionValueDefinition = {
 };
 
 export type ProductAttribute = {
-  key: string;
-  value: string;
+  key: LocalizedTextValue;
+  value: LocalizedTextValue;
 };
 
 export type CreateProductFormValues = {

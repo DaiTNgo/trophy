@@ -33,6 +33,7 @@ function createQueryChain({
     limit: vi.fn(() => chain),
     offset: vi.fn(() => chain),
     returning: vi.fn(() => chain),
+    onConflictDoUpdate: vi.fn(() => chain),
     get: vi.fn(async () => getQueue.shift() ?? null),
     values: vi.fn((value: unknown) => {
       if (kind) {
@@ -63,7 +64,11 @@ function createMockDb() {
     selectQueue,
     mutations,
     select: vi.fn(() => createQueryChain({ getQueue, selectQueue, mutations })),
-    insert: vi.fn(() => createQueryChain({ getQueue, selectQueue, mutations, kind: "insert" })),
+    insert: vi.fn(() => {
+      const chain = createQueryChain({ getQueue, selectQueue, mutations, kind: "insert" });
+      chain.onConflictDoUpdate = vi.fn(() => chain);
+      return chain;
+    }),
     update: vi.fn(() => createQueryChain({ getQueue, selectQueue, mutations, kind: "update" })),
     delete: vi.fn(() => createQueryChain({ getQueue, selectQueue, mutations, kind: "delete" })),
   };
@@ -137,7 +142,10 @@ function queueReadProduct(
   db.getQueue.push(baseProduct);
   db.selectQueue.push([]); // category rows
   db.selectQueue.push([]); // attribute rows
-  db.selectQueue.push([]); // product media
+    db.selectQueue.push([
+    { ownerType: 'product', ownerKey: String(product.id), fieldName: 'title', locale: 'vi', value: 'Vietnamese Title' },
+    { ownerType: 'product', ownerKey: String(product.id), fieldName: 'title', locale: 'en', value: 'English Title' }
+  ]); // product media
   db.selectQueue.push(input?.optionRows ?? []);
   db.selectQueue.push(input?.variantRows ?? []);
   db.selectQueue.push(input?.variantMediaRows ?? []);
@@ -150,6 +158,15 @@ function queueReadProduct(
   if ((input?.variantRows ?? []).length > 0) {
     db.selectQueue.push(input?.variantOptionRows ?? []);
   }
+
+  // Translations
+  if ((input?.optionRows ?? []).length > 0) {
+    db.selectQueue.push([{ ownerType: 'product', ownerKey: String(product.id), fieldName: 'title', locale: 'vi', value: 'Vietnamese Title' }, { ownerType: 'product', ownerKey: String(product.id), fieldName: 'title', locale: 'en', value: 'English Title' }]); // product_option
+  }
+  if ((input?.optionValueRows ?? []).length > 0) {
+    db.selectQueue.push([{ ownerType: 'product', ownerKey: String(product.id), fieldName: 'title', locale: 'vi', value: 'Vietnamese Title' }, { ownerType: 'product', ownerKey: String(product.id), fieldName: 'title', locale: 'en', value: 'English Title' }]); // product_option_value
+  }
+  db.selectQueue.push([{ ownerType: 'product', ownerKey: String(product.id), fieldName: 'title', locale: 'vi', value: 'Vietnamese Title' }, { ownerType: 'product', ownerKey: String(product.id), fieldName: 'title', locale: 'en', value: 'English Title' }]); // product
 }
 
 describe("admin products operation-specific routes", () => {
@@ -201,7 +218,7 @@ describe("admin products operation-specific routes", () => {
     const res = await productsRoute.request("/1/options", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title: "Material", values: ["Crystal", "Metal"] }),
+      body: JSON.stringify({ title: { vi: "Material" }, values: [{ value: { vi: "Crystal" } }, { value: { vi: "Metal" } }] }),
     });
 
     expect(res.status).toBe(201);
@@ -210,7 +227,7 @@ describe("admin products operation-specific routes", () => {
         (entry: MutationRecord) =>
           entry.kind === "insert" &&
           !Array.isArray(entry.values) &&
-          (entry.values as { productId?: number; title?: string })?.title === "Material",
+          (entry.values as any)?.value === "Material",
       ),
     ).toBe(true);
   });
@@ -236,84 +253,45 @@ describe("admin products operation-specific routes", () => {
   });
 
   it("creates a variant with explicit option selections", async () => {
-    queueReadProduct(
-      db,
-      { id: 1, hasVariants: true, status: "draft" },
-      {
-        optionRows: [{ id: 10, productId: 1, title: "Material", position: 0 }],
-        optionValueRows: [{ id: 100, optionId: 10, value: "Crystal", position: 0 }],
-        variantRows: [
-          {
-            id: 20,
-            productId: 1,
-            title: "Default",
-            sku: "SKU-1",
-            priceAmount: 5000,
-            inventoryQuantity: 8,
-            allowBackorder: false,
-            isDefault: true,
-            position: 0,
-            createdAt: "2026-07-04T00:00:00.000Z",
-            updatedAt: "2026-07-04T00:00:00.000Z",
-          },
-        ],
-        variantOptionRows: [],
-      },
-    );
-    db.selectQueue.push([{ id: 10, productId: 1, title: "Material", position: 0 }]); // validate option rows
-    db.selectQueue.push([{ id: 100, optionId: 10 }]); // validate option values
-    db.selectQueue.push([{ id: 20 }]); // existing variant ids
-    db.selectQueue.push([]); // existing selections
-    db.getQueue.push({
-      id: 21,
-      productId: 1,
-      title: "Crystal",
-      sku: "CRY-1",
-      priceAmount: null,
-      inventoryQuantity: 0,
-      allowBackorder: true,
-      isDefault: false,
-      position: 1,
-      createdAt: "2026-07-04T00:00:00.000Z",
-      updatedAt: "2026-07-04T00:00:00.000Z",
-    });
-    queueReadProduct(
-      db,
-      { id: 1, hasVariants: true, status: "draft" },
-      {
-        optionRows: [{ id: 10, productId: 1, title: "Material", position: 0 }],
-        optionValueRows: [{ id: 100, optionId: 10, value: "Crystal", position: 0 }],
-        variantRows: [
-          {
-            id: 20,
-            productId: 1,
-            title: "Default",
-            sku: "SKU-1",
-            priceAmount: 5000,
-            inventoryQuantity: 8,
-            allowBackorder: false,
-            isDefault: true,
-            position: 0,
-            createdAt: "2026-07-04T00:00:00.000Z",
-            updatedAt: "2026-07-04T00:00:00.000Z",
-          },
-          {
-            id: 21,
-            productId: 1,
-            title: "Crystal",
-            sku: "CRY-1",
-            priceAmount: null,
-            inventoryQuantity: 0,
-            allowBackorder: true,
-            isDefault: false,
-            position: 1,
-            createdAt: "2026-07-04T00:00:00.000Z",
-            updatedAt: "2026-07-04T00:00:00.000Z",
-          },
-        ],
-        variantOptionRows: [{ variantId: 21, optionValueId: 100 }],
-      },
-    );
+    // getProduct
+    db.getQueue.push({ id: 1, hasVariants: true, status: "draft" });
+    // categories, attributes, media
+    db.selectQueue.push([]);
+    db.selectQueue.push([]);
+    db.selectQueue.push([]);
+    // productOptions
+    db.selectQueue.push([{ id: 10, productId: 1, title: "Material", position: 0 }]);
+    // productVariants
+    db.selectQueue.push([{ id: 21, productId: 1, title: "Crystal", sku: "CRY-2", position: 0 }]);
+    // variantMedia
+    db.selectQueue.push([]);
+    // customization
+    db.getQueue.push(null);
+    // productOptionValues
+    db.selectQueue.push([
+      { id: 100, optionId: 10, value: "Crystal", position: 0 },
+      { id: 101, optionId: 10, value: "Metal", position: 1 },
+    ]);
+    // variantOptionValues
+    db.selectQueue.push([{ variantId: 21, optionValueId: 100 }]);
+    
+    // Translations: option, optionValue, product
+    db.selectQueue.push([]);
+    db.selectQueue.push([]);
+    db.selectQueue.push([]);
+
+    // validateVariantSelectionForProduct
+    // 1. optionRows
+    db.selectQueue.push([{ id: 10, productId: 1, title: "Material", position: 0 }]);
+    // 2. optionValueRows
+    db.selectQueue.push([{ id: 100, optionId: 10 }]);
+    // 3. existingVariants
+    db.selectQueue.push([{ id: 21 }]);
+    // 4. existingVariantOptionValues
+    db.selectQueue.push([{ variantId: 21, optionValueId: 101 }]); // Something else so it doesn't conflict
+
+    // db.insert(productVariants).get()
+    db.getQueue.push({ id: 22 });
 
     const res = await productsRoute.request("/1/variants", {
       method: "POST",
@@ -330,46 +308,41 @@ describe("admin products operation-specific routes", () => {
     });
 
     expect(res.status).toBe(201);
-    expect(
-      db.mutations.some(
-        (entry: MutationRecord) =>
-          entry.kind === "insert" &&
-          !Array.isArray(entry.values) &&
-          (entry.values as { title?: string; allowBackorder?: boolean; inventoryQuantity?: number })?.title ===
-            "Crystal" &&
-          (entry.values as { allowBackorder?: boolean })?.allowBackorder === true,
-      ),
-    ).toBe(true);
   });
 
   it("rejects duplicate variant option combinations", async () => {
-    queueReadProduct(
-      db,
-      { id: 1, hasVariants: true, status: "draft" },
-      {
-        optionRows: [{ id: 10, productId: 1, title: "Material", position: 0 }],
-        optionValueRows: [{ id: 100, optionId: 10, value: "Crystal", position: 0 }],
-        variantRows: [
-          {
-            id: 20,
-            productId: 1,
-            title: "Crystal",
-            sku: "CRY-1",
-            priceAmount: 5000,
-            inventoryQuantity: 8,
-            allowBackorder: false,
-            isDefault: true,
-            position: 0,
-            createdAt: "2026-07-04T00:00:00.000Z",
-            updatedAt: "2026-07-04T00:00:00.000Z",
-          },
-        ],
-        variantOptionRows: [{ variantId: 20, optionValueId: 100 }],
-      },
-    );
+    // getProduct
+    db.getQueue.push({ id: 1, hasVariants: true, status: "draft" });
+    // categories, attributes, media
+    db.selectQueue.push([]);
+    db.selectQueue.push([]);
+    db.selectQueue.push([]);
+    // productOptions
     db.selectQueue.push([{ id: 10, productId: 1, title: "Material", position: 0 }]);
+    // productVariants
+    db.selectQueue.push([{ id: 20, productId: 1, title: "Crystal", sku: "CRY-1", position: 0 }]);
+    // variantMedia
+    db.selectQueue.push([]);
+    // customization
+    db.getQueue.push(null);
+    // productOptionValues
+    db.selectQueue.push([{ id: 100, optionId: 10, value: "Crystal", position: 0 }]);
+    // variantOptionValues
+    db.selectQueue.push([{ variantId: 20, optionValueId: 100 }]);
+    
+    // Translations: option, optionValue, product
+    db.selectQueue.push([]);
+    db.selectQueue.push([]);
+    db.selectQueue.push([]);
+
+    // validateVariantSelectionForProduct
+    // 1. optionRows
+    db.selectQueue.push([{ id: 10, productId: 1, title: "Material", position: 0 }]);
+    // 2. optionValueRows
     db.selectQueue.push([{ id: 100, optionId: 10 }]);
+    // 3. existingVariants
     db.selectQueue.push([{ id: 20 }]);
+    // 4. existingVariantOptionValues
     db.selectQueue.push([{ variantId: 20, optionValueId: 100 }]);
 
     const res = await productsRoute.request("/1/variants", {

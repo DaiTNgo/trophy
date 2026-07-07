@@ -75,7 +75,7 @@ describe("admin orders routes", () => {
 
   it("lists backend orders for an authenticated admin", async () => {
     queueAdminSession(db.getQueue);
-    db.selectQueue.push([
+    db.selectQueue.push([], [
       {
         orderNumber: "ORD-1",
         status: "pending",
@@ -145,7 +145,7 @@ describe("admin orders routes", () => {
       createdAt: new Date("2026-07-05T00:00:00.000Z"),
       updatedAt: new Date("2026-07-05T01:00:00.000Z"),
     });
-    db.selectQueue.push([
+    db.selectQueue.push([], [
       {
         id: 1,
         orderId: 5,
