@@ -10,7 +10,8 @@ import {
   type TextEditorLayer,
   type VectorPoint,
 } from "@trophy/customization";
-import { Input, NumberInput, PanelTitle, Select, createId, shapeLabel } from "./customization-template-ui";
+import { Heading, Text, Input, Select, Label } from "@medusajs/ui";
+import { createId, shapeLabel } from "./customization-template-ui";
 
 export function Inspector({
   template,
@@ -47,8 +48,11 @@ export function Inspector({
 function CanvasInspector({ template, onUpdateTemplate }: { template: CustomizationTemplate; onUpdateTemplate: (updater: (current: CustomizationTemplate) => CustomizationTemplate) => void }) {
   return (
     <div className="space-y-4">
-      <PanelTitle title="Canvas" subtitle="No layer selected." />
-      <Input value={template.name} onChange={(name) => onUpdateTemplate((current) => ({ ...current, name }))} />
+      <div>
+        <Heading level="h3" className="text-sm font-semibold text-ui-fg-base">Canvas</Heading>
+        <Text size="small" className="mt-1 text-ui-fg-muted">No layer selected.</Text>
+      </div>
+      <Input value={template.name} onChange={(e) => onUpdateTemplate((current) => ({ ...current, name: e.target.value }))} />
       {template.background ? <p className="text-sm text-ui-fg-muted">{template.background.widthPx} x {template.background.heightPx}px</p> : <p className="text-sm text-ui-fg-muted">Upload a background to begin.</p>}
     </div>
   );
@@ -84,14 +88,26 @@ function TextInspector({
 
   return (
     <div className="space-y-5">
-      <PanelTitle title="Text" subtitle={layer.name} />
+      <div>
+        <Heading level="h3" className="text-sm font-semibold text-ui-fg-base">Text</Heading>
+        <Text size="small" className="mt-1 text-ui-fg-muted">{layer.name}</Text>
+      </div>
       <LayerName layer={layer} onUpdate={onUpdate} />
       <PositionFields template={template} layer={layer} onUpdate={onUpdate} textOnly />
-      <Input value={layer.text.sampleText} onChange={(sampleText) => onUpdate((current) => ({ ...current, text: { ...(current as TextEditorLayer).text, sampleText } }) as CustomizationLayer)} />
+      <Input value={layer.text.sampleText} onChange={(e) => onUpdate((current) => ({ ...current, text: { ...(current as TextEditorLayer).text, sampleText: e.target.value } }) as CustomizationLayer)} />
       <div className="grid grid-cols-3 gap-2">
-        <NumberInput label="Max lines" value={isClosedPath ? 1 : layer.text.maxLines} disabled={isClosedPath} onChange={(maxLines) => updateText(onUpdate, { maxLines: layer.text.path.type === "straight" ? Math.max(1, Math.round(maxLines)) : 1 })} />
-        <NumberInput label="Min font" value={layer.text.minFontSizePt} onChange={(minFontSizePt) => updateText(onUpdate, { minFontSizePt })} />
-        <NumberInput label="Max font" value={layer.text.maxFontSizePt} onChange={(maxFontSizePt) => updateText(onUpdate, { maxFontSizePt })} />
+        <div className="space-y-1">
+          <Label size="small" weight="plus" className="text-ui-fg-subtle">Max lines</Label>
+          <Input type="number" value={String(isClosedPath ? 1 : layer.text.maxLines)} disabled={isClosedPath} onChange={(e) => updateText(onUpdate, { maxLines: layer.text.path.type === "straight" ? Math.max(1, Math.round(Number(e.target.value))) : 1 })} />
+        </div>
+        <div className="space-y-1">
+          <Label size="small" weight="plus" className="text-ui-fg-subtle">Min font</Label>
+          <Input type="number" value={String(layer.text.minFontSizePt)} onChange={(e) => updateText(onUpdate, { minFontSizePt: Number(e.target.value) })} />
+        </div>
+        <div className="space-y-1">
+          <Label size="small" weight="plus" className="text-ui-fg-subtle">Max font</Label>
+          <Input type="number" value={String(layer.text.maxFontSizePt)} onChange={(e) => updateText(onUpdate, { maxFontSizePt: Number(e.target.value) })} />
+        </div>
       </div>
       <TextStyleControls layer={layer} onUpdate={onUpdate} colorOptions={dynamicColorOptions} fontOptions={dynamicFontOptions} />
       <TextPathControls layer={layer} pathEditing={pathEditing} onPathEditingChange={onPathEditingChange} onUpdate={onUpdate} />
@@ -118,20 +134,18 @@ function ImageShapeInspector({ template, layer, onUpdate }: { template: Customiz
 
   return (
     <div className="space-y-5">
-      <PanelTitle title="Image Shape" subtitle={layer.name} />
+      <div>
+        <Heading level="h3" className="text-sm font-semibold text-ui-fg-base">Image Shape</Heading>
+        <Text size="small" className="mt-1 text-ui-fg-muted">{layer.name}</Text>
+      </div>
       <LayerName layer={layer} onUpdate={onUpdate} />
       <PositionFields template={template} layer={layer} onUpdate={onUpdate} />
-      <Select
-        label="Source policy"
-        value={sourcePolicy}
-        options={[
-          { value: "fixed_clipart", label: "Fixed clipart" },
-          { value: "upload_only", label: "Upload only" },
-          { value: "clipart_category_only", label: "Clipart category only" },
-          { value: "upload_or_clipart_category", label: "Upload or clipart category" },
-        ]}
-        onChange={(value) =>
-          updateImageLayer({
+      <div className="space-y-1">
+        <Label size="small" weight="plus" className="text-ui-fg-subtle">Source policy</Label>
+        <Select
+          value={sourcePolicy}
+          onValueChange={(value) =>
+            updateImageLayer({
             sourcePolicy: value as ImageShapeEditorLayer["sourcePolicy"],
             presentation: value === "upload_or_clipart_category" ? layer.presentation ?? "source_select" : undefined,
             fixedIcon: value === "fixed_clipart" ? layer.fixedIcon ?? activeIcons[0] ?? null : null,
@@ -149,35 +163,66 @@ function ImageShapeInspector({ template, layer, onUpdate }: { template: Customiz
                 : layer.allowedIcons ?? [],
           })
         }
-      />
+        >
+          <Select.Trigger>
+            <Select.Value />
+          </Select.Trigger>
+          <Select.Content>
+            <Select.Item value="fixed_clipart">Fixed clipart</Select.Item>
+            <Select.Item value="upload_only">Upload only</Select.Item>
+            <Select.Item value="clipart_category_only">Clipart category only</Select.Item>
+            <Select.Item value="upload_or_clipart_category">Upload or clipart category</Select.Item>
+          </Select.Content>
+        </Select>
+      </div>
       {sourcePolicy === "fixed_clipart" ? (
-        <Select
-          label="Fixed clipart"
-          value={layer.fixedIcon?.id ?? ""}
-          options={activeIcons.map((icon) => ({ value: icon.id, label: icon.name }))}
-          onChange={(iconId) => {
-            const nextIcon = activeIcons.find((icon) => icon.id === iconId) ?? null;
-            updateImageLayer({
-              fixedIcon: nextIcon,
-              allowedIcons: nextIcon ? [nextIcon] : [],
-            });
-          }}
-        />
+        <div className="space-y-1">
+          <Label size="small" weight="plus" className="text-ui-fg-subtle">Fixed clipart</Label>
+          <Select
+            value={layer.fixedIcon?.id ?? ""}
+            onValueChange={(iconId) => {
+              const nextIcon = activeIcons.find((icon) => icon.id === iconId) ?? null;
+              updateImageLayer({
+                fixedIcon: nextIcon,
+                allowedIcons: nextIcon ? [nextIcon] : [],
+              });
+            }}
+          >
+            <Select.Trigger>
+              <Select.Value />
+            </Select.Trigger>
+            <Select.Content>
+              {activeIcons.map((icon) => (
+                <Select.Item key={icon.id} value={icon.id}>{icon.name}</Select.Item>
+              ))}
+            </Select.Content>
+          </Select>
+        </div>
       ) : null}
       {(sourcePolicy === "clipart_category_only" || sourcePolicy === "upload_or_clipart_category") ? (
         <>
-          <Select
-            label="Fixed category"
-            value={layer.fixedCategory?.id ?? ""}
-            options={categories.map((category) => ({ value: category.id, label: category.label }))}
-            onChange={(categoryId) => {
-              const nextCategory = categories.find((category) => category.id === categoryId) ?? null;
-              updateImageLayer({
-                fixedCategory: nextCategory,
-                allowedIcons: activeIcons.filter((icon) => !nextCategory || icon.categoryId === nextCategory.id),
-              });
-            }}
-          />
+          <div className="space-y-1">
+            <Label size="small" weight="plus" className="text-ui-fg-subtle">Fixed category</Label>
+            <Select
+              value={layer.fixedCategory?.id ?? ""}
+              onValueChange={(categoryId) => {
+                const nextCategory = categories.find((category) => category.id === categoryId) ?? null;
+                updateImageLayer({
+                  fixedCategory: nextCategory,
+                  allowedIcons: activeIcons.filter((icon) => !nextCategory || icon.categoryId === nextCategory.id),
+                });
+              }}
+            >
+              <Select.Trigger>
+                <Select.Value />
+              </Select.Trigger>
+              <Select.Content>
+                {categories.map((category) => (
+                  <Select.Item key={category.id} value={category.id}>{category.label}</Select.Item>
+                ))}
+              </Select.Content>
+            </Select>
+          </div>
           <div className="space-y-2">
             <p className="text-xs font-medium text-ui-fg-muted">Allowed clipart icons</p>
             <div className="max-h-56 space-y-2 overflow-y-auto rounded-md border border-ui-border-base p-2">
@@ -204,15 +249,21 @@ function ImageShapeInspector({ template, layer, onUpdate }: { template: Customiz
         </>
       ) : null}
       {sourcePolicy === "upload_or_clipart_category" ? (
-        <Select
-          label="Presentation"
-          value={layer.presentation ?? "source_select"}
-          options={[
-            { value: "source_select", label: "Source select" },
-            { value: "side_by_side", label: "Side by side" },
-          ]}
-          onChange={(value) => updateImageLayer({ presentation: value as ImageShapeEditorLayer["presentation"] })}
-        />
+        <div className="space-y-1">
+          <Label size="small" weight="plus" className="text-ui-fg-subtle">Presentation</Label>
+          <Select
+            value={layer.presentation ?? "source_select"}
+            onValueChange={(value) => updateImageLayer({ presentation: value as ImageShapeEditorLayer["presentation"] })}
+          >
+            <Select.Trigger>
+              <Select.Value />
+            </Select.Trigger>
+            <Select.Content>
+              <Select.Item value="source_select">Source select</Select.Item>
+              <Select.Item value="side_by_side">Side by side</Select.Item>
+            </Select.Content>
+          </Select>
+        </div>
       ) : null}
       <p className="text-sm text-ui-fg-subtle">Shape: {shapeLabel(layer.shape.type)}</p>
       {layer.shape.type === "vector" && layer.shape.vectorPath ? (
@@ -264,18 +315,33 @@ function VectorPointsTable({
               </select>
             </div>
             <div className="grid grid-cols-2 gap-1">
-              <NumberInput label="X" value={Math.round(point.xRatio * 1000) / 1000} onChange={(xRatio) => updatePoint(index, (p) => ({ ...p, xRatio }))} />
-              <NumberInput label="Y" value={Math.round(point.yRatio * 1000) / 1000} onChange={(yRatio) => updatePoint(index, (p) => ({ ...p, yRatio }))} />
+              <div className="space-y-1">
+                <Label size="small" weight="plus" className="text-ui-fg-subtle">X</Label>
+                <Input type="number" value={String(Math.round(point.xRatio * 1000) / 1000)} onChange={(e) => updatePoint(index, (p) => ({ ...p, xRatio: Number(e.target.value) }))} />
+              </div>
+              <div className="space-y-1">
+                <Label size="small" weight="plus" className="text-ui-fg-subtle">Y</Label>
+                <Input type="number" value={String(Math.round(point.yRatio * 1000) / 1000)} onChange={(e) => updatePoint(index, (p) => ({ ...p, yRatio: Number(e.target.value) }))} />
+              </div>
             </div>
             {point.type === "corner" && (
               <div className="mt-1 grid grid-cols-1 gap-1">
-                <NumberInput label="Corner Radius" value={point.cornerRadius ?? 0} onChange={(cornerRadius) => updatePoint(index, (p) => ({ ...p, cornerRadius: Math.max(0, cornerRadius) }))} />
+                <div className="space-y-1">
+                  <Label size="small" weight="plus" className="text-ui-fg-subtle">Corner Radius</Label>
+                  <Input type="number" value={String(point.cornerRadius ?? 0)} onChange={(e) => updatePoint(index, (p) => ({ ...p, cornerRadius: Math.max(0, Number(e.target.value)) }))} />
+                </div>
               </div>
             )}
             {point.type === "smooth" && (
               <div className="mt-1 grid grid-cols-2 gap-1">
-                <NumberInput label="In X" value={Math.round((point.inHandle?.xRatio ?? 0) * 1000) / 1000} onChange={(xRatio) => updatePoint(index, (p) => ({ ...p, inHandle: { xRatio, yRatio: p.inHandle?.yRatio ?? 0 } }))} />
-                <NumberInput label="In Y" value={Math.round((point.inHandle?.yRatio ?? 0) * 1000) / 1000} onChange={(yRatio) => updatePoint(index, (p) => ({ ...p, inHandle: { xRatio: p.inHandle?.xRatio ?? 0, yRatio } }))} />
+                <div className="space-y-1">
+                  <Label size="small" weight="plus" className="text-ui-fg-subtle">In X</Label>
+                  <Input type="number" value={String(Math.round((point.inHandle?.xRatio ?? 0) * 1000) / 1000)} onChange={(e) => updatePoint(index, (p) => ({ ...p, inHandle: { xRatio: Number(e.target.value), yRatio: p.inHandle?.yRatio ?? 0 } }))} />
+                </div>
+                <div className="space-y-1">
+                  <Label size="small" weight="plus" className="text-ui-fg-subtle">In Y</Label>
+                  <Input type="number" value={String(Math.round((point.inHandle?.yRatio ?? 0) * 1000) / 1000)} onChange={(e) => updatePoint(index, (p) => ({ ...p, inHandle: { xRatio: p.inHandle?.xRatio ?? 0, yRatio: Number(e.target.value) } }))} />
+                </div>
               </div>
             )}
           </div>
@@ -297,10 +363,22 @@ function PositionFields({ template, layer, onUpdate, textOnly }: { template: Cus
   };
   return (
     <div className="grid grid-cols-2 gap-2">
-      <NumberInput label="X" value={Math.round(rect.xPx)} onChange={(xPx) => updateRect({ xPx })} />
-      <NumberInput label="Y" value={Math.round(rect.yPx)} onChange={(yPx) => updateRect({ yPx })} />
-      <NumberInput label="W" value={Math.round(rect.widthPx)} onChange={(widthPx) => updateRect({ widthPx })} />
-      <NumberInput label="H" value={Math.round(textOnly && layer.type === "text" && !closedTextPath ? layer.text.maxLines * layer.text.maxFontSizePt * 1.35 : rect.heightPx)} disabled={textOnly && !closedTextPath} onChange={(heightPx) => updateRect({ heightPx })} />
+      <div className="space-y-1">
+        <Label size="small" weight="plus" className="text-ui-fg-subtle">X</Label>
+        <Input type="number" value={String(Math.round(rect.xPx))} onChange={(e) => updateRect({ xPx: Number(e.target.value) })} />
+      </div>
+      <div className="space-y-1">
+        <Label size="small" weight="plus" className="text-ui-fg-subtle">Y</Label>
+        <Input type="number" value={String(Math.round(rect.yPx))} onChange={(e) => updateRect({ yPx: Number(e.target.value) })} />
+      </div>
+      <div className="space-y-1">
+        <Label size="small" weight="plus" className="text-ui-fg-subtle">W</Label>
+        <Input type="number" value={String(Math.round(rect.widthPx))} onChange={(e) => updateRect({ widthPx: Number(e.target.value) })} />
+      </div>
+      <div className="space-y-1">
+        <Label size="small" weight="plus" className="text-ui-fg-subtle">H</Label>
+        <Input type="number" value={String(Math.round(textOnly && layer.type === "text" && !closedTextPath ? layer.text.maxLines * layer.text.maxFontSizePt * 1.35 : rect.heightPx))} disabled={textOnly && !closedTextPath} onChange={(e) => updateRect({ heightPx: Number(e.target.value) })} />
+      </div>
     </div>
   );
 }
@@ -321,16 +399,22 @@ function TextStyleControls({
   return (
     <div className="space-y-4">
       <div className="space-y-2">
-        <Select 
-          label="Color policy" 
-          value={layer.text.colorPolicy.mode} 
-          options={["fixed", "shopper_selectable"]} 
-          onChange={(mode) => updateText(onUpdate, { 
+        <div className="space-y-1">
+          <Label size="small" weight="plus" className="text-ui-fg-subtle">Color policy</Label>
+          <Select value={layer.text.colorPolicy.mode} onValueChange={(mode) => updateText(onUpdate, { 
             colorPolicy: mode === "fixed" 
               ? { mode: "fixed", color: "#111111" } 
               : { mode: "shopper_selectable", defaultColor: "#111111", options: colorOptions } 
-          })} 
-        />
+          })}>
+            <Select.Trigger>
+              <Select.Value />
+            </Select.Trigger>
+            <Select.Content>
+              <Select.Item value="fixed">Fixed</Select.Item>
+              <Select.Item value="shopper_selectable">Shopper selectable</Select.Item>
+            </Select.Content>
+          </Select>
+        </div>
       {layer.text.colorPolicy.mode === "fixed" && (
         <div className="flex items-center gap-2">
           <input
@@ -415,37 +499,86 @@ function TextStyleControls({
       )}
       </div>
       <div className="space-y-2">
-        <Select 
-          label="Font policy" 
-          value={layer.text.fontPolicy.mode} 
-          options={["fixed", "shopper_selectable"]} 
-          onChange={(mode) => updateText(onUpdate, { 
+        <div className="space-y-1">
+          <Label size="small" weight="plus" className="text-ui-fg-subtle">Font policy</Label>
+          <Select value={layer.text.fontPolicy.mode} onValueChange={(mode) => updateText(onUpdate, { 
             fontPolicy: mode === "fixed" 
               ? { mode: "fixed", fontId: "sans" } 
               : { mode: "shopper_selectable", defaultFontId: "sans", options: fontOptions } 
-          })} 
-        />
+          })}>
+            <Select.Trigger>
+              <Select.Value />
+            </Select.Trigger>
+            <Select.Content>
+              <Select.Item value="fixed">Fixed</Select.Item>
+              <Select.Item value="shopper_selectable">Shopper selectable</Select.Item>
+            </Select.Content>
+          </Select>
+        </div>
         {layer.text.fontPolicy.mode === "fixed" && (
-          <Select 
-            label="Font" 
-            value={layer.text.fontPolicy.fontId} 
-            options={fontOptions} 
-            onChange={(fontId) => updateText(onUpdate, { fontPolicy: { mode: "fixed", fontId } })} 
-          />
+          <div className="space-y-1">
+            <Label size="small" weight="plus" className="text-ui-fg-subtle">Font</Label>
+            <Select value={layer.text.fontPolicy.fontId} onValueChange={(fontId) => updateText(onUpdate, { fontPolicy: { mode: "fixed", fontId } })}>
+              <Select.Trigger>
+                <Select.Value />
+              </Select.Trigger>
+              <Select.Content>
+                {fontOptions.map((opt) => (
+                  <Select.Item key={opt.value ?? opt} value={opt.value ?? opt}>
+                    {opt.label ?? opt}
+                  </Select.Item>
+                ))}
+              </Select.Content>
+            </Select>
+          </div>
         )}
       </div>
       <div className="space-y-2 pt-2 border-t border-ui-border-base">
-        <Select label="Format policy" value={layer.text.formatPolicy.mode} options={["fixed", "shopper_selectable"]} onChange={(mode) => updateText(onUpdate, { formatPolicy: mode === "fixed" ? { mode: "fixed", isBold: false, isItalic: false, isUnderline: false } : { mode: "shopper_selectable", defaultBold: false, defaultItalic: false, defaultUnderline: false } })} />
+        <div className="space-y-1">
+          <Label size="small" weight="plus" className="text-ui-fg-subtle">Format policy</Label>
+          <Select value={layer.text.formatPolicy.mode} onValueChange={(mode) => updateText(onUpdate, { formatPolicy: mode === "fixed" ? { mode: "fixed", isBold: false, isItalic: false } : { mode: "shopper_selectable", defaultBold: false, defaultItalic: false } })}>
+            <Select.Trigger>
+              <Select.Value />
+            </Select.Trigger>
+            <Select.Content>
+              <Select.Item value="fixed">Fixed</Select.Item>
+              <Select.Item value="shopper_selectable">Shopper selectable</Select.Item>
+            </Select.Content>
+          </Select>
+        </div>
         <div className="flex items-center gap-4 rounded-md border border-ui-border-base p-2 bg-ui-bg-subtle">
            <label className="flex items-center gap-1.5 text-sm font-medium"><input type="checkbox" checked={layer.text.formatPolicy.mode === "fixed" ? layer.text.formatPolicy.isBold : layer.text.formatPolicy.defaultBold} onChange={(e) => updateText(onUpdate, { formatPolicy: { ...layer.text.formatPolicy, ...(layer.text.formatPolicy.mode === "fixed" ? { isBold: e.target.checked } : { defaultBold: e.target.checked }) } as any })} className="rounded" /> B</label>
            <label className="flex items-center gap-1.5 text-sm font-medium italic"><input type="checkbox" checked={layer.text.formatPolicy.mode === "fixed" ? layer.text.formatPolicy.isItalic : layer.text.formatPolicy.defaultItalic} onChange={(e) => updateText(onUpdate, { formatPolicy: { ...layer.text.formatPolicy, ...(layer.text.formatPolicy.mode === "fixed" ? { isItalic: e.target.checked } : { defaultItalic: e.target.checked }) } as any })} className="rounded" /> I</label>
-           <label className="flex items-center gap-1.5 text-sm font-medium underline"><input type="checkbox" checked={layer.text.formatPolicy.mode === "fixed" ? layer.text.formatPolicy.isUnderline : layer.text.formatPolicy.defaultUnderline} onChange={(e) => updateText(onUpdate, { formatPolicy: { ...layer.text.formatPolicy, ...(layer.text.formatPolicy.mode === "fixed" ? { isUnderline: e.target.checked } : { defaultUnderline: e.target.checked }) } as any })} className="rounded" /> U</label>
         </div>
         {layer.text.formatPolicy.mode === "shopper_selectable" && <p className="text-[10px] text-ui-fg-muted">Checkboxes set the default state for shoppers.</p>}
       </div>
       <div className="space-y-2 pt-2 border-t border-ui-border-base">
-        <Select label="Align policy" value={layer.text.alignPolicy.mode} options={["fixed", "shopper_selectable"]} onChange={(mode) => updateText(onUpdate, { alignPolicy: mode === "fixed" ? { mode: "fixed", align: "center" } : { mode: "shopper_selectable", defaultAlign: "center" } })} />
-        <Select label="Default align" value={layer.text.alignPolicy.mode === "fixed" ? layer.text.alignPolicy.align : layer.text.alignPolicy.defaultAlign} options={["left", "center", "right", "justified"]} onChange={(align) => updateText(onUpdate, { alignPolicy: { ...layer.text.alignPolicy, ...(layer.text.alignPolicy.mode === "fixed" ? { align } : { defaultAlign: align }) } as any })} />
+        <div className="space-y-1">
+          <Label size="small" weight="plus" className="text-ui-fg-subtle">Align policy</Label>
+          <Select value={layer.text.alignPolicy.mode} onValueChange={(mode) => updateText(onUpdate, { alignPolicy: mode === "fixed" ? { mode: "fixed", align: "center" } : { mode: "shopper_selectable", defaultAlign: "center" } })}>
+            <Select.Trigger>
+              <Select.Value />
+            </Select.Trigger>
+            <Select.Content>
+              <Select.Item value="fixed">Fixed</Select.Item>
+              <Select.Item value="shopper_selectable">Shopper selectable</Select.Item>
+            </Select.Content>
+          </Select>
+        </div>
+        <div className="space-y-1">
+          <Label size="small" weight="plus" className="text-ui-fg-subtle">Default align</Label>
+          <Select value={layer.text.alignPolicy.mode === "fixed" ? layer.text.alignPolicy.align : layer.text.alignPolicy.defaultAlign} onValueChange={(align) => updateText(onUpdate, { alignPolicy: { ...layer.text.alignPolicy, ...(layer.text.alignPolicy.mode === "fixed" ? { align } : { defaultAlign: align }) } as any })}>
+            <Select.Trigger>
+              <Select.Value />
+            </Select.Trigger>
+            <Select.Content>
+              <Select.Item value="left">Left</Select.Item>
+              <Select.Item value="center">Center</Select.Item>
+              <Select.Item value="right">Right</Select.Item>
+              <Select.Item value="justified">Justified</Select.Item>
+            </Select.Content>
+          </Select>
+        </div>
       </div>
     </div>
   );
@@ -467,39 +600,48 @@ function TextPathControls({
   return (
     <div className="space-y-2">
       {layer.text.path.type === "arc_up" || layer.text.path.type === "arc_down" ? (
-        <NumberInput
-          label="Curve amount"
-          value={layer.text.path.curveAmount}
-          onChange={(curveAmount) =>
-            updateText(onUpdate, {
-              path: { type: layer.text.path.type as "arc_up" | "arc_down", curveAmount },
-            })
-          }
-        />
-      ) : null}
-      {layer.text.path.type === "circle_top" || layer.text.path.type === "circle_bottom" ? (
-        <NumberInput
-          label="Radius"
-          value={layer.text.path.radiusRatio}
-          onChange={(radiusRatio) =>
-            updateText(onUpdate, {
-              path: { type: layer.text.path.type as "circle_top" | "circle_bottom", radiusRatio },
-            })
-          }
-        />
-      ) : null}
-      {closedPath ? (
-        <div className="space-y-2">
-          <NumberInput
-            label="Start angle"
-            value={Math.round(closedPath.startAngleDeg)}
-            onChange={(startAngleDeg) =>
+        <div className="space-y-1">
+          <Label size="small" weight="plus" className="text-ui-fg-subtle">Curve amount</Label>
+          <Input
+            type="number"
+            value={String(layer.text.path.curveAmount)}
+            onChange={(e) =>
               updateText(onUpdate, {
-                path: { ...closedPath, startAngleDeg },
-                maxLines: 1,
+                path: { type: layer.text.path.type as "arc_up" | "arc_down", curveAmount: Number(e.target.value) },
               })
             }
           />
+        </div>
+      ) : null}
+      {layer.text.path.type === "circle_top" || layer.text.path.type === "circle_bottom" ? (
+        <div className="space-y-1">
+          <Label size="small" weight="plus" className="text-ui-fg-subtle">Radius</Label>
+          <Input
+            type="number"
+            value={String(layer.text.path.radiusRatio)}
+            onChange={(e) =>
+              updateText(onUpdate, {
+                path: { type: layer.text.path.type as "circle_top" | "circle_bottom", radiusRatio: Number(e.target.value) },
+              })
+            }
+          />
+        </div>
+      ) : null}
+      {closedPath ? (
+        <div className="space-y-2">
+          <div className="space-y-1">
+            <Label size="small" weight="plus" className="text-ui-fg-subtle">Start angle</Label>
+            <Input
+              type="number"
+              value={String(Math.round(closedPath.startAngleDeg))}
+              onChange={(e) =>
+                updateText(onUpdate, {
+                  path: { ...closedPath, startAngleDeg: Number(e.target.value) },
+                  maxLines: 1,
+                })
+              }
+            />
+          </div>
           <label className="block text-xs font-medium text-ui-fg-muted">
             Placement
             <select
@@ -556,7 +698,7 @@ function TextPathControls({
 }
 
 function LayerName({ layer, onUpdate }: { layer: CustomizationLayer; onUpdate: (updater: (layer: CustomizationLayer) => CustomizationLayer) => void }) {
-  return <Input value={layer.name} onChange={(name) => onUpdate((current) => ({ ...current, name }) as CustomizationLayer)} />;
+  return <Input value={layer.name} onChange={(e) => onUpdate((current) => ({ ...current, name: e.target.value }) as CustomizationLayer)} />;
 }
 
 function updateText(onUpdate: (updater: (layer: CustomizationLayer) => CustomizationLayer) => void, patch: Partial<TextEditorLayer["text"]>) {

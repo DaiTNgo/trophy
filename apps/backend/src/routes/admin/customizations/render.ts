@@ -147,19 +147,17 @@ export const renderPreviewSvg = (template: CustomizationTemplate, design: Custom
             const wordSpacing = pathAttrs.wordSpacingPx != null ? ` word-spacing="${pathAttrs.wordSpacingPx}"` : "";
             const fontWeight = layer.isBold ? ' font-weight="bold"' : "";
             const fontStyle = layer.isItalic ? ' font-style="italic"' : "";
-            const textDeco = layer.isUnderline ? ' text-decoration="underline"' : "";
-            return `<g transform="translate(${x0} ${y0})"><path id="${pathId}" d="${textPathD(renderLayer, width, height)}" fill="none" /><text font-size="${layer.fontSizePt}" text-anchor="${pathAttrs.textAnchor}" fill="${escapeXml(layer.color)}"${fontWeight}${fontStyle}${textDeco}${textLength}${wordSpacing}><textPath href="#${pathId}" startOffset="${pathAttrs.startOffset}">${textBody}</textPath></text></g>`;
+            return `<g transform="translate(${x0} ${y0})"><path id="${pathId}" d="${textPathD(renderLayer, width, height)}" fill="none" /><text font-size="${layer.fontSizePt}" text-anchor="${pathAttrs.textAnchor}" fill="${escapeXml(layer.color)}"${fontWeight}${fontStyle}${textLength}${wordSpacing}><textPath href="#${pathId}" startOffset="${pathAttrs.startOffset}">${textBody}</textPath></text></g>`;
           }
           const pathAttrs = getTextPathRenderAttributes({ path: layer.path, align: layer.align, widthPx: layer.geometry.widthRatio * width, heightPx: layer.fontSizePt * Math.max(1, layer.text.split("\n").length) * 1.35 });
           const textLength = pathAttrs.textLength ? ` textLength="${pathAttrs.textLength}" lengthAdjust="${pathAttrs.lengthAdjust}"` : "";
           const fontWeight = layer.isBold ? ' font-weight="bold"' : "";
           const fontStyle = layer.isItalic ? ' font-style="italic"' : "";
-          const textDeco = layer.isUnderline ? ' text-decoration="underline"' : "";
-          return `<path id="${pathId}" d="${textPathD(layer, width, height)}" fill="none" /><text font-size="${layer.fontSizePt}" text-anchor="${pathAttrs.textAnchor}" fill="${escapeXml(layer.color)}"${fontWeight}${fontStyle}${textDeco}${textLength}><textPath href="#${pathId}" startOffset="${pathAttrs.startOffset}">${escapeXml(layer.text)}</textPath></text>`;
+          return `<path id="${pathId}" d="${textPathD(layer, width, height)}" fill="none" /><text font-size="${layer.fontSizePt}" text-anchor="${pathAttrs.textAnchor}" fill="${escapeXml(layer.color)}"${fontWeight}${fontStyle}${textLength}><textPath href="#${pathId}" startOffset="${pathAttrs.startOffset}">${escapeXml(layer.text)}</textPath></text>`;
         }
         const fontWeight = layer.isBold ? ' font-weight="bold"' : "";
         const fontStyle = layer.isItalic ? ' font-style="italic"' : "";
-        const textDeco = layer.isUnderline ? ' text-decoration="underline"' : "";
+        const textDeco = false ? ' text-decoration="underline"' : "";
         return `<text x="${x}" y="${y}" font-size="${layer.fontSizePt}" text-anchor="${anchor}" dominant-baseline="middle" fill="${escapeXml(layer.color)}"${fontWeight}${fontStyle}${textDeco} transform="rotate(${layer.geometry.rotationDeg} ${x} ${y})">${escapeXml(layer.text)}</text>`;
       }
       const frameWidth = layer.geometry.widthRatio * width;

@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FileImage } from "lucide-react";
 import {
+  createDefaultTextValue,
+  fitTextToLayer,
   getVisibleLayers,
   getTextPathRenderAttributes,
   getTextPathSvgD,
@@ -10,6 +12,7 @@ import {
   type BackgroundAsset,
   type CustomizationLayer,
   type CustomizationTemplate,
+  type DynamicFontFamily,
   type ImageShapeEditorLayer,
   type TextEditorLayer,
   type VectorPoint,
@@ -331,6 +334,7 @@ export function EditorCanvas({
               selected={selectedLayerId === layer.id && !isDrawing}
               pathEditing={pathEditingLayerId === layer.id}
               editing={mode === "edit" && !isDrawing}
+              dynamicFonts={dynamicFonts}
               onSelect={() => onSelectLayer(layer.id)}
               onEditPath={() => onPathEditingLayerChange(layer.id)}
               onUpdate={(updater) => onUpdateLayer(layer.id, updater)}
@@ -370,6 +374,7 @@ function CanvasLayer({
   selected,
   pathEditing,
   editing,
+  dynamicFonts = [],
   onSelect,
   onEditPath,
   onUpdate,
@@ -380,6 +385,7 @@ function CanvasLayer({
   selected: boolean;
   pathEditing: boolean;
   editing: boolean;
+  dynamicFonts?: DynamicFontFamily[];
   onSelect: () => void;
   onEditPath: () => void;
   onUpdate: (updater: (layer: CustomizationLayer) => CustomizationLayer) => void;
@@ -447,7 +453,7 @@ function CanvasLayer({
       }}
     >
       {layer.type === "text" ? (
-        <EditorTextLayer layer={layer} widthPx={rect.widthPx} heightPx={h} pathEditing={editing && (pathEditing || (selected && closedTextPath))} />
+        <EditorTextLayer layer={layer} widthPx={rect.widthPx} heightPx={h} pathEditing={editing && (pathEditing || (selected && closedTextPath))} dynamicFonts={dynamicFonts} />
       ) : layer.shape.type === "vector" && layer.shape.vectorPath ? (
         <svg className="pointer-events-none absolute inset-0 h-full w-full" viewBox="0 0 1 1" preserveAspectRatio="none">
           <path
@@ -481,28 +487,46 @@ function EditorTextLayer({
   widthPx,
   heightPx,
   pathEditing,
+  dynamicFonts = [],
 }: {
   layer: TextEditorLayer;
   widthPx: number;
   heightPx: number;
   pathEditing: boolean;
+  dynamicFonts?: DynamicFontFamily[];
 }) {
+  const fitted = fitTextToLayer({
+    layer,
+    value: createDefaultTextValue(layer),
+    availableWidthPx: widthPx,
+    availableHeightPx: layer.text.path.type !== "straight" ? heightPx : undefined,
+    dynamicFonts,
+  });
+
   if (layer.text.path.type === "straight") {
     return (
-      <div 
-        className="pointer-events-none flex h-full select-none items-center justify-center overflow-hidden bg-teal-500/10 text-center text-xs font-medium text-teal-900"
-        style={{ fontFamily: layer.text.fontPolicy?.mode === "fixed" ? layer.text.fontPolicy.fontId : layer.text.fontPolicy?.defaultFontId }}
+      <div
+        className="pointer-events-none h-full w-full select-none overflow-hidden bg-teal-500/10"
+        style={{
+          display: "grid",
+          alignContent: "center",
+          color: fitted.color,
+          fontFamily: fitted.fontId,
+          fontSize: fitted.fontSizePt,
+          fontWeight: fitted.isBold ? 700 : 400,
+          fontStyle: fitted.isItalic ? "italic" : "normal",
+          textAlign: fitted.align === "justified" ? "justify" : fitted.align,
+        }}
       >
-        {layer.text.sampleText}
+        {fitted.text}
       </div>
     );
   }
 
   const pathId = `editor_text_path_${layer.id}`;
-  const textWidthPx = layer.text.sampleText.length * Math.max(8, layer.text.maxFontSizePt) * 0.55;
-  const wordCount = layer.text.sampleText.trim() ? layer.text.sampleText.trim().split(/\s+/).length : 0;
-  const align = layer.text.alignPolicy.mode === "fixed" ? layer.text.alignPolicy.align : layer.text.alignPolicy.defaultAlign;
-  const pathAttrs = getTextPathRenderAttributes({ path: layer.text.path, align, widthPx, heightPx, textWidthPx, charCount: layer.text.sampleText.length, wordCount });
+  const textWidthPx = fitted.text.length * Math.max(8, fitted.fontSizePt) * 0.55;
+  const wordCount = fitted.text.trim() ? fitted.text.trim().split(/\s+/).length : 0;
+  const pathAttrs = getTextPathRenderAttributes({ path: layer.text.path, align: fitted.align, widthPx, heightPx, textWidthPx, charCount: fitted.text.length, wordCount });
   const renderPath = pathAttrs.pathStartAngleDeg != null
     ? { ...layer.text.path, startAngleDeg: pathAttrs.pathStartAngleDeg }
     : layer.text.path;
@@ -514,9 +538,9 @@ function EditorTextLayer({
       <defs>
         <path id={pathId} d={pathD} />
       </defs>
-      <text fontSize={Math.max(8, layer.text.maxFontSizePt)} fontFamily={layer.text.fontPolicy?.mode === "fixed" ? layer.text.fontPolicy.fontId : layer.text.fontPolicy?.defaultFontId} fontWeight={600} fill="rgb(19 78 74)" textAnchor={pathAttrs.textAnchor} dominantBaseline="middle" textLength={pathAttrs.textLength} lengthAdjust={pathAttrs.lengthAdjust} wordSpacing={pathAttrs.wordSpacingPx ?? 0}>
+      <text fontSize={fitted.fontSizePt} fontFamily={fitted.fontId} fontWeight={fitted.isBold ? 700 : 400} fontStyle={fitted.isItalic ? "italic" : "normal"} fill={fitted.color} textAnchor={pathAttrs.textAnchor} dominantBaseline="middle" textLength={pathAttrs.textLength} lengthAdjust={pathAttrs.lengthAdjust} wordSpacing={pathAttrs.wordSpacingPx ?? 0}>
         <textPath href={`#${pathId}`} startOffset={pathAttrs.startOffset}>
-          {pathAttrs.dy ? <tspan dy={pathAttrs.dy}>{layer.text.sampleText}</tspan> : layer.text.sampleText}
+          {pathAttrs.dy ? <tspan dy={pathAttrs.dy}>{fitted.text}</tspan> : fitted.text}
         </textPath>
       </text>
     </svg>

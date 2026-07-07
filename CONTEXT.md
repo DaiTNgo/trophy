@@ -145,20 +145,32 @@ The shopper-facing backend route surface used by the storefront app for public b
 _Avoid_: public admin API, shared product routes
 
 **Brand Asset Management**:
-The admin-only workflow for defining brand colors and uploading font families used by customization templates.
+The customization-admin workflow for defining colors and uploading font families used by customization templates. It sits under Customization rather than as a top-level admin domain.
 _Avoid_: public font API, storefront brand editing
 
 **Brand Asset Runtime**:
 The shopper-safe read model of brand colors and font families needed to render storefront customization experiences.
 _Avoid_: brand asset management, public upload API
 
-**Customization Icon Asset**:
-An admin-managed reusable graphic that shoppers may choose inside a customization form, such as a sport symbol, badge, mascot, frame, star, trophy mark, or decorative emblem. It is selected from an approved library and differs from a shopper-uploaded image.
-_Avoid_: uploaded logo, product image, UI icon
+**Customization Clipart Library**:
+The admin-managed library of reusable clipart used by customization templates. It belongs to the customization domain rather than brand identity assets.
+_Avoid_: brand assets, global icon assets, public icon marketplace
 
-**Icon Choice Field**:
-A shopper customization field where the shopper selects one customization icon asset from the admin-approved choices for that product layer. The selected icon becomes part of the order customization snapshot.
+**Clipart Category**:
+An admin-managed grouping that owns clipart icons for customization, such as a sport, badge family, frame set, or decorative emblem group. It can be ordered for browsing and deactivated instead of hard-deleted when existing icons or templates depend on it.
+_Avoid_: tag, free-form category text, product category
+
+**Clipart Asset**:
+A reusable curated media asset that belongs to exactly one clipart category and may be selected inside a customization form. It can be an SVG icon or a raster image, differs from a shopper-uploaded image, and is hidden from new shopper sessions when deactivated.
+_Avoid_: clipart icon, customization icon asset, uploaded logo, product image, UI icon, taggable icon
+
+**Clipart Choice Field**:
+A shopper customization field where the shopper selects one clipart asset from the admin-approved choices for that product layer. The selected clipart asset becomes part of the order customization snapshot.
 _Avoid_: file upload, free icon search, variant option
+
+**Layer Clipart Allowlist**:
+The product customization layer's approved subset of clipart assets from one clipart category. Shoppers see only active assets in this allowlist, and publish readiness fails when the allowlist has no active assets for a clipart-choice layer.
+_Avoid_: whole category selection, global icon library, shopper icon search
 
 **Customization Template**:
 The admin-defined configuration for a customizable product, including editable layers, form fields, and visual placement rules. Its background images are derived from the product's variant images rather than stored as independent customization data.

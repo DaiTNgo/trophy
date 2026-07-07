@@ -318,7 +318,6 @@ function PreviewText({
           fontFamily={layer.fontId}
           fontWeight={layer.isBold ? "bold" : "normal"}
           fontStyle={layer.isItalic ? "italic" : "normal"}
-          textDecoration={layer.isUnderline ? "underline" : "none"}
           fill={layer.color}
           textAnchor={pathAttrs.textAnchor}
           dominantBaseline="middle"

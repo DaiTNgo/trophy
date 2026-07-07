@@ -274,7 +274,6 @@ function PreviewText({ layer, width, height, scale }: { layer: Extract<RuntimeLa
           fontFamily={layer.fontId} 
           fontWeight={layer.isBold ? "bold" : "normal"} 
           fontStyle={layer.isItalic ? "italic" : "normal"} 
-          textDecoration={layer.isUnderline ? "underline" : "none"} 
           fill={layer.color} textAnchor={pathAttrs.textAnchor} dominantBaseline="middle" textLength={pathAttrs.textLength} lengthAdjust={pathAttrs.lengthAdjust} wordSpacing={pathAttrs.wordSpacingPx ?? 0}
         >
           <textPath id={`export-textpath-${layer.id}`} href={`#${pathId}`} startOffset={pathAttrs.startOffset}>

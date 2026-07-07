@@ -85,8 +85,8 @@ export type TextFontPolicy =
   | { mode: "shopper_selectable"; defaultFontId: string; options: ChoiceOption[] };
 
 export type TextFormatPolicy =
-  | { mode: "fixed"; isBold: boolean; isItalic: boolean; isUnderline: boolean }
-  | { mode: "shopper_selectable"; defaultBold: boolean; defaultItalic: boolean; defaultUnderline: boolean };
+  | { mode: "fixed"; isBold: boolean; isItalic: boolean }
+  | { mode: "shopper_selectable"; defaultBold: boolean; defaultItalic: boolean };
 
 export type TextAlignPolicy =
   | { mode: "fixed"; align: TextAlign }
@@ -201,7 +201,6 @@ export type TextFieldValue = {
   fontId?: string;
   isBold?: boolean;
   isItalic?: boolean;
-  isUnderline?: boolean;
   align?: TextAlign;
 };
 
@@ -264,7 +263,6 @@ export type RuntimeTextLayer = {
   color: string;
   isBold: boolean;
   isItalic: boolean;
-  isUnderline: boolean;
   align: TextAlign;
   path: TextPath;
   geometry: LayerGeometry;

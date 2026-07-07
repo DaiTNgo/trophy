@@ -17,7 +17,8 @@ import {
   type RuntimeTextLayer,
   type TextFieldValue,
 } from "@trophy/customization";
-import { createId, cssShapeClip, fileToBackground, FontLoader, Select, ShapeClipPaths } from "./customization-template-ui";
+import { Label, Select } from "@medusajs/ui";
+import { createId, cssShapeClip, fileToBackground, FontLoader, ShapeClipPaths } from "./customization-template-ui";
 import { exportVectorPdfClientSide } from "../../lib/pdf-export";
 import { useBrandAssets } from "../../hooks/use-brand-assets";
 
@@ -451,7 +452,6 @@ function PreviewTextLayer({
         fontFamily={layer.fontId} 
         fontWeight={layer.isBold ? "bold" : "normal"} 
         fontStyle={layer.isItalic ? "italic" : "normal"} 
-        textDecoration={layer.isUnderline ? "underline" : "none"} 
         fill={layer.color} textAnchor={pathAttrs.textAnchor} dominantBaseline="middle" textLength={pathAttrs.textLength} lengthAdjust={pathAttrs.lengthAdjust} wordSpacing={pathAttrs.wordSpacingPx ?? 0}
       >
         <textPath id={`export-textpath-${layer.id}`} href={`#${pathId}`} startOffset={pathAttrs.startOffset}>
@@ -744,12 +744,19 @@ function PreviewField({
           })()
         ) : null}
         {layer.text.fontPolicy.mode === "shopper_selectable" ? (
-          <Select
-            label="Font"
-            value={textValue.fontId ?? layer.text.fontPolicy.defaultFontId}
-            options={layer.text.fontPolicy.options.map((option) => option.value)}
-            onChange={(fontId) => onChange({ ...textValue, fontId })}
-          />
+          <div className="space-y-1">
+            <Label size="small" weight="plus" className="text-ui-fg-subtle">Font</Label>
+            <Select value={textValue.fontId ?? layer.text.fontPolicy.defaultFontId} onValueChange={(fontId) => onChange({ ...textValue, fontId })}>
+              <Select.Trigger>
+                <Select.Value />
+              </Select.Trigger>
+              <Select.Content>
+                {layer.text.fontPolicy.options.map((option) => (
+                  <Select.Item key={option.value} value={option.value}>{option.label ?? option.value}</Select.Item>
+                ))}
+              </Select.Content>
+            </Select>
+          </div>
         ) : null}
         {layer.text.formatPolicy.mode === "shopper_selectable" ? (
           <div key="format-toolbar">
@@ -773,25 +780,24 @@ function PreviewField({
               >
                 I
               </button>
-              <button
-                type="button"
-                onClick={() => onChange({ ...textValue, isUnderline: !(textValue.isUnderline ?? (layer.text.formatPolicy as any).defaultUnderline) })}
-                className={`flex size-8 items-center justify-center rounded border underline transition-colors ${
-                  (textValue.isUnderline ?? (layer.text.formatPolicy as any).defaultUnderline) ? "bg-ui-bg-interactive text-ui-fg-on-inverted" : "bg-ui-bg-base hover:bg-ui-bg-subtle"
-                }`}
-              >
-                U
-              </button>
             </div>
           </div>
         ) : null}
         {layer.text.alignPolicy.mode === "shopper_selectable" ? (
-          <Select
-            label="Alignment"
-            value={textValue.align ?? (layer.text.alignPolicy as any).defaultAlign}
-            options={["left", "center", "right", "justified"]}
-            onChange={(align) => onChange({ ...textValue, align: align as import("@trophy/customization").TextAlign })}
-          />
+          <div className="space-y-1">
+            <Label size="small" weight="plus" className="text-ui-fg-subtle">Alignment</Label>
+            <Select value={textValue.align ?? (layer.text.alignPolicy as any).defaultAlign} onValueChange={(align) => onChange({ ...textValue, align: align as import("@trophy/customization").TextAlign })}>
+              <Select.Trigger>
+                <Select.Value />
+              </Select.Trigger>
+              <Select.Content>
+                <Select.Item value="left">Left</Select.Item>
+                <Select.Item value="center">Center</Select.Item>
+                <Select.Item value="right">Right</Select.Item>
+                <Select.Item value="justified">Justified</Select.Item>
+              </Select.Content>
+            </Select>
+          </div>
         ) : null}
       </div>
     );
@@ -908,14 +914,9 @@ function PreviewField({
     <div className="space-y-2">
       <label className="text-sm font-medium">{field.label}{field.required ? " *" : ""}</label>
       {sourcePolicy === "upload_or_clipart_category" && typedLayer.presentation === "source_select" ? (
-        <Select
-          label="Source"
-          value={currentSource}
-          options={[
-            { value: "icon", label: "Clipart" },
-            { value: "upload", label: "Upload image" },
-          ]}
-          onChange={(nextSource) => {
+        <div className="space-y-1">
+          <Label size="small" weight="plus" className="text-ui-fg-subtle">Source</Label>
+          <Select value={currentSource} onValueChange={(nextSource) => {
             if (nextSource === "icon" && clipartOptions[0]) {
               const first = clipartOptions[0];
               onChange({
@@ -934,8 +935,16 @@ function PreviewField({
             } else if (nextSource === "upload") {
               onChange(uploadValue ?? null);
             }
-          }}
-        />
+          }}>
+            <Select.Trigger>
+              <Select.Value />
+            </Select.Trigger>
+            <Select.Content>
+              <Select.Item value="icon">Clipart</Select.Item>
+              <Select.Item value="upload">Upload image</Select.Item>
+            </Select.Content>
+          </Select>
+        </div>
       ) : null}
       {sourcePolicy === "clipart_category_only" ? clipartControls : null}
       {sourcePolicy === "upload_only" ? uploadControls : null}

@@ -116,7 +116,7 @@ export function useTemplateEditor(editParam: string | null) {
           alignPolicy: { mode: "fixed", align: "center" },
           colorPolicy: { mode: "fixed", color: "#111111" },
           fontPolicy: { mode: "fixed", fontId: "sans" },
-          formatPolicy: { mode: "fixed", isBold: false, isItalic: false, isUnderline: false },
+          formatPolicy: { mode: "fixed", isBold: false, isItalic: false },
           path: { type: "straight" },
         },
       },
@@ -151,7 +151,7 @@ export function useTemplateEditor(editParam: string | null) {
           alignPolicy: { mode: "fixed", align: "center" },
           colorPolicy: { mode: "fixed", color: "#111111" },
           fontPolicy: { mode: "fixed", fontId: "sans" },
-          formatPolicy: { mode: "fixed", isBold: false, isItalic: false, isUnderline: false },
+          formatPolicy: { mode: "fixed", isBold: false, isItalic: false },
           path: {
             type: "closed_ellipse",
             bounds: { xRatio: 0.5, yRatio: 0.5, widthRatio: 1, heightRatio: 1 },

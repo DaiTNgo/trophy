@@ -272,17 +272,23 @@ export function useCreateProduct() {
     });
   }, [createdVariantRows, customizationTabRequirement.ready, values.customizationEnabled]);
 
+  const pendingBlobUrls = useRef(new Set<string>());
+
+  useEffect(() => {
+    const urls = new Set<string>();
+    variantRows.forEach((variant) => {
+      variant.media.forEach((asset) => {
+        if (asset.isPending) urls.add(asset.contentUrl);
+      });
+    });
+    pendingBlobUrls.current = urls;
+  });
+
   useEffect(() => {
     return () => {
-      variantRows.forEach((variant) => {
-        variant.media.forEach((asset) => {
-          if (asset.isPending) {
-            URL.revokeObjectURL(asset.contentUrl);
-          }
-        });
-      });
+      pendingBlobUrls.current.forEach((url) => URL.revokeObjectURL(url));
     };
-  }, [variantRows]);
+  }, []);
 
   function setValue<K extends keyof CreateProductFormValues>(
     key: K,
