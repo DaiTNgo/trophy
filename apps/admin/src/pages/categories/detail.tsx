@@ -12,7 +12,6 @@ import {
   DropdownMenu,
   Drawer,
   StatusBadge,
-  Textarea,
   Select,
 } from "@medusajs/ui";
 import { backendFetch } from "../../lib/fetch";
@@ -22,6 +21,7 @@ import { EditRankingModal } from "./components/edit-ranking-modal";
 import { uploadProductVariantMedia } from "../../lib/product-assets-client";
 import { AdminMedia } from "../../components/ui/admin-media";
 import { convertPdfToImageFile } from "../../lib/pdf-preview";
+import { LocalizedTextField, createEmptyLocalizedText, type AdminLocale, type LocalizedTextValue } from "../../components/ui/medusa";
 import { Upload, X, MoreHorizontal, Pencil, Trash, AlertCircle, Plus, Info } from "lucide-react";
 
 export function CategoryDetailPage() {
@@ -30,9 +30,11 @@ export function CategoryDetailPage() {
   const navigate = useNavigate();
   const { setBreadcrumbs } = useBreadcrumbs();
 
-  const [name, setName] = useState("");
+  const [name, setName] = useState<LocalizedTextValue>(() => createEmptyLocalizedText());
+  const [nameLocale, setNameLocale] = useState<AdminLocale>("vi");
   const [handle, setHandle] = useState("");
-  const [description, setDescription] = useState("");
+  const [description, setDescription] = useState<LocalizedTextValue>(() => createEmptyLocalizedText());
+  const [descriptionLocale, setDescriptionLocale] = useState<AdminLocale>("vi");
   const [imageUrl, setImageUrl] = useState("");
   const [previewUrl, setPreviewUrl] = useState("");
   const [file, setFile] = useState<File | null>(null);
@@ -73,9 +75,9 @@ export function CategoryDetailPage() {
           setCategories(list);
           const current = list.find((c: any) => String(c.id) === id);
           if (current) {
-            setName(current.name || "");
+            setName(current.name?.vi ? { vi: current.name.vi, en: current.name.en ?? "" } : createEmptyLocalizedText());
             setHandle(current.handle || "");
-            setDescription(current.description || "");
+            setDescription(current.description?.vi ? { vi: current.description.vi, en: current.description.en ?? "" } : createEmptyLocalizedText());
             setImageUrl(current.imageUrl || "");
             setPreviewUrl(current.imageUrl || "");
           }
@@ -94,7 +96,7 @@ export function CategoryDetailPage() {
   useEffect(() => {
     setBreadcrumbs([
       { label: "Categories", path: "/categories" },
-      { label: isNew ? "Create Category" : (name || "Loading..."), path: `/categories/${id}` },
+      { label: isNew ? "Create Category" : (name.vi || "Loading..."), path: `/categories/${id}` },
     ]);
   }, [setBreadcrumbs, isNew, id, name]);
 
@@ -168,9 +170,9 @@ export function CategoryDetailPage() {
       }
 
       const payload: any = { 
-        name, 
+        name: { vi: name.vi, en: name.en || undefined }, 
         handle: handle || null, 
-        description: description || null,
+        description: description.vi ? { vi: description.vi, en: description.en || undefined } : null,
         imageUrl: finalImageUrl || null 
       };
       
@@ -233,7 +235,7 @@ export function CategoryDetailPage() {
               <div className="flex flex-col">
                 <div className="flex items-center justify-between px-6 py-4">
                   <Heading level="h2" className="text-xl font-semibold">
-                    {name}
+                    {name.vi}
                   </Heading>
                   <div className="flex items-center gap-x-2">
                     <StatusBadge color="green">Active</StatusBadge>
@@ -263,7 +265,7 @@ export function CategoryDetailPage() {
                     <Text size="small" className="text-ui-fg-subtle">
                       Description
                     </Text>
-                    <Text size="small">{description || "-"}</Text>
+                    <Text size="small">{description.vi || "-"}</Text>
                   </div>
                   <div className="grid grid-cols-2 items-center px-6 py-4 border-t border-ui-border-base">
                     <Text size="small" className="text-ui-fg-subtle">
@@ -301,7 +303,7 @@ export function CategoryDetailPage() {
                     <Text size="small" className="text-ui-fg-subtle">
                       Path
                     </Text>
-                    <Text size="small">{name || "-"}</Text>
+                    <Text size="small">{name.vi || "-"}</Text>
                   </div>
                   <div className="grid grid-cols-2 items-center px-6 py-4 border-t border-ui-border-base">
                     <Text size="small" className="text-ui-fg-subtle">
@@ -414,11 +416,13 @@ export function CategoryDetailPage() {
                   <Label htmlFor="edit-name" className="text-ui-fg-base">
                     Title
                   </Label>
-                  <Input
+                  <LocalizedTextField
                     id="edit-name"
                     value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="e.g. Sweatshirts"
+                    locale={nameLocale}
+                    onLocaleChange={setNameLocale}
+                    onChange={setName}
+                    placeholder={{ vi: "Tieu de", en: "Title" }}
                   />
                 </div>
 
@@ -451,11 +455,14 @@ export function CategoryDetailPage() {
                     </Label>
                     <span className="text-ui-fg-subtle text-xs">(Optional)</span>
                   </div>
-                  <Textarea
+                  <LocalizedTextField
                     id="edit-description"
                     value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    placeholder=""
+                    locale={descriptionLocale}
+                    onLocaleChange={setDescriptionLocale}
+                    onChange={setDescription}
+                    placeholder={{ vi: "Mo ta", en: "Description" }}
+                    multiline
                     rows={4}
                   />
                 </div>
@@ -500,7 +507,7 @@ export function CategoryDetailPage() {
           <EditRankingModal
             open={isRankingModalOpen}
             onOpenChange={setIsRankingModalOpen}
-            items={categories.map(c => ({ id: String(c.id), name: c.name }))}
+            items={categories.map(c => ({ id: String(c.id), name: c.name?.vi ?? "" }))}
             onSave={async (orderedItems) => {
               const res = await backendFetch("/api/admin/product-metadata/categories/ranking", {
                 method: "PUT",
@@ -546,17 +553,19 @@ export function CategoryDetailPage() {
 
           <Container>
             <div className="flex flex-col gap-y-6 max-w-2xl">
-              <div className="flex flex-col gap-y-2">
-                <Label htmlFor="name" className="text-ui-fg-base">
-                  Name
-                </Label>
-                <Input
-                  id="name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g. T-Shirts"
-                />
-              </div>
+                <div className="flex flex-col gap-y-2">
+                  <Label htmlFor="name" className="text-ui-fg-base">
+                    Name
+                  </Label>
+                  <LocalizedTextField
+                    id="name"
+                    value={name}
+                    locale={nameLocale}
+                    onLocaleChange={setNameLocale}
+                    onChange={setName}
+                    placeholder={{ vi: "Tieu de", en: "Title" }}
+                  />
+                </div>
 
               <div className="flex flex-col gap-y-2">
                 <Label htmlFor="handle" className="text-ui-fg-base">
@@ -611,12 +620,15 @@ export function CategoryDetailPage() {
                 <Label htmlFor="description" className="text-ui-fg-base">
                   Description (optional)
                 </Label>
-                <Input
-                  id="description"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Category description"
-                />
+                  <LocalizedTextField
+                    id="description"
+                    value={description}
+                    locale={descriptionLocale}
+                    onLocaleChange={setDescriptionLocale}
+                    onChange={setDescription}
+                    placeholder={{ vi: "Mo ta", en: "Description" }}
+                    multiline
+                  />
               </div>
             </div>
           </Container>

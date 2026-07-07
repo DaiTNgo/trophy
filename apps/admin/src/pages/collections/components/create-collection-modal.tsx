@@ -105,7 +105,7 @@ export function CreateCollectionModal({
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            title: vietnameseTitle,
+            title: { vi: vietnameseTitle, en: title.en || undefined },
             handle: handle || undefined,
             imageUrl: finalImageUrl || undefined,
           }),

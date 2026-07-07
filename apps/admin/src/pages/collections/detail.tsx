@@ -18,6 +18,7 @@ import { ProductSelectorDrawer } from "../../components/product-selector-drawer"
 import { uploadProductVariantMedia } from "../../lib/product-assets-client";
 import { AdminMedia } from "../../components/ui/admin-media";
 import { convertPdfToImageFile } from "../../lib/pdf-preview";
+import { LocalizedTextField, createEmptyLocalizedText, type AdminLocale, type LocalizedTextValue } from "../../components/ui/medusa";
 import { Upload, X, MoreHorizontal, Pencil, Trash, AlertCircle, Plus } from "lucide-react";
 
 export function CollectionDetailPage() {
@@ -26,9 +27,9 @@ export function CollectionDetailPage() {
   const navigate = useNavigate();
   const { setBreadcrumbs } = useBreadcrumbs();
 
-  const [title, setTitle] = useState("");
+  const [title, setTitle] = useState<LocalizedTextValue>(() => createEmptyLocalizedText());
+  const [titleLocale, setTitleLocale] = useState<AdminLocale>("vi");
   const [handle, setHandle] = useState("");
-  const [description, setDescription] = useState("");
   const [imageUrl, setImageUrl] = useState("");
   const [previewUrl, setPreviewUrl] = useState("");
   const [file, setFile] = useState<File | null>(null);
@@ -65,9 +66,8 @@ export function CollectionDetailPage() {
           const data = await collRes.json();
           const collection = data.items.find((c: any) => c.id.toString() === id);
           if (collection) {
-            setTitle(collection.title);
+            setTitle(typeof collection.title === "string" ? { vi: collection.title, en: "" } : { vi: collection.title.vi ?? "", en: collection.title.en ?? "" });
             setHandle(collection.handle || "");
-            setDescription(collection.description || "");
             setImageUrl(collection.imageUrl || "");
             setPreviewUrl(collection.imageUrl || "");
           }
@@ -87,7 +87,7 @@ export function CollectionDetailPage() {
     if (title && !isNew) {
       setBreadcrumbs([
         { label: "Collections", path: "/collections" },
-        { label: title, path: `/collections/${id}` }
+        { label: title.vi || title.en || "Untitled", path: `/collections/${id}` }
       ]);
     } else if (isNew) {
       setBreadcrumbs([
@@ -171,10 +171,9 @@ export function CollectionDetailPage() {
         finalImageUrl = media.contentUrl;
       }
 
-      const payload = { 
-        title, 
+      const payload: any = { 
+        title: { vi: title.vi, en: title.en || undefined }, 
         handle: handle || null, 
-        description: description || null,
         imageUrl: finalImageUrl || null 
       };
       
@@ -236,7 +235,7 @@ export function CollectionDetailPage() {
             <div className="flex flex-col">
               <div className="flex items-center justify-between px-6 py-4">
                 <Heading level="h2" className="text-xl font-semibold">
-                  {title}
+                  {title.vi || title.en}
                 </Heading>
                 <DropdownMenu>
                   <DropdownMenu.Trigger asChild>
@@ -343,11 +342,13 @@ export function CollectionDetailPage() {
                   <Label htmlFor="edit-title" className="text-ui-fg-base">
                     Title
                   </Label>
-                  <Input
+                  <LocalizedTextField
                     id="edit-title"
                     value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    placeholder="e.g. Summer Release"
+                    locale={titleLocale}
+                    onLocaleChange={setTitleLocale}
+                    onChange={setTitle}
+                    placeholder={{ vi: "Tieu de", en: "Title" }}
                   />
                 </div>
 
@@ -399,18 +400,6 @@ export function CollectionDetailPage() {
                     onChange={handleFileSelect}
                   />
                 </div>
-
-                <div className="flex flex-col gap-y-2">
-                  <Label htmlFor="edit-description" className="text-ui-fg-base">
-                    Description (optional)
-                  </Label>
-                  <Input
-                    id="edit-description"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    placeholder="Collection description"
-                  />
-                </div>
               </Drawer.Body>
               <Drawer.Footer>
                 <Drawer.Close asChild>
@@ -460,17 +449,19 @@ export function CollectionDetailPage() {
 
           <Container>
             <div className="flex flex-col gap-y-6 max-w-2xl">
-              <div className="flex flex-col gap-y-2">
-                <Label htmlFor="title" className="text-ui-fg-base">
-                  Title
-                </Label>
-                <Input
-                  id="title"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="e.g. Summer Release"
-                />
-              </div>
+                <div className="flex flex-col gap-y-2">
+                  <Label htmlFor="title" className="text-ui-fg-base">
+                    Title
+                  </Label>
+                  <LocalizedTextField
+                    id="title"
+                    value={title}
+                    locale={titleLocale}
+                    onLocaleChange={setTitleLocale}
+                    onChange={setTitle}
+                    placeholder={{ vi: "Tieu de", en: "Title" }}
+                  />
+                </div>
 
               <div className="flex flex-col gap-y-2">
                 <Label htmlFor="handle" className="text-ui-fg-base">
@@ -521,17 +512,7 @@ export function CollectionDetailPage() {
                 />
               </div>
 
-              <div className="flex flex-col gap-y-2">
-                <Label htmlFor="description" className="text-ui-fg-base">
-                  Description (optional)
-                </Label>
-                <Input
-                  id="description"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Collection description"
-                />
-              </div>
+
             </div>
           </Container>
         </>

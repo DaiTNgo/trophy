@@ -13,12 +13,12 @@ import { ArrowUpDown, MoreHorizontal, Search } from "lucide-react";
 import { backendFetch } from "../../lib/fetch";
 import { useBreadcrumbs } from "../../hooks/use-breadcrumbs";
 import { CreateCollectionModal } from "./components/create-collection-modal";
+import type { LocalizedTextValue } from "../../types";
 
 type Collection = {
   id: number;
-  title: string;
+  title: LocalizedTextValue;
   handle: string;
-  description: string | null;
   imageUrl: string | null;
   position: number;
 };
@@ -120,7 +120,7 @@ export function CollectionsListPage() {
                         to={`/collections/${collection.id}`}
                         className="text-ui-fg-interactive hover:text-ui-fg-interactive-hover font-medium"
                       >
-                        {collection.title}
+                        {collection.title.vi}
                       </Link>
                     </Table.Cell>
                     <Table.Cell>

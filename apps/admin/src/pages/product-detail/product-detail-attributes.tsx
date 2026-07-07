@@ -45,7 +45,7 @@ export function ProductDetailAttributes({ product, mutate }: ProductDetailAttrib
     setError(null);
     try {
       const validAttrs = attributes.filter(a => a.key.trim() && a.value.trim());
-      await updateProductAttributes(product.id, validAttrs.map(a => ({ name: a.key, value: a.value })));
+      await updateProductAttributes(product.id, validAttrs.map(a => ({ name: { vi: a.key, en: "" }, value: { vi: a.value, en: "" } })));
       await mutate();
       setOpen(false);
     } catch (err) {

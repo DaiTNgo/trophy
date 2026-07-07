@@ -52,7 +52,7 @@ export async function uploadProductVariantMedia(file: File, widthPx?: number, he
 
   const response = await backendFetch(`/api/admin/products/assets`, {
     method: "POST",
-    credentials: "include",
+
     body: formData,
   });
 
@@ -70,7 +70,7 @@ export async function uploadProductVariantMedia(file: File, widthPx?: number, he
 export async function deleteProductVariantMedia(assetId: string) {
   const response = await backendFetch(`/api/admin/products/assets/${assetId}/delete`, {
     method: "POST",
-    credentials: "include",
+
   });
 
   const body = (await response.json().catch(() => null)) as { error?: string } | null;

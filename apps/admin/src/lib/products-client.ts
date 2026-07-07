@@ -1,21 +1,29 @@
-import type { CatalogProduct } from "../types";
+import type { CatalogProduct, LocalizedTextValue } from "../types";
 import { backendFetch } from "./fetch";
+
+type LocalizedInput = string | { vi: string; en?: string | null };
+
+const toLocalized = (v: LocalizedInput | null | undefined): LocalizedTextValue => {
+  if (!v) return { vi: "", en: "" };
+  if (typeof v === "string") return { vi: v, en: "" };
+  return { vi: v.vi ?? "", en: v.en ?? "" };
+};
 
 type ApiProduct = {
   id: number;
-  title: string;
+  title: LocalizedInput;
   handle: string;
-  subtitle: string | null;
-  description: string | null;
+  subtitle: LocalizedInput | null;
+  description: LocalizedInput | null;
   status: "draft" | "published" | "archived" | "proposed" | "rejected";
-  categories: Array<{ id: number; name: string }>;
-  collection: { id: number; title: string } | null;
-  attributes: Array<{ name: string; value: string }>;
+  categories: Array<{ id: number; name: LocalizedInput }>;
+  collection: { id: number; title: LocalizedInput } | null;
+  attributes: Array<{ name: LocalizedInput; value: LocalizedInput }>;
   media: Array<{ url: string }>;
   options: Array<{
     id: number;
-    title: string;
-    values: Array<{ id: number; value: string }>;
+    title: LocalizedInput;
+    values: Array<{ id: number; value: LocalizedInput }>;
   }>;
   variants: Array<{
     id: number;
@@ -97,7 +105,6 @@ type CreateFullProductPayload = {
 export async function createFullProduct(payload: CreateFullProductPayload) {
   const response = await backendFetch("/api/admin/products/full-create", {
     method: "POST",
-    credentials: "include",
     headers: {
       "Content-Type": "application/json",
     },
@@ -123,7 +130,7 @@ export async function fetchProducts(params?: { categoryId?: string; collectionId
 
   const response = await backendFetch(url.pathname + url.search, {
     method: "GET",
-    credentials: "include",
+
   });
 
   const body = (await response.json().catch(() => null)) as
@@ -140,7 +147,7 @@ export async function fetchProducts(params?: { categoryId?: string; collectionId
 export async function fetchProduct(id: string) {
   const response = await backendFetch(`/api/admin/products/${id}`, {
     method: "GET",
-    credentials: "include",
+
   });
 
   const body = (await response.json().catch(() => null)) as
@@ -160,7 +167,7 @@ export async function assignProductsToCollection(
 ) {
   const response = await backendFetch(`/api/admin/product-metadata/collections/${collectionId}/products`, {
     method: "POST",
-    credentials: "include",
+
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
@@ -174,7 +181,7 @@ export async function assignProductsToCategory(
 ) {
   const response = await backendFetch(`/api/admin/product-metadata/categories/${categoryId}/products`, {
     method: "POST",
-    credentials: "include",
+
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
@@ -183,14 +190,14 @@ export async function assignProductsToCategory(
 }
 
 export async function updateProductOverview(id: string, payload: {
-  title?: string;
-  subtitle?: string | null;
+  title?: { vi: string; en?: string } | null;
+  subtitle?: { vi?: string; en?: string } | null;
   handle?: string | null;
-  description?: string | null;
+  description?: { vi?: string; en?: string } | null;
 }) {
   const response = await backendFetch(`/api/admin/products/${id}`, {
     method: "PATCH",
-    credentials: "include",
+
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
@@ -205,7 +212,7 @@ export async function updateProductOrganization(id: string, payload: {
 }) {
   const response = await backendFetch(`/api/admin/products/${id}/organize`, {
     method: "PATCH",
-    credentials: "include",
+
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
@@ -214,10 +221,10 @@ export async function updateProductOrganization(id: string, payload: {
   return body.item as ApiProduct;
 }
 
-export async function updateProductAttributes(id: string, items: Array<{ name: string; value: string; unit?: string | null }>) {
+export async function updateProductAttributes(id: string, items: Array<{ name: { vi: string; en?: string }; value: { vi: string; en?: string }; unit?: string | null }>) {
   const response = await backendFetch(`/api/admin/products/${id}/attributes`, {
     method: "PUT",
-    credentials: "include",
+
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ items }),
   });
@@ -228,10 +235,10 @@ export async function updateProductAttributes(id: string, items: Array<{ name: s
 
 // Legacy full-replace helper kept for create-flow compatibility. Product detail must use
 // the operation-specific option methods below.
-export async function updateProductOptions(id: string, items: Array<{ title: string; values: string[] }>) {
+export async function updateProductOptions(id: string, items: Array<{ title: { vi: string; en?: string }; values: { vi: string; en?: string }[] }>) {
   const response = await backendFetch(`/api/admin/products/${id}/options`, {
     method: "PUT",
-    credentials: "include",
+
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ items }),
   });
@@ -245,11 +252,11 @@ export async function updateProductOptions(id: string, items: Array<{ title: str
 
 export async function createProductOption(
   id: string,
-  payload: { title: string; values?: string[] },
+  payload: { title: { vi: string; en?: string }; values?: { vi: string; en?: string }[] },
 ) {
   const response = await backendFetch(`/api/admin/products/${id}/options`, {
     method: "POST",
-    credentials: "include",
+
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
@@ -264,11 +271,11 @@ export async function createProductOption(
 export async function updateProductOption(
   id: string,
   optionId: number,
-  payload: { title: string },
+  payload: { title: { vi: string; en?: string } },
 ) {
   const response = await backendFetch(`/api/admin/products/${id}/options/${optionId}`, {
     method: "PATCH",
-    credentials: "include",
+
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
@@ -283,7 +290,7 @@ export async function updateProductOption(
 export async function deleteProductOption(id: string, optionId: number) {
   const response = await backendFetch(`/api/admin/products/${id}/options/${optionId}`, {
     method: "DELETE",
-    credentials: "include",
+
   });
   if (!response.ok) {
     const err = await response.json().catch(() => null);
@@ -296,11 +303,11 @@ export async function deleteProductOption(id: string, optionId: number) {
 export async function createProductOptionValue(
   id: string,
   optionId: number,
-  payload: { value: string },
+  payload: { value: { vi: string; en?: string } },
 ) {
   const response = await backendFetch(`/api/admin/products/${id}/options/${optionId}/values`, {
     method: "POST",
-    credentials: "include",
+
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
@@ -315,11 +322,11 @@ export async function createProductOptionValue(
 export async function updateProductOptionValue(
   id: string,
   valueId: number,
-  payload: { value: string },
+  payload: { value: { vi: string; en?: string } },
 ) {
   const response = await backendFetch(`/api/admin/products/${id}/option-values/${valueId}`, {
     method: "PATCH",
-    credentials: "include",
+
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
@@ -334,7 +341,7 @@ export async function updateProductOptionValue(
 export async function deleteProductOptionValue(id: string, valueId: number) {
   const response = await backendFetch(`/api/admin/products/${id}/option-values/${valueId}`, {
     method: "DELETE",
-    credentials: "include",
+
   });
   if (!response.ok) {
     const err = await response.json().catch(() => null);
@@ -359,7 +366,7 @@ export async function updateProductVariants(id: string, items: Array<{
 }>) {
   const response = await backendFetch(`/api/admin/products/${id}/variants`, {
     method: "PUT",
-    credentials: "include",
+
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ items }),
   });
@@ -385,7 +392,7 @@ export async function createProductVariant(
 ) {
   const response = await backendFetch(`/api/admin/products/${id}/variants`, {
     method: "POST",
-    credentials: "include",
+
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
@@ -409,7 +416,7 @@ export async function updateProductVariantDetails(
 ) {
   const response = await backendFetch(`/api/admin/products/${id}/variants/${variantId}`, {
     method: "PATCH",
-    credentials: "include",
+
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
@@ -424,7 +431,7 @@ export async function updateProductVariantDetails(
 export async function deleteProductVariant(id: string, variantId: number) {
   const response = await backendFetch(`/api/admin/products/${id}/variants/${variantId}`, {
     method: "DELETE",
-    credentials: "include",
+
   });
   if (!response.ok) {
     const err = await response.json().catch(() => null);
@@ -440,7 +447,7 @@ export async function updateProductVariantPrices(
 ) {
   const response = await backendFetch(`/api/admin/products/${id}/variants/prices`, {
     method: "PATCH",
-    credentials: "include",
+
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ items }),
   });
@@ -458,7 +465,7 @@ export async function updateProductVariantStock(
 ) {
   const response = await backendFetch(`/api/admin/products/${id}/variants/stock`, {
     method: "PATCH",
-    credentials: "include",
+
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ items }),
   });
@@ -477,7 +484,7 @@ export async function updateProductVariantMedia(
 ) {
   const response = await backendFetch(`/api/admin/products/${id}/variants/${variantId}/media`, {
     method: "PUT",
-    credentials: "include",
+
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ items }),
   });
@@ -492,7 +499,7 @@ export async function updateProductVariantMedia(
 export async function updateProductMedia(id: string, items: Array<{ url: string }>) {
   const response = await backendFetch(`/api/admin/products/${id}/media`, {
     method: "PUT",
-    credentials: "include",
+
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ items }),
   });
@@ -508,7 +515,7 @@ export async function updateProductCustomization(id: string, payload: {
 }) {
   const response = await backendFetch(`/api/admin/products/${id}/customization`, {
     method: "PUT",
-    credentials: "include",
+
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
@@ -523,7 +530,7 @@ export async function updateProductCustomization(id: string, payload: {
 export async function publishProduct(id: string) {
   const response = await backendFetch(`/api/admin/products/${id}/publish`, {
     method: "POST",
-    credentials: "include",
+
   });
   if (!response.ok) {
     const err = await response.json().catch(() => null);
@@ -536,7 +543,7 @@ export async function publishProduct(id: string) {
 export async function archiveProduct(id: string) {
   const response = await backendFetch(`/api/admin/products/${id}/archive`, {
     method: "POST",
-    credentials: "include",
+
   });
   if (!response.ok) throw new Error("Failed to archive product.");
   const body = await response.json();
@@ -556,8 +563,8 @@ export function mapApiProductToCatalogProduct(product: Partial<ApiProduct> & Pic
       (product.options || []).forEach((opt) => {
         const val = (opt.values || []).find((v) => v.id === id);
         if (val) {
-          optionTitle = opt.title;
-          optionValue = val.value;
+          optionTitle = toLocalized(opt.title).vi;
+          optionValue = toLocalized(val.value).vi;
         }
       });
       return { option: optionTitle, value: optionValue, optionValueId: id };
@@ -579,29 +586,31 @@ export function mapApiProductToCatalogProduct(product: Partial<ApiProduct> & Pic
 
   return {
     id: String(product.id),
-    title: { vi: product.title ?? "", en: "" },
+    title: toLocalized(product.title),
     handle: product.handle,
-    subtitle: { vi: product.subtitle ?? "", en: "" },
-    description: { vi: product.description ?? "", en: "" },
+    subtitle: toLocalized(product.subtitle),
+    description: toLocalized(product.description),
     status: mapApiProductStatus(product.status),
     inventory: 0,
     price: leadPrice,
-    category: product.categories?.[0]?.name ?? "",
-    collection: product.collection?.title ?? "",
+    category: toLocalized(product.categories?.[0]?.name).vi,
+    collection: toLocalized(product.collection?.title).vi,
     collectionId: product.collection?.id ?? null,
-    categories: (product.categories || []).map((category) => category.name),
-    categoryIds: (product.categories || []).map((category) => category.id),
+    categories: (product.categories || []).map((c) => toLocalized(c.name).vi),
+    categoryIds: (product.categories || []).map((c) => c.id),
     media: (product.media || []).map((m) => m.url),
     attributes: (product.attributes || []).map((a) => ({
-      key: a.name,
-      value: a.value,
+      key: toLocalized(a.name).vi,
+      value: toLocalized(a.value).vi,
     })),
     optionDefinitions: (product.options || []).map((option) => ({
       id: String(option.id),
-      title: option.title,
+      title: toLocalized(option.title).vi,
+      titleTranslations: toLocalized(option.title),
       values: (option.values || []).map((value) => ({
         id: String(value.id),
-        value: value.value,
+        value: toLocalized(value.value).vi,
+        valueTranslations: toLocalized(value.value),
       })),
     })),
     variants,

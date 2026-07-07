@@ -79,7 +79,7 @@ export function ProductDetailOptions({ product, mutate }: ProductDetailOptionsPr
         }
 
         if (original.title !== draft.title) {
-          await updateProductOption(product.id, draft.id!, { title: draft.title });
+          await updateProductOption(product.id, draft.id!, { title: { vi: draft.title, en: "" } });
         }
 
         const removedValueIds = original.values
@@ -94,19 +94,19 @@ export function ProductDetailOptions({ product, mutate }: ProductDetailOptionsPr
         for (const valueDraft of draft.values.filter((value) => value.id !== null)) {
           const originalValue = original.values.find((value) => value.id === valueDraft.id);
           if (originalValue && originalValue.value !== valueDraft.value) {
-            await updateProductOptionValue(product.id, valueDraft.id!, { value: valueDraft.value });
+            await updateProductOptionValue(product.id, valueDraft.id!, { value: { vi: valueDraft.value, en: "" } });
           }
         }
 
         for (const valueDraft of draft.values.filter((value) => value.id === null)) {
-          await createProductOptionValue(product.id, draft.id!, { value: valueDraft.value });
+          await createProductOptionValue(product.id, draft.id!, { value: { vi: valueDraft.value, en: "" } });
         }
       }
 
       for (const draft of nextDrafts.filter((option) => option.id === null)) {
         await createProductOption(product.id, {
-          title: draft.title,
-          values: draft.values.map((value) => value.value),
+          title: { vi: draft.title, en: "" },
+          values: draft.values.map((value) => ({ vi: value.value, en: "" })),
         });
       }
 

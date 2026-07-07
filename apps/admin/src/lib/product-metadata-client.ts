@@ -1,5 +1,7 @@
 import { backendFetch } from "./fetch";
 
+type LocalizedLabel = { vi: string; en?: string | null };
+
 export type ProductMetadataItem = {
   id: number;
   label: string;
@@ -10,8 +12,11 @@ export type ProductMetadataSnapshot = {
   categories: ProductMetadataItem[];
 };
 
-type CollectionsResponse = { items?: Array<{ id: number; title: string }> };
-type CategoriesResponse = { items?: Array<{ id: number; name: string }> };
+type CollectionsResponse = { items?: Array<{ id: number; title: LocalizedLabel }> };
+type CategoriesResponse = { categories?: Array<{ id: number; name: LocalizedLabel }> };
+
+const extractLabel = (v: string | LocalizedLabel): string =>
+  typeof v === "string" ? v : (v.vi ?? "");
 
 export async function fetchProductMetadata(): Promise<ProductMetadataSnapshot> {
   const [collectionsRes, categoriesRes] = await Promise.all([
@@ -29,7 +34,7 @@ export async function fetchProductMetadata(): Promise<ProductMetadataSnapshot> {
   ])) as [CollectionsResponse, CategoriesResponse];
 
   return {
-    collections: (collectionsBody.items ?? []).map((item) => ({ id: item.id, label: item.title })),
-    categories: (categoriesBody.items ?? []).map((item) => ({ id: item.id, label: item.name })),
+    collections: (collectionsBody.items ?? []).map((item) => ({ id: item.id, label: extractLabel(item.title) })),
+    categories: (categoriesBody.categories ?? []).map((item) => ({ id: item.id, label: extractLabel(item.name) })),
   };
 }

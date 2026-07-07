@@ -15,12 +15,12 @@ import { backendFetch } from "../../lib/fetch";
 import { EditRankingModal } from "./components/edit-ranking-modal";
 import { CreateCategoryModal } from "./components/create-category-modal";
 import { useBreadcrumbs } from "../../hooks/use-breadcrumbs";
+import type { LocalizedTextValue } from "../../types";
 
 type Category = {
   id: number;
-  name: string;
+  name: LocalizedTextValue;
   handle: string;
-  description: string | null;
   parentId: number | null;
   imageUrl: string | null;
 };
@@ -118,7 +118,7 @@ export function CategoriesListPage() {
                         to={`/categories/${category.id}`}
                         className="text-ui-fg-interactive hover:text-ui-fg-interactive-hover font-medium"
                       >
-                        {category.name}
+                        {category.name.vi}
                       </Link>
                     </Table.Cell>
                     <Table.Cell>
@@ -158,7 +158,7 @@ export function CategoriesListPage() {
       <EditRankingModal
         open={isRankingModalOpen}
         onOpenChange={setIsRankingModalOpen}
-        items={categories.map(c => ({ id: String(c.id), name: c.name }))}
+        items={categories.map(c => ({ id: String(c.id), name: c.name.vi }))}
         onSave={async (orderedItems) => {
           const res = await backendFetch("/api/admin/product-metadata/categories/ranking", {
             method: "PUT",
@@ -179,7 +179,7 @@ export function CategoriesListPage() {
       <CreateCategoryModal
         open={isCreateModalOpen}
         onOpenChange={setIsCreateModalOpen}
-        categories={categories.map(c => ({ id: String(c.id), name: c.name }))}
+        categories={categories.map(c => ({ id: String(c.id), name: c.name.vi }))}
         onSuccess={() => {
           // Re-fetch categories
           async function reload() {

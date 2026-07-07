@@ -42,10 +42,10 @@ export function ProductDetailOverview({ product, mutate }: ProductDetailOverview
     setError(null);
     try {
       await updateProductOverview(product.id, {
-        title: title.vi,
+        title: { vi: title.vi, en: title.en || undefined },
         handle,
-        subtitle: subtitle.vi || null,
-        description: description.vi || null,
+        subtitle: subtitle.vi ? { vi: subtitle.vi, en: subtitle.en || undefined } : null,
+        description: description.vi ? { vi: description.vi, en: description.en || undefined } : null,
       });
 
       if (status !== product.status) {

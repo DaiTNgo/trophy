@@ -9,91 +9,18 @@ import {
   Select,
   ProgressTabs,
 } from "@medusajs/ui";
-import { draggable, dropTargetForElements } from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
-import { combine } from "@atlaskit/pragmatic-drag-and-drop/combine";
-import { attachClosestEdge, extractClosestEdge } from "@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge";
-import { autoScrollForElements } from "@atlaskit/pragmatic-drag-and-drop-auto-scroll/element";
 import { TagSolid } from "@medusajs/icons";
 import { LocalizedTextField, createEmptyLocalizedText, type AdminLocale, type LocalizedTextValue } from "../../../components/ui/medusa";
 import { backendFetch } from "../../../lib/fetch";
 import { useNavigate } from "react-router";
+import { SortableItem, DragHandle, reorderWithEdge, autoScrollForElements } from "./sortable-list";
+import type { Edge } from "./sortable-list";
 
 type CategoryItem = {
   id: string;
   name: string;
   isNew?: boolean;
 };
-
-// Reusable SortableItem component from EditRankingModal
-function SortableItem({ item, index, moveItem }: { item: CategoryItem; index: number; moveItem: (dragIndex: number, hoverIndex: number) => void }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const [closestEdge, setClosestEdge] = useState<"top" | "bottom" | null>(null);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-
-    return combine(
-      draggable({
-        element: el,
-        getInitialData: () => ({ index, id: item.id }),
-        onDragStart: () => setIsDragging(true),
-        onDrop: () => setIsDragging(false),
-      }),
-      dropTargetForElements({
-        element: el,
-        getData: ({ input }) => attachClosestEdge(
-          { index, id: item.id },
-          { element: el, input, allowedEdges: ["top", "bottom"] }
-        ),
-        onDragEnter: (args) => setClosestEdge(extractClosestEdge(args.self.data) as "top" | "bottom" | null),
-        onDrag: (args) => setClosestEdge(extractClosestEdge(args.self.data) as "top" | "bottom" | null),
-        onDragLeave: () => setClosestEdge(null),
-        onDrop: (args) => {
-          setClosestEdge(null);
-          const dragData = args.source.data as { index: number; id: string };
-          if (dragData.index === index) return;
-          const dropEdge = extractClosestEdge(args.self.data) as "top" | "bottom" | null;
-          let targetIndex = index;
-          if (dragData.index < index && dropEdge === "top") targetIndex--;
-          if (dragData.index > index && dropEdge === "bottom") targetIndex++;
-          moveItem(dragData.index, targetIndex);
-        },
-      })
-    );
-  }, [index, item.id, moveItem]);
-
-  return (
-    <div
-      ref={ref}
-      className={`relative flex items-center px-6 py-4 border-b border-ui-border-base bg-ui-bg-base cursor-grab active:cursor-grabbing hover:bg-ui-bg-base-hover transition-colors ${
-        isDragging ? "opacity-50" : ""
-      }`}
-    >
-      <div className="flex items-center gap-x-4 w-full">
-        <div className="text-ui-fg-muted">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M6 4.5C6 5.32843 5.32843 6 4.5 6C3.67157 6 3 5.32843 3 4.5C3 3.67157 3.67157 3 4.5 3C5.32843 3 6 3.67157 6 4.5ZM6 11.5C6 12.3284 5.32843 13 4.5 13C3.67157 13 3 12.3284 3 11.5C3 10.6716 3.67157 10 4.5 10C5.32843 10 6 10.6716 6 11.5ZM13 4.5C13 5.32843 12.3284 6 11.5 6C10.6716 6 10 5.32843 10 4.5C10 3.67157 10.6716 3 11.5 3C12.3284 3 13 3.67157 13 4.5ZM13 11.5C13 12.3284 12.3284 13 11.5 13C10.6716 13 10 12.3284 10 11.5C10 10.6716 10.6716 10 11.5 10C12.3284 10 13 10.6716 13 11.5Z" fill="currentColor"/>
-          </svg>
-        </div>
-        <div className="flex items-center gap-x-3 flex-1">
-          <div className="text-ui-fg-subtle">
-            <TagSolid className="w-5 h-5 text-blue-500" />
-          </div>
-          <Text size="small" className="text-ui-fg-base flex items-center gap-x-2">
-            {item.name}
-            {item.isNew && (
-              <Badge color="blue" size="small">New</Badge>
-            )}
-          </Text>
-        </div>
-      </div>
-      {closestEdge === "top" && <div className="absolute top-0 left-0 right-0 h-0.5 bg-ui-bg-interactive" />}
-      {closestEdge === "bottom" && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-ui-bg-interactive" />}
-    </div>
-  );
-}
 
 interface CreateCategoryModalProps {
   open: boolean;
@@ -114,7 +41,6 @@ export function CreateCategoryModal({ open, onOpenChange, categories, onSuccess 
   const scrollRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
 
-  // Reset state when modal opens
   useEffect(() => {
     if (open) {
       setStep(1);
@@ -127,7 +53,6 @@ export function CreateCategoryModal({ open, onOpenChange, categories, onSuccess 
     }
   }, [open, categories]);
 
-  // Enable auto-scroll for drag-and-drop
   useEffect(() => {
     if (step === 2 && scrollRef.current) {
       return autoScrollForElements({ element: scrollRef.current });
@@ -152,40 +77,46 @@ export function CreateCategoryModal({ open, onOpenChange, categories, onSuccess 
     if (value === "2") handleGoToStep2();
   };
 
-  const moveItem = (dragIndex: number, hoverIndex: number) => {
-    const draggedItem = orderedItems[dragIndex];
-    if (!draggedItem) return;
-    const newItems = [...orderedItems];
-    newItems.splice(dragIndex, 1);
-    newItems.splice(hoverIndex, 0, draggedItem);
-    setOrderedItems(newItems);
-  };
+  function reorder(sourceId: string, targetId: string, closestEdge: Edge | null) {
+    setOrderedItems((prev) => {
+      const from = prev.findIndex((item) => item.id === sourceId);
+      const to = prev.findIndex((item) => item.id === targetId);
+      if (from < 0 || to < 0) return prev;
+
+      const reordered = reorderWithEdge({
+        list: prev,
+        startIndex: from,
+        indexOfTarget: to,
+        closestEdgeOfTarget: closestEdge,
+        axis: "vertical",
+      });
+
+      return reordered !== prev ? reordered : prev;
+    });
+  }
 
   const handleSave = async () => {
     if (!title.vi.trim()) return;
     setIsSaving(true);
     try {
-      // 1. Create the new category
       const res = await backendFetch("/api/admin/product-metadata/categories", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
-          name: title.vi, 
+          name: { vi: title.vi, en: title.en || undefined }, 
           handle: handle || undefined,
-          description: description.vi || undefined 
+          description: description.vi ? { vi: description.vi, en: description.en || undefined } : undefined
         })
       });
       if (!res.ok) throw new Error("Failed to create category");
       const { item } = await res.json();
       const newCatId = item.id;
 
-      // 2. Map orderedItems to new ranking, replacing 'new-item' with actual newCatId
       const newRanking = orderedItems.map((c, index) => ({
         id: c.id === "new-item" ? newCatId : Number(c.id),
         position: index
       }));
 
-      // 3. Update ranking
       await backendFetch("/api/admin/product-metadata/categories/ranking", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -302,9 +233,26 @@ export function CreateCategoryModal({ open, onOpenChange, categories, onSuccess 
             </ProgressTabs.Content>
             <ProgressTabs.Content value="2" className="outline-none h-full">
               <div className="flex-1 overflow-y-auto">
-                <div className="flex flex-col">
+                <div className="flex flex-col border-b border-ui-border-base">
                   {orderedItems.map((item, index) => (
-                    <SortableItem key={item.id} item={item} index={index} moveItem={moveItem} />
+                    <SortableItem
+                      key={item.id}
+                      id={item.id}
+                      items={orderedItems}
+                      onReorder={reorder}
+                      className={index !== orderedItems.length - 1 ? "border-b border-ui-border-base" : ""}
+                    >
+                      <div className="flex items-center gap-x-4 bg-ui-bg-base px-4 py-3">
+                        <DragHandle label={`Move ${item.name}`} />
+                        <TagSolid className="w-5 h-5 text-blue-500" />
+                        <Text size="small" className="text-ui-fg-base flex items-center gap-x-2">
+                          {item.name}
+                          {item.isNew && (
+                            <Badge color="blue" size="small">New</Badge>
+                          )}
+                        </Text>
+                      </div>
+                    </SortableItem>
                   ))}
                 </div>
               </div>

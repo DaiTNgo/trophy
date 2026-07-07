@@ -45,7 +45,7 @@ export async function backendFetch(input: RequestInfo | URL, init?: RequestInit)
     }
   }
 
-  // Remove credentials include since we use bearer tokens instead of cookies
+  requestInit.credentials = 'omit';
 
   return fetch(url, requestInit);
 }

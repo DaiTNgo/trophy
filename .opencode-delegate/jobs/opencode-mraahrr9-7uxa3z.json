@@ -1,0 +1,26 @@
+{
+  "id": "opencode-mraahrr9-7uxa3z",
+  "workspacePath": "/Users/dnt/workspace/trophy",
+  "kind": "delegate",
+  "title": "Summarize repository in 3 bullets",
+  "summary": "Summarize what this repository does in exactly 3 bullet points. Keep it conci...",
+  "status": "running",
+  "createdAt": "2026-07-07T06:50:20.229Z",
+  "updatedAt": "2026-07-07T06:50:20.234Z",
+  "pid": 2161,
+  "sessionId": null,
+  "request": {
+    "workspacePath": "/Users/dnt/workspace/trophy",
+    "prompt": "Summarize what this repository does in exactly 3 bullet points. Keep it concise and base it on the repository contents and local docs. Do not modify files.",
+    "model": null,
+    "agent": null,
+    "variant": null,
+    "files": [],
+    "write": false,
+    "autoApprove": false,
+    "title": "Summarize repository in 3 bullets",
+    "resumeMode": "fresh",
+    "sessionId": null
+  },
+  "startedAt": "2026-07-07T06:50:20.234Z"
+}
