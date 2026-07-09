@@ -10,7 +10,7 @@ import {
   type TextEditorLayer,
   type VectorPoint,
 } from "@trophy/customization";
-import { Heading, Text, Input, Select, Label } from "@medusajs/ui";
+import { Heading, Text, Input, Select, Label, Textarea } from "@medusajs/ui";
 import { createId, shapeLabel } from "./customization-template-ui";
 
 export function Inspector({
@@ -94,7 +94,7 @@ function TextInspector({
       </div>
       <LayerName layer={layer} onUpdate={onUpdate} />
       <PositionFields template={template} layer={layer} onUpdate={onUpdate} textOnly />
-      <Input value={layer.text.sampleText} onChange={(e) => onUpdate((current) => ({ ...current, text: { ...(current as TextEditorLayer).text, sampleText: e.target.value } }) as CustomizationLayer)} />
+      <Textarea value={layer.text.sampleText} onChange={(e) => onUpdate((current) => ({ ...current, text: { ...(current as TextEditorLayer).text, sampleText: e.target.value } }) as CustomizationLayer)} />
       <div className="grid grid-cols-3 gap-2">
         <div className="space-y-1">
           <Label size="small" weight="plus" className="text-ui-fg-subtle">Max lines</Label>
@@ -116,16 +116,17 @@ function TextInspector({
 }
 
 function ImageShapeInspector({ template, layer, onUpdate }: { template: CustomizationTemplate; layer: ImageShapeEditorLayer; onUpdate: (updater: (layer: CustomizationLayer) => CustomizationLayer) => void }) {
-  const { icons } = useBrandAssets();
-  const activeIcons = icons.filter((icon) => icon.active);
-  const selectedIconIds = new Set((layer.allowedIcons ?? []).map((icon) => icon.id));
+  const { clipartAssets } = useBrandAssets();
+  const activeClipartAssets = clipartAssets.filter((asset) => asset.active);
+  const selectedClipartIds = new Set((layer.allowedClipartAssets ?? []).map((asset) => asset.id));
   const sourcePolicy = layer.sourcePolicy ?? "upload_only";
   const categories = Array.from(
     new Map(
-      activeIcons
-        .filter((icon) => icon.categoryId && icon.categoryLabel)
-        .map((icon) => [icon.categoryId as string, { id: icon.categoryId as string, label: icon.categoryLabel as string }]),
+      activeClipartAssets.map((asset) => [asset.categoryId, { id: asset.categoryId, name: asset.categoryName }]),
     ).values(),
+  );
+  const clipartOptions = activeClipartAssets.filter((asset) =>
+    !layer.clipartCategory?.id || asset.categoryId === layer.clipartCategory.id,
   );
 
   function updateImageLayer(next: Partial<ImageShapeEditorLayer>) {
@@ -146,70 +147,51 @@ function ImageShapeInspector({ template, layer, onUpdate }: { template: Customiz
           value={sourcePolicy}
           onValueChange={(value) =>
             updateImageLayer({
-            sourcePolicy: value as ImageShapeEditorLayer["sourcePolicy"],
-            presentation: value === "upload_or_clipart_category" ? layer.presentation ?? "source_select" : undefined,
-            fixedIcon: value === "fixed_clipart" ? layer.fixedIcon ?? activeIcons[0] ?? null : null,
-            fixedCategory:
-              value === "clipart_category_only" || value === "upload_or_clipart_category"
-                ? layer.fixedCategory ?? categories[0] ?? null
-                : null,
-            allowedIcons:
-              value === "fixed_clipart"
-                ? layer.fixedIcon
-                  ? [layer.fixedIcon]
-                  : activeIcons[0]
-                    ? [activeIcons[0]]
-                    : []
-                : layer.allowedIcons ?? [],
-          })
-        }
+              sourcePolicy: value as ImageShapeEditorLayer["sourcePolicy"],
+              presentation: value === "upload_or_clipart_category" ? layer.presentation ?? "source_select" : undefined,
+              clipartCategory:
+                value === "clipart_category_only" || value === "upload_or_clipart_category"
+                  ? layer.clipartCategory ?? categories[0] ?? null
+                  : null,
+              defaultClipartAsset:
+                value === "clipart_category_only" || value === "upload_or_clipart_category"
+                  ? layer.defaultClipartAsset ?? clipartOptions[0] ?? null
+                  : null,
+              allowedClipartAssets:
+                value === "clipart_category_only" || value === "upload_or_clipart_category"
+                  ? layer.allowedClipartAssets ?? clipartOptions
+                  : [],
+            })
+          }
         >
           <Select.Trigger>
             <Select.Value />
           </Select.Trigger>
           <Select.Content>
-            <Select.Item value="fixed_clipart">Fixed clipart</Select.Item>
             <Select.Item value="upload_only">Upload only</Select.Item>
             <Select.Item value="clipart_category_only">Clipart category only</Select.Item>
             <Select.Item value="upload_or_clipart_category">Upload or clipart category</Select.Item>
           </Select.Content>
         </Select>
       </div>
-      {sourcePolicy === "fixed_clipart" ? (
-        <div className="space-y-1">
-          <Label size="small" weight="plus" className="text-ui-fg-subtle">Fixed clipart</Label>
-          <Select
-            value={layer.fixedIcon?.id ?? ""}
-            onValueChange={(iconId) => {
-              const nextIcon = activeIcons.find((icon) => icon.id === iconId) ?? null;
-              updateImageLayer({
-                fixedIcon: nextIcon,
-                allowedIcons: nextIcon ? [nextIcon] : [],
-              });
-            }}
-          >
-            <Select.Trigger>
-              <Select.Value />
-            </Select.Trigger>
-            <Select.Content>
-              {activeIcons.map((icon) => (
-                <Select.Item key={icon.id} value={icon.id}>{icon.name}</Select.Item>
-              ))}
-            </Select.Content>
-          </Select>
-        </div>
-      ) : null}
       {(sourcePolicy === "clipart_category_only" || sourcePolicy === "upload_or_clipart_category") ? (
         <>
           <div className="space-y-1">
-            <Label size="small" weight="plus" className="text-ui-fg-subtle">Fixed category</Label>
+            <Label size="small" weight="plus" className="text-ui-fg-subtle">Clipart category</Label>
             <Select
-              value={layer.fixedCategory?.id ?? ""}
+              value={layer.clipartCategory?.id ?? ""}
               onValueChange={(categoryId) => {
                 const nextCategory = categories.find((category) => category.id === categoryId) ?? null;
+                const nextAllowedClipartAssets = activeClipartAssets.filter(
+                  (asset) => !nextCategory || asset.categoryId === nextCategory.id,
+                );
                 updateImageLayer({
-                  fixedCategory: nextCategory,
-                  allowedIcons: activeIcons.filter((icon) => !nextCategory || icon.categoryId === nextCategory.id),
+                  clipartCategory: nextCategory,
+                  allowedClipartAssets: nextAllowedClipartAssets,
+                  defaultClipartAsset:
+                    nextAllowedClipartAssets.find((asset) => asset.id === layer.defaultClipartAsset?.id) ??
+                    nextAllowedClipartAssets[0] ??
+                    null,
                 });
               }}
             >
@@ -218,30 +200,51 @@ function ImageShapeInspector({ template, layer, onUpdate }: { template: Customiz
               </Select.Trigger>
               <Select.Content>
                 {categories.map((category) => (
-                  <Select.Item key={category.id} value={category.id}>{category.label}</Select.Item>
+                  <Select.Item key={category.id} value={category.id}>{category.name}</Select.Item>
+                ))}
+              </Select.Content>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <Label size="small" weight="plus" className="text-ui-fg-subtle">Default clipart</Label>
+            <Select
+              value={layer.defaultClipartAsset?.id ?? ""}
+              onValueChange={(assetId) => {
+                const nextDefaultAsset = clipartOptions.find((asset) => asset.id === assetId) ?? null;
+                updateImageLayer({ defaultClipartAsset: nextDefaultAsset });
+              }}
+            >
+              <Select.Trigger>
+                <Select.Value />
+              </Select.Trigger>
+              <Select.Content>
+                {clipartOptions.map((asset) => (
+                  <Select.Item key={asset.id} value={asset.id}>{asset.name}</Select.Item>
                 ))}
               </Select.Content>
             </Select>
           </div>
           <div className="space-y-2">
-            <p className="text-xs font-medium text-ui-fg-muted">Allowed clipart icons</p>
+            <p className="text-xs font-medium text-ui-fg-muted">Allowed clipart media</p>
             <div className="max-h-56 space-y-2 overflow-y-auto rounded-md border border-ui-border-base p-2">
-              {activeIcons
-                .filter((icon) => !layer.fixedCategory?.id || icon.categoryId === layer.fixedCategory.id)
-                .map((icon) => (
-                  <label key={icon.id} className="flex items-center gap-2 text-sm">
+              {clipartOptions.map((asset) => (
+                  <label key={asset.id} className="flex items-center gap-2 text-sm">
                     <input
                       type="checkbox"
-                      checked={selectedIconIds.has(icon.id)}
+                      checked={selectedClipartIds.has(asset.id)}
                       onChange={(event) => {
-                        const current = layer.allowedIcons ?? [];
+                        const current = layer.allowedClipartAssets ?? [];
                         const next = event.target.checked
-                          ? [...current, icon].filter((entry, index, array) => array.findIndex((candidate) => candidate.id === entry.id) === index)
-                          : current.filter((entry) => entry.id !== icon.id);
-                        updateImageLayer({ allowedIcons: next });
+                          ? [...current, asset].filter((entry, index, array) => array.findIndex((candidate) => candidate.id === entry.id) === index)
+                          : current.filter((entry) => entry.id !== asset.id);
+                        updateImageLayer({
+                          allowedClipartAssets: next,
+                          defaultClipartAsset:
+                            next.find((entry) => entry.id === layer.defaultClipartAsset?.id) ?? next[0] ?? null,
+                        });
                       }}
                     />
-                    <span>{icon.name}</span>
+                    <span>{asset.name}</span>
                   </label>
                 ))}
             </div>
@@ -704,4 +707,3 @@ function LayerName({ layer, onUpdate }: { layer: CustomizationLayer; onUpdate: (
 function updateText(onUpdate: (updater: (layer: CustomizationLayer) => CustomizationLayer) => void, patch: Partial<TextEditorLayer["text"]>) {
   onUpdate((current) => ({ ...current, text: { ...(current as TextEditorLayer).text, ...patch } }) as CustomizationLayer);
 }
-

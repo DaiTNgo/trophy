@@ -157,7 +157,7 @@ export const DEFAULT_TEMPLATE: CustomizationTemplate = {
         path: {
           type: "closed_ellipse",
           bounds: { xRatio: 0.5, yRatio: 0.5, widthRatio: 1, heightRatio: 1 },
-          startAngleDeg: 180,
+          startAngleDeg: 270,
           direction: "clockwise",
           placement: "over_path",
         },

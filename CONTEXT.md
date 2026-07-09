@@ -161,12 +161,12 @@ An admin-managed grouping that owns clipart icons for customization, such as a s
 _Avoid_: tag, free-form category text, product category
 
 **Clipart Asset**:
-A reusable curated media asset that belongs to exactly one clipart category and may be selected inside a customization form. It can be an SVG icon or a raster image, differs from a shopper-uploaded image, and is hidden from new shopper sessions when deactivated.
+A reusable curated media asset that belongs to exactly one clipart category and may be selected inside a customization form. It can be an SVG, PNG, or WebP asset, has both a source filename and an admin-facing display name, differs from a shopper-uploaded image, and is hidden from new shopper sessions when deactivated.
 _Avoid_: clipart icon, customization icon asset, uploaded logo, product image, UI icon, taggable icon
 
 **Clipart Choice Field**:
 A shopper customization field where the shopper selects one clipart asset from the admin-approved choices for that product layer. The selected clipart asset becomes part of the order customization snapshot.
-_Avoid_: file upload, free icon search, variant option
+_Avoid_: fixed clipart asset, file upload, free icon search, variant option
 
 **Layer Clipart Allowlist**:
 The product customization layer's approved subset of clipart assets from one clipart category. Shoppers see only active assets in this allowlist, and publish readiness fails when the allowlist has no active assets for a clipart-choice layer.

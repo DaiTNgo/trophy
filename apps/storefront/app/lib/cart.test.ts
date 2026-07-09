@@ -95,18 +95,19 @@ describe("cart helpers", () => {
     expect(mergedAgain[1]?.quantity).toBe(1);
   });
 
-  it("keeps different selected icons as separate customized cart lines", () => {
+  it("keeps different selected clipart assets as separate customized cart lines", () => {
     const clipartA = makeInput({
       customizationValues: {
         badge_shape: {
-          source: "icon",
-          iconAssetId: "icon_star",
-          iconName: "Star",
+          source: "clipart",
+          clipartAssetId: "clipart_star",
+          clipartAssetName: "Star",
           sourceAssetId: "asset_star",
           previewUrl: "/api/assets/customizations/asset_star/content",
           mimeType: "image/svg+xml",
           sourceWidthPx: 200,
           sourceHeightPx: 200,
+          categoryId: "sports",
         },
       },
       customizationSummary: [{ fieldId: "badge_shape", label: "Badge", valueSummary: "Star" }],
@@ -119,14 +120,15 @@ describe("cart helpers", () => {
     const clipartB = makeInput({
       customizationValues: {
         badge_shape: {
-          source: "icon",
-          iconAssetId: "icon_shield",
-          iconName: "Shield",
+          source: "clipart",
+          clipartAssetId: "clipart_shield",
+          clipartAssetName: "Shield",
           sourceAssetId: "asset_shield",
           previewUrl: "/api/assets/customizations/asset_shield/content",
           mimeType: "image/png",
           sourceWidthPx: 200,
           sourceHeightPx: 200,
+          categoryId: "sports",
         },
       },
       customizationSummary: [{ fieldId: "badge_shape", label: "Badge", valueSummary: "Shield" }],

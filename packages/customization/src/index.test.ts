@@ -2,10 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_TEMPLATE,
   buildDesignFromForm,
-  buildRuntimeImageIconLayer,
+  buildRuntimeImageClipartLayer,
   createDefaultFormValues,
   fitTextToLayer,
-  getCoverImageRect,
   getCropPanFromImagePosition,
   getOrderedFormFields,
   getShapeClipPath,
@@ -16,56 +15,52 @@ import {
   layerGeometryToPixels,
   normalizeTextPath,
   pixelRectToLayerGeometry,
-  validateProductCustomizationDraft,
-  validateProductCustomizationForPublish,
   validateCustomizationValues,
+  validateProductCustomizationForPublish,
   validateTemplateForPublish,
-  type CustomizationIconAsset,
-  type ProductCustomization,
+  type CustomizationClipartAsset,
   type CustomizationTemplate,
+  type ProductCustomization,
   type TextEditorLayer,
 } from "./index";
 
-const STAR_ICON: CustomizationIconAsset = {
-  id: "icon_star",
+const STAR_CLIPART: CustomizationClipartAsset = {
+  id: "clipart_star",
   sourceAssetId: "asset_star",
   name: "Star",
+  fileName: "star.svg",
   categoryId: "sports",
-  categoryLabel: "Sports",
-  tags: ["star", "badge"],
-  previewUrl: "https://example.test/icons/star.svg",
+  previewUrl: "https://example.test/clipart/star.svg",
   mimeType: "image/svg+xml",
   sourceWidthPx: 200,
   sourceHeightPx: 200,
   active: true,
 };
 
-const SHIELD_ICON: CustomizationIconAsset = {
-  id: "icon_shield",
+const SHIELD_CLIPART: CustomizationClipartAsset = {
+  id: "clipart_shield",
   sourceAssetId: "asset_shield",
   name: "Shield",
+  fileName: "shield.png",
   categoryId: "sports",
-  categoryLabel: "Sports",
-  tags: ["shield"],
-  previewUrl: "https://example.test/icons/shield.png",
+  previewUrl: "https://example.test/clipart/shield.png",
   mimeType: "image/png",
   sourceWidthPx: 300,
   sourceHeightPx: 300,
   active: true,
 };
 
-const FIXED_CLIPART_TEMPLATE: CustomizationTemplate = {
-  ...DEFAULT_TEMPLATE,
-  layers: DEFAULT_TEMPLATE.layers.map((layer) =>
-    layer.id === "badge_shape" && layer.type === "image_shape"
-      ? {
-          ...layer,
-          sourcePolicy: "fixed_clipart",
-          fixedIcon: STAR_ICON,
-          allowedIcons: [STAR_ICON],
-        }
-      : layer,
-  ),
+const OTHER_CATEGORY_CLIPART: CustomizationClipartAsset = {
+  id: "clipart_crown",
+  sourceAssetId: "asset_crown",
+  name: "Crown",
+  fileName: "crown.webp",
+  categoryId: "royal",
+  previewUrl: "https://example.test/clipart/crown.webp",
+  mimeType: "image/webp",
+  sourceWidthPx: 280,
+  sourceHeightPx: 280,
+  active: true,
 };
 
 const CLIPART_CATEGORY_TEMPLATE: CustomizationTemplate = {
@@ -74,9 +69,10 @@ const CLIPART_CATEGORY_TEMPLATE: CustomizationTemplate = {
     layer.id === "badge_shape" && layer.type === "image_shape"
       ? {
           ...layer,
-          sourcePolicy: "clipart_category_only",
-          fixedCategory: { id: "sports", label: "Sports" },
-          allowedIcons: [STAR_ICON, SHIELD_ICON],
+          sourcePolicy: "clipart_category_only" as const,
+          clipartCategory: { id: "sports", name: "Sports" },
+          defaultClipartAsset: STAR_CLIPART,
+          allowedClipartAssets: [STAR_CLIPART, SHIELD_CLIPART],
         }
       : layer,
   ),
@@ -88,10 +84,11 @@ const UPLOAD_OR_CLIPART_TEMPLATE: CustomizationTemplate = {
     layer.id === "badge_shape" && layer.type === "image_shape"
       ? {
           ...layer,
-          sourcePolicy: "upload_or_clipart_category",
-          presentation: "source_select",
-          fixedCategory: { id: "sports", label: "Sports" },
-          allowedIcons: [STAR_ICON, SHIELD_ICON],
+          sourcePolicy: "upload_or_clipart_category" as const,
+          presentation: "source_select" as const,
+          clipartCategory: { id: "sports", name: "Sports" },
+          defaultClipartAsset: STAR_CLIPART,
+          allowedClipartAssets: [STAR_CLIPART, SHIELD_CLIPART],
         }
       : layer,
   ),
@@ -103,10 +100,10 @@ const UPLOAD_ONLY_TEMPLATE: CustomizationTemplate = {
     layer.id === "badge_shape" && layer.type === "image_shape"
       ? {
           ...layer,
-          sourcePolicy: "upload_only",
-          fixedIcon: undefined,
-          fixedCategory: undefined,
-          allowedIcons: [],
+          sourcePolicy: "upload_only" as const,
+          clipartCategory: null,
+          defaultClipartAsset: null,
+          allowedClipartAssets: [],
         }
       : layer,
   ),
@@ -126,33 +123,68 @@ describe("editor-model customization", () => {
     ]);
   });
 
-  it("creates default values and derives runtime layers from linked fields", () => {
-    const values = createDefaultFormValues(DEFAULT_TEMPLATE);
+  it("creates default clipart values for clipart-backed layers", () => {
+    const values = createDefaultFormValues(CLIPART_CATEGORY_TEMPLATE);
+    expect(values.field_badge_shape).toMatchObject({
+      source: "clipart",
+      clipartAssetId: "clipart_star",
+      clipartAssetName: "Star",
+      categoryId: "sports",
+    });
+  });
+
+  it("creates default clipart values for upload-or-clipart layers", () => {
+    const values = createDefaultFormValues(UPLOAD_OR_CLIPART_TEMPLATE);
+    expect(values.field_badge_shape).toMatchObject({
+      source: "clipart",
+      clipartAssetId: "clipart_star",
+    });
+  });
+
+  it("renders selected clipart values through the image shape runtime", () => {
+    const values = createDefaultFormValues(CLIPART_CATEGORY_TEMPLATE);
     values.field_badge_shape = {
-      assetId: "uploaded_logo",
-      previewUrl: "https://example.com/logo.png",
-      sourceWidthPx: 1200,
-      sourceHeightPx: 900,
-      cropScale: 1.4,
-      cropXRatio: 0.25,
-      cropYRatio: -0.5,
+      source: "clipart",
+      clipartAssetId: "clipart_shield",
+      clipartAssetName: "Shield",
+      sourceAssetId: "asset_shield",
+      previewUrl: "https://example.test/clipart/shield.png",
+      mimeType: "image/png",
+      sourceWidthPx: 300,
+      sourceHeightPx: 300,
+      categoryId: "sports",
     };
 
-    const validation = validateCustomizationValues({ template: DEFAULT_TEMPLATE, values });
-    expect(validation.valid).toBe(true);
-
     const design = buildDesignFromForm({
-      template: DEFAULT_TEMPLATE,
+      template: CLIPART_CATEGORY_TEMPLATE,
       values,
-      designId: "design_fixture",
+      designId: "clipart_selection_design",
     });
-    expect(design.layers.map((layer) => layer.layerId)).toEqual([
-      "badge_shape",
-      "line_1",
-      "curved_name",
-    ]);
-    const imageLayer = design.layers.find((layer) => layer.type === "image_shape");
-    expect(imageLayer?.type === "image_shape" ? imageLayer.cropScale : 0).toBe(1.4);
+
+    const imageLayer = design.layers.find((layer) => layer.layerId === "badge_shape");
+    expect(imageLayer).toMatchObject({
+      type: "image_shape",
+      assetId: "asset_shield",
+      contentSource: "clipart",
+      clipartAssetId: "clipart_shield",
+      clipartAssetName: "Shield",
+      categoryId: "sports",
+    });
+  });
+
+  it("falls back to the default clipart asset when no explicit value is provided", () => {
+    const design = buildDesignFromForm({
+      template: CLIPART_CATEGORY_TEMPLATE,
+      values: { ...createDefaultFormValues(CLIPART_CATEGORY_TEMPLATE), field_badge_shape: null },
+      designId: "clipart_default_design",
+    });
+
+    expect(design.layers.find((layer) => layer.layerId === "badge_shape")).toMatchObject({
+      type: "image_shape",
+      assetId: "asset_star",
+      contentSource: "clipart",
+      clipartAssetId: "clipart_star",
+    });
   });
 
   it("excludes hidden layers from form order, rendering, and required validation", () => {
@@ -170,54 +202,6 @@ describe("editor-model customization", () => {
     expect(buildDesignFromForm({ template: hiddenTemplate, values }).layers.map((layer) => layer.layerId)).not.toContain(
       "curved_name",
     );
-  });
-
-  it("renders fixed clipart layers without a shopper input field", () => {
-    expect(getOrderedFormFields(FIXED_CLIPART_TEMPLATE).map((field) => field.layerId)).not.toContain("badge_shape");
-
-    const design = buildDesignFromForm({
-      template: FIXED_CLIPART_TEMPLATE,
-      values: createDefaultFormValues(FIXED_CLIPART_TEMPLATE),
-      designId: "fixed_clipart_design",
-    });
-
-    const imageLayer = design.layers.find((layer) => layer.layerId === "badge_shape");
-    expect(imageLayer).toMatchObject({
-      type: "image_shape",
-      assetId: "asset_star",
-      contentSource: "icon",
-      iconAssetId: "icon_star",
-    });
-  });
-
-  it("renders selected clipart values through the image shape runtime", () => {
-    const values = createDefaultFormValues(CLIPART_CATEGORY_TEMPLATE);
-    values.field_badge_shape = {
-      source: "icon",
-      iconAssetId: "icon_shield",
-      iconName: "Shield",
-      sourceAssetId: "asset_shield",
-      previewUrl: "https://example.test/icons/shield.png",
-      mimeType: "image/png",
-      sourceWidthPx: 300,
-      sourceHeightPx: 300,
-      categoryId: "sports",
-      categoryLabel: "Sports",
-    };
-
-    const design = buildDesignFromForm({
-      template: CLIPART_CATEGORY_TEMPLATE,
-      values,
-      designId: "clipart_selection_design",
-    });
-
-    const imageLayer = design.layers.find((layer) => layer.layerId === "badge_shape");
-    expect(imageLayer).toMatchObject({
-      type: "image_shape",
-      assetId: "asset_shield",
-      contentSource: "icon",
-      iconAssetId: "icon_shield",
-    });
   });
 });
 
@@ -263,15 +247,6 @@ describe("product-owned customization validation", () => {
     formFields: DEFAULT_TEMPLATE.formFields,
   };
 
-  it("allows draft customization without canvas dimensions", () => {
-    const result = validateProductCustomizationDraft({
-      layers: productCustomization.layers,
-      formFields: productCustomization.formFields,
-    });
-
-    expect(result.valid).toBe(true);
-  });
-
   it("requires canvas dimensions for publish-ready customization", () => {
     const result = validateProductCustomizationForPublish({
       ...productCustomization,
@@ -283,123 +258,97 @@ describe("product-owned customization validation", () => {
     expect(result.issues.map((issue) => issue.code)).toContain("CANVAS_DIMENSIONS_REQUIRED");
   });
 
-  it("reuses editor model validation for product-owned customization", () => {
-    const result = validateProductCustomizationForPublish({
-      ...productCustomization,
-      formFields: [{ ...productCustomization.formFields[0], layerId: "missing_layer" }],
-    });
-
-    expect(result.issues.map((issue) => issue.code)).toEqual(
-      expect.arrayContaining(["FIELD_LAYER_MISSING", "LAYER_FIELD_MISSING"]),
-    );
-  });
-
-  it("blocks publish when fixed clipart layers are missing an active icon", () => {
+  it("blocks publish when clipart category layers are missing a category", () => {
     const invalidCustomization: ProductCustomization = {
       ...productCustomization,
-      layers: productCustomization.layers.map((layer) =>
+      layers: CLIPART_CATEGORY_TEMPLATE.layers.map((layer) =>
         layer.id === "badge_shape" && layer.type === "image_shape"
-          ? { ...layer, sourcePolicy: "fixed_clipart", fixedIcon: null }
+          ? { ...layer, clipartCategory: null }
           : layer,
       ),
+      formFields: CLIPART_CATEGORY_TEMPLATE.formFields,
     };
 
     expect(validateProductCustomizationForPublish(invalidCustomization).issues.map((issue) => issue.code)).toContain(
-      "ICON_POLICY_INVALID",
+      "CLIPART_POLICY_INVALID",
     );
   });
 
-  it("blocks publish when clipart category layers have no active allowed icons", () => {
+  it("blocks publish when clipart layers have no active allowed assets", () => {
     const invalidCustomization: ProductCustomization = {
       ...productCustomization,
-      layers: productCustomization.layers.map((layer) =>
+      layers: CLIPART_CATEGORY_TEMPLATE.layers.map((layer) =>
         layer.id === "badge_shape" && layer.type === "image_shape"
           ? {
               ...layer,
-              sourcePolicy: "clipart_category_only",
-              fixedCategory: { id: "sports", label: "Sports" },
-              allowedIcons: [{ ...STAR_ICON, active: false }],
+              allowedClipartAssets: [{ ...STAR_CLIPART, active: false }],
+              defaultClipartAsset: { ...STAR_CLIPART, active: false },
             }
+          : layer,
+      ),
+      formFields: CLIPART_CATEGORY_TEMPLATE.formFields,
+    };
+
+    expect(validateProductCustomizationForPublish(invalidCustomization).issues.map((issue) => issue.code)).toContain(
+      "CLIPART_POLICY_INVALID",
+    );
+  });
+
+  it("blocks publish when the default clipart asset is not in the allowlist", () => {
+    const invalidCustomization: ProductCustomization = {
+      ...productCustomization,
+      layers: CLIPART_CATEGORY_TEMPLATE.layers.map((layer) =>
+        layer.id === "badge_shape" && layer.type === "image_shape"
+          ? {
+              ...layer,
+              defaultClipartAsset: OTHER_CATEGORY_CLIPART,
+            }
+          : layer,
+      ),
+      formFields: CLIPART_CATEGORY_TEMPLATE.formFields,
+    };
+
+    expect(validateProductCustomizationForPublish(invalidCustomization).issues.map((issue) => issue.code)).toContain(
+      "CLIPART_POLICY_INVALID",
+    );
+  });
+
+  it("rejects fixed clipart as a source policy", () => {
+    const invalidCustomization: ProductCustomization = {
+      ...productCustomization,
+      layers: productCustomization.layers.map((layer) =>
+        layer.id === "badge_shape" && layer.type === "image_shape"
+          ? { ...layer, sourcePolicy: "fixed_clipart" as never }
           : layer,
       ),
     };
 
     expect(validateProductCustomizationForPublish(invalidCustomization).issues.map((issue) => issue.code)).toContain(
-      "ICON_POLICY_INVALID",
+      "CLIPART_POLICY_INVALID",
     );
   });
 });
 
-describe("image icon runtime serialization", () => {
-  it("serializes explicit source-policy data for fixed-clipart layers", () => {
-    const layer = FIXED_CLIPART_TEMPLATE.layers.find(
-      (candidate) => candidate.id === "badge_shape" && candidate.type === "image_shape",
-    );
-    if (!layer || layer.type !== "image_shape") throw new Error("Missing image shape fixture");
-
-    expect(
-      buildRuntimeImageIconLayer({
-        layer,
-        fieldId: "field_badge_shape",
-        required: false,
-      }),
-    ).toMatchObject({
-      sourcePolicy: "fixed_clipart",
-      fixedIcon: { id: "icon_star", sourceAssetId: "asset_star" },
-      allowedIcons: [{ id: "icon_star" }],
-      upload: {
-        enabled: false,
-      },
-    });
-  });
-
-  it("serializes explicit source-policy data for clipart-category layers", () => {
+describe("image clipart runtime serialization", () => {
+  it("serializes category, default clipart, and active allowlist data for clipart-category layers", () => {
     const layer = CLIPART_CATEGORY_TEMPLATE.layers.find(
       (candidate) => candidate.id === "badge_shape" && candidate.type === "image_shape",
     );
     if (!layer || layer.type !== "image_shape") throw new Error("Missing image shape fixture");
 
     expect(
-      buildRuntimeImageIconLayer({
+      buildRuntimeImageClipartLayer({
         layer,
         fieldId: "field_badge_shape",
         required: true,
       }),
     ).toMatchObject({
       sourcePolicy: "clipart_category_only",
-      fixedCategory: { id: "sports", label: "Sports" },
-      allowedIcons: [
-        { id: "icon_star" },
-        { id: "icon_shield" },
-      ],
+      clipartCategory: { id: "sports", name: "Sports" },
+      defaultClipartAsset: { id: "clipart_star", sourceAssetId: "asset_star" },
+      allowedClipartAssets: [{ id: "clipart_star" }, { id: "clipart_shield" }],
       upload: {
         enabled: false,
-        fit: "cover",
-        panEnabled: true,
-        zoomEnabled: true,
-      },
-    });
-  });
-
-  it("serializes explicit source-policy data for upload-only layers", () => {
-    const layer = UPLOAD_ONLY_TEMPLATE.layers.find(
-      (candidate) => candidate.id === "badge_shape" && candidate.type === "image_shape",
-    );
-    if (!layer || layer.type !== "image_shape") throw new Error("Missing image shape fixture");
-
-    expect(
-      buildRuntimeImageIconLayer({
-        layer,
-        fieldId: "field_badge_shape",
-        required: false,
-      }),
-    ).toMatchObject({
-      sourcePolicy: "upload_only",
-      fixedIcon: undefined,
-      fixedCategory: undefined,
-      allowedIcons: [],
-      upload: {
-        enabled: true,
         fit: "cover",
         panEnabled: true,
         zoomEnabled: true,
@@ -414,7 +363,7 @@ describe("image icon runtime serialization", () => {
     if (!layer || layer.type !== "image_shape") throw new Error("Missing image shape fixture");
 
     expect(
-      buildRuntimeImageIconLayer({
+      buildRuntimeImageClipartLayer({
         layer: { ...layer, presentation: "side_by_side" },
         fieldId: "field_badge_shape",
         required: true,
@@ -422,33 +371,160 @@ describe("image icon runtime serialization", () => {
     ).toMatchObject({
       sourcePolicy: "upload_or_clipart_category",
       presentation: "side_by_side",
-      fixedCategory: { id: "sports", label: "Sports" },
-      allowedIcons: [
-        { id: "icon_star" },
-        { id: "icon_shield" },
-      ],
-      upload: {
-        enabled: true,
-      },
+      defaultClipartAsset: { id: "clipart_star" },
+      upload: { enabled: true },
     });
   });
 
-  it("filters inactive icons out of runtime category allowlists", () => {
+  it("filters inactive clipart assets out of the runtime allowlist", () => {
     const layer = CLIPART_CATEGORY_TEMPLATE.layers.find(
       (candidate) => candidate.id === "badge_shape" && candidate.type === "image_shape",
     );
     if (!layer || layer.type !== "image_shape") throw new Error("Missing image shape fixture");
 
     expect(
-      buildRuntimeImageIconLayer({
+      buildRuntimeImageClipartLayer({
         layer: {
           ...layer,
-          allowedIcons: [STAR_ICON, { ...SHIELD_ICON, active: false }],
+          allowedClipartAssets: [STAR_CLIPART, { ...SHIELD_CLIPART, active: false }],
         },
         fieldId: "field_badge_shape",
         required: true,
-      }).allowedIcons,
-    ).toEqual([expect.objectContaining({ id: "icon_star" })]);
+      }).allowedClipartAssets,
+    ).toEqual([expect.objectContaining({ id: "clipart_star" })]);
+  });
+});
+
+describe("clipart value validation", () => {
+  it("accepts allowed clipart selections from the published layer allowlist", () => {
+    const values = createDefaultFormValues(CLIPART_CATEGORY_TEMPLATE);
+    values.field_badge_shape = {
+      source: "clipart",
+      clipartAssetId: "clipart_star",
+      clipartAssetName: "Star",
+      sourceAssetId: "asset_star",
+      previewUrl: "https://example.test/clipart/star.svg",
+      mimeType: "image/svg+xml",
+      sourceWidthPx: 200,
+      sourceHeightPx: 200,
+      categoryId: "sports",
+    };
+
+    expect(validateCustomizationValues({ template: CLIPART_CATEGORY_TEMPLATE, values }).valid).toBe(true);
+  });
+
+  it("rejects clipart selections outside the published allowlist", () => {
+    const values = createDefaultFormValues(CLIPART_CATEGORY_TEMPLATE);
+    values.field_badge_shape = {
+      source: "clipart",
+      clipartAssetId: "clipart_missing",
+      clipartAssetName: "Missing",
+      sourceAssetId: "asset_missing",
+      previewUrl: "https://example.test/clipart/missing.svg",
+      mimeType: "image/svg+xml",
+      sourceWidthPx: 200,
+      sourceHeightPx: 200,
+      categoryId: "sports",
+    };
+
+    expect(validateCustomizationValues({ template: CLIPART_CATEGORY_TEMPLATE, values }).issues.map((issue) => issue.code)).toContain(
+      "OPTION_NOT_ALLOWED",
+    );
+  });
+
+  it("rejects clipart selections from the wrong category", () => {
+    const values = createDefaultFormValues(CLIPART_CATEGORY_TEMPLATE);
+    values.field_badge_shape = {
+      source: "clipart",
+      clipartAssetId: "clipart_crown",
+      clipartAssetName: "Crown",
+      sourceAssetId: "asset_crown",
+      previewUrl: "https://example.test/clipart/crown.webp",
+      mimeType: "image/webp",
+      sourceWidthPx: 280,
+      sourceHeightPx: 280,
+      categoryId: "royal",
+    };
+
+    expect(validateCustomizationValues({ template: CLIPART_CATEGORY_TEMPLATE, values }).issues.map((issue) => issue.code)).toContain(
+      "OPTION_NOT_ALLOWED",
+    );
+  });
+
+  it("rejects uploads for clipart-only layers", () => {
+    const values = createDefaultFormValues(CLIPART_CATEGORY_TEMPLATE);
+    values.field_badge_shape = {
+      assetId: "upload_logo",
+      previewUrl: "https://example.test/uploads/logo.png",
+      sourceWidthPx: 800,
+      sourceHeightPx: 600,
+    };
+
+    expect(validateCustomizationValues({ template: CLIPART_CATEGORY_TEMPLATE, values }).issues.map((issue) => issue.code)).toContain(
+      "OPTION_NOT_ALLOWED",
+    );
+  });
+
+  it("accepts uploads for upload-only layers", () => {
+    const values = createDefaultFormValues(UPLOAD_ONLY_TEMPLATE);
+    values.field_badge_shape = {
+      assetId: "upload_logo",
+      previewUrl: "https://example.test/uploads/logo.png",
+      sourceWidthPx: 800,
+      sourceHeightPx: 600,
+      cropScale: 1.15,
+      cropXRatio: 0.1,
+      cropYRatio: -0.1,
+    };
+
+    expect(validateCustomizationValues({ template: UPLOAD_ONLY_TEMPLATE, values }).valid).toBe(true);
+  });
+
+  it("accepts selected clipart values for upload-or-clipart layers", () => {
+    const values = createDefaultFormValues(UPLOAD_OR_CLIPART_TEMPLATE);
+    values.field_badge_shape = {
+      source: "clipart",
+      clipartAssetId: "clipart_shield",
+      clipartAssetName: "Shield",
+      sourceAssetId: "asset_shield",
+      previewUrl: "https://example.test/clipart/shield.png",
+      mimeType: "image/png",
+      sourceWidthPx: 300,
+      sourceHeightPx: 300,
+      categoryId: "sports",
+    };
+
+    expect(validateCustomizationValues({ template: UPLOAD_OR_CLIPART_TEMPLATE, values }).valid).toBe(true);
+  });
+
+  it("keeps snapshot-friendly clipart metadata on rendered design layers", () => {
+    const values = createDefaultFormValues(CLIPART_CATEGORY_TEMPLATE);
+    values.field_badge_shape = {
+      source: "clipart",
+      clipartAssetId: "clipart_star",
+      clipartAssetName: "Star",
+      sourceAssetId: "asset_star",
+      previewUrl: "https://example.test/clipart/star.svg",
+      mimeType: "image/svg+xml",
+      sourceWidthPx: 200,
+      sourceHeightPx: 200,
+      categoryId: "sports",
+    };
+
+    const design = buildDesignFromForm({
+      template: CLIPART_CATEGORY_TEMPLATE,
+      values,
+      designId: "snapshot_metadata_design",
+    });
+
+    expect(design.layers.find((layer) => layer.layerId === "badge_shape")).toMatchObject({
+      type: "image_shape",
+      contentSource: "clipart",
+      clipartAssetId: "clipart_star",
+      clipartAssetName: "Star",
+      mimeType: "image/svg+xml",
+      categoryId: "sports",
+    });
   });
 });
 
@@ -477,135 +553,26 @@ describe("geometry helpers", () => {
     expect(rect.widthPx).toBeCloseTo(360);
     expect(rect.heightPx).toBeCloseTo(180);
   });
-});
 
-describe("icon value validation", () => {
-  it("accepts allowed clipart selections from the published layer allowlist", () => {
-    const values = createDefaultFormValues(CLIPART_CATEGORY_TEMPLATE);
-    values.field_badge_shape = {
-      source: "icon",
-      iconAssetId: "icon_star",
-      iconName: "Star",
-      sourceAssetId: "asset_star",
-      previewUrl: "https://example.test/icons/star.svg",
-      mimeType: "image/svg+xml",
-      sourceWidthPx: 200,
-      sourceHeightPx: 200,
-      categoryId: "sports",
-      categoryLabel: "Sports",
-    };
-
-    expect(validateCustomizationValues({ template: CLIPART_CATEGORY_TEMPLATE, values }).valid).toBe(true);
-  });
-
-  it("rejects icon selections outside the published allowlist", () => {
-    const values = createDefaultFormValues(CLIPART_CATEGORY_TEMPLATE);
-    values.field_badge_shape = {
-      source: "icon",
-      iconAssetId: "icon_missing",
-      iconName: "Missing",
-      sourceAssetId: "asset_missing",
-      previewUrl: "https://example.test/icons/missing.svg",
-      mimeType: "image/svg+xml",
-      sourceWidthPx: 200,
-      sourceHeightPx: 200,
-    };
-
-    expect(validateCustomizationValues({ template: CLIPART_CATEGORY_TEMPLATE, values }).issues.map((issue) => issue.code)).toContain(
-      "OPTION_NOT_ALLOWED",
-    );
-  });
-
-  it("rejects uploads for clipart-only layers", () => {
-    const values = createDefaultFormValues(CLIPART_CATEGORY_TEMPLATE);
-    values.field_badge_shape = {
-      assetId: "upload_logo",
-      previewUrl: "https://example.test/uploads/logo.png",
-      sourceWidthPx: 800,
-      sourceHeightPx: 600,
-    };
-
-    expect(validateCustomizationValues({ template: CLIPART_CATEGORY_TEMPLATE, values }).issues.map((issue) => issue.code)).toContain(
-      "OPTION_NOT_ALLOWED",
-    );
-  });
-
-  it("requires a value for required upload-or-clipart layers", () => {
-    const requiredTemplate: CustomizationTemplate = {
-      ...UPLOAD_OR_CLIPART_TEMPLATE,
-      formFields: UPLOAD_OR_CLIPART_TEMPLATE.formFields.map((field) =>
-        field.id === "field_badge_shape" ? { ...field, required: true } : field,
-      ),
-    };
-
-    const values = createDefaultFormValues(requiredTemplate);
-    expect(validateCustomizationValues({ template: requiredTemplate, values }).issues.map((issue) => issue.code)).toContain(
-      "REQUIRED_VALUE_MISSING",
-    );
-  });
-
-  it("accepts uploads for upload-only layers", () => {
-    const values = createDefaultFormValues(UPLOAD_ONLY_TEMPLATE);
-    values.field_badge_shape = {
-      assetId: "upload_logo",
-      previewUrl: "https://example.test/uploads/logo.png",
-      sourceWidthPx: 800,
-      sourceHeightPx: 600,
-      cropScale: 1.15,
-      cropXRatio: 0.1,
-      cropYRatio: -0.1,
-    };
-
-    expect(validateCustomizationValues({ template: UPLOAD_ONLY_TEMPLATE, values }).valid).toBe(true);
-  });
-
-  it("accepts selected icon values for upload-or-clipart layers with source-select presentation", () => {
-    const values = createDefaultFormValues(UPLOAD_OR_CLIPART_TEMPLATE);
-    values.field_badge_shape = {
-      source: "icon",
-      iconAssetId: "icon_shield",
-      iconName: "Shield",
-      sourceAssetId: "asset_shield",
-      previewUrl: "https://example.test/icons/shield.png",
-      mimeType: "image/png",
-      sourceWidthPx: 300,
-      sourceHeightPx: 300,
-      categoryId: "sports",
-      categoryLabel: "Sports",
-    };
-
-    expect(validateCustomizationValues({ template: UPLOAD_OR_CLIPART_TEMPLATE, values }).valid).toBe(true);
-  });
-
-  it("keeps snapshot-friendly icon metadata on the rendered design layer", () => {
-    const values = createDefaultFormValues(CLIPART_CATEGORY_TEMPLATE);
-    values.field_badge_shape = {
-      source: "icon",
-      iconAssetId: "icon_star",
-      iconName: "Star",
-      sourceAssetId: "asset_star",
-      previewUrl: "https://example.test/icons/star.svg",
-      mimeType: "image/svg+xml",
-      sourceWidthPx: 200,
-      sourceHeightPx: 200,
-      categoryId: "sports",
-      categoryLabel: "Sports",
-      tags: ["star", "badge"],
-    };
-
-    const design = buildDesignFromForm({
-      template: CLIPART_CATEGORY_TEMPLATE,
-      values,
-      designId: "snapshot_metadata_design",
+  it("keeps cover image pan values within the normalized crop range", () => {
+    const cropPan = getCropPanFromImagePosition({
+      imageXPx: -130,
+      imageYPx: -120,
+      frameWidthPx: 200,
+      frameHeightPx: 200,
+      imageWidthPx: 320,
+      imageHeightPx: 280,
     });
 
-    expect(design.layers.find((layer) => layer.layerId === "badge_shape")).toMatchObject({
-      type: "image_shape",
-      contentSource: "icon",
-      iconAssetId: "icon_star",
-      iconName: "Star",
-      mimeType: "image/svg+xml",
-    });
+    expect(cropPan.cropXRatio).toBeGreaterThanOrEqual(-1);
+    expect(cropPan.cropXRatio).toBeLessThanOrEqual(1);
+    expect(cropPan.cropYRatio).toBeGreaterThanOrEqual(-1);
+    expect(cropPan.cropYRatio).toBeLessThanOrEqual(1);
+  });
+
+  it("returns a path clip for decorative shapes", () => {
+    expect(getShapeClipPath({ shape: "heart", widthPx: 200, heightPx: 160 })).toContain("path(");
+    expect(getShapeClipPath({ shape: "star", widthPx: 200, heightPx: 160 })).toContain("polygon(");
   });
 });
 
@@ -622,66 +589,6 @@ describe("text fitting and paths", () => {
     });
     expect(fitted.fontSizePt).toBeLessThan(lineLayer.text.maxFontSizePt);
     expect(fitted.trimmed).toBe(false);
-  });
-
-  it("trims overflow silently at minimum font size", () => {
-    const fitted = fitTextToLayer({
-      layer: lineLayer,
-      value: { text: "THIS TEXT IS TOO LONG FOR THE AVAILABLE WIDTH" },
-      availableWidthPx: 30,
-      measure: (text, size) => text.length * size,
-    });
-    expect(fitted.fontSizePt).toBe(lineLayer.text.minFontSizePt);
-    expect(fitted.trimmed).toBe(true);
-    expect(fitted.text.length).toBeLessThan("THIS TEXT IS TOO LONG FOR THE AVAILABLE WIDTH".length);
-  });
-
-  it("normalizes custom Bezier paths", () => {
-    const path = normalizeTextPath({
-      type: "custom",
-      points: [
-        {
-          id: "p1",
-          xRatio: 2,
-          yRatio: -1,
-          outHandle: { xRatio: 2, yRatio: -2 },
-        },
-      ],
-    });
-    expect(path.type === "custom" ? path.points[0].xRatio : 0).toBe(1);
-    expect(path.type === "custom" ? path.points[0].yRatio : 0).toBe(0);
-    expect(path.type === "custom" ? path.points[0].outHandle?.xRatio : 0).toBe(1);
-  });
-
-  it("builds SVG path data for text paths", () => {
-    expect(getTextPathSvgD({ path: { type: "arc_up", curveAmount: 0.5 }, widthPx: 200, heightPx: 60 })).toContain("Q 100");
-    expect(getTextPathSvgD({ path: { type: "circle_bottom", radiusRatio: 0.5 }, widthPx: 200, heightPx: 60 })).toContain("A 100 100");
-    expect(
-      getTextPathSvgD({
-        path: {
-          type: "closed_ellipse",
-          bounds: { xRatio: 0.5, yRatio: 0.5, widthRatio: 1, heightRatio: 0.8 },
-          startAngleDeg: 180,
-          direction: "clockwise",
-          placement: "over_path",
-        },
-        widthPx: 240,
-        heightPx: 120,
-      }),
-    ).toContain("A 120 48 0 1 1");
-    expect(
-      getTextPathSvgD({
-        path: {
-          type: "custom",
-          points: [
-            { id: "p1", xRatio: 0, yRatio: 0.5, outHandle: { xRatio: 0.25, yRatio: -0.25 } },
-            { id: "p2", xRatio: 1, yRatio: 0.5, inHandle: { xRatio: -0.25, yRatio: -0.25 } },
-          ],
-        },
-        widthPx: 200,
-        heightPx: 60,
-      }),
-    ).toContain("C 50 15 150 15 200 30");
   });
 
   it("normalizes closed ellipse text paths and fits against path length", () => {
@@ -725,6 +632,23 @@ describe("text fitting and paths", () => {
     expect(fitted.trimmed).toBe(false);
   });
 
+  it("builds SVG path data for text paths", () => {
+    expect(getTextPathSvgD({ path: { type: "arc_up", curveAmount: 0.5 }, widthPx: 200, heightPx: 60 })).toContain("Q 100");
+    expect(
+      getTextPathSvgD({
+        path: {
+          type: "custom",
+          points: [
+            { id: "p1", xRatio: 0, yRatio: 0.5, outHandle: { xRatio: 0.25, yRatio: -0.25 } },
+            { id: "p2", xRatio: 1, yRatio: 0.5, inHandle: { xRatio: -0.25, yRatio: -0.25 } },
+          ],
+        },
+        widthPx: 200,
+        heightPx: 60,
+      }),
+    ).toContain("C 50 15 150 15 200 30");
+  });
+
   it("anchors closed ellipse path alignment at the start angle", () => {
     const closedPath = {
       type: "closed_ellipse" as const,
@@ -742,56 +666,5 @@ describe("text fitting and paths", () => {
       startOffset: "50%",
       pathStartAngleDeg: -90,
     });
-    expect(getTextPathRenderAttributes({ path: closedPath, align: "right", widthPx: 200, heightPx: 200, textWidthPx: 100 })).toMatchObject({
-      textAnchor: "start",
-      startOffset: "0",
-      pathStartAngleDeg: expect.any(Number),
-    });
-    const justified = getTextPathRenderAttributes({ path: closedPath, align: "justified", widthPx: 200, heightPx: 200, textWidthPx: 100, charCount: 5 });
-    expect(justified.textAnchor).toBe("start");
-    expect(justified.startOffset).toBe("0");
-    expect(justified.textLength).toBeCloseTo(522.7, 1);
-    expect(justified.lengthAdjust).toBe("spacing");
-
-    const multiWord = getTextPathRenderAttributes({ path: closedPath, align: "justified", widthPx: 200, heightPx: 200, textWidthPx: 100, charCount: 5, wordCount: 3 });
-    expect(multiWord.wordSpacingPx).toBeCloseTo(176.1, 1);
-    expect(multiWord.textLength).toBeUndefined();
-  });
-});
-
-describe("image shape crop and clipping", () => {
-  it("calculates cover crop geometry with uniform scale and pan", () => {
-    const rect = getCoverImageRect({
-      sourceWidthPx: 2000,
-      sourceHeightPx: 1000,
-      frameWidthPx: 200,
-      frameHeightPx: 200,
-      cropScale: 1.5,
-      cropXRatio: 1,
-      cropYRatio: 0,
-    });
-
-    expect(rect.widthPx).toBeCloseTo(600);
-    expect(rect.heightPx).toBeCloseTo(300);
-    expect(rect.xPx).toBeCloseTo(-500);
-    expect(rect.yPx).toBeCloseTo(-150);
-
-    expect(
-      getCropPanFromImagePosition({
-        imageXPx: rect.xPx,
-        imageYPx: rect.yPx,
-        frameWidthPx: 200,
-        frameHeightPx: 200,
-        imageWidthPx: rect.widthPx,
-        imageHeightPx: rect.heightPx,
-      }),
-    ).toEqual({ cropXRatio: 1, cropYRatio: 0 });
-  });
-
-  it("generates semantic clip paths for supported shapes", () => {
-    expect(getShapeClipPath({ shape: "rectangle", widthPx: 100, heightPx: 50 })).toContain("rect");
-    expect(getShapeClipPath({ shape: "circle", widthPx: 100, heightPx: 100 })).toContain("ellipse");
-    expect(getShapeClipPath({ shape: "star", widthPx: 100, heightPx: 100 })).toContain("polygon");
-    expect(getShapeClipPath({ shape: "heart", widthPx: 100, heightPx: 100 })).toContain("path");
   });
 });

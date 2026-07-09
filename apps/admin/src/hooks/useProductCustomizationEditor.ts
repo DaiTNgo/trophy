@@ -6,7 +6,7 @@ import {
   type CustomizationFormValues,
   type CustomizationLayer,
   type CustomizationTemplate,
-  type IconFieldValue,
+  type ClipartFieldValue,
   type ImageShapeFieldValue,
   type ShapeType,
   type TextFieldValue,
@@ -347,7 +347,7 @@ export function useProductCustomizationEditor(
     }));
   }
 
-  function handlePreviewChange(fieldId: string, value: TextFieldValue | ImageShapeFieldValue | IconFieldValue | null) {
+  function handlePreviewChange(fieldId: string, value: TextFieldValue | ImageShapeFieldValue | ClipartFieldValue | null) {
     setPreviewValues((prev) => ({ ...prev, [fieldId]: value }));
   }
 

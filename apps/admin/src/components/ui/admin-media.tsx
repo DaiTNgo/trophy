@@ -4,6 +4,7 @@ import { normalizeContentUrl } from "../../lib/product-assets-client";
 import { backendFetch } from "../../lib/fetch";
 import pdfjsWorkerUrl from "pdfjs-dist/build/pdf.worker?url";
 import { Package, FileText } from "lucide-react";
+import { shouldLoadMediaViaBlob } from "../../lib/admin-media";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl;
 
@@ -15,25 +16,45 @@ export type AdminMediaProps = {
   alt?: string;
 };
 
+/** For local blob: / data: URLs we can resolve immediately without any async round-trip. */
+function resolveLocalUrl(src?: string): string | null {
+  if (!src) return null;
+  if (src.startsWith("blob:") || src.startsWith("data:")) return src;
+  return null;
+}
+
 export function AdminMedia({ src, mimeType, className = "", fallback, alt = "Media" }: AdminMediaProps) {
-  const [dataUrl, setDataUrl] = useState<string | null>(null);
+  // Initialise synchronously for blob/data URLs so the first render already
+  // shows the image — no intermediate null state, no race with onError.
+  const [dataUrl, setDataUrl] = useState<string | null>(() => resolveLocalUrl(src));
   const [error, setError] = useState(false);
   const [isLoadingPdf, setIsLoadingPdf] = useState(false);
 
   useEffect(() => {
+    // Always clear the error flag when the source changes.
+    setError(false);
+
     if (!src) {
       setDataUrl(null);
-      setError(false);
       setIsLoadingPdf(false);
       return;
     }
 
-    const isPdf = (mimeType === "application/pdf" || src.toLowerCase().endsWith(".pdf")) && !src.startsWith("data:image/");
+    // ── Local blob / data URL ─────────────────────────────────────────────
+    // Resolve synchronously; no fetch or PDF decode needed.
+    if (src.startsWith("blob:") || src.startsWith("data:")) {
+      setDataUrl(src);
+      setIsLoadingPdf(false);
+      return;
+    }
+
+    // ── PDF ───────────────────────────────────────────────────────────────
+    const isPdf =
+      mimeType === "application/pdf" || src.toLowerCase().endsWith(".pdf");
 
     if (isPdf) {
       let isCancelled = false;
       setIsLoadingPdf(true);
-      setError(false);
 
       const loadPdfPreview = async () => {
         try {
@@ -78,20 +99,47 @@ export function AdminMedia({ src, mimeType, className = "", fallback, alt = "Med
       return () => {
         isCancelled = true;
       };
-    } else {
-      if (src.startsWith("blob:") || src.startsWith("data:")) {
-        setDataUrl(src);
-        setError(false);
-        setIsLoadingPdf(false);
-        return;
-      }
-
-      setDataUrl(normalizeContentUrl(src));
-      setError(false);
-      setIsLoadingPdf(false);
-      return;
     }
+
+    // ── Remote URL that needs a credentialed fetch ────────────────────────
+    // (WebP and other binary assets served by the backend.)
+    const shouldFetchViaCors = shouldLoadMediaViaBlob(src, mimeType);
+
+    if (shouldFetchViaCors) {
+      let isCancelled = false;
+      let objectUrl: string | null = null;
+
+      setIsLoadingPdf(false);
+
+      const loadImageBlob = async () => {
+        try {
+          const fullUrl = normalizeContentUrl(src);
+          const res = await backendFetch(fullUrl);
+          if (!res.ok) throw new Error(`Failed to fetch media: ${res.status}`);
+          const blob = await res.blob();
+          if (isCancelled) return;
+
+          objectUrl = URL.createObjectURL(blob);
+          setDataUrl(objectUrl);
+        } catch (e) {
+          console.error("Failed to load media preview", e);
+          if (!isCancelled) setError(true);
+        }
+      };
+
+      loadImageBlob();
+      return () => {
+        isCancelled = true;
+        if (objectUrl) URL.revokeObjectURL(objectUrl);
+      };
+    }
+
+    // ── Plain remote URL (SVG, PNG served without CORS issues) ────────────
+    setDataUrl(normalizeContentUrl(src));
+    setIsLoadingPdf(false);
   }, [src, mimeType]);
+
+  // ── Render ───────────────────────────────────────────────────────────────
 
   if (!src || error) {
     return (
@@ -110,9 +158,17 @@ export function AdminMedia({ src, mimeType, className = "", fallback, alt = "Med
     );
   }
 
+  if (!dataUrl) {
+    return (
+      <div className={`flex items-center justify-center bg-ui-bg-subtle text-ui-fg-muted animate-pulse ${className}`}>
+        {fallback || <Package className="w-5 h-5" />}
+      </div>
+    );
+  }
+
   return (
     <img
-      src={dataUrl!}
+      src={dataUrl}
       alt={alt}
       className={className}
       onError={() => setError(true)}

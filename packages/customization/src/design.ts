@@ -1,8 +1,8 @@
 import type {
+  ClipartFieldValue,
   CustomizationDesign,
   CustomizationFormValues,
   CustomizationTemplate,
-  IconFieldValue,
   RuntimeLayer,
 } from "./types";
 import { normalizeCropScale, normalizeCropPan } from "./geometry";
@@ -55,9 +55,40 @@ export const buildDesignFromForm = ({
     const field = getFormFieldForLayer(template, layer.id);
     const value = field ? values[field.id] : null;
 
-    if (sourcePolicy === "fixed_clipart") {
-      const icon = layer.fixedIcon;
-      if (!icon) continue;
+    const clipartValue =
+      value && typeof value === "object" && "source" in value && value.source === "clipart"
+        ? (value as ClipartFieldValue)
+        : null;
+    const fallbackClipartAsset =
+      !clipartValue &&
+      (sourcePolicy === "clipart_category_only" || sourcePolicy === "upload_or_clipart_category")
+        ? layer.defaultClipartAsset
+        : null;
+
+    if (!value && !fallbackClipartAsset) continue;
+
+    if (clipartValue || fallbackClipartAsset) {
+      const selectedClipart = clipartValue
+        ? {
+            assetId: clipartValue.sourceAssetId,
+            previewUrl: clipartValue.previewUrl,
+            sourceWidthPx: clipartValue.sourceWidthPx,
+            sourceHeightPx: clipartValue.sourceHeightPx,
+            clipartAssetId: clipartValue.clipartAssetId,
+            clipartAssetName: clipartValue.clipartAssetName,
+            categoryId: clipartValue.categoryId,
+            mimeType: clipartValue.mimeType,
+          }
+        : {
+            assetId: fallbackClipartAsset!.sourceAssetId,
+            previewUrl: fallbackClipartAsset!.previewUrl,
+            sourceWidthPx: fallbackClipartAsset!.sourceWidthPx,
+            sourceHeightPx: fallbackClipartAsset!.sourceHeightPx,
+            clipartAssetId: fallbackClipartAsset!.id,
+            clipartAssetName: fallbackClipartAsset!.name,
+            categoryId: fallbackClipartAsset!.categoryId,
+            mimeType: fallbackClipartAsset!.mimeType,
+          };
       layers.push({
         id: layer.id,
         layerId: layer.id,
@@ -65,47 +96,23 @@ export const buildDesignFromForm = ({
         zIndex: layer.zIndex,
         geometry: layer.geometry,
         shape: layer.shape,
-        assetId: icon.sourceAssetId,
-        previewUrl: icon.previewUrl,
-        sourceWidthPx: icon.sourceWidthPx ?? background.widthPx,
-        sourceHeightPx: icon.sourceHeightPx ?? background.heightPx,
+        assetId: selectedClipart.assetId,
+        previewUrl: selectedClipart.previewUrl,
+        sourceWidthPx: selectedClipart.sourceWidthPx ?? background.widthPx,
+        sourceHeightPx: selectedClipart.sourceHeightPx ?? background.heightPx,
         cropScale: 1,
         cropXRatio: 0,
         cropYRatio: 0,
-        contentSource: "icon",
-        iconAssetId: icon.id,
-        iconName: icon.name,
-        mimeType: icon.mimeType,
+        contentSource: "clipart",
+        clipartAssetId: selectedClipart.clipartAssetId,
+        clipartAssetName: selectedClipart.clipartAssetName,
+        categoryId: selectedClipart.categoryId,
+        mimeType: selectedClipart.mimeType,
       });
       continue;
     }
 
     if (!value) continue;
-
-    if ("source" in value && value.source === "icon") {
-      const iconValue = value as IconFieldValue;
-      layers.push({
-        id: layer.id,
-        layerId: layer.id,
-        type: "image_shape",
-        zIndex: layer.zIndex,
-        geometry: layer.geometry,
-        shape: layer.shape,
-        assetId: iconValue.sourceAssetId,
-        previewUrl: iconValue.previewUrl,
-        sourceWidthPx: iconValue.sourceWidthPx ?? background.widthPx,
-        sourceHeightPx: iconValue.sourceHeightPx ?? background.heightPx,
-        cropScale: 1,
-        cropXRatio: 0,
-        cropYRatio: 0,
-        contentSource: "icon",
-        iconAssetId: iconValue.iconAssetId,
-        iconName: iconValue.iconName,
-        mimeType: iconValue.mimeType,
-      });
-      continue;
-    }
-
     if (!("assetId" in value) || !value.assetId) continue;
     layers.push({
       id: layer.id,

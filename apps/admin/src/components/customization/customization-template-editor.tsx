@@ -513,9 +513,11 @@ function EditorTextLayer({
           color: fitted.color,
           fontFamily: fitted.fontId,
           fontSize: fitted.fontSizePt,
+          lineHeight: 1.35,
           fontWeight: fitted.isBold ? 700 : 400,
           fontStyle: fitted.isItalic ? "italic" : "normal",
           textAlign: fitted.align === "justified" ? "justify" : fitted.align,
+          whiteSpace: "pre-wrap",
         }}
       >
         {fitted.text}

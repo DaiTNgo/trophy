@@ -19,7 +19,7 @@ import { fetchProducts, assignProductsToCategory } from "../../lib/products-clie
 import { ProductSelectorDrawer } from "../../components/product-selector-drawer";
 import { EditRankingModal } from "./components/edit-ranking-modal";
 import { uploadProductVariantMedia } from "../../lib/product-assets-client";
-import { AdminMedia } from "../../components/ui/admin-media";
+import { MediaPreview } from "../../components/ui/media-preview";
 import { convertPdfToImageFile } from "../../lib/pdf-preview";
 import { LocalizedTextField, createEmptyLocalizedText, type AdminLocale, type LocalizedTextValue } from "../../components/ui/medusa";
 import { Upload, X, MoreHorizontal, Pencil, Trash, AlertCircle, Plus, Info } from "lucide-react";
@@ -583,7 +583,7 @@ export function CategoryDetailPage() {
                 <Label className="text-ui-fg-base">Category Image (optional)</Label>
                 {previewUrl ? (
                   <div className="relative overflow-hidden rounded-lg border border-ui-border-base bg-ui-bg-subtle w-48 h-48">
-                    <AdminMedia
+                    <MediaPreview
                       src={previewUrl}
                       mimeType={file?.type || (previewUrl.toLowerCase().endsWith(".pdf") ? "application/pdf" : "image/jpeg")}
                       className="h-full w-full object-cover"

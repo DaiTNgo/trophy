@@ -192,8 +192,8 @@ export default function ProductDetail() {
               return { fieldId: field.id, label: field.label, valueSummary: "Uploaded image" };
             }
 
-            if (typeof value === "object" && value && "source" in value && value.source === "icon") {
-              return { fieldId: field.id, label: field.label, valueSummary: value.iconName };
+            if (typeof value === "object" && value && "source" in value && value.source === "clipart") {
+              return { fieldId: field.id, label: field.label, valueSummary: value.clipartAssetName };
             }
 
             return { fieldId: field.id, label: field.label, valueSummary: "Custom value" };

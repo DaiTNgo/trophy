@@ -40,29 +40,27 @@ export type LayerGeometry = {
   rotationDeg: number;
 };
 
-export type IconAssetMimeType = "image/svg+xml" | "image/png" | "image/webp";
+export type ClipartAssetMimeType = "image/svg+xml" | "image/png" | "image/webp";
 
-export type CustomizationIconAsset = {
+export type CustomizationClipartAsset = {
   id: string;
   sourceAssetId: string;
   name: string;
-  categoryId?: string | null;
-  categoryLabel?: string | null;
-  tags: string[];
+  fileName?: string | null;
+  categoryId: string;
   previewUrl: string;
-  mimeType: IconAssetMimeType;
+  mimeType: ClipartAssetMimeType;
   sourceWidthPx: number | null;
   sourceHeightPx: number | null;
   active: boolean;
 };
 
-export type FixedClipartCategory = {
+export type ClipartCategory = {
   id: string;
-  label: string;
+  name: string;
 };
 
-export type ImageIconSourcePolicy =
-  | "fixed_clipart"
+export type ImageClipartSourcePolicy =
   | "upload_only"
   | "clipart_category_only"
   | "upload_or_clipart_category";
@@ -156,11 +154,11 @@ export type ImageShapeEditorLayer = LayerBase & {
     fit: "cover";
     defaultCrop?: ImageCrop;
   };
-  sourcePolicy?: ImageIconSourcePolicy;
+  sourcePolicy?: ImageClipartSourcePolicy;
   presentation?: UploadClipartPresentation;
-  fixedIcon?: CustomizationIconAsset | null;
-  fixedCategory?: FixedClipartCategory | null;
-  allowedIcons?: CustomizationIconAsset[];
+  clipartCategory?: ClipartCategory | null;
+  defaultClipartAsset?: CustomizationClipartAsset | null;
+  allowedClipartAssets?: CustomizationClipartAsset[];
 };
 
 export type CustomizationLayer = TextEditorLayer | ImageShapeEditorLayer;
@@ -215,36 +213,34 @@ export type ImageShapeFieldValue = {
   cropYRatio?: number;
 };
 
-export type IconFieldValue = {
-  source: "icon";
-  iconAssetId: string;
-  iconName: string;
+export type ClipartFieldValue = {
+  source: "clipart";
+  clipartAssetId: string;
+  clipartAssetName: string;
   sourceAssetId: string;
   previewUrl: string;
-  mimeType: IconAssetMimeType;
+  mimeType: ClipartAssetMimeType;
   sourceWidthPx: number | null;
   sourceHeightPx: number | null;
-  categoryId?: string | null;
-  categoryLabel?: string | null;
-  tags?: string[];
+  categoryId: string;
 };
 
-export type CustomizationFieldValue = TextFieldValue | ImageShapeFieldValue | IconFieldValue | null;
+export type CustomizationFieldValue = TextFieldValue | ImageShapeFieldValue | ClipartFieldValue | null;
 export type CustomizationFormValues = Record<string, CustomizationFieldValue>;
 
-export type RuntimeImageIconLayer = {
+export type RuntimeImageClipartLayer = {
   id: string;
   layerId: string;
-  type: "image_icon_runtime";
+  type: "image_clipart_runtime";
   fieldId?: string;
   required: boolean;
   geometry: Required<LayerGeometry>;
   shape: ImageShapeEditorLayer["shape"];
-  sourcePolicy: ImageIconSourcePolicy;
+  sourcePolicy: ImageClipartSourcePolicy;
   presentation?: UploadClipartPresentation;
-  fixedIcon?: CustomizationIconAsset;
-  fixedCategory?: FixedClipartCategory;
-  allowedIcons: CustomizationIconAsset[];
+  clipartCategory?: ClipartCategory;
+  defaultClipartAsset?: CustomizationClipartAsset;
+  allowedClipartAssets: CustomizationClipartAsset[];
   upload: {
     enabled: boolean;
     fit: "cover" | "contain";
@@ -284,10 +280,11 @@ export type RuntimeImageShapeLayer = {
   cropXRatio: number;
   cropYRatio: number;
   zIndex: number;
-  contentSource?: "upload" | "icon";
-  iconAssetId?: string;
-  iconName?: string;
-  mimeType?: IconAssetMimeType;
+  contentSource?: "upload" | "clipart";
+  clipartAssetId?: string;
+  clipartAssetName?: string;
+  categoryId?: string;
+  mimeType?: ClipartAssetMimeType;
 };
 
 export type RuntimeLayer = RuntimeTextLayer | RuntimeImageShapeLayer;
@@ -319,7 +316,7 @@ export type ValidationIssue = {
     | "FONT_SIZE_RANGE_INVALID"
     | "TEXT_PATH_REQUIRES_SINGLE_LINE"
     | "STYLE_POLICY_INVALID"
-    | "ICON_POLICY_INVALID"
+    | "CLIPART_POLICY_INVALID"
     | "REQUIRED_VALUE_MISSING"
     | "LOCALIZATION_INCOMPLETE"
     | "OPTION_NOT_ALLOWED"

@@ -10,7 +10,7 @@ import {
   type CustomizationFormValues,
   type CustomizationLayer,
   type CustomizationTemplate,
-  type IconFieldValue,
+  type ClipartFieldValue,
   type ImageShapeFieldValue,
   type ImageShapeEditorLayer,
   type RuntimeImageShapeLayer,
@@ -22,7 +22,7 @@ import { createId, cssShapeClip, fileToBackground, FontLoader, ShapeClipPaths } 
 import { exportVectorPdfClientSide } from "../../lib/pdf-export";
 import { useBrandAssets } from "../../hooks/use-brand-assets";
 
-type PreviewChange = (fieldId: string, value: TextFieldValue | ImageShapeFieldValue | IconFieldValue | null) => void;
+type PreviewChange = (fieldId: string, value: TextFieldValue | ImageShapeFieldValue | ClipartFieldValue | null) => void;
 type PreviewMode = "edit" | "view";
 type ResizeCorner = "nw" | "ne" | "sw" | "se";
 type PanState = { x: number; y: number };
@@ -352,10 +352,10 @@ function PreviewCanvas({
             const field = fieldsByLayerId.get(layer.layerId);
             const value = field ? values[field.id] : null;
             const uploadValue = value && typeof value === "object" && "assetId" in value ? value as ImageShapeFieldValue : null;
-            const iconValue = value && typeof value === "object" && "source" in value && value.source === "icon" ? value as IconFieldValue : null;
+            const clipartValue = value && typeof value === "object" && "source" in value && value.source === "clipart" ? value as ClipartFieldValue : null;
             const derivedValue: ImageShapeFieldValue | null =
               uploadValue ??
-              (layer.contentSource === "icon"
+              (layer.contentSource === "clipart"
                 ? {
                     source: "upload",
                     assetId: layer.assetId,
@@ -366,13 +366,13 @@ function PreviewCanvas({
                     cropXRatio: layer.cropXRatio,
                     cropYRatio: layer.cropYRatio,
                   }
-                : iconValue
+                : clipartValue
                   ? {
                       source: "upload",
-                      assetId: iconValue.sourceAssetId,
-                      previewUrl: iconValue.previewUrl,
-                      sourceWidthPx: iconValue.sourceWidthPx ?? width,
-                      sourceHeightPx: iconValue.sourceHeightPx ?? height,
+                      assetId: clipartValue.sourceAssetId,
+                      previewUrl: clipartValue.previewUrl,
+                      sourceWidthPx: clipartValue.sourceWidthPx ?? width,
+                      sourceHeightPx: clipartValue.sourceHeightPx ?? height,
                       cropScale: 1,
                       cropXRatio: 0,
                       cropYRatio: 0,
@@ -670,7 +670,7 @@ function PreviewField({
   field: CustomizationFormField;
   layer: CustomizationLayer;
   value: unknown;
-  onChange: (value: TextFieldValue | ImageShapeFieldValue | IconFieldValue | null) => void;
+  onChange: (value: TextFieldValue | ImageShapeFieldValue | ClipartFieldValue | null) => void;
 }) {
   if (layer.type === "text") {
     const textValue = value && typeof value === "object" && "text" in value ? value as TextFieldValue : { text: "" };
@@ -806,30 +806,27 @@ function PreviewField({
   const typedLayer = layer as ImageShapeEditorLayer;
   const sourcePolicy = typedLayer.sourcePolicy ?? "upload_only";
   const uploadValue = value && typeof value === "object" && "assetId" in value ? value as ImageShapeFieldValue : null;
-  const iconValue = value && typeof value === "object" && "source" in value && value.source === "icon" ? value as IconFieldValue : null;
+  const clipartValue = value && typeof value === "object" && "source" in value && value.source === "clipart" ? value as ClipartFieldValue : null;
   const currentSource =
     sourcePolicy === "upload_or_clipart_category"
-      ? iconValue
-        ? "icon"
+      ? clipartValue
+        ? "clipart"
         : "upload"
       : sourcePolicy === "clipart_category_only"
-        ? "icon"
+        ? "clipart"
         : "upload";
-  const clipartOptions = (typedLayer.allowedIcons ?? []).filter((icon) => {
-    if (!icon.active) return false;
-    if (typedLayer.fixedCategory?.id) {
-      return icon.categoryId === typedLayer.fixedCategory.id;
+  const clipartOptions = (typedLayer.allowedClipartAssets ?? []).filter((asset) => {
+    if (!asset.active) return false;
+    if (typedLayer.clipartCategory?.id) {
+      return asset.categoryId === typedLayer.clipartCategory.id;
     }
     return true;
   });
-  const { icons: globalIcons } = useBrandAssets();
-  const selectedIcon = iconValue
-    ? clipartOptions.find((icon) => icon.id === iconValue.iconAssetId) ?? globalIcons.find((icon) => icon.id === iconValue.iconAssetId)
+  const { clipartAssets: globalClipartAssets } = useBrandAssets();
+  const selectedClipartAsset = clipartValue
+    ? clipartOptions.find((asset) => asset.id === clipartValue.clipartAssetId) ??
+      globalClipartAssets.find((asset) => asset.id === clipartValue.clipartAssetId)
     : null;
-
-  if (sourcePolicy === "fixed_clipart") {
-    return null;
-  }
 
   const uploadControls = (
     <>
@@ -871,37 +868,35 @@ function PreviewField({
 
   const clipartControls = (
     <div className="space-y-2">
-      {typedLayer.fixedCategory?.label ? (
-        <TextLabel value={`Category: ${typedLayer.fixedCategory.label}`} />
+      {typedLayer.clipartCategory?.name ? (
+        <TextLabel value={`Category: ${typedLayer.clipartCategory.name}`} />
       ) : null}
       <div className="grid grid-cols-3 gap-2">
-        {clipartOptions.map((icon) => {
-          const selected = selectedIcon?.id === icon.id;
+        {clipartOptions.map((asset) => {
+          const selected = selectedClipartAsset?.id === asset.id;
           return (
             <button
-              key={icon.id}
+              key={asset.id}
               type="button"
               onClick={() =>
                 onChange({
-                  source: "icon",
-                  iconAssetId: icon.id,
-                  iconName: icon.name,
-                  sourceAssetId: icon.sourceAssetId,
-                  previewUrl: icon.previewUrl,
-                  mimeType: icon.mimeType,
-                  sourceWidthPx: icon.sourceWidthPx,
-                  sourceHeightPx: icon.sourceHeightPx,
-                  categoryId: icon.categoryId,
-                  categoryLabel: icon.categoryLabel,
-                  tags: icon.tags,
+                  source: "clipart",
+                  clipartAssetId: asset.id,
+                  clipartAssetName: asset.name,
+                  sourceAssetId: asset.sourceAssetId,
+                  previewUrl: asset.previewUrl,
+                  mimeType: asset.mimeType,
+                  sourceWidthPx: asset.sourceWidthPx,
+                  sourceHeightPx: asset.sourceHeightPx,
+                  categoryId: asset.categoryId,
                 })
               }
               className={`flex flex-col items-center gap-2 rounded-md border p-2 text-left ${
                 selected ? "border-ui-fg-interactive ring-1 ring-ui-fg-interactive" : "border-ui-border-base"
               }`}
             >
-              <img src={icon.previewUrl} alt={icon.name} className="h-12 w-12 object-contain" />
-              <span className="w-full truncate text-xs">{icon.name}</span>
+              <img src={asset.previewUrl} alt={asset.name} className="h-12 w-12 object-contain" />
+              <span className="w-full truncate text-xs">{asset.name}</span>
             </button>
           );
         })}
@@ -917,20 +912,18 @@ function PreviewField({
         <div className="space-y-1">
           <Label size="small" weight="plus" className="text-ui-fg-subtle">Source</Label>
           <Select value={currentSource} onValueChange={(nextSource) => {
-            if (nextSource === "icon" && clipartOptions[0]) {
+            if (nextSource === "clipart" && clipartOptions[0]) {
               const first = clipartOptions[0];
               onChange({
-                source: "icon",
-                iconAssetId: first.id,
-                iconName: first.name,
+                source: "clipart",
+                clipartAssetId: first.id,
+                clipartAssetName: first.name,
                 sourceAssetId: first.sourceAssetId,
                 previewUrl: first.previewUrl,
                 mimeType: first.mimeType,
                 sourceWidthPx: first.sourceWidthPx,
                 sourceHeightPx: first.sourceHeightPx,
                 categoryId: first.categoryId,
-                categoryLabel: first.categoryLabel,
-                tags: first.tags,
               });
             } else if (nextSource === "upload") {
               onChange(uploadValue ?? null);
@@ -940,7 +933,7 @@ function PreviewField({
               <Select.Value />
             </Select.Trigger>
             <Select.Content>
-              <Select.Item value="icon">Clipart</Select.Item>
+              <Select.Item value="clipart">Clipart</Select.Item>
               <Select.Item value="upload">Upload image</Select.Item>
             </Select.Content>
           </Select>
@@ -949,7 +942,7 @@ function PreviewField({
       {sourcePolicy === "clipart_category_only" ? clipartControls : null}
       {sourcePolicy === "upload_only" ? uploadControls : null}
       {sourcePolicy === "upload_or_clipart_category" && typedLayer.presentation === "source_select"
-        ? currentSource === "icon"
+        ? currentSource === "clipart"
           ? clipartControls
           : uploadControls
         : null}

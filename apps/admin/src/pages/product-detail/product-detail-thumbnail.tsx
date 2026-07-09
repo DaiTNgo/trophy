@@ -4,7 +4,7 @@ import { Upload, MoreHorizontal, Image, ChevronLeft, ChevronRight, X } from "luc
 import type { CatalogProduct } from "../../types";
 import { updateProductMedia } from "../../lib/products-client";
 import { uploadProductVariantMedia } from "../../lib/product-assets-client";
-import { AdminMedia } from "../../components/ui/admin-media";
+import { MediaPreview } from "../../components/ui/media-preview";
 import { InlineError } from "../../components/ui/medusa/inline-error";
 import { convertPdfToImageFile } from "../../lib/pdf-preview";
 
@@ -66,7 +66,7 @@ function ThumbnailGallery({
 
         <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_240px]">
           <div className="relative flex min-h-[420px] items-center justify-center bg-ui-bg-subtle p-6">
-            <AdminMedia
+            <MediaPreview
               src={thumbnails[activeIndex]?.url}
               mimeType={thumbnails[activeIndex]?.mimeType}
               alt={`Media ${activeIndex + 1}`}
@@ -113,7 +113,7 @@ function ThumbnailGallery({
                       : "border-ui-border-base opacity-70 hover:opacity-100",
                   ].join(" ")}
                 >
-                  <AdminMedia
+                  <MediaPreview
                     src={asset.url}
                     mimeType={asset.mimeType}
                     alt={`Thumbnail ${index + 1}`}
@@ -342,7 +342,7 @@ export function ProductDetailThumbnail({ product, mutate }: ProductDetailThumbna
                             style={{ aspectRatio: "1 / 1" }}
                             onClick={() => toggleSelection(index)}
                           >
-                            <AdminMedia
+                            <MediaPreview
                               src={thumb.url}
                               mimeType={thumb.mimeType}
                               className="h-full w-full object-contain p-2"
@@ -468,7 +468,7 @@ export function ProductDetailThumbnail({ product, mutate }: ProductDetailThumbna
                     className="overflow-hidden rounded-lg border border-ui-border-base bg-ui-bg-subtle"
                     style={{ aspectRatio: "1 / 1" }}
                   >
-                    <AdminMedia
+                    <MediaPreview
                       src={url}
                       mimeType={mimeType}
                       className="h-full w-full object-contain"

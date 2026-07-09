@@ -12,7 +12,7 @@ import {
   type CustomizationLayer,
   type CustomizationTemplate,
   type DynamicFontFamily,
-  type IconFieldValue,
+  type ClipartFieldValue,
   type ImageShapeFieldValue,
   type ImageShapeEditorLayer,
   type RuntimeLayer,
@@ -495,23 +495,20 @@ function ImageField({
   layer: ImageShapeEditorLayer | null;
   value: CustomizationFieldValue | undefined;
   uploading: boolean;
-  onChange: (value: ImageShapeFieldValue | IconFieldValue | null) => void;
+  onChange: (value: ImageShapeFieldValue | ClipartFieldValue | null) => void;
   onUpload: (file: File) => void;
 }) {
   const sourcePolicy = layer?.sourcePolicy ?? "upload_only";
   const uploaded = value && typeof value === "object" && "assetId" in value ? value : null;
-  const iconValue = value && typeof value === "object" && "source" in value && value.source === "icon" ? value : null;
-  const availableIcons = (layer?.allowedIcons ?? []).filter((icon) => {
-    if (!icon.active) return false;
-    if (layer?.fixedCategory?.id) return icon.categoryId === layer.fixedCategory.id;
+  const clipartValue =
+    value && typeof value === "object" && "source" in value && value.source === "clipart" ? value : null;
+  const availableClipartAssets = (layer?.allowedClipartAssets ?? []).filter((asset) => {
+    if (!asset.active) return false;
+    if (layer?.clipartCategory?.id) return asset.categoryId === layer.clipartCategory.id;
     return true;
   });
   const currentSource =
-    sourcePolicy === "clipart_category_only" ? "icon" : iconValue ? "icon" : "upload";
-
-  if (sourcePolicy === "fixed_clipart") {
-    return null;
-  }
+    sourcePolicy === "clipart_category_only" ? "clipart" : clipartValue ? "clipart" : "upload";
 
   const uploadSection = (
     <div className="space-y-3">
@@ -565,44 +562,45 @@ function ImageField({
     </div>
   );
 
-  const iconSection = (
+  const clipartSection = (
     <div className="space-y-3">
-      {layer?.fixedCategory?.label ? (
-        <p className="text-xs text-on-surface-variant">Category: {layer.fixedCategory.label}</p>
+      {layer?.clipartCategory?.name ? (
+        <p className="text-xs text-on-surface-variant">Category: {layer.clipartCategory.name}</p>
       ) : null}
       <div className="grid grid-cols-3 gap-2">
-        {availableIcons.map((icon) => {
-          const selected = iconValue && "iconAssetId" in iconValue && iconValue.iconAssetId === icon.id;
+        {availableClipartAssets.map((clipart) => {
+          const selected =
+            clipartValue &&
+            "clipartAssetId" in clipartValue &&
+            clipartValue.clipartAssetId === clipart.id;
           return (
             <button
-              key={icon.id}
+              key={clipart.id}
               type="button"
               onClick={() =>
                 onChange({
-                  source: "icon",
-                  iconAssetId: icon.id,
-                  iconName: icon.name,
-                  sourceAssetId: icon.sourceAssetId,
-                  previewUrl: icon.previewUrl,
-                  mimeType: icon.mimeType,
-                  sourceWidthPx: icon.sourceWidthPx,
-                  sourceHeightPx: icon.sourceHeightPx,
-                  categoryId: icon.categoryId,
-                  categoryLabel: icon.categoryLabel,
-                  tags: icon.tags,
+                  source: "clipart",
+                  clipartAssetId: clipart.id,
+                  clipartAssetName: clipart.name,
+                  sourceAssetId: clipart.sourceAssetId,
+                  previewUrl: clipart.previewUrl,
+                  mimeType: clipart.mimeType,
+                  sourceWidthPx: clipart.sourceWidthPx,
+                  sourceHeightPx: clipart.sourceHeightPx,
+                  categoryId: clipart.categoryId,
                 })
               }
               className={`rounded-lg border p-2 ${
                 selected ? "border-primary ring-1 ring-primary" : "border-outline"
               }`}
             >
-              <img src={icon.previewUrl} alt={icon.name} className="mx-auto h-16 w-16 object-contain" />
-              <span className="mt-2 block truncate text-xs">{icon.name}</span>
+              <img src={clipart.previewUrl} alt={clipart.name} className="mx-auto h-16 w-16 object-contain" />
+              <span className="mt-2 block truncate text-xs">{clipart.name}</span>
             </button>
           );
         })}
       </div>
-      {iconValue ? (
+      {clipartValue ? (
         <button
           type="button"
           onClick={() => onChange(null)}
@@ -617,31 +615,29 @@ function ImageField({
   return (
     <div className="space-y-3">
       {sourcePolicy === "upload_only" ? uploadSection : null}
-      {sourcePolicy === "clipart_category_only" ? iconSection : null}
+      {sourcePolicy === "clipart_category_only" ? clipartSection : null}
       {sourcePolicy === "upload_or_clipart_category" && layer?.presentation === "source_select" ? (
         <>
           <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
               onClick={() => {
-                if (availableIcons[0]) {
-                  const icon = availableIcons[0];
+                if (availableClipartAssets[0]) {
+                  const clipart = availableClipartAssets[0];
                   onChange({
-                    source: "icon",
-                    iconAssetId: icon.id,
-                    iconName: icon.name,
-                    sourceAssetId: icon.sourceAssetId,
-                    previewUrl: icon.previewUrl,
-                    mimeType: icon.mimeType,
-                    sourceWidthPx: icon.sourceWidthPx,
-                    sourceHeightPx: icon.sourceHeightPx,
-                    categoryId: icon.categoryId,
-                    categoryLabel: icon.categoryLabel,
-                    tags: icon.tags,
+                    source: "clipart",
+                    clipartAssetId: clipart.id,
+                    clipartAssetName: clipart.name,
+                    sourceAssetId: clipart.sourceAssetId,
+                    previewUrl: clipart.previewUrl,
+                    mimeType: clipart.mimeType,
+                    sourceWidthPx: clipart.sourceWidthPx,
+                    sourceHeightPx: clipart.sourceHeightPx,
+                    categoryId: clipart.categoryId,
                   });
                 }
               }}
-              className={`rounded-lg border px-4 py-3 text-sm font-semibold ${currentSource === "icon" ? "border-primary bg-primary text-white" : "border-outline"}`}
+              className={`rounded-lg border px-4 py-3 text-sm font-semibold ${currentSource === "clipart" ? "border-primary bg-primary text-white" : "border-outline"}`}
             >
               Clipart
             </button>
@@ -653,14 +649,14 @@ function ImageField({
               Upload image
             </button>
           </div>
-          {currentSource === "icon" ? iconSection : uploadSection}
+          {currentSource === "clipart" ? clipartSection : uploadSection}
         </>
       ) : null}
       {sourcePolicy === "upload_or_clipart_category" && layer?.presentation === "side_by_side" ? (
         <div className="grid gap-4 md:grid-cols-2">
           <div>
             <p className="mb-2 text-xs font-semibold text-on-surface-variant">Clipart</p>
-            {iconSection}
+            {clipartSection}
           </div>
           <div>
             <p className="mb-2 text-xs font-semibold text-on-surface-variant">Upload image</p>

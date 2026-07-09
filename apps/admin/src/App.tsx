@@ -21,6 +21,8 @@ import { CategoryDetailPage } from "./pages/categories/detail";
 import { PlaceholderIndexPage } from "./pages/placeholder-index";
 import { CustomizationTemplatesRouter } from "./pages/customization-templates";
 import { BrandAssetsPage } from "./pages/brand-assets";
+import { ClipartPage } from "./pages/clipart";
+import { ClipartDetailPage } from "./pages/clipart-detail";
 
 function ProtectedRoute() {
   const auth = useAuth();
@@ -100,8 +102,10 @@ const router = createBrowserRouter([
           { path: "team", Component: TeamPage },
           { path: "settings", Component: () => <Navigate to="/settings/security" replace /> },
           { path: "settings/security", Component: SecurityPage },
-          { path: "customization-templates/*", Component: CustomizationTemplatesRouter },
-          { path: "brand-assets", Component: BrandAssetsPage },
+          { path: "customization/templates/*", Component: CustomizationTemplatesRouter },
+          { path: "customization/clipart", Component: ClipartPage },
+          { path: "customization/clipart/:categoryId", Component: ClipartDetailPage },
+          { path: "customization/brand-assets", Component: BrandAssetsPage },
         ],
       },
     ],

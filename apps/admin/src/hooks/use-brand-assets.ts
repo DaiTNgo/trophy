@@ -16,13 +16,13 @@ export type BrandFont = {
   boldItalicAssetId?: string | null;
 };
 
-export type BrandIconAsset = {
+export type BrandClipartAsset = {
   id: string;
   sourceAssetId: string;
   name: string;
-  categoryId?: string | null;
-  categoryLabel?: string | null;
-  tags: string[];
+  fileName?: string | null;
+  categoryId: string;
+  categoryName: string;
   previewUrl: string;
   mimeType: "image/svg+xml" | "image/png" | "image/webp";
   sourceWidthPx: number | null;
@@ -32,10 +32,21 @@ export type BrandIconAsset = {
   updatedAt: number;
 };
 
+export type ClipartCategory = {
+  id: string;
+  name: string;
+  active: boolean;
+  activeAssetCount?: number;
+  sortOrder: number;
+  createdAt: number;
+  updatedAt: number;
+};
+
 export function useBrandAssets(refreshKey = 0) {
   const [colors, setColors] = useState<BrandColor[]>([]);
   const [fonts, setFonts] = useState<BrandFont[]>([]);
-  const [icons, setIcons] = useState<BrandIconAsset[]>([]);
+  const [clipartAssets, setClipartAssets] = useState<BrandClipartAsset[]>([]);
+  const [clipartCategories, setClipartCategories] = useState<ClipartCategory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -43,10 +54,10 @@ export function useBrandAssets(refreshKey = 0) {
 
     async function load() {
       try {
-        const [colorsRes, fontsRes, iconsRes] = await Promise.all([
+        const [colorsRes, fontsRes, categoriesRes] = await Promise.all([
           backendFetch("/api/admin/brand-assets/colors"),
           backendFetch("/api/admin/brand-assets/fonts"),
-          backendFetch("/api/admin/brand-assets/icons"),
+          backendFetch("/api/admin/customization/clipart/categories"),
         ]);
 
         if (mounted) {
@@ -58,9 +69,41 @@ export function useBrandAssets(refreshKey = 0) {
             const data = await fontsRes.json();
             setFonts(data.fonts);
           }
-          if (iconsRes.ok) {
-            const data = await iconsRes.json();
-            setIcons(data.icons);
+          if (categoriesRes.ok) {
+            const data = (await categoriesRes.json()) as { categories: ClipartCategory[] };
+            setClipartCategories(data.categories);
+
+            const assetsByCategory = await Promise.all(
+              data.categories.map(async (category) => {
+                const response = await backendFetch(`/api/admin/customization/clipart/categories/${category.id}/assets`);
+                if (!response.ok) {
+                  return [] as BrandClipartAsset[];
+                }
+                const payload = (await response.json()) as {
+                  assets: Array<{
+                    id: string;
+                    categoryId: string;
+                    sourceAssetId: string;
+                    name: string;
+                    fileName?: string | null;
+                    previewUrl: string;
+                    mimeType: "image/svg+xml" | "image/png" | "image/webp";
+                    sourceWidthPx: number | null;
+                    sourceHeightPx: number | null;
+                    active: boolean;
+                    createdAt: number;
+                    updatedAt: number;
+                  }>;
+                };
+                return payload.assets.map((asset) => ({
+                  ...asset,
+                  categoryName: category.name,
+                }));
+              }),
+            );
+
+            const nextClipartAssets = assetsByCategory.flat();
+            setClipartAssets(nextClipartAssets);
           }
         }
       } finally {
@@ -77,5 +120,5 @@ export function useBrandAssets(refreshKey = 0) {
     };
   }, [refreshKey]);
 
-  return { colors, fonts, icons, isLoading };
+  return { colors, fonts, clipartAssets, clipartCategories, isLoading };
 }

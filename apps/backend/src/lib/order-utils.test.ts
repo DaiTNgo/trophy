@@ -2,18 +2,19 @@ import { describe, expect, it } from "vitest";
 import { buildCustomizationValueSummaries, type StoredCustomizationSnapshot } from "./order-utils";
 
 describe("buildCustomizationValueSummaries", () => {
-  it("uses the stored icon name from the order snapshot", () => {
+  it("uses the stored clipart name from the order snapshot", () => {
     const snapshot: StoredCustomizationSnapshot = {
       values: {
         badge_shape: {
-          source: "icon",
-          iconAssetId: "icon_star",
-          iconName: "Vintage Star",
+          source: "clipart",
+          clipartAssetId: "clipart_star",
+          clipartAssetName: "Vintage Star",
           sourceAssetId: "asset_star",
           previewUrl: "/api/assets/customizations/asset_star/content",
           mimeType: "image/svg+xml",
           sourceWidthPx: 200,
           sourceHeightPx: 200,
+          categoryId: "sports",
         },
       },
       design: { layers: [] },
@@ -46,14 +47,15 @@ describe("buildCustomizationValueSummaries", () => {
     const snapshot: StoredCustomizationSnapshot = {
       values: {
         badge_shape: {
-          source: "icon",
-          iconAssetId: "icon_star",
-          iconName: "Original Star",
+          source: "clipart",
+          clipartAssetId: "clipart_star",
+          clipartAssetName: "Original Star",
           sourceAssetId: "asset_star",
           previewUrl: "/api/assets/customizations/asset_star/content",
           mimeType: "image/svg+xml",
           sourceWidthPx: 200,
           sourceHeightPx: 200,
+          categoryId: "sports",
         },
       },
       design: { layers: [] },

@@ -11,7 +11,7 @@ import {
 import { useNavigate } from "react-router";
 import { backendFetch } from "../../../lib/fetch";
 import { uploadProductVariantMedia } from "../../../lib/product-assets-client";
-import { AdminMedia } from "../../../components/ui/admin-media";
+import { MediaPreview } from "../../../components/ui/media-preview";
 import {
   LocalizedTextField,
   createEmptyLocalizedText,
@@ -194,7 +194,7 @@ export function CreateCollectionModal({
                     </div>
                     {previewUrl ? (
                       <div className="relative aspect-[4/3] w-[400px] max-w-full rounded-lg overflow-hidden bg-ui-bg-subtle border border-ui-border-base group">
-                        <AdminMedia
+                        <MediaPreview
                           src={previewUrl}
                           className="w-full h-full object-cover"
                         />

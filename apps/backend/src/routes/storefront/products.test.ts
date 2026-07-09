@@ -188,66 +188,7 @@ describe("buildListingItem", () => {
 });
 
 describe("sanitizeShopperCustomization", () => {
-  it("keeps only an active fixed icon for fixed-clipart layers", () => {
-    const customization: ProductCustomization = {
-      productId: "1",
-      enabled: true,
-      canvasWidthPx: 1200,
-      canvasHeightPx: 900,
-      layers: DEFAULT_TEMPLATE.layers.map((layer) =>
-        layer.id === "badge_shape" && layer.type === "image_shape"
-          ? {
-              ...layer,
-              sourcePolicy: "fixed_clipart",
-              fixedIcon: {
-                id: "icon_fixed",
-                sourceAssetId: "asset_fixed",
-                name: "Fixed Star",
-                categoryId: "sports",
-                categoryLabel: "Sports",
-                tags: ["star"],
-                previewUrl: "/api/assets/customizations/asset_fixed/content",
-                mimeType: "image/svg+xml",
-                sourceWidthPx: 200,
-                sourceHeightPx: 200,
-                active: true,
-              },
-              allowedIcons: [
-                {
-                  id: "icon_inactive",
-                  sourceAssetId: "asset_inactive",
-                  name: "Inactive Star",
-                  categoryId: "sports",
-                  categoryLabel: "Sports",
-                  tags: ["inactive"],
-                  previewUrl: "/api/assets/customizations/asset_inactive/content",
-                  mimeType: "image/png",
-                  sourceWidthPx: 200,
-                  sourceHeightPx: 200,
-                  active: false,
-                },
-              ],
-            }
-          : layer,
-      ),
-      formFields: DEFAULT_TEMPLATE.formFields,
-    };
-
-    const result = sanitizeShopperCustomization(customization);
-    const imageLayer = result.layers.find((layer) => layer.id === "badge_shape");
-
-    expect(imageLayer).toMatchObject({
-      sourcePolicy: "fixed_clipart",
-      fixedIcon: {
-        id: "icon_fixed",
-        sourceAssetId: "asset_fixed",
-        name: "Fixed Star",
-      },
-      allowedIcons: [],
-    });
-  });
-
-  it("keeps only shopper-safe allowed icons for clipart-enabled layers", () => {
+  it("keeps only shopper-safe allowed clipart assets for clipart-enabled layers", () => {
     const customization: ProductCustomization = {
       productId: "1",
       enabled: true,
@@ -259,15 +200,26 @@ describe("sanitizeShopperCustomization", () => {
               ...layer,
               sourcePolicy: "upload_or_clipart_category",
               presentation: "source_select",
-              fixedCategory: { id: "sports", label: "Sports" },
-              allowedIcons: [
+              clipartCategory: { id: "sports", name: "Sports" },
+              defaultClipartAsset: {
+                id: "clipart_active",
+                sourceAssetId: "asset_active",
+                name: "Active Clipart",
+                fileName: "active.svg",
+                categoryId: "sports",
+                previewUrl: "/api/assets/customizations/asset_active/content",
+                mimeType: "image/svg+xml",
+                sourceWidthPx: 200,
+                sourceHeightPx: 200,
+                active: true,
+              },
+              allowedClipartAssets: [
                 {
-                  id: "icon_active",
+                  id: "clipart_active",
                   sourceAssetId: "asset_active",
-                  name: "Active Icon",
+                  name: "Active Clipart",
                   categoryId: "sports",
-                  categoryLabel: "Sports",
-                  tags: ["active"],
+                  fileName: "active.svg",
                   previewUrl: "/api/assets/customizations/asset_active/content",
                   mimeType: "image/svg+xml",
                   sourceWidthPx: 200,
@@ -275,12 +227,11 @@ describe("sanitizeShopperCustomization", () => {
                   active: true,
                 },
                 {
-                  id: "icon_inactive",
+                  id: "clipart_inactive",
                   sourceAssetId: "asset_inactive",
-                  name: "Inactive Icon",
+                  name: "Inactive Clipart",
                   categoryId: "sports",
-                  categoryLabel: "Sports",
-                  tags: ["inactive"],
+                  fileName: "inactive.png",
                   previewUrl: "/api/assets/customizations/asset_inactive/content",
                   mimeType: "image/png",
                   sourceWidthPx: 200,
@@ -300,14 +251,15 @@ describe("sanitizeShopperCustomization", () => {
     expect(imageLayer).toMatchObject({
       sourcePolicy: "upload_or_clipart_category",
       presentation: "source_select",
-      fixedCategory: { id: "sports", label: "Sports" },
+      clipartCategory: { id: "sports", name: "Sports" },
+      defaultClipartAsset: { id: "clipart_active" },
     });
-    expect((imageLayer as any).allowedIcons).toEqual([
+    expect((imageLayer as any).allowedClipartAssets).toEqual([
       expect.objectContaining({
-        id: "icon_active",
+        id: "clipart_active",
         sourceAssetId: "asset_active",
       }),
     ]);
-    expect((imageLayer as any).allowedIcons).toHaveLength(1);
+    expect((imageLayer as any).allowedClipartAssets).toHaveLength(1);
   });
 });

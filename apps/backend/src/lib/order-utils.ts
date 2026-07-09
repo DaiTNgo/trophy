@@ -119,10 +119,10 @@ function summarizeCustomizationValue(value: CustomizationFieldValue) {
     return "Uploaded image";
   }
 
-  if (typeof value === "object" && "source" in value && value.source === "icon") {
-    return typeof (value as { iconName?: unknown }).iconName === "string"
-      ? (value as { iconName: string }).iconName
-      : "Selected icon";
+  if (typeof value === "object" && "source" in value && value.source === "clipart") {
+    return typeof (value as { clipartAssetName?: unknown }).clipartAssetName === "string"
+      ? (value as { clipartAssetName: string }).clipartAssetName
+      : "Selected clipart";
   }
 
   return "Custom value";

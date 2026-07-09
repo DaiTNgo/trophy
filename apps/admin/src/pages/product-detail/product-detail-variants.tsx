@@ -23,7 +23,7 @@ import {
   Trash,
 } from "lucide-react";
 import { DropdownMenu } from "@medusajs/ui";
-import { AdminMedia } from "../../components/ui/admin-media";
+import { MediaPreview } from "../../components/ui/media-preview";
 import { InlineError } from "../../components/ui/medusa/inline-error";
 import {
   createProductVariant,
@@ -372,7 +372,7 @@ export function ProductDetailVariants({ product, mutate }: ProductDetailVariants
                   <Table.Cell className="pl-6">
                     <div className="flex h-8 w-8 items-center justify-center rounded-md border border-ui-border-base bg-ui-bg-subtle overflow-hidden">
                       {variant.media.length > 0 ? (
-                        <AdminMedia
+                        <MediaPreview
                           src={variant.media[0].contentUrl}
                           mimeType={variant.media[0].mimeType}
                           alt={variant.title}
@@ -647,7 +647,7 @@ export function ProductDetailVariants({ product, mutate }: ProductDetailVariants
               <div className="grid gap-3 sm:grid-cols-2">
                 {mediaDrafts.map((asset, index) => (
                   <div key={`${asset.assetId}-${index}`} className="overflow-hidden rounded-lg border border-ui-border-base">
-                    <AdminMedia
+                    <MediaPreview
                       src={asset.url}
                       mimeType={asset.mimeType}
                       alt={asset.fileName}

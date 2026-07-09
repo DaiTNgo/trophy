@@ -386,13 +386,26 @@ export const customizationAssets = sqliteTable("customization_assets", {
     .default(sql`CURRENT_TIMESTAMP`),
 });
 
-export const customizationIconAssets = sqliteTable("customization_icon_assets", {
+export const customizationClipartCategories = sqliteTable("customization_clipart_categories", {
   id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  active: integer("active", { mode: "boolean" }).notNull().default(true),
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: integer("created_at", { mode: "timestamp_ms" })
+    .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+    .notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+    .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+    .$onUpdate(() => new Date())
+    .notNull(),
+});
+
+export const customizationClipartAssets = sqliteTable("customization_clipart_assets", {
+  id: text("id").primaryKey(),
+  categoryId: text("category_id").notNull(),
   sourceAssetId: text("source_asset_id").notNull(),
   name: text("name").notNull(),
-  categoryId: text("category_id"),
-  categoryLabel: text("category_label"),
-  tagsJson: text("tags_json").notNull().default("[]"),
+  fileName: text("file_name"),
   previewUrl: text("preview_url").notNull(),
   mimeType: text("mime_type").notNull(),
   sourceWidthPx: integer("source_width_px"),

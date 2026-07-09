@@ -143,7 +143,7 @@ function EditorHeader({
   return (
     <header className="flex h-16 items-center justify-between border-b border-ui-border-base px-4">
       <div className="flex items-center gap-3">
-        <Link to="/customization-templates" className="rounded-md border border-ui-border-base p-2 text-ui-fg-subtle">
+        <Link to="/customization/templates" className="rounded-md border border-ui-border-base p-2 text-ui-fg-subtle">
           <ArrowLeft className="size-4" />
         </Link>
         <div>

@@ -8,7 +8,7 @@ import {
 } from "@medusajs/ui";
 import { Adjustments } from "@medusajs/icons";
 import { ExternalLink, Loader2, Trash2, Upload } from "lucide-react";
-import { AdminMedia } from "../../components/ui/admin-media";
+import { MediaPreview } from "../../components/ui/media-preview";
 import { InlineError } from "../../components/ui/medusa/inline-error";
 import {
   buildVariantSignature,
@@ -234,7 +234,7 @@ export function CreateProductVariants({ state }: CreateProductVariantsProps) {
                                         )
                                       }
                                     >
-                                      <AdminMedia
+                                      <MediaPreview
                                         src={asset.contentUrl}
                                         mimeType={asset.mimeType}
                                         alt={asset.fileName}

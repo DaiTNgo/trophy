@@ -310,14 +310,15 @@ describe("storefront orders route", () => {
         customizationSnapshotJson: JSON.stringify({
           values: {
             badge_shape: {
-              source: "icon",
-              iconAssetId: "icon_star",
-              iconName: "Star",
+              source: "clipart",
+              clipartAssetId: "clipart_star",
+              clipartAssetName: "Star",
               sourceAssetId: "asset_star",
               previewUrl: "/api/assets/customizations/asset_star/content",
               mimeType: "image/svg+xml",
               sourceWidthPx: 200,
               sourceHeightPx: 200,
+              categoryId: "sports",
             },
           },
           design: { layers: [] },
@@ -344,22 +345,33 @@ describe("storefront orders route", () => {
     ]);
   });
 
-  it("stores selected icon snapshot metadata when creating an order", async () => {
+  it("stores selected clipart snapshot metadata when creating an order", async () => {
     const iconLayers = DEFAULT_TEMPLATE.layers.map((layer) =>
       layer.id === "badge_shape" && layer.type === "image_shape"
         ? {
             ...layer,
             sourcePolicy: "upload_or_clipart_category" as const,
             presentation: "source_select" as const,
-            fixedCategory: { id: "sports", label: "Sports" },
-            allowedIcons: [
+            clipartCategory: { id: "sports", name: "Sports" },
+            defaultClipartAsset: {
+              id: "clipart_star",
+              sourceAssetId: "asset_star",
+              name: "Star",
+              fileName: "star.svg",
+              categoryId: "sports",
+              previewUrl: "/api/assets/customizations/asset_star/content",
+              mimeType: "image/svg+xml",
+              sourceWidthPx: 200,
+              sourceHeightPx: 200,
+              active: true,
+            },
+            allowedClipartAssets: [
               {
-                id: "icon_star",
+                id: "clipart_star",
                 sourceAssetId: "asset_star",
                 name: "Star",
                 categoryId: "sports",
-                categoryLabel: "Sports",
-                tags: ["star"],
+                fileName: "star.svg",
                 previewUrl: "/api/assets/customizations/asset_star/content",
                 mimeType: "image/svg+xml",
                 sourceWidthPx: 200,
@@ -399,16 +411,15 @@ describe("storefront orders route", () => {
             customization: {
               values: {
                 field_badge_shape: {
-                  source: "icon",
-                  iconAssetId: "icon_star",
-                  iconName: "Star",
+                  source: "clipart",
+                  clipartAssetId: "clipart_star",
+                  clipartAssetName: "Star",
                   sourceAssetId: "asset_star",
                   previewUrl: "/api/assets/customizations/asset_star/content",
                   mimeType: "image/svg+xml",
                   sourceWidthPx: 200,
                   sourceHeightPx: 200,
                   categoryId: "sports",
-                  categoryLabel: "Sports",
                 },
               },
             },
@@ -425,11 +436,12 @@ describe("storefront orders route", () => {
     const snapshot = orderItemInsert ? JSON.parse(orderItemInsert.customizationSnapshotJson) : null;
 
     expect(snapshot?.values?.field_badge_shape).toMatchObject({
-      source: "icon",
-      iconAssetId: "icon_star",
-      iconName: "Star",
+      source: "clipart",
+      clipartAssetId: "clipart_star",
+      clipartAssetName: "Star",
       sourceAssetId: "asset_star",
       mimeType: "image/svg+xml",
+      categoryId: "sports",
     });
   });
 

@@ -2,7 +2,7 @@ import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm'
 import { Hono } from 'hono'
 import * as v from 'valibot'
 import {
-  buildRuntimeImageIconLayer,
+  buildRuntimeImageClipartLayer,
   getFormFieldForLayer,
   type CustomizationFormField,
   type CustomizationLayer,
@@ -122,7 +122,7 @@ export function sanitizeShopperCustomization(customization: ProductCustomization
         layer.id,
       );
 
-      const runtime = buildRuntimeImageIconLayer({
+      const runtime = buildRuntimeImageClipartLayer({
         layer,
         fieldId: field?.id,
         required: field?.required ?? false,
@@ -132,9 +132,9 @@ export function sanitizeShopperCustomization(customization: ProductCustomization
         ...layer,
         sourcePolicy: runtime.sourcePolicy,
         presentation: runtime.presentation,
-        fixedIcon: runtime.fixedIcon,
-        fixedCategory: runtime.fixedCategory,
-        allowedIcons: runtime.allowedIcons,
+        clipartCategory: runtime.clipartCategory,
+        defaultClipartAsset: runtime.defaultClipartAsset,
+        allowedClipartAssets: runtime.allowedClipartAssets,
         upload: runtime.upload,
       };
     }) as CustomizationLayer[],
