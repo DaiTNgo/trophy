@@ -214,6 +214,7 @@ export type ImageShapeFieldValue = {
   cropScale?: number;
   cropXRatio?: number;
   cropYRatio?: number;
+  cropRotationDeg?: number;
 };
 
 export type ClipartFieldValue = {
@@ -283,6 +284,7 @@ export type RuntimeImageShapeLayer = {
   cropScale: number;
   cropXRatio: number;
   cropYRatio: number;
+  cropRotationDeg: number;
   zIndex: number;
   contentSource?: "upload" | "clipart";
   clipartAssetId?: string;

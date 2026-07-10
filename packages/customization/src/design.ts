@@ -5,7 +5,7 @@ import type {
   CustomizationTemplate,
   RuntimeLayer,
 } from "./types";
-import { normalizeCropScale, normalizeCropPan } from "./geometry";
+import { normalizeCropPan, normalizeCropRotation, normalizeCropScale } from "./geometry";
 import { getFormFieldForLayer, getVisibleLayers } from "./template";
 import { getTextValue, fitTextToLayer, normalizeTextPath } from "./text";
 
@@ -88,6 +88,7 @@ export const buildDesignFromForm = ({
         cropScale: 1,
         cropXRatio: 0,
         cropYRatio: 0,
+        cropRotationDeg: 0,
         contentSource: "clipart",
         clipartAssetId: selectedClipart.clipartAssetId,
         clipartAssetName: selectedClipart.clipartAssetName,
@@ -113,6 +114,7 @@ export const buildDesignFromForm = ({
       cropScale: normalizeCropScale(value.cropScale),
       cropXRatio: normalizeCropPan(value.cropXRatio),
       cropYRatio: normalizeCropPan(value.cropYRatio),
+      cropRotationDeg: normalizeCropRotation(value.cropRotationDeg),
       contentSource: "upload",
     });
   }
