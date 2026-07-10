@@ -32,7 +32,7 @@ interface NavbarProps {
 
 export function Navbar({ categories, collections }: NavbarProps) {
   const { itemCount } = useCart();
-  useNavbarScroll();
+  const { isSticky, slideIn } = useNavbarScroll();
 
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -59,7 +59,17 @@ export function Navbar({ categories, collections }: NavbarProps) {
   }));
 
   return (
-    <div className="shadow-sm">
+    <>
+    {isSticky && <div className="h-20" />}
+    <div
+      id="navbar-container"
+      className={`
+        left-0 right-0 z-50 shadow-sm
+        transition-all duration-500 ease-in-out
+        ${isSticky ? "fixed top-0" : "relative"}
+        ${slideIn ? "translate-y-0" : isSticky ? "-translate-y-full" : ""}
+      `}
+    >
       <header
         className="w-full bg-white flex flex-col relative transition-all duration-300"
         id="main-nav"
@@ -244,5 +254,6 @@ export function Navbar({ categories, collections }: NavbarProps) {
         </div>
       )}
     </div>
+    </>
   );
 }

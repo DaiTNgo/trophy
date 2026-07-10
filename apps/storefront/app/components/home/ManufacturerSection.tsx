@@ -16,10 +16,10 @@ export function CustomizationFeatureSection() {
   return (
     <section className="py-24 px-4 md:px-margin-desktop bg-surface-container-low">
       <div className="max-w-container-max mx-auto">
-        <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-12 2xl:gap-8 items-center">
           {/* Image — left on desktop, first on mobile */}
-          <div className="reveal active">
-            <div className="relative rounded-xl overflow-hidden aspect-[4/3]">
+          <div className="reveal active h-full">
+            <div className="relative rounded-xl overflow-hidden aspect-[4/3] h-full">
               <img
                 className="w-full h-full object-cover"
                 src={FEATURE_IMAGE}
@@ -27,9 +27,9 @@ export function CustomizationFeatureSection() {
                 loading="lazy"
               />
               {/* Subtle overlay badge */}
-              <div className="absolute bottom-6 left-6 bg-[#875200] text-white px-5 py-3 rounded-lg">
-                <span className="block font-heading text-[28px] uppercase leading-none">25+</span>
-                <span className="block font-label-md text-label-md uppercase tracking-wider text-white/90 mt-1">
+              <div className="absolute bottom-4 sm:bottom-6 left-4 sm:left-6 bg-[#875200] text-white px-4 py-2 sm:px-5 sm:py-3 rounded-lg">
+                <span className="block font-heading text-[20px] sm:text-[28px] uppercase leading-none">25+</span>
+                <span className="block font-label-md sm:text-label-md text-[12px] font-medium uppercase tracking-wider text-white/90 mt-1">
                   Năm kinh nghiệm
                 </span>
               </div>
@@ -41,7 +41,7 @@ export function CustomizationFeatureSection() {
             <p className="font-label-md text-label-md uppercase tracking-[0.35em] text-[#875200] mb-4">
               Tùy chỉnh
             </p>
-            <h2 className="font-heading text-[32px] md:text-[40px] uppercase leading-none text-on-surface mb-4">
+            <h2 className="font-heading text-[32px] md:text-[40px] uppercase leading-10 text-on-surface mb-4">
               Thiết kế riêng cho từng khoảnh khắc
             </h2>
             <div className="w-16 h-[3px] bg-[#fea00c] mb-6" />

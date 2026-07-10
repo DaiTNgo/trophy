@@ -67,12 +67,12 @@ export default {
       },
       "fontFamily": {
           "headline-lg": ["Anton"],
-          "label-md": ["Hanken Grotesk"],
+          "label-md": ["Inter"],
           "display-lg-mobile": ["Anton"],
           "headline-md": ["Anton"],
           "display-lg": ["Anton"],
-          "body-md": ["Hanken Grotesk"],
-          "body-lg": ["Hanken Grotesk"]
+          "body-md": ["Inter"],
+          "body-lg": ["Inter"]
       },
       "fontSize": {
           "headline-lg": ["40px", {"lineHeight": "44px", "letterSpacing": "0.02em", "fontWeight": "400"}],

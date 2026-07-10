@@ -46,17 +46,19 @@ export function ReviewsSection() {
           {GUARANTEES.map(({ icon, quote, author, role }, i) => (
             <div
               key={role}
-              className="bg-white rounded-xl p-8 border border-outline-variant luxury-shadow reveal active"
+              className="bg-white rounded-xl p-8 border border-outline-variant luxury-shadow reveal active flex flex-col justify-between"
               style={{ animationDelay: `${i * 80}ms` }}
             >
-              <div className="w-10 h-10 rounded-lg bg-[#875200]/10 flex items-center justify-center mb-6">
+              <div className="flex flex-col mb-6">
+              <div className="w-10 h-10 rounded-lg bg-[#875200]/10 flex items-center justify-center mb-4">
                 {icon === "ShieldCheck" && <ShieldCheck className="text-[22px] text-[#875200]" />}
                 {icon === "Eye" && <Eye className="text-[22px] text-[#875200]" />}
                 {icon === "Clock" && <Clock className="text-[22px] text-[#875200]" />}
               </div>
-              <p className="font-body-lg text-body-lg text-on-surface-variant leading-relaxed mb-6 italic">
+              <p className="font-body-lg text-body-lg text-on-surface-variant leading-relaxed italic">
                 "{quote}"
               </p>
+              </div>
               <div className="border-t border-outline-variant pt-4">
                 <p className="font-label-md text-label-md uppercase tracking-wide text-on-surface">
                   {author}

@@ -39,7 +39,7 @@ export function HeroSection() {
           </div>
 
           {/* H1 — Anton, three lines */}
-          <h1 className="font-heading uppercase text-white mb-6 leading-none tracking-wide">
+          <h1 className="font-heading uppercase text-white mb-6 leading-none tracking-wide inline-flex flex-col gap-3">
             <span className="block text-[56px] md:text-[72px] leading-[1]">VINH DANH</span>
             <span className="block text-[56px] md:text-[72px] leading-[1]">XỨNG TẦM</span>
             <span className="block text-[56px] md:text-[72px] leading-[1] text-[#fea00c]">THÀNH TỰU</span>
@@ -55,13 +55,13 @@ export function HeroSection() {
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-10">
             <Link
               to="/products"
-              className="bg-[#875200] text-white font-label-md text-label-md uppercase px-8 py-4 rounded-lg tracking-widest hover:bg-[#fea00c] hover:text-[#1c1b1b] transition-all duration-300 text-center"
+              className="bg-[#875200] text-white font-label-md text-label-md uppercase px-8 py-4 rounded-lg tracking-widest hover:bg-[#fea00c] hover:text-[#1c1b1b] transition-all duration-300 flex items-center justify-center"
             >
               Khám phá sản phẩm
             </Link>
             <Link
               to="/contact"
-              className="border-2 border-white/50 text-white font-label-md text-label-md uppercase px-8 py-4 rounded-lg tracking-widest hover:border-white hover:bg-white/10 transition-all duration-300 text-center"
+              className="border-2 border-white/50 text-white font-label-md text-label-md uppercase px-8 py-4 rounded-lg tracking-widest hover:border-white hover:bg-white/10 transition-all duration-300 flex items-center justify-center"
             >
               Tùy chỉnh theo yêu cầu
             </Link>

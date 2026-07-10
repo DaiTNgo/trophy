@@ -22,10 +22,10 @@ export default function StorefrontLayout() {
   const { categories, collections } = useLoaderData<typeof loader>();
 
   return (
-    <div className="flex min-h-screen flex-col overflow-x-hidden">
+    <div className="flex min-h-screen flex-col">
       <TrustBar />
       <Navbar categories={categories} collections={collections} />
-      <div className="flex-1">
+      <div className="flex-1 overflow-x-hidden">
         <Outlet />
       </div>
       <Footer />
