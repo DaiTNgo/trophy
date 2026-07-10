@@ -12,6 +12,8 @@ import { getDb } from '../../db/client'
 import {
   productAttributes,
   productAssets,
+  customizationClipartAssets,
+  customizationClipartCategories,
   productCategories,
   productCategoryLinks,
   productCustomizations,
@@ -99,6 +101,28 @@ function parseQuery<TOutput>(
 }
 
 export function sanitizeShopperCustomization(customization: ProductCustomization) {
+  const clipartCategoriesById = new Map<
+    string,
+    { id: string; name: string }
+  >();
+  const clipartAssetsByCategoryId = new Map<string, Array<any>>();
+
+  return sanitizeShopperCustomizationWithClipart(customization, {
+    clipartCategoriesById,
+    clipartAssetsByCategoryId,
+  });
+}
+
+function sanitizeShopperCustomizationWithClipart(
+  customization: ProductCustomization,
+  {
+    clipartCategoriesById,
+    clipartAssetsByCategoryId,
+  }: {
+    clipartCategoriesById: Map<string, { id: string; name: string }>;
+    clipartAssetsByCategoryId: Map<string, Array<any>>;
+  },
+) {
   return {
     enabled: customization.enabled,
     canvasWidthPx: customization.canvasWidthPx,
@@ -126,20 +150,47 @@ export function sanitizeShopperCustomization(customization: ProductCustomization
         layer,
         fieldId: field?.id,
         required: field?.required ?? false,
+        clipartCategoriesById,
+        clipartAssets: (() => {
+          const categoryIds = runtimeCategoryIds(layer, clipartCategoriesById);
+          const derivedAssets = categoryIds.flatMap(
+            (categoryId) => clipartAssetsByCategoryId.get(categoryId) ?? [],
+          );
+          if (derivedAssets.length > 0) {
+            return derivedAssets.filter(
+              (asset, index, array) => array.findIndex((candidate) => candidate.id === asset.id) === index,
+            );
+          }
+          return layer.clipartAssets ?? [];
+        })(),
       });
 
       return {
         ...layer,
         sourcePolicy: runtime.sourcePolicy,
         presentation: runtime.presentation,
+        clipartCategoryMode: runtime.clipartCategoryMode,
         clipartCategory: runtime.clipartCategory,
-        defaultClipartAsset: runtime.defaultClipartAsset,
-        allowedClipartAssets: runtime.allowedClipartAssets,
+        allowedClipartCategories: runtime.allowedClipartCategories,
+        clipartAssets: runtime.clipartAssets,
         upload: runtime.upload,
       };
     }) as CustomizationLayer[],
     formFields: customization.formFields,
   };
+}
+
+function runtimeCategoryIds(
+  layer: ProductCustomization["layers"][number],
+  clipartCategoriesById: Map<string, { id: string; name: string }>,
+) {
+  if (layer.type !== "image_shape") return [];
+  const clipartCategoryMode = layer.clipartCategoryMode ?? "fixed";
+  if (clipartCategoryMode === "allow_list") {
+    return (layer.allowedClipartCategories ?? [])
+      .map((category) => clipartCategoriesById.get(category.id)?.id ?? category.id);
+  }
+  return layer.clipartCategory ? [clipartCategoriesById.get(layer.clipartCategory.id)?.id ?? layer.clipartCategory.id] : [];
 }
 
 export const storefrontProductsRoute = new Hono<AppEnv>()
@@ -483,13 +534,76 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
         formFields: JSON.parse(customizationRow.formFieldsJson)
       };
       await hydrateCustomization(db, parsedCustomization);
-      customization = sanitizeShopperCustomization({
+      const clipartCategoryIds = Array.from(
+        new Set(
+          (parsedCustomization.layers as ProductCustomization["layers"]).flatMap((layer) => {
+            if (layer.type !== "image_shape") return [];
+            const clipartCategoryMode = layer.clipartCategoryMode ?? "fixed";
+            if (clipartCategoryMode === "allow_list") {
+              return (layer.allowedClipartCategories ?? []).map((category) => category.id);
+            }
+            return layer.clipartCategory ? [layer.clipartCategory.id] : [];
+          }),
+        ),
+      );
+
+      const [clipartCategoryRows, clipartAssetRows] = clipartCategoryIds.length
+        ? await Promise.all([
+            db
+              .select({
+                id: customizationClipartCategories.id,
+                name: customizationClipartCategories.name,
+              })
+              .from(customizationClipartCategories)
+              .where(
+                and(
+                  inArray(customizationClipartCategories.id, clipartCategoryIds),
+                  eq(customizationClipartCategories.active, true),
+                ),
+              ),
+            db
+              .select({
+                id: customizationClipartAssets.id,
+                sourceAssetId: customizationClipartAssets.sourceAssetId,
+                name: customizationClipartAssets.name,
+                fileName: customizationClipartAssets.fileName,
+                categoryId: customizationClipartAssets.categoryId,
+                previewUrl: customizationClipartAssets.previewUrl,
+                mimeType: customizationClipartAssets.mimeType,
+                sourceWidthPx: customizationClipartAssets.sourceWidthPx,
+                sourceHeightPx: customizationClipartAssets.sourceHeightPx,
+                active: customizationClipartAssets.active,
+              })
+              .from(customizationClipartAssets)
+              .where(
+                and(
+                  inArray(customizationClipartAssets.categoryId, clipartCategoryIds),
+                  eq(customizationClipartAssets.active, true),
+                ),
+              ),
+          ])
+        : [[], []];
+
+      const clipartCategoriesById = new Map(
+        clipartCategoryRows.map((category) => [category.id, category] as const),
+      );
+      const clipartAssetsByCategoryId = new Map<string, Array<(typeof clipartAssetRows)[number]>>();
+      for (const asset of clipartAssetRows) {
+        const current = clipartAssetsByCategoryId.get(asset.categoryId) ?? [];
+        current.push(asset);
+        clipartAssetsByCategoryId.set(asset.categoryId, current);
+      }
+
+      customization = sanitizeShopperCustomizationWithClipart({
         productId: String(product.id),
         enabled: true,
         canvasWidthPx: parsedCustomization.canvasWidthPx,
         canvasHeightPx: parsedCustomization.canvasHeightPx,
         layers: parsedCustomization.layers as ProductCustomization["layers"],
         formFields: parsedCustomization.formFields as CustomizationFormField[],
+      }, {
+        clipartCategoriesById,
+        clipartAssetsByCategoryId,
       });
     }
 

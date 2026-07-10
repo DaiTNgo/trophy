@@ -1,6 +1,7 @@
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router";
-import { Badge, Container, Heading, Input, Table, Text } from "@medusajs/ui";
+import { Button, Container, Heading, Input, Table, Text, StatusBadge } from "@medusajs/ui";
+import { Adjustments } from "@medusajs/icons";
 import {
   fetchAdminOrders,
   formatAdminCurrency,
@@ -79,61 +80,34 @@ export function OrdersListPage() {
     );
   }, [deferredQuery, orders]);
 
-  const openOrders = orders.filter((order) => order.status !== "cancelled" && order.fulfillmentStatus !== "fulfilled");
-  const grossSales = orders.reduce((sum, order) => sum + order.totalAmount, 0);
-  const reviewQueue = orders.filter((order) => order.status === "pending");
-
   return (
     <div className="flex flex-col gap-y-6">
-      <Container>
-        <div className="flex flex-col gap-y-3">
-          <Text size="small" className="text-ui-fg-muted uppercase tracking-wider">
-            Orders
-          </Text>
-          <div className="flex flex-col gap-y-1">
-            <Heading level="h2">Order operations</Heading>
-            <Text size="base" className="text-ui-fg-subtle">
-              Backend-backed storefront orders are visible here for operator follow-up.
-            </Text>
+      <Container className="p-0 overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-ui-border-base">
+          <Heading level="h2">Orders</Heading>
+          <Button variant="secondary" size="small">Export</Button>
+        </div>
+
+        {/* Filters */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-ui-border-base">
+          <Button variant="secondary" size="small">Add filter</Button>
+          <div className="flex items-center gap-x-2">
+            <Input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search"
+              className="w-full sm:w-64"
+            />
+            <Button variant="secondary" size="small" className="p-1 px-2 h-auto text-ui-fg-muted">
+              <Adjustments className="h-4 w-4" />
+            </Button>
           </div>
         </div>
-      </Container>
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <Container className="flex flex-col gap-y-1">
-          <Text size="small" className="text-ui-fg-subtle">Open orders</Text>
-          <Heading level="h1" className="text-ui-fg-base">{openOrders.length}</Heading>
-          <Text size="xsmall" className="text-ui-fg-muted">{reviewQueue.length} waiting for manual review</Text>
-        </Container>
-        <Container className="flex flex-col gap-y-1">
-          <Text size="small" className="text-ui-fg-subtle">Gross sales</Text>
-          <Heading level="h1" className="text-ui-fg-base">{formatAdminCurrency(grossSales, "VND")}</Heading>
-          <Text size="xsmall" className="text-ui-fg-muted">Captured from stored order totals</Text>
-        </Container>
-        <Container className="flex flex-col gap-y-1">
-          <Text size="small" className="text-ui-fg-subtle">Pending confirmation</Text>
-          <Heading level="h1" className="text-ui-fg-base">{reviewQueue.length}</Heading>
-          <Text size="xsmall" className="text-ui-fg-muted">Orders still waiting for operator follow-up</Text>
-        </Container>
-      </div>
-
-      <Container>
-        <div className="flex flex-col gap-y-3">
-          <div className="flex flex-col gap-y-1">
-            <Heading level="h3">All orders</Heading>
-            <Text size="small" className="text-ui-fg-subtle">
-              Search by order number, customer, or backend status fields.
-            </Text>
-          </div>
-          <Input
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search orders"
-            className="w-full sm:w-72"
-          />
-        </div>
-        <div className="mt-3">
+        {/* Table */}
+        <div>
           {loading ? (
             <div className="flex items-center justify-center py-8">
               <Text size="small" className="text-ui-fg-muted">Loading orders…</Text>
@@ -151,11 +125,12 @@ export function OrdersListPage() {
               <Table.Header>
                 <Table.Row>
                   <Table.HeaderCell>Order</Table.HeaderCell>
+                  <Table.HeaderCell>Date</Table.HeaderCell>
                   <Table.HeaderCell>Customer</Table.HeaderCell>
                   <Table.HeaderCell>Status</Table.HeaderCell>
-                  <Table.HeaderCell>Items</Table.HeaderCell>
-                  <Table.HeaderCell>Created</Table.HeaderCell>
-                  <Table.HeaderCell className="text-right">Total</Table.HeaderCell>
+                  <Table.HeaderCell>Payment</Table.HeaderCell>
+                  <Table.HeaderCell>Fulfillment</Table.HeaderCell>
+                  <Table.HeaderCell className="text-right">Order Total</Table.HeaderCell>
                 </Table.Row>
               </Table.Header>
               <Table.Body>
@@ -164,37 +139,34 @@ export function OrdersListPage() {
                     <Table.Cell>
                       <Link
                         to={`/orders/${order.orderNumber}`}
-                        className="font-medium text-ui-fg-interactive hover:text-ui-fg-interactive-hover"
+                        className="text-ui-fg-interactive hover:text-ui-fg-interactive-hover"
                       >
-                        {order.orderNumber}
+                        #{order.orderNumber}
                       </Link>
-                    </Table.Cell>
-                    <Table.Cell>
-                      <div className="flex flex-col gap-y-0.5">
-                        <Text size="small" className="text-ui-fg-base">{order.customerName}</Text>
-                        {order.customerEmail ? (
-                          <Text size="xsmall" className="text-ui-fg-muted">{order.customerEmail}</Text>
-                        ) : null}
-                      </div>
-                    </Table.Cell>
-                    <Table.Cell>
-                      <div className="flex flex-wrap gap-2">
-                        <Badge color={getBadgeColor(order.status)} size="xsmall" rounded="full">
-                          {formatStatusLabel(order.status)}
-                        </Badge>
-                        <Badge color={getBadgeColor(order.fulfillmentStatus)} size="xsmall" rounded="full">
-                          {formatStatusLabel(order.fulfillmentStatus)}
-                        </Badge>
-                      </div>
-                    </Table.Cell>
-                    <Table.Cell>
-                      <Text size="small" className="text-ui-fg-subtle">{order.itemCount}</Text>
                     </Table.Cell>
                     <Table.Cell>
                       <Text size="small" className="text-ui-fg-subtle">{formatAdminDate(order.createdAt)}</Text>
                     </Table.Cell>
+                    <Table.Cell>
+                      <Text size="small" className="text-ui-fg-subtle">{order.customerEmail || order.customerName}</Text>
+                    </Table.Cell>
+                    <Table.Cell>
+                      <StatusBadge color={getBadgeColor(order.status)}>
+                        {formatStatusLabel(order.status)}
+                      </StatusBadge>
+                    </Table.Cell>
+                    <Table.Cell>
+                      <StatusBadge color={getBadgeColor(order.paymentStatus)}>
+                        {formatStatusLabel(order.paymentStatus)}
+                      </StatusBadge>
+                    </Table.Cell>
+                    <Table.Cell>
+                      <StatusBadge color={getBadgeColor(order.fulfillmentStatus)}>
+                        {formatStatusLabel(order.fulfillmentStatus)}
+                      </StatusBadge>
+                    </Table.Cell>
                     <Table.Cell className="text-right">
-                      <Text size="small" className="font-medium text-ui-fg-base">
+                      <Text size="small" className="text-ui-fg-subtle">
                         {formatAdminCurrency(order.totalAmount, order.currencyCode)}
                       </Text>
                     </Table.Cell>
@@ -203,6 +175,20 @@ export function OrdersListPage() {
               </Table.Body>
             </Table>
           )}
+        </div>
+
+        {/* Pagination Footer */}
+        <div className="flex items-center justify-between px-6 py-4 border-t border-ui-border-base">
+          <Text size="small" className="text-ui-fg-subtle">
+            1 — {filteredOrders.length} of {filteredOrders.length} results
+          </Text>
+          <div className="flex items-center gap-x-4">
+            <Text size="small" className="text-ui-fg-subtle">1 of 1 pages</Text>
+            <div className="flex gap-x-2">
+               <Button variant="transparent" size="small" disabled className="text-ui-fg-muted font-normal">Prev</Button>
+               <Button variant="transparent" size="small" disabled className="text-ui-fg-muted font-normal">Next</Button>
+            </div>
+          </div>
         </div>
       </Container>
     </div>

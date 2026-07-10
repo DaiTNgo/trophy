@@ -188,7 +188,7 @@ describe("buildListingItem", () => {
 });
 
 describe("sanitizeShopperCustomization", () => {
-  it("keeps only shopper-safe allowed clipart assets for clipart-enabled layers", () => {
+  it("keeps only shopper-safe derived clipart assets for clipart-enabled layers", () => {
     const customization: ProductCustomization = {
       productId: "1",
       enabled: true,
@@ -200,20 +200,9 @@ describe("sanitizeShopperCustomization", () => {
               ...layer,
               sourcePolicy: "upload_or_clipart_category",
               presentation: "source_select",
-              clipartCategory: { id: "sports", name: "Sports" },
-              defaultClipartAsset: {
-                id: "clipart_active",
-                sourceAssetId: "asset_active",
-                name: "Active Clipart",
-                fileName: "active.svg",
-                categoryId: "sports",
-                previewUrl: "/api/assets/customizations/asset_active/content",
-                mimeType: "image/svg+xml",
-                sourceWidthPx: 200,
-                sourceHeightPx: 200,
-                active: true,
-              },
-              allowedClipartAssets: [
+              clipartCategoryMode: "allow_list",
+              allowedClipartCategories: [{ id: "sports", name: "Sports" }],
+              clipartAssets: [
                 {
                   id: "clipart_active",
                   sourceAssetId: "asset_active",
@@ -251,15 +240,15 @@ describe("sanitizeShopperCustomization", () => {
     expect(imageLayer).toMatchObject({
       sourcePolicy: "upload_or_clipart_category",
       presentation: "source_select",
-      clipartCategory: { id: "sports", name: "Sports" },
-      defaultClipartAsset: { id: "clipart_active" },
+      clipartCategoryMode: "allow_list",
+      allowedClipartCategories: [{ id: "sports", name: "Sports" }],
     });
-    expect((imageLayer as any).allowedClipartAssets).toEqual([
+    expect((imageLayer as any).clipartAssets).toEqual([
       expect.objectContaining({
         id: "clipart_active",
         sourceAssetId: "asset_active",
       }),
     ]);
-    expect((imageLayer as any).allowedClipartAssets).toHaveLength(1);
+    expect((imageLayer as any).clipartAssets).toHaveLength(1);
   });
 });

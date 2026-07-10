@@ -1,5 +1,6 @@
 import {
   buildDesignFromForm,
+  getImageShapeClipartCategoryMode,
   getOrderedFormFields,
   getTextPathRenderAttributes,
   getTextPathSvgD,
@@ -18,7 +19,7 @@ import {
   type RuntimeLayer,
   type TextFieldValue,
 } from "@trophy/customization";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 const BACKEND_URL =
   (import.meta.env.VITE_BACKEND_URL as string | undefined)?.replace(/\/$/, "") ??
@@ -499,13 +500,47 @@ function ImageField({
   onUpload: (file: File) => void;
 }) {
   const sourcePolicy = layer?.sourcePolicy ?? "upload_only";
+  const clipartCategoryMode = layer ? getImageShapeClipartCategoryMode(layer) : "fixed";
   const uploaded = value && typeof value === "object" && "assetId" in value ? value : null;
   const clipartValue =
     value && typeof value === "object" && "source" in value && value.source === "clipart" ? value : null;
-  const availableClipartAssets = (layer?.allowedClipartAssets ?? []).filter((asset) => {
-    if (!asset.active) return false;
-    if (layer?.clipartCategory?.id) return asset.categoryId === layer.clipartCategory.id;
-    return true;
+  const scopedClipartCategories =
+    !layer
+      ? []
+      : clipartCategoryMode === "allow_list"
+        ? (layer.allowedClipartCategories ?? [])
+        : layer.clipartCategory
+          ? [layer.clipartCategory]
+          : [];
+  const initialCategoryId =
+    clipartValue?.categoryId ??
+    (clipartCategoryMode === "fixed" ? layer?.clipartCategory?.id : scopedClipartCategories[0]?.id) ??
+    "";
+  const [selectedCategoryId, setSelectedCategoryId] = useState(initialCategoryId);
+  useEffect(() => {
+    setSelectedCategoryId((current) => {
+      if (clipartCategoryMode === "fixed") {
+        return layer?.clipartCategory?.id ?? "";
+      }
+      const allowedIds = new Set(scopedClipartCategories.map((category) => category.id));
+      if (current && allowedIds.has(current)) {
+        return current;
+      }
+      if (clipartValue?.categoryId && allowedIds.has(clipartValue.categoryId)) {
+        return clipartValue.categoryId;
+      }
+      return scopedClipartCategories[0]?.id ?? "";
+    });
+  }, [clipartCategoryMode, layer?.clipartCategory?.id, clipartValue?.categoryId, layer?.id, scopedClipartCategories]);
+  const scopedCategoryIds = new Set(scopedClipartCategories.map((category) => category.id));
+  const activeCategoryId =
+    clipartCategoryMode === "fixed"
+      ? layer?.clipartCategory?.id ?? ""
+      : selectedCategoryId || scopedClipartCategories[0]?.id || "";
+  const availableClipartAssets = (layer?.clipartAssets ?? []).filter((asset) => {
+    if (!asset.active || !scopedCategoryIds.has(asset.categoryId)) return false;
+    if (!activeCategoryId) return true;
+    return asset.categoryId === activeCategoryId;
   });
   const currentSource =
     sourcePolicy === "clipart_category_only" ? "clipart" : clipartValue ? "clipart" : "upload";
@@ -564,8 +599,24 @@ function ImageField({
 
   const clipartSection = (
     <div className="space-y-3">
-      {layer?.clipartCategory?.name ? (
+      {clipartCategoryMode === "fixed" && layer?.clipartCategory?.name ? (
         <p className="text-xs text-on-surface-variant">Category: {layer.clipartCategory.name}</p>
+      ) : null}
+      {clipartCategoryMode === "allow_list" && scopedClipartCategories.length > 0 ? (
+        <label className="block text-xs font-semibold text-on-surface-variant">
+          Category
+          <select
+            value={activeCategoryId}
+            onChange={(event) => setSelectedCategoryId(event.target.value)}
+            className="mt-2 w-full rounded-lg border border-outline bg-background px-4 py-3 text-sm text-on-surface"
+          >
+            {scopedClipartCategories.map((category) => (
+              <option key={category.id} value={category.id}>
+                {category.name}
+              </option>
+            ))}
+          </select>
+        </label>
       ) : null}
       <div className="grid grid-cols-3 gap-2">
         {availableClipartAssets.map((clipart) => {
@@ -624,6 +675,9 @@ function ImageField({
               onClick={() => {
                 if (availableClipartAssets[0]) {
                   const clipart = availableClipartAssets[0];
+                  if (clipartCategoryMode === "allow_list") {
+                    setSelectedCategoryId(clipart.categoryId);
+                  }
                   onChange({
                     source: "clipart",
                     clipartAssetId: clipart.id,

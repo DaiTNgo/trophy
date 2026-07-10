@@ -1,8 +1,22 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router";
-import { Badge, Button, Container, Heading, Text } from "@medusajs/ui";
-import { ArrowLeft, CreditCard, MapPin, Package, ShoppingCart, User } from "lucide-react";
-import { fetchAdminOrderDetail, formatAdminCurrency, formatAdminDate, formatStatusLabel, type AdminOrderDetail } from "../lib/orders-client";
+import {
+  StatusBadge,
+  Button,
+  Container,
+  Heading,
+  Text,
+  DropdownMenu,
+} from "@medusajs/ui";
+import { ArrowLeft, SquareTwoStack, EllipsisHorizontal, PencilSquare, ArrowPath, ShoppingCart, XMark } from "@medusajs/icons";
+import {
+  fetchAdminOrderDetail,
+  formatAdminCurrency,
+  formatAdminDate,
+  formatStatusLabel,
+  type AdminOrderDetail,
+} from "../lib/orders-client";
+import { useBreadcrumbs } from "../hooks/use-breadcrumbs";
 
 function getBadgeColor(
   status: string,
@@ -31,14 +45,35 @@ function renderAddress(address: AdminOrderDetail["primaryAddress"]) {
     return "No address on record.";
   }
 
-  return [address.line1, address.line2, address.city, address.province, address.postalCode, address.country]
+  return [
+    address.line1,
+    address.line2,
+    address.city,
+    address.province,
+    address.postalCode,
+    address.country,
+  ]
     .filter(Boolean)
     .join(", ");
 }
 
 export function OrderDetailPage() {
   const { orderNumber } = useParams();
-  const [order, setOrder] = useState<AdminOrderDetail | null | undefined>(undefined);
+  const { setBreadcrumbs } = useBreadcrumbs();
+
+  useEffect(() => {
+    if (orderNumber) {
+      setBreadcrumbs([
+        { label: "Orders", path: "/orders" },
+        { label: `#${orderNumber}` }
+      ]);
+    }
+    return () => setBreadcrumbs([]);
+  }, [orderNumber, setBreadcrumbs]);
+
+  const [order, setOrder] = useState<AdminOrderDetail | null | undefined>(
+    undefined,
+  );
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -57,7 +92,9 @@ export function OrderDetailPage() {
       })
       .catch((err) => {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Failed to load order detail");
+          setError(
+            err instanceof Error ? err.message : "Failed to load order detail",
+          );
           setOrder(null);
         }
       });
@@ -70,7 +107,9 @@ export function OrderDetailPage() {
   if (order === undefined) {
     return (
       <Container>
-        <Text size="small" className="text-ui-fg-muted">Loading order…</Text>
+        <Text size="small" className="text-ui-fg-muted">
+          Loading order…
+        </Text>
       </Container>
     );
   }
@@ -78,14 +117,28 @@ export function OrderDetailPage() {
   if (!order || error) {
     return (
       <div className="flex flex-col gap-y-6">
+        <div className="flex items-center gap-x-2">
+          <Link
+            to="/orders"
+            className="text-ui-fg-subtle hover:text-ui-fg-base text-small transition-colors"
+          >
+            Orders
+          </Link>
+          <Text size="small" className="text-ui-fg-muted">
+            ›
+          </Text>
+          <Text size="small" className="text-ui-fg-muted">
+            Error
+          </Text>
+        </div>
         <Container>
           <div className="flex flex-col gap-y-3">
-            <Text size="small" className="text-ui-fg-muted uppercase tracking-wider">Orders</Text>
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div className="flex flex-col gap-y-1">
                 <Heading level="h2">Order not found</Heading>
                 <Text size="base" className="text-ui-fg-subtle">
-                  {error || "The requested order is not available in the backend queue."}
+                  {error ||
+                    "The requested order is not available in the backend queue."}
                 </Text>
               </div>
               <Button variant="secondary" size="small" asChild>
@@ -102,210 +155,516 @@ export function OrderDetailPage() {
   }
 
   return (
-    <div className="flex flex-col gap-y-6">
-      <Container>
-        <div className="flex flex-col gap-y-3">
-          <Text size="small" className="text-ui-fg-muted uppercase tracking-wider">Orders</Text>
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div className="flex flex-col gap-y-1">
-              <Heading level="h2">Order {order.orderNumber}</Heading>
-              <Text size="base" className="text-ui-fg-subtle">
-                Backend-backed detail for storefront checkout intake. Status transitions stay read-only in this slice.
-              </Text>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Button variant="secondary" size="small" asChild>
-                <Link to="/orders">
-                  <ArrowLeft className="h-4 w-4" />
-                  Back
-                </Link>
-              </Button>
-            </div>
-          </div>
-        </div>
-      </Container>
-
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="flex flex-col gap-y-6">
-          <Container>
-            <div className="flex flex-col gap-y-3">
-              <div className="flex flex-col gap-y-1">
-                <Heading level="h3">Summary</Heading>
-                <Text size="small" className="text-ui-fg-subtle">Stored order state and totals from the backend snapshot.</Text>
+    <div className="flex flex-col gap-y-4">
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+        {/* Left Column - Main Content */}
+        <div className="flex flex-col gap-y-4">
+          {/* Header Card */}
+          <Container className="p-0">
+            <div className="flex items-center justify-between p-6">
+              <div className="flex flex-col gap-y-2">
+                <div className="flex items-center gap-x-2">
+                  <Heading level="h1">#{order.orderNumber}</Heading>
+                  <Button
+                    variant="transparent"
+                    size="small"
+                    className="p-1 h-auto"
+                  >
+                    <SquareTwoStack className="h-4 w-4 text-ui-fg-muted" />
+                  </Button>
+                </div>
+                <Text size="small" className="text-ui-fg-subtle">
+                  {formatAdminDate(order.createdAt)} from Default Sales Channel
+                </Text>
               </div>
-              <div className="grid gap-4 md:grid-cols-3">
-                <div className="flex flex-col gap-y-1">
-                  <Text size="small" className="text-ui-fg-subtle">Order status</Text>
-                  <Badge color={getBadgeColor(order.status)} size="xsmall" rounded="full">
-                    {formatStatusLabel(order.status)}
-                  </Badge>
-                  <Text size="xsmall" className="text-ui-fg-muted">Created {formatAdminDate(order.createdAt)}</Text>
-                </div>
-                <div className="flex flex-col gap-y-1">
-                  <Text size="small" className="text-ui-fg-subtle">Payment</Text>
-                  <Badge color={getBadgeColor(order.paymentStatus)} size="xsmall" rounded="full">
-                    {formatStatusLabel(order.paymentStatus)}
-                  </Badge>
-                  <Text size="xsmall" className="text-ui-fg-muted">Method: {formatStatusLabel(order.paymentMethod)}</Text>
-                </div>
-                <div className="flex flex-col gap-y-1">
-                  <Text size="small" className="text-ui-fg-subtle">Fulfillment</Text>
-                  <Badge color={getBadgeColor(order.fulfillmentStatus)} size="xsmall" rounded="full">
-                    {formatStatusLabel(order.fulfillmentStatus)}
-                  </Badge>
-                  <Text size="xsmall" className="text-ui-fg-muted">{order.totals.itemCount} items in order</Text>
-                </div>
+              <div className="flex items-center gap-x-3">
+                <StatusBadge color={getBadgeColor(order.paymentStatus)}>
+                  {formatStatusLabel(order.paymentStatus)}
+                </StatusBadge>
+                <StatusBadge
+                  color={getBadgeColor(order.fulfillmentStatus)}
+                >
+                  {formatStatusLabel(order.fulfillmentStatus)}
+                </StatusBadge>
+                <DropdownMenu>
+                  <DropdownMenu.Trigger asChild>
+                    <Button variant="transparent" size="small" className="p-1">
+                      <EllipsisHorizontal className="h-5 w-5 text-ui-fg-muted" />
+                    </Button>
+                  </DropdownMenu.Trigger>
+                  <DropdownMenu.Content>
+                    <DropdownMenu.Item>
+                      <XMark className="mr-2 h-4 w-4" />
+                      Cancel
+                    </DropdownMenu.Item>
+                  </DropdownMenu.Content>
+                </DropdownMenu>
               </div>
             </div>
           </Container>
 
-          <Container>
-            <div className="flex flex-col gap-y-3">
-              <div className="flex flex-col gap-y-1">
-                <Heading level="h3">
-                  <ShoppingCart className="-ml-1 mr-1 inline h-4 w-4 text-ui-fg-muted" />
-                  Line items
-                </Heading>
-                <Text size="small" className="text-ui-fg-subtle">
-                  Stored product, variant, and customization summaries captured at checkout.
-                </Text>
-              </div>
-              <div className="flex flex-col gap-y-3">
-                {order.items.map((item) => (
-                  <div key={item.id} className="rounded-lg border border-ui-border-base px-4 py-4">
-                    <div className="flex items-start justify-between gap-4">
+          {/* Summary (Line Items) */}
+          <Container className="p-0">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-ui-border-base">
+              <Heading level="h2">Summary</Heading>
+              <DropdownMenu>
+                <DropdownMenu.Trigger asChild>
+                  <Button variant="transparent" size="small" className="p-1">
+                    <EllipsisHorizontal className="h-5 w-5 text-ui-fg-muted" />
+                  </Button>
+                </DropdownMenu.Trigger>
+                <DropdownMenu.Content>
+                  <DropdownMenu.Item>
+                    <PencilSquare className="mr-2 h-4 w-4" />
+                    Edit Order
+                  </DropdownMenu.Item>
+                </DropdownMenu.Content>
+              </DropdownMenu>
+            </div>
+
+            <div className="flex flex-col gap-y-0 p-6">
+              {order.items.map((item) => (
+                <div
+                  key={item.id}
+                  className="flex flex-col gap-y-3 py-4 border-b border-ui-border-base last:border-0 last:pb-0 first:pt-0"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-start gap-x-4">
+                      <div className="h-10 w-8 bg-ui-bg-subtle rounded flex items-center justify-center border border-ui-border-base shrink-0 overflow-hidden">
+                        <ShoppingCart className="h-4 w-4 text-ui-fg-muted" />
+                      </div>
                       <div className="flex flex-col gap-y-0.5">
-                        <Text size="small" className="font-medium text-ui-fg-base">
+                        <Text
+                          size="small"
+                          className="font-medium text-ui-fg-base"
+                        >
                           {item.product?.title ?? "Unknown product"}
                         </Text>
-                        <Text size="xsmall" className="text-ui-fg-muted">
+                        <Text size="small" className="text-ui-fg-subtle">
                           {item.variant?.title ?? "Unknown variant"}
-                          {item.variant?.sku ? ` • ${item.variant.sku}` : ""}
                         </Text>
-                        <Text size="xsmall" className="text-ui-fg-muted">
-                          Production: {formatStatusLabel(item.productionStatus)}
-                        </Text>
-                      </div>
-                      <div className="text-right">
-                        <Text size="small" className="text-ui-fg-muted">{item.quantity} units</Text>
-                        <Text size="small" className="font-medium text-ui-fg-base">
-                          {formatAdminCurrency(item.lineSubtotalAmount, order.totals.currencyCode)}
-                        </Text>
+                        {item.variant?.sku && (
+                          <Text
+                            size="xsmall"
+                            className="text-ui-fg-muted mt-1 font-mono"
+                          >
+                            {item.variant.sku}
+                          </Text>
+                        )}
                       </div>
                     </div>
-                    {item.customization?.values.length ? (
-                      <div className="mt-4 rounded-lg border border-ui-border-base bg-ui-bg-subtle p-3">
+
+                    <div className="flex items-center gap-x-6 text-ui-fg-muted">
+                      <Text size="small">
+                        {formatAdminCurrency(
+                          item.lineSubtotalAmount,
+                          order.totals.currencyCode,
+                        )}
+                      </Text>
+                      <Text size="small">{item.quantity}x</Text>
+                      <StatusBadge color="green">
+                        Allocated
+                      </StatusBadge>
+                      <Text
+                        size="small"
+                        className="font-medium text-ui-fg-base w-16 text-right"
+                      >
+                        {formatAdminCurrency(
+                          item.lineSubtotalAmount * item.quantity,
+                          order.totals.currencyCode,
+                        )}
+                      </Text>
+                    </div>
+                  </div>
+
+                  {/* Production Ticket (Customization) */}
+                  {item.customization?.values.length ? (
+                    <div className="ml-12 mt-1 rounded-lg border border-ui-border-base bg-ui-bg-subtle p-3 shadow-sm">
+                      <div className="flex items-center justify-between mb-2 pb-2 border-b border-ui-border-base">
+                        <Text
+                          size="xsmall"
+                          className="font-medium text-ui-fg-base uppercase tracking-wider"
+                        >
+                          Production Ticket
+                        </Text>
+                        <StatusBadge
+                          color={getBadgeColor(item.productionStatus)}
+                        >
+                          {formatStatusLabel(item.productionStatus)}
+                        </StatusBadge>
+                      </div>
+                      <div className="flex flex-col gap-y-1.5">
                         {item.customization.values.map((entry) => (
-                          <Text key={entry.fieldId} size="xsmall" className="text-ui-fg-muted">
-                            <span className="font-medium text-ui-fg-base">{entry.label}:</span> {entry.valueSummary}
-                          </Text>
+                          <div key={entry.fieldId} className="flex gap-x-2">
+                            <Text
+                              size="xsmall"
+                              className="font-medium text-ui-fg-subtle w-24 shrink-0"
+                            >
+                              {entry.label}
+                            </Text>
+                            <Text
+                              size="xsmall"
+                              className="text-ui-fg-base break-words font-medium"
+                            >
+                              {entry.valueSummary}
+                            </Text>
+                          </div>
                         ))}
                       </div>
-                    ) : null}
-                  </div>
-                ))}
+                    </div>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+
+            <div className="p-6 border-t border-ui-border-base flex flex-col gap-y-3">
+              <div className="flex items-center justify-between">
+                <Text size="small" className="text-ui-fg-subtle">
+                  Item Subtotal
+                </Text>
+                <Text size="small" className="text-ui-fg-base">
+                  {formatAdminCurrency(
+                    order.totals.totalAmount,
+                    order.totals.currencyCode,
+                  )}
+                </Text>
+              </div>
+              <div className="flex items-center justify-between">
+                <Text
+                  size="small"
+                  className="text-ui-fg-subtle flex items-center gap-x-1"
+                >
+                  Shipping Subtotal <span className="text-ui-fg-muted">›</span>
+                </Text>
+                <Text size="small" className="text-ui-fg-base">
+                  {formatAdminCurrency(0, order.totals.currencyCode)}
+                </Text>
+              </div>
+              <div className="flex items-center justify-between">
+                <Text size="small" className="text-ui-fg-subtle">
+                  Tax Total
+                </Text>
+                <Text size="small" className="text-ui-fg-base">
+                  {formatAdminCurrency(0, order.totals.currencyCode)}
+                </Text>
+              </div>
+              <div className="flex items-center justify-between">
+                <Text size="small" className="font-medium text-ui-fg-base">
+                  Order Total
+                </Text>
+                <Text size="small" className="font-medium text-ui-fg-base">
+                  {formatAdminCurrency(
+                    order.totals.totalAmount,
+                    order.totals.currencyCode,
+                  )}
+                </Text>
+              </div>
+
+              <div className="flex items-center justify-between mt-4 pt-4 border-t border-ui-border-base border-dashed">
+                <Text size="small" className="text-ui-fg-subtle">
+                  Paid Total
+                </Text>
+                <Text size="small" className="text-ui-fg-base">
+                  {formatAdminCurrency(0, order.totals.currencyCode)}
+                </Text>
+              </div>
+              <div className="flex items-center justify-between">
+                <Text size="small" className="font-medium text-ui-fg-base">
+                  Outstanding amount
+                </Text>
+                <Text size="small" className="font-medium text-ui-fg-base">
+                  {formatAdminCurrency(
+                    order.totals.totalAmount,
+                    order.totals.currencyCode,
+                  )}
+                </Text>
               </div>
             </div>
           </Container>
 
-          <Container>
-            <div className="flex flex-col gap-y-3">
-              <div className="flex flex-col gap-y-1">
-                <Heading level="h3">
-                  <User className="-ml-1 mr-1 inline h-4 w-4 text-ui-fg-muted" />
-                  Customer
-                </Heading>
-                <Text size="small" className="text-ui-fg-subtle">Primary storefront checkout contact.</Text>
-              </div>
-              <dl className="flex flex-col gap-y-2">
-                <div className="flex items-center justify-between">
-                  <Text size="small" className="text-ui-fg-subtle">Name</Text>
-                  <Text size="small" className="text-ui-fg-base">{order.customer.name}</Text>
-                </div>
-                <div className="flex items-center justify-between">
-                  <Text size="small" className="text-ui-fg-subtle">Phone</Text>
-                  <Text size="small" className="text-ui-fg-base">{order.customer.phone}</Text>
-                </div>
-                <div className="flex items-center justify-between">
-                  <Text size="small" className="text-ui-fg-subtle">Email</Text>
-                  <Text size="small" className="text-ui-fg-base">{order.customer.email ?? "Not provided"}</Text>
-                </div>
-              </dl>
+          {/* Payments */}
+          <Container className="p-0">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-ui-border-base">
+              <Heading level="h2">Payments</Heading>
+              <StatusBadge color={getBadgeColor(order.paymentStatus)}>
+                {formatStatusLabel(order.paymentStatus)}
+              </StatusBadge>
             </div>
-          </Container>
-
-          <Container>
-            <div className="flex flex-col gap-y-3">
-              <div className="flex flex-col gap-y-1">
-                <Heading level="h3">
-                  <MapPin className="-ml-1 mr-1 inline h-4 w-4 text-ui-fg-muted" />
-                  Addresses
-                </Heading>
-                <Text size="small" className="text-ui-fg-subtle">Stored primary and optional different shipping address snapshots.</Text>
-              </div>
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="rounded-lg border border-ui-border-base bg-ui-bg-subtle p-4">
-                  <Text size="small" className="font-medium text-ui-fg-base">Primary</Text>
-                  <Text size="small" className="mt-2 text-ui-fg-muted">{renderAddress(order.primaryAddress)}</Text>
+            <div className="p-6 flex flex-col gap-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex flex-col gap-y-0.5">
+                  <Text size="small" className="text-ui-fg-base">
+                    #PAY_DEFAULT
+                  </Text>
+                  <Text size="small" className="text-ui-fg-subtle">
+                    {formatAdminDate(order.createdAt)}
+                  </Text>
                 </div>
-                <div className="rounded-lg border border-ui-border-base bg-ui-bg-subtle p-4">
-                  <Text size="small" className="font-medium text-ui-fg-base">Shipping</Text>
-                  <Text size="small" className="mt-2 text-ui-fg-muted">
-                    {order.shippingAddress
-                      ? `${order.shippingAddress.recipientName} • ${order.shippingAddress.recipientPhone} • ${renderAddress(order.shippingAddress.address)}`
-                      : "Uses primary checkout address."}
+                <div className="flex items-center gap-x-6">
+                  <Text size="small" className="text-ui-fg-subtle">
+                    {formatStatusLabel(order.paymentMethod)}
+                  </Text>
+                  <StatusBadge color="orange">
+                    Pending
+                  </StatusBadge>
+                  <Text
+                    size="small"
+                    className="text-ui-fg-base w-16 text-right"
+                  >
+                    {formatAdminCurrency(
+                      order.totals.totalAmount,
+                      order.totals.currencyCode,
+                    )}
+                  </Text>
+                  <Button
+                    variant="transparent"
+                    size="small"
+                    className="p-1 -ml-2"
+                  >
+                    <EllipsisHorizontal className="h-5 w-5 text-ui-fg-muted" />
+                  </Button>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between p-3 bg-ui-bg-subtle rounded-lg border border-ui-border-base">
+                <div className="flex items-center gap-x-2 text-ui-fg-subtle">
+                  <ArrowPath className="h-4 w-4" />
+                  <Text size="small">Payment is ready to be captured.</Text>
+                </div>
+                <Button variant="secondary" size="small">
+                  Capture payment
+                </Button>
+              </div>
+
+              <div className="flex flex-col gap-y-2 mt-2">
+                <div className="flex items-center justify-between">
+                  <Text size="small" className="text-ui-fg-subtle">
+                    Total paid by customer
+                  </Text>
+                  <Text size="small" className="text-ui-fg-base">
+                    {formatAdminCurrency(0, order.totals.currencyCode)}
+                  </Text>
+                </div>
+                <div className="flex items-center justify-between">
+                  <Text size="small" className="font-medium text-ui-fg-base">
+                    Total pending
+                  </Text>
+                  <Text size="small" className="font-medium text-ui-fg-base">
+                    {formatAdminCurrency(
+                      order.totals.totalAmount,
+                      order.totals.currencyCode,
+                    )}
                   </Text>
                 </div>
               </div>
+            </div>
+          </Container>
+
+          {/* Unfulfilled Items */}
+          <Container className="p-0">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-ui-border-base">
+              <Heading level="h2">Unfulfilled Items</Heading>
+              <div className="flex items-center gap-x-3">
+                <StatusBadge color="red">
+                  Requires shipping
+                </StatusBadge>
+                <StatusBadge color="red">
+                  Awaiting fulfillment
+                </StatusBadge>
+                <DropdownMenu>
+                  <DropdownMenu.Trigger asChild>
+                    <Button variant="transparent" size="small" className="p-1">
+                      <EllipsisHorizontal className="h-5 w-5 text-ui-fg-muted" />
+                    </Button>
+                  </DropdownMenu.Trigger>
+                  <DropdownMenu.Content>
+                    <DropdownMenu.Item>Fulfill order</DropdownMenu.Item>
+                  </DropdownMenu.Content>
+                </DropdownMenu>
+              </div>
+            </div>
+            <div className="p-6">
+              {order.items.map((item) => (
+                <div
+                  key={`unfulfilled-${item.id}`}
+                  className="flex items-start justify-between gap-4 py-3 border-b border-ui-border-base last:border-0 last:pb-0 first:pt-0"
+                >
+                  <div className="flex items-start gap-x-4">
+                    <div className="h-10 w-8 bg-ui-bg-subtle rounded flex items-center justify-center border border-ui-border-base shrink-0 overflow-hidden">
+                      <ShoppingCart className="h-4 w-4 text-ui-fg-muted" />
+                    </div>
+                    <div className="flex flex-col gap-y-0.5">
+                      <Text
+                        size="small"
+                        className="font-medium text-ui-fg-base"
+                      >
+                        {item.product?.title ?? "Unknown product"}
+                      </Text>
+                      <Text size="small" className="text-ui-fg-subtle">
+                        {item.variant?.title ?? "Unknown variant"}{" "}
+                        <SquareTwoStack className="inline ml-1 h-3 w-3 text-ui-fg-muted" />
+                      </Text>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-x-6 text-ui-fg-muted mt-2">
+                    <Text size="small">
+                      {formatAdminCurrency(
+                        item.lineSubtotalAmount,
+                        order.totals.currencyCode,
+                      )}
+                    </Text>
+                    <Text size="small">{item.quantity}x</Text>
+                    <Text
+                      size="small"
+                      className="font-medium text-ui-fg-base w-16 text-right"
+                    >
+                      {formatAdminCurrency(
+                        item.lineSubtotalAmount * item.quantity,
+                        order.totals.currencyCode,
+                      )}
+                    </Text>
+                  </div>
+                </div>
+              ))}
             </div>
           </Container>
         </div>
 
-        <aside className="flex flex-col gap-y-6">
-          <Container>
-            <div className="flex flex-col gap-y-3">
-              <div className="flex flex-col gap-y-1">
-                <Heading level="h3">
-                  <CreditCard className="-ml-1 mr-1 inline h-4 w-4 text-ui-fg-muted" />
-                  Payment
-                </Heading>
-                <Text size="small" className="text-ui-fg-subtle">Manual follow-up state returned by the backend order snapshot.</Text>
-              </div>
-              <dl className="flex flex-col gap-y-2">
-                <div className="flex items-center justify-between">
-                  <Text size="small" className="text-ui-fg-subtle">Method</Text>
-                  <Text size="small" className="text-ui-fg-base">{formatStatusLabel(order.paymentMethod)}</Text>
-                </div>
-                <div className="flex items-center justify-between">
-                  <Text size="small" className="text-ui-fg-subtle">Status</Text>
-                  <Badge color={getBadgeColor(order.paymentStatus)} size="xsmall" rounded="full">
-                    {formatStatusLabel(order.paymentStatus)}
-                  </Badge>
-                </div>
-                <div className="flex items-center justify-between">
-                  <Text size="small" className="text-ui-fg-subtle">Total</Text>
-                  <Text size="small" className="font-medium text-ui-fg-base">
-                    {formatAdminCurrency(order.totals.totalAmount, order.totals.currencyCode)}
+        {/* Right Column - Sidebar */}
+        <aside className="flex flex-col gap-y-4">
+          {/* Customer */}
+          <Container className="p-0">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-ui-border-base">
+              <Heading level="h2">Customer</Heading>
+              <DropdownMenu>
+                <DropdownMenu.Trigger asChild>
+                  <Button variant="transparent" size="small" className="p-1">
+                    <EllipsisHorizontal className="h-5 w-5 text-ui-fg-muted" />
+                  </Button>
+                </DropdownMenu.Trigger>
+                <DropdownMenu.Content>
+                  <DropdownMenu.Item>Transfer ownership</DropdownMenu.Item>
+                  <DropdownMenu.Item>Shipping address</DropdownMenu.Item>
+                  <DropdownMenu.Item>Billing address</DropdownMenu.Item>
+                  <DropdownMenu.Item>Email</DropdownMenu.Item>
+                </DropdownMenu.Content>
+              </DropdownMenu>
+            </div>
+
+            <div className="p-6 flex flex-col gap-y-6">
+              <div className="flex items-center gap-x-3">
+                <div className="h-8 w-8 rounded-full bg-ui-bg-component flex items-center justify-center border border-ui-border-base">
+                  <Text size="small" className="font-medium text-ui-fg-subtle">
+                    {order.customer.name.charAt(0).toUpperCase()}
                   </Text>
                 </div>
-              </dl>
+                <Text size="small" className="text-ui-fg-base">
+                  {order.customer.name}
+                </Text>
+              </div>
+
+              <div className="flex flex-col gap-y-4">
+                <div className="flex items-start justify-between">
+                  <Text size="small" className="text-ui-fg-subtle font-medium">
+                    Contact
+                  </Text>
+                  <div className="flex flex-col items-end gap-y-1">
+                    <div className="flex items-center gap-x-2 group">
+                      <Text size="small" className="text-ui-fg-base">
+                        {order.customer.email ?? "No email"}
+                      </Text>
+                      <SquareTwoStack className="h-3 w-3 text-ui-fg-muted opacity-0 group-hover:opacity-100 cursor-pointer" />
+                    </div>
+                    {order.customer.phone && (
+                      <div className="flex items-center gap-x-2 group">
+                        <Text size="small" className="text-ui-fg-base">
+                          {order.customer.phone}
+                        </Text>
+                        <SquareTwoStack className="h-3 w-3 text-ui-fg-muted opacity-0 group-hover:opacity-100 cursor-pointer" />
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-start justify-between">
+                  <Text size="small" className="text-ui-fg-subtle font-medium">
+                    Shipping address
+                  </Text>
+                  <div className="flex gap-x-2 group max-w-[60%]">
+                    <Text size="small" className="text-ui-fg-base text-right">
+                      {order.shippingAddress ? (
+                        <>
+                          {order.shippingAddress.recipientName}
+                          <br />
+                          {renderAddress(order.shippingAddress.address)}
+                        </>
+                      ) : (
+                        renderAddress(order.primaryAddress)
+                      )}
+                    </Text>
+                    <SquareTwoStack className="h-3 w-3 text-ui-fg-muted opacity-0 group-hover:opacity-100 cursor-pointer mt-1 shrink-0" />
+                  </div>
+                </div>
+
+                <div className="flex items-start justify-between pt-4 border-t border-ui-border-base">
+                  <Text size="small" className="text-ui-fg-subtle font-medium">
+                    Billing address
+                  </Text>
+                  <Text size="small" className="text-ui-fg-muted text-right">
+                    Same as shipping address
+                  </Text>
+                </div>
+              </div>
             </div>
           </Container>
 
-          <Container>
-            <div className="flex flex-col gap-y-3">
-              <div className="flex flex-col gap-y-1">
-                <Heading level="h3">
-                  <Package className="-ml-1 mr-1 inline h-4 w-4 text-ui-fg-muted" />
-                  Fulfillment
-                </Heading>
-                <Text size="small" className="text-ui-fg-subtle">
-                  This change intentionally stops at read-only visibility. Capture, fulfill, and cancel flows stay out of scope.
-                </Text>
+          {/* Activity Timeline Placeholder */}
+          <Container className="p-0">
+            <div className="px-6 py-4 border-b border-ui-border-base">
+              <Heading level="h2">Activity</Heading>
+            </div>
+            <div className="p-6 flex flex-col gap-y-4">
+              <div className="relative pl-6">
+                <div className="absolute top-2 left-1.5 h-2 w-2 rounded-full bg-ui-fg-muted"></div>
+                <div className="absolute top-4 left-2 h-full w-px bg-ui-border-base"></div>
+                <div className="flex flex-col gap-y-0.5">
+                  <div className="flex items-center justify-between">
+                    <Text size="small" className="font-medium text-ui-fg-base">
+                      Awaiting payment
+                    </Text>
+                    <Text size="xsmall" className="text-ui-fg-muted">
+                      Just now
+                    </Text>
+                  </div>
+                  <Text size="small" className="text-ui-fg-muted">
+                    {formatAdminCurrency(
+                      order.totals.totalAmount,
+                      order.totals.currencyCode,
+                    )}
+                  </Text>
+                </div>
               </div>
-              <Badge color={getBadgeColor(order.fulfillmentStatus)} size="xsmall" rounded="full">
-                {formatStatusLabel(order.fulfillmentStatus)}
-              </Badge>
+
+              <div className="relative pl-6">
+                <div className="absolute top-2 left-1.5 h-2 w-2 rounded-full bg-ui-fg-muted ring-2 ring-ui-bg-base"></div>
+                <div className="flex flex-col gap-y-0.5">
+                  <div className="flex items-center justify-between">
+                    <Text size="small" className="font-medium text-ui-fg-base">
+                      Order placed
+                    </Text>
+                    <Text size="xsmall" className="text-ui-fg-muted">
+                      Just now
+                    </Text>
+                  </div>
+                  <Text size="small" className="text-ui-fg-muted">
+                    {formatAdminCurrency(
+                      order.totals.totalAmount,
+                      order.totals.currencyCode,
+                    )}
+                  </Text>
+                </div>
+              </div>
             </div>
           </Container>
         </aside>

@@ -61,6 +61,39 @@ export const adminBrandAssetsRoute = new Hono<AppEnv>()
     await db.delete(fontFamilies).where(eq(fontFamilies.id, id));
     return c.json({ success: true });
   })
+  .patch("/fonts/:id", async (c) => {
+    const id = c.req.param("id");
+    const body = await c.req.json();
+
+    // Only allow patching the four asset ID columns; ignore everything else.
+    const allowed: Array<keyof typeof fontFamilies.$inferInsert> = [
+      "regularAssetId",
+      "boldAssetId",
+      "italicAssetId",
+      "boldItalicAssetId",
+    ];
+    const patch: Partial<typeof fontFamilies.$inferInsert> = {};
+    for (const key of allowed) {
+      if (key in body) {
+        // Allow explicit null to clear a variant; coerce undefined → skip.
+        (patch as Record<string, unknown>)[key] = body[key] ?? null;
+      }
+    }
+
+    if (Object.keys(patch).length === 0) {
+      return jsonError(c, 400, "No patchable fields provided");
+    }
+
+    const db = getDb(c.env);
+    const [font] = await db
+      .update(fontFamilies)
+      .set(patch)
+      .where(eq(fontFamilies.id, id))
+      .returning();
+
+    if (!font) return jsonError(c, 404, "Font family not found");
+    return c.json({ font });
+  })
   .post("/fonts/upload", async (c) => {
     // Basic upload endpoint for TTF files
     const buffer = await c.req.arrayBuffer();

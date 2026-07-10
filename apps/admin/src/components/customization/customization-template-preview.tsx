@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Download, RotateCcw } from "lucide-react";
+import { Download, ImagePlus, Minus, Plus, RotateCcw } from "lucide-react";
 import {
   buildDesignFromForm,
+  getImageShapeClipartCategoryMode,
   getOrderedFormFields,
   getTextPathRenderAttributes,
   getTextPathSvgD,
@@ -21,6 +22,8 @@ import { Label, Select } from "@medusajs/ui";
 import { createId, cssShapeClip, fileToBackground, FontLoader, ShapeClipPaths } from "./customization-template-ui";
 import { exportVectorPdfClientSide } from "../../lib/pdf-export";
 import { useBrandAssets } from "../../hooks/use-brand-assets";
+import { normalizeContentUrl } from "../../lib/product-assets-client";
+import { MediaPreview } from "../ui/media-preview";
 
 type PreviewChange = (fieldId: string, value: TextFieldValue | ImageShapeFieldValue | ClipartFieldValue | null) => void;
 type PreviewMode = "edit" | "view";
@@ -343,7 +346,7 @@ function PreviewCanvas({
             if (mode === "edit" && event.target === event.currentTarget) setSelectedFieldId("");
           }}
         >
-          {background ? <img src={background.previewUrl} alt="" draggable={false} className="pointer-events-none absolute inset-0 h-full w-full select-none object-fill" /> : null}
+          {background ? <img src={normalizeContentUrl(background.previewUrl)} alt="" draggable={false} className="pointer-events-none absolute inset-0 h-full w-full select-none object-fill" /> : null}
           {[...design.layers].sort((a, b) => a.zIndex - b.zIndex).map((layer) => {
             if (layer.type === "text") {
               return <PreviewTextLayer key={layer.id} layer={layer} width={width} height={height} scale={scale} />;
@@ -614,7 +617,7 @@ function PreviewImageShapeLayer({
         }}
       >
         <img
-          src={value.previewUrl}
+          src={normalizeContentUrl(value.previewUrl)}
           alt=""
           draggable={false}
           className="pointer-events-none absolute max-w-none select-none"
@@ -676,13 +679,12 @@ function PreviewField({
     const textValue = value && typeof value === "object" && "text" in value ? value as TextFieldValue : { text: "" };
     const pathText = layer.text.path.type !== "straight";
     return (
-      <div className="space-y-2">
-        <label className="text-sm font-medium">{field.label}{field.required ? " *" : ""}</label>
+      <FieldShell field={field} kind="Text">
         <textarea
           value={textValue.text}
           placeholder={field.placeholder}
           onChange={(event) => onChange({ ...textValue, text: pathText ? event.target.value.replace(/\s*\n+\s*/g, " ") : event.target.value })}
-          className="w-full rounded-md border border-ui-border-base px-3 py-2 text-sm"
+          className="min-h-11 w-full resize-none rounded-lg border border-ui-border-strong bg-ui-bg-field px-3 py-2.5 text-sm text-ui-fg-base outline-none transition focus:border-ui-fg-interactive focus:ring-2 focus:ring-ui-fg-interactive/10"
           rows={pathText ? 1 : layer.text.maxLines}
         />
         {layer.text.colorPolicy.mode === "shopper_selectable" ? (
@@ -692,7 +694,7 @@ function PreviewField({
             const isPreset = policy.options.some((o) => o.value === currentColor);
             
             return (
-              <div>
+              <div className="rounded-lg border border-ui-border-base bg-ui-bg-subtle p-3">
                 <label className="mb-2 block text-xs font-medium text-ui-fg-muted">Color</label>
                 <div className="flex flex-wrap items-center gap-2">
                   {policy.options.map((option, index) => {
@@ -744,7 +746,7 @@ function PreviewField({
           })()
         ) : null}
         {layer.text.fontPolicy.mode === "shopper_selectable" ? (
-          <div className="space-y-1">
+          <div className="space-y-1.5 rounded-lg border border-ui-border-base bg-ui-bg-subtle p-3">
             <Label size="small" weight="plus" className="text-ui-fg-subtle">Font</Label>
             <Select value={textValue.fontId ?? layer.text.fontPolicy.defaultFontId} onValueChange={(fontId) => onChange({ ...textValue, fontId })}>
               <Select.Trigger>
@@ -759,7 +761,7 @@ function PreviewField({
           </div>
         ) : null}
         {layer.text.formatPolicy.mode === "shopper_selectable" ? (
-          <div key="format-toolbar">
+          <div key="format-toolbar" className="rounded-lg border border-ui-border-base bg-ui-bg-subtle p-3">
             <label className="mb-2 block text-xs font-medium text-ui-fg-muted">Format</label>
             <div className="flex items-center gap-1">
               <button
@@ -784,7 +786,7 @@ function PreviewField({
           </div>
         ) : null}
         {layer.text.alignPolicy.mode === "shopper_selectable" ? (
-          <div className="space-y-1">
+          <div className="space-y-1.5 rounded-lg border border-ui-border-base bg-ui-bg-subtle p-3">
             <Label size="small" weight="plus" className="text-ui-fg-subtle">Alignment</Label>
             <Select value={textValue.align ?? (layer.text.alignPolicy as any).defaultAlign} onValueChange={(align) => onChange({ ...textValue, align: align as import("@trophy/customization").TextAlign })}>
               <Select.Trigger>
@@ -799,14 +801,54 @@ function PreviewField({
             </Select>
           </div>
         ) : null}
-      </div>
+      </FieldShell>
     );
   }
 
   const typedLayer = layer as ImageShapeEditorLayer;
   const sourcePolicy = typedLayer.sourcePolicy ?? "upload_only";
+  const clipartCategoryMode = getImageShapeClipartCategoryMode(typedLayer);
   const uploadValue = value && typeof value === "object" && "assetId" in value ? value as ImageShapeFieldValue : null;
   const clipartValue = value && typeof value === "object" && "source" in value && value.source === "clipart" ? value as ClipartFieldValue : null;
+  const {
+    clipartAssets: globalClipartAssets,
+    clipartCategories: globalClipartCategories,
+  } = useBrandAssets();
+  const activeClipartCategoriesById = new Map(
+    globalClipartCategories
+      .filter((category) => category.active)
+      .map((category) => [category.id, { id: category.id, name: category.name }] as const),
+  );
+  const scopedClipartCategories =
+    clipartCategoryMode === "allow_list"
+      ? (typedLayer.allowedClipartCategories ?? [])
+          .map((category) => activeClipartCategoriesById.get(category.id))
+          .filter((category): category is { id: string; name: string } => !!category)
+      : typedLayer.clipartCategory
+        ? [activeClipartCategoriesById.get(typedLayer.clipartCategory.id) ?? typedLayer.clipartCategory].filter(
+            (category): category is { id: string; name: string } => !!category,
+          )
+        : [];
+  const initialCategoryId =
+    clipartValue?.categoryId ??
+    (clipartCategoryMode === "fixed" ? typedLayer.clipartCategory?.id : scopedClipartCategories[0]?.id) ??
+    "";
+  const [selectedCategoryId, setSelectedCategoryId] = useState(initialCategoryId);
+  useEffect(() => {
+    setSelectedCategoryId((current) => {
+      if (clipartCategoryMode === "fixed") {
+        return typedLayer.clipartCategory?.id ?? "";
+      }
+      const allowedIds = new Set(scopedClipartCategories.map((category) => category.id));
+      if (current && allowedIds.has(current)) {
+        return current;
+      }
+      if (clipartValue?.categoryId && allowedIds.has(clipartValue.categoryId)) {
+        return clipartValue.categoryId;
+      }
+      return scopedClipartCategories[0]?.id ?? "";
+    });
+  }, [clipartCategoryMode, typedLayer.clipartCategory?.id, clipartValue?.categoryId, layer.id, scopedClipartCategories]);
   const currentSource =
     sourcePolicy === "upload_or_clipart_category"
       ? clipartValue
@@ -815,63 +857,104 @@ function PreviewField({
       : sourcePolicy === "clipart_category_only"
         ? "clipart"
         : "upload";
-  const clipartOptions = (typedLayer.allowedClipartAssets ?? []).filter((asset) => {
-    if (!asset.active) return false;
-    if (typedLayer.clipartCategory?.id) {
-      return asset.categoryId === typedLayer.clipartCategory.id;
-    }
-    return true;
+  const scopedCategoryIds = new Set(scopedClipartCategories.map((category) => category.id));
+  const clipartAssets = typedLayer.clipartAssets ?? globalClipartAssets;
+  const activeCategoryId =
+    clipartCategoryMode === "fixed"
+      ? typedLayer.clipartCategory?.id ?? ""
+      : scopedCategoryIds.has(selectedCategoryId)
+        ? selectedCategoryId
+        : scopedClipartCategories[0]?.id || "";
+  const clipartOptions = clipartAssets.filter((asset) => {
+    if (!asset.active || !scopedCategoryIds.has(asset.categoryId)) return false;
+    if (!activeCategoryId) return true;
+    return asset.categoryId === activeCategoryId;
   });
-  const { clipartAssets: globalClipartAssets } = useBrandAssets();
   const selectedClipartAsset = clipartValue
-    ? clipartOptions.find((asset) => asset.id === clipartValue.clipartAssetId) ??
+    ? clipartAssets.find((asset) => asset.id === clipartValue.clipartAssetId) ??
       globalClipartAssets.find((asset) => asset.id === clipartValue.clipartAssetId)
     : null;
 
   const uploadControls = (
-    <>
-      <input
-        type="file"
-        accept="image/*"
-        onChange={(event) => {
-          const file = event.target.files?.[0];
-          if (!file) return;
-          void fileToBackground(file).then((asset) =>
-            onChange({
-              source: "upload",
-              assetId: createId("local_asset"),
-              previewUrl: asset.previewUrl,
-              sourceWidthPx: asset.widthPx,
-              sourceHeightPx: asset.heightPx,
-              cropScale: 1,
-              cropXRatio: 0,
-              cropYRatio: 0,
-            }),
-          );
-        }}
-      />
+    <div className="space-y-3">
+      <label className="group flex cursor-pointer items-center gap-3 rounded-lg border border-dashed border-ui-border-strong bg-ui-bg-subtle p-3 transition hover:border-ui-fg-interactive hover:bg-ui-bg-base">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-ui-border-base bg-ui-bg-base text-ui-fg-muted group-hover:text-ui-fg-interactive">
+          <ImagePlus className="size-5" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-medium text-ui-fg-base">
+            {uploadValue ? "Change image" : "Upload image"}
+          </span>
+          <span className="mt-0.5 block text-xs text-ui-fg-muted">PNG, JPG, or WebP</span>
+        </span>
+        {uploadValue ? (
+          <img
+            src={normalizeContentUrl(uploadValue.previewUrl)}
+            alt=""
+            className="size-12 shrink-0 rounded-md border border-ui-border-base object-cover"
+          />
+        ) : null}
+        <input
+          type="file"
+          accept="image/*"
+          className="sr-only"
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            if (!file) return;
+            void fileToBackground(file).then((asset) =>
+              onChange({
+                source: "upload",
+                assetId: createId("local_asset"),
+                previewUrl: asset.previewUrl,
+                sourceWidthPx: asset.widthPx,
+                sourceHeightPx: asset.heightPx,
+                cropScale: 1,
+                cropXRatio: 0,
+                cropYRatio: 0,
+              }),
+            );
+          }}
+        />
+      </label>
       {uploadValue ? (
-        <div className="flex flex-wrap items-center gap-2">
-          <button type="button" onClick={() => onChange({ ...uploadValue, cropScale: Math.max(MIN_FREE_IMAGE_SCALE, (uploadValue.cropScale ?? 1) / 1.1) })} className="rounded border border-ui-border-base px-3 py-2 text-sm">
-            - Zoom
+        <div className="grid grid-cols-3 gap-2">
+          <button type="button" onClick={() => onChange({ ...uploadValue, cropScale: Math.max(MIN_FREE_IMAGE_SCALE, (uploadValue.cropScale ?? 1) / 1.1) })} className="inline-flex items-center justify-center gap-1 rounded-lg border border-ui-border-base bg-ui-bg-base px-2 py-2 text-xs font-medium text-ui-fg-base">
+            <Minus className="size-3.5" /> Zoom
           </button>
-          <button type="button" onClick={() => onChange({ ...uploadValue, cropScale: (uploadValue.cropScale ?? 1) * 1.1 })} className="rounded border border-ui-border-base px-3 py-2 text-sm">
-            + Zoom
+          <button type="button" onClick={() => onChange({ ...uploadValue, cropScale: (uploadValue.cropScale ?? 1) * 1.1 })} className="inline-flex items-center justify-center gap-1 rounded-lg border border-ui-border-base bg-ui-bg-base px-2 py-2 text-xs font-medium text-ui-fg-base">
+            <Plus className="size-3.5" /> Zoom
           </button>
-          <button type="button" onClick={() => onChange({ ...uploadValue, cropScale: 1, cropXRatio: 0, cropYRatio: 0 })} className="rounded border border-ui-border-base px-3 py-2 text-sm">
-            Reset crop
+          <button type="button" onClick={() => onChange({ ...uploadValue, cropScale: 1, cropXRatio: 0, cropYRatio: 0 })} className="inline-flex items-center justify-center gap-1 rounded-lg border border-ui-border-base bg-ui-bg-base px-2 py-2 text-xs font-medium text-ui-fg-base">
+            <RotateCcw className="size-3.5" /> Reset
           </button>
         </div>
       ) : null}
-    </>
+    </div>
   );
 
   const clipartControls = (
-    <div className="space-y-2">
-      {typedLayer.clipartCategory?.name ? (
+    <div className="space-y-3">
+      {clipartCategoryMode === "fixed" && typedLayer.clipartCategory?.name ? (
         <TextLabel value={`Category: ${typedLayer.clipartCategory.name}`} />
       ) : null}
-      <div className="grid grid-cols-3 gap-2">
+      {clipartCategoryMode === "allow_list" && scopedClipartCategories.length > 0 ? (
+        <div className="space-y-1.5">
+          <Label size="small" weight="plus" className="text-ui-fg-subtle">Category</Label>
+          <select
+            value={activeCategoryId}
+            onChange={(event) => setSelectedCategoryId(event.target.value)}
+            className="w-full rounded-lg border border-ui-border-strong bg-ui-bg-field px-3 py-2.5 text-sm text-ui-fg-base outline-none transition focus:border-ui-fg-interactive focus:ring-2 focus:ring-ui-fg-interactive/10"
+          >
+            {!activeCategoryId ? <option value="">Select category</option> : null}
+            {scopedClipartCategories.map((category) => (
+              <option key={category.id} value={category.id}>
+                {category.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      ) : null}
+      <div className="grid grid-cols-2 gap-2">
         {clipartOptions.map((asset) => {
           const selected = selectedClipartAsset?.id === asset.id;
           return (
@@ -891,11 +974,16 @@ function PreviewField({
                   categoryId: asset.categoryId,
                 })
               }
-              className={`flex flex-col items-center gap-2 rounded-md border p-2 text-left ${
-                selected ? "border-ui-fg-interactive ring-1 ring-ui-fg-interactive" : "border-ui-border-base"
+              className={`flex min-h-[104px] flex-col items-center justify-center gap-2 rounded-lg border bg-ui-bg-base p-2 text-left transition hover:border-ui-fg-interactive ${
+                selected ? "border-ui-fg-interactive ring-2 ring-ui-fg-interactive/15" : "border-ui-border-base"
               }`}
             >
-              <img src={asset.previewUrl} alt={asset.name} className="h-12 w-12 object-contain" />
+              <MediaPreview
+                src={asset.previewUrl}
+                mimeType={asset.mimeType}
+                alt={asset.name}
+                className="h-12 w-12 object-contain"
+              />
               <span className="w-full truncate text-xs">{asset.name}</span>
             </button>
           );
@@ -906,14 +994,16 @@ function PreviewField({
   );
 
   return (
-    <div className="space-y-2">
-      <label className="text-sm font-medium">{field.label}{field.required ? " *" : ""}</label>
+    <FieldShell field={field} kind="Image">
       {sourcePolicy === "upload_or_clipart_category" && typedLayer.presentation === "source_select" ? (
-        <div className="space-y-1">
+        <div className="space-y-1.5">
           <Label size="small" weight="plus" className="text-ui-fg-subtle">Source</Label>
           <Select value={currentSource} onValueChange={(nextSource) => {
             if (nextSource === "clipart" && clipartOptions[0]) {
               const first = clipartOptions[0];
+              if (clipartCategoryMode === "allow_list") {
+                setSelectedCategoryId(first.categoryId);
+              }
               onChange({
                 source: "clipart",
                 clipartAssetId: first.id,
@@ -947,21 +1037,50 @@ function PreviewField({
           : uploadControls
         : null}
       {sourcePolicy === "upload_or_clipart_category" && typedLayer.presentation === "side_by_side" ? (
-        <div className="grid gap-3 md:grid-cols-2">
-          <div className="space-y-2">
+        <div className="grid gap-3">
+          <div className="space-y-2 rounded-lg border border-ui-border-base bg-ui-bg-subtle p-3">
             <p className="text-xs font-medium text-ui-fg-muted">Clipart</p>
             {clipartControls}
           </div>
-          <div className="space-y-2">
+          <div className="space-y-2 rounded-lg border border-ui-border-base bg-ui-bg-subtle p-3">
             <p className="text-xs font-medium text-ui-fg-muted">Upload image</p>
             {uploadControls}
           </div>
         </div>
       ) : null}
-    </div>
+    </FieldShell>
   );
 }
 
 function TextLabel({ value }: { value: string }) {
-  return <p className="text-xs text-ui-fg-muted">{value}</p>;
+  return <p className="rounded-lg border border-ui-border-base bg-ui-bg-subtle px-3 py-2 text-xs text-ui-fg-muted">{value}</p>;
+}
+
+function FieldShell({
+  field,
+  kind,
+  children,
+}: {
+  field: CustomizationFormField;
+  kind: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="space-y-3 rounded-xl border border-ui-border-base bg-ui-bg-base p-4 shadow-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <label className="block truncate text-sm font-semibold text-ui-fg-base">
+            {field.label}
+          </label>
+          <p className="mt-0.5 text-xs text-ui-fg-muted">{kind}</p>
+        </div>
+        {field.required ? (
+          <span className="shrink-0 rounded-full border border-ui-border-base bg-ui-bg-subtle px-2 py-0.5 text-[11px] font-medium text-ui-fg-muted">
+            Required
+          </span>
+        ) : null}
+      </div>
+      <div className="space-y-3">{children}</div>
+    </section>
+  );
 }

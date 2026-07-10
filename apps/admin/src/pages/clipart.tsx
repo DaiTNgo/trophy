@@ -16,6 +16,8 @@ import { ArrowDown, ArrowUp, MoreHorizontal, Plus, Search } from "lucide-react";
 import type { ClipartCategory } from "../hooks/use-brand-assets";
 import { useBreadcrumbs } from "../hooks/use-breadcrumbs";
 import { backendFetch } from "../lib/fetch";
+import { ClipartUploadQueue } from "../components/customization/clipart-upload-queue";
+import { type UploadDraft, buildUploadDraftErrors } from "../lib/clipart-utils";
 
 type CreateClipartCategoryModalProps = {
   open: boolean;
@@ -32,12 +34,17 @@ function CreateClipartCategoryModal({ open, onOpenChange }: CreateClipartCategor
   const [name, setName] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [uploadDrafts, setUploadDrafts] = useState<UploadDraft[]>([]);
+
+  const uploadDraftErrors = useMemo(() => buildUploadDraftErrors(uploadDrafts), [uploadDrafts]);
+  const hasUploadDraftErrors = uploadDraftErrors.some((errors) => errors.length > 0);
 
   useEffect(() => {
     if (!open) {
       setName("");
       setErrorMessage(null);
       setIsSaving(false);
+      setUploadDrafts([]);
     }
   }, [open]);
 
@@ -55,6 +62,34 @@ function CreateClipartCategoryModal({ open, onOpenChange }: CreateClipartCategor
         throw new Error(data?.error || "Failed to create clipart category");
       }
       const data = (await res.json()) as { category: { id: string } };
+      
+      if (uploadDrafts.length > 0) {
+        const formData = new FormData();
+        formData.set("namesJson", JSON.stringify(uploadDrafts.map((draft) => draft.name.trim())));
+        for (const draft of uploadDrafts) {
+          formData.append("files", draft.file);
+        }
+
+        const uploadRes = await backendFetch(`/api/admin/customization/clipart/categories/${data.category.id}/assets/batch`, {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!uploadRes.ok) {
+          const uploadData = await uploadRes.json().catch(() => null);
+          const rowErrors = Array.isArray(uploadData?.rowErrors)
+            ? uploadData.rowErrors
+                .map((entry: { row?: number; message?: string }) =>
+                  typeof entry?.row === "number" && entry?.message ? `Row ${entry.row}: ${entry.message}` : null,
+                )
+                .filter(Boolean)
+                .join(" ")
+            : "";
+          
+          throw new Error(rowErrors || uploadData?.error || "Category created, but failed to upload clipart batch. Please retry from the detail page.");
+        }
+      }
+
       onOpenChange(false);
       navigate(`/customization/clipart/${data.category.id}`);
     } catch (error) {
@@ -76,7 +111,7 @@ function CreateClipartCategoryModal({ open, onOpenChange }: CreateClipartCategor
           </div>
         </FocusModal.Header>
         <FocusModal.Body className="flex flex-col gap-6 px-6 py-6">
-          <div className="mx-auto flex w-full max-w-[560px] flex-col gap-4">
+          <div className="mx-auto flex w-full max-w-[720px] flex-col gap-6">
             <div className="flex flex-col gap-2">
               <Label htmlFor="clipart-category-name">Category name</Label>
               <Input
@@ -86,6 +121,16 @@ function CreateClipartCategoryModal({ open, onOpenChange }: CreateClipartCategor
                 onChange={(event) => setName(event.target.value)}
                 disabled={isSaving}
                 autoFocus
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label>Upload clipart (optional)</Label>
+              <ClipartUploadQueue
+                uploadDrafts={uploadDrafts}
+                setUploadDrafts={setUploadDrafts}
+                isUploading={isSaving}
+                categoryActive={true}
+                showActionButtons={false}
               />
             </div>
             {errorMessage ? (
@@ -100,8 +145,8 @@ function CreateClipartCategoryModal({ open, onOpenChange }: CreateClipartCategor
             <FocusModal.Close asChild>
               <Button variant="secondary">Cancel</Button>
             </FocusModal.Close>
-            <Button onClick={handleSave} isLoading={isSaving} disabled={!name.trim() || isSaving}>
-              Create category
+            <Button onClick={handleSave} isLoading={isSaving} disabled={!name.trim() || isSaving || hasUploadDraftErrors}>
+              {uploadDrafts.length > 0 ? "Create & upload" : "Create category"}
             </Button>
           </div>
         </FocusModal.Footer>

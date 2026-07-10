@@ -6,7 +6,7 @@ import type {
   RuntimeLayer,
 } from "./types";
 import { normalizeCropScale, normalizeCropPan } from "./geometry";
-import { getFormFieldForLayer, getImageShapeSourcePolicy, getVisibleLayers } from "./template";
+import { getFormFieldForLayer, getVisibleLayers } from "./template";
 import { getTextValue, fitTextToLayer, normalizeTextPath } from "./text";
 
 export const buildDesignFromForm = ({
@@ -51,7 +51,6 @@ export const buildDesignFromForm = ({
       continue;
     }
 
-    const sourcePolicy = getImageShapeSourcePolicy(layer);
     const field = getFormFieldForLayer(template, layer.id);
     const value = field ? values[field.id] : null;
 
@@ -59,15 +58,9 @@ export const buildDesignFromForm = ({
       value && typeof value === "object" && "source" in value && value.source === "clipart"
         ? (value as ClipartFieldValue)
         : null;
-    const fallbackClipartAsset =
-      !clipartValue &&
-      (sourcePolicy === "clipart_category_only" || sourcePolicy === "upload_or_clipart_category")
-        ? layer.defaultClipartAsset
-        : null;
+    if (!value) continue;
 
-    if (!value && !fallbackClipartAsset) continue;
-
-    if (clipartValue || fallbackClipartAsset) {
+    if (clipartValue) {
       const selectedClipart = clipartValue
         ? {
             assetId: clipartValue.sourceAssetId,
@@ -79,16 +72,8 @@ export const buildDesignFromForm = ({
             categoryId: clipartValue.categoryId,
             mimeType: clipartValue.mimeType,
           }
-        : {
-            assetId: fallbackClipartAsset!.sourceAssetId,
-            previewUrl: fallbackClipartAsset!.previewUrl,
-            sourceWidthPx: fallbackClipartAsset!.sourceWidthPx,
-            sourceHeightPx: fallbackClipartAsset!.sourceHeightPx,
-            clipartAssetId: fallbackClipartAsset!.id,
-            clipartAssetName: fallbackClipartAsset!.name,
-            categoryId: fallbackClipartAsset!.categoryId,
-            mimeType: fallbackClipartAsset!.mimeType,
-          };
+        : null;
+      if (!selectedClipart) continue;
       layers.push({
         id: layer.id,
         layerId: layer.id,

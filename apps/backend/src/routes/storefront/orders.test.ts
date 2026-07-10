@@ -352,20 +352,9 @@ describe("storefront orders route", () => {
             ...layer,
             sourcePolicy: "upload_or_clipart_category" as const,
             presentation: "source_select" as const,
-            clipartCategory: { id: "sports", name: "Sports" },
-            defaultClipartAsset: {
-              id: "clipart_star",
-              sourceAssetId: "asset_star",
-              name: "Star",
-              fileName: "star.svg",
-              categoryId: "sports",
-              previewUrl: "/api/assets/customizations/asset_star/content",
-              mimeType: "image/svg+xml",
-              sourceWidthPx: 200,
-              sourceHeightPx: 200,
-              active: true,
-            },
-            allowedClipartAssets: [
+            clipartCategoryMode: "allow_list" as const,
+            allowedClipartCategories: [{ id: "sports", name: "Sports" }],
+            clipartAssets: [
               {
                 id: "clipart_star",
                 sourceAssetId: "asset_star",

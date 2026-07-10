@@ -1,78 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { Button, Container, Heading, Input, Label, StatusBadge, Table, Text } from "@medusajs/ui";
-import { ArrowLeft, Check, PenSquare, Trash2, Upload, X } from "lucide-react";
+import { ArrowLeft, Check, PenSquare, Trash2 } from "lucide-react";
 import { MediaPreview } from "../components/ui/media-preview";
-import { UploadFilePreview } from "../components/ui/upload-file-preview";
 import type { BrandClipartAsset, ClipartCategory } from "../hooks/use-brand-assets";
 import { useBreadcrumbs } from "../hooks/use-breadcrumbs";
 import { backendFetch } from "../lib/fetch";
 
-const MAX_CLIPART_ASSET_BYTES = 20 * 1024 * 1024;
-const SUPPORTED_CLIPART_MIME_TYPES = new Set(["image/svg+xml", "image/png", "image/webp"]);
-
-type UploadDraft = {
-  file: File;
-  name: string;
-  mimeType: string;
-};
-
-const clipartNameFromFile = (fileName: string) =>
-  fileName.replace(/\.[^.]+$/, "").replace(/[-_]+/g, " ").trim();
-
-function formatClipartMimeType(mimeType: string) {
-  if (mimeType === "image/svg+xml") return "SVG";
-  if (mimeType === "image/webp") return "WebP";
-  return "PNG";
-}
-
-function inferClipartMimeType(file: File) {
-  const normalizedMimeType = file.type?.trim().toLowerCase();
-  if (normalizedMimeType && SUPPORTED_CLIPART_MIME_TYPES.has(normalizedMimeType)) {
-    return normalizedMimeType;
-  }
-
-  const normalizedFileName = file.name.trim().toLowerCase();
-  if (normalizedFileName.endsWith(".svg")) return "image/svg+xml";
-  if (normalizedFileName.endsWith(".png")) return "image/png";
-  if (normalizedFileName.endsWith(".webp")) return "image/webp";
-
-  return normalizedMimeType ?? "";
-}
-
-function buildUploadDraftErrors(drafts: UploadDraft[]) {
-  const duplicateFileNames = new Set<string>();
-  const seenFileNames = new Set<string>();
-
-  for (const draft of drafts) {
-    const normalized = draft.file.name.trim().toLowerCase();
-    if (seenFileNames.has(normalized)) {
-      duplicateFileNames.add(normalized);
-    } else {
-      seenFileNames.add(normalized);
-    }
-  }
-
-  return drafts.map((draft) => {
-    const errors: string[] = [];
-    const normalizedName = draft.file.name.trim().toLowerCase();
-
-    if (!draft.name.trim()) {
-      errors.push("Name is required.");
-    }
-    if (duplicateFileNames.has(normalizedName)) {
-      errors.push("Duplicate filenames in one batch are not allowed.");
-    }
-    if (!SUPPORTED_CLIPART_MIME_TYPES.has(draft.mimeType)) {
-      errors.push("Only SVG, PNG, and WebP files are supported.");
-    }
-    if (draft.file.size === 0 || draft.file.size > MAX_CLIPART_ASSET_BYTES) {
-      errors.push("File must be smaller than 20 MB.");
-    }
-
-    return errors;
-  });
-}
+import { formatClipartMimeType, type UploadDraft, buildUploadDraftErrors } from "../lib/clipart-utils";
+import { ClipartUploadQueue } from "../components/customization/clipart-upload-queue";
 
 export function ClipartDetailPage() {
   const navigate = useNavigate();
@@ -163,30 +99,7 @@ export function ClipartDetailPage() {
   const hasUploadDraftErrors = uploadDraftErrors.some((errors) => errors.length > 0);
   const activeAssetCount = useMemo(() => assets.filter((asset) => asset.active).length, [assets]);
 
-  function appendUploadDrafts(nextFiles: File[]) {
-    const nextDrafts = nextFiles.map((file) => {
-      const mimeType = inferClipartMimeType(file);
-      const normalizedFile =
-        mimeType && mimeType !== file.type
-          ? new File([file], file.name, {
-              type: mimeType,
-              lastModified: file.lastModified,
-            })
-          : file;
 
-      return {
-        file: normalizedFile,
-        name: clipartNameFromFile(file.name),
-        mimeType,
-      };
-    });
-
-    setUploadDrafts((current) => [...current, ...nextDrafts]);
-  }
-
-  function removeUploadDraft(index: number) {
-    setUploadDrafts((current) => current.filter((_, currentIndex) => currentIndex !== index));
-  }
 
   async function handleSaveCategory() {
     if (!category || !categoryNameInput.trim()) return;
@@ -436,98 +349,13 @@ export function ClipartDetailPage() {
                 Review the current batch before upload. Selecting more files appends them to the existing queue.
               </Text>
             </div>
-            <div className="flex flex-col gap-4">
-              <Input
-                type="file"
-                multiple
-                accept=".svg,.png,.webp,image/svg+xml,image/png,image/webp"
-                onChange={(event) => {
-                  appendUploadDrafts(Array.from(event.target.files ?? []));
-                  event.target.value = "";
-                }}
-                disabled={isUploadingBatch || !category.active}
-              />
-              {!category.active ? (
-                <Text size="small" className="text-ui-fg-subtle">
-                  Reactivate this category before uploading new clipart media.
-                </Text>
-              ) : null}
-              {uploadDrafts.length ? (
-                <div className="grid gap-3">
-                  {uploadDrafts.map((draft, index) => (
-                    <div
-                      key={`${draft.file.name}-${draft.file.lastModified}-${index}`}
-                      className="grid gap-3 rounded-md border border-ui-border-base p-3 md:grid-cols-[88px_minmax(0,1fr)_auto]"
-                    >
-                      <UploadFilePreview
-                        file={draft.file}
-                        alt={draft.name || draft.file.name}
-                        className="h-20 w-20 rounded border border-ui-border-base bg-white object-contain"
-                      />
-                      <div className="flex flex-col gap-2">
-                        <div className="flex flex-col gap-1">
-                          <Text size="xsmall" className="text-ui-fg-subtle">
-                            Filename
-                          </Text>
-                          <Text size="small" className="truncate" title={draft.file.name}>
-                            {draft.file.name}
-                          </Text>
-                        </div>
-                        <div className="flex flex-col gap-2">
-                          <Label>Name</Label>
-                          <Input
-                            value={draft.name}
-                            onChange={(event) =>
-                              setUploadDrafts((current) =>
-                                current.map((entry, entryIndex) =>
-                                  entryIndex === index ? { ...entry, name: event.target.value } : entry,
-                                ),
-                              )
-                            }
-                            disabled={isUploadingBatch}
-                          />
-                        </div>
-                        {uploadDraftErrors[index]?.length ? (
-                          <div className="flex flex-col gap-1">
-                            {uploadDraftErrors[index].map((error) => (
-                              <Text key={error} size="xsmall" className="text-ui-fg-error">
-                                {error}
-                              </Text>
-                            ))}
-                          </div>
-                        ) : null}
-                      </div>
-                      <div className="flex items-start justify-end">
-                        <Button variant="secondary" size="small" onClick={() => removeUploadDraft(index)} disabled={isUploadingBatch}>
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <Text size="small" className="text-ui-fg-subtle">
-                  No files queued yet.
-                </Text>
-              )}
-              <div className="flex flex-wrap justify-end gap-2">
-                <Button
-                  variant="secondary"
-                  onClick={() => setUploadDrafts([])}
-                  disabled={uploadDrafts.length === 0 || isUploadingBatch}
-                >
-                  Clear queue
-                </Button>
-                <Button
-                  onClick={handleUploadBatch}
-                  isLoading={isUploadingBatch}
-                  disabled={isUploadingBatch || uploadDrafts.length === 0 || hasUploadDraftErrors || !category.active}
-                >
-                  <Upload className="mr-2 h-4 w-4" />
-                  Upload media
-                </Button>
-              </div>
-            </div>
+            <ClipartUploadQueue
+              uploadDrafts={uploadDrafts}
+              setUploadDrafts={setUploadDrafts}
+              isUploading={isUploadingBatch}
+              categoryActive={category.active}
+              onUpload={handleUploadBatch}
+            />
           </section>
 
           <section className="rounded-md border border-ui-border-base bg-ui-bg-base p-4">

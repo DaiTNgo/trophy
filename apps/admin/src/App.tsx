@@ -20,7 +20,8 @@ import { CategoriesListPage } from "./pages/categories/index";
 import { CategoryDetailPage } from "./pages/categories/detail";
 import { PlaceholderIndexPage } from "./pages/placeholder-index";
 import { CustomizationTemplatesRouter } from "./pages/customization-templates";
-import { BrandAssetsPage } from "./pages/brand-assets";
+import { BrandColorsPage } from "./pages/brand-colors";
+import { BrandFontsPage } from "./pages/brand-fonts";
 import { ClipartPage } from "./pages/clipart";
 import { ClipartDetailPage } from "./pages/clipart-detail";
 
@@ -105,7 +106,9 @@ const router = createBrowserRouter([
           { path: "customization/templates/*", Component: CustomizationTemplatesRouter },
           { path: "customization/clipart", Component: ClipartPage },
           { path: "customization/clipart/:categoryId", Component: ClipartDetailPage },
-          { path: "customization/brand-assets", Component: BrandAssetsPage },
+          { path: "customization/colors", Component: BrandColorsPage },
+          { path: "customization/fonts", Component: BrandFontsPage },
+          { path: "customization/brand-assets", Component: () => <Navigate to="/customization/colors" replace /> },
         ],
       },
     ],

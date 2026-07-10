@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { getProductCustomizationPublishIssue } from "./product-customization-publish";
 
 describe("getProductCustomizationPublishIssue", () => {
-  it("returns the default clipart validation message when no default clipart asset is selected", () => {
+  it("returns the fixed category validation message when no fixed category is selected", () => {
     const issue = getProductCustomizationPublishIssue({
       productId: "product_1",
       initialCustomization: {
@@ -23,19 +23,19 @@ describe("getProductCustomizationPublishIssue", () => {
             ? {
                 ...layer,
                 sourcePolicy: "clipart_category_only",
-                clipartCategory: { id: "sports", name: "Sports" },
-                defaultClipartAsset: null,
-                allowedClipartAssets: [],
+                clipartCategoryMode: "fixed",
+                clipartCategory: null,
+                allowedClipartCategories: [],
               }
             : layer,
         ),
       },
     });
 
-    expect(issue).toBe("Badge artwork needs active allowed clipart media.");
+    expect(issue).toBe("Badge artwork needs a fixed clipart category.");
   });
 
-  it("returns the clipart category validation message when there are no active allowed assets", () => {
+  it("returns the allowed-category validation message when there are no allowed categories", () => {
     const issue = getProductCustomizationPublishIssue({
       productId: "product_1",
       initialCustomization: {
@@ -56,15 +56,15 @@ describe("getProductCustomizationPublishIssue", () => {
                 ...layer,
                 sourcePolicy: "upload_or_clipart_category",
                 presentation: "side_by_side",
-                clipartCategory: { id: "sports", name: "Sports" },
-                defaultClipartAsset: null,
-                allowedClipartAssets: [],
+                clipartCategoryMode: "allow_list",
+                clipartCategory: null,
+                allowedClipartCategories: [],
               }
             : layer,
         ),
       },
     });
 
-    expect(issue).toBe("Badge artwork needs active allowed clipart media.");
+    expect(issue).toBe("Badge artwork needs at least one allowed clipart category.");
   });
 });

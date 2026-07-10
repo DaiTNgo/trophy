@@ -57,7 +57,7 @@ export function useBrandAssets(refreshKey = 0) {
         const [colorsRes, fontsRes, categoriesRes] = await Promise.all([
           backendFetch("/api/admin/brand-assets/colors"),
           backendFetch("/api/admin/brand-assets/fonts"),
-          backendFetch("/api/admin/customization/clipart/categories"),
+          backendFetch("/api/admin/customization/clipart/categories?active=true"),
         ]);
 
         if (mounted) {
@@ -75,7 +75,7 @@ export function useBrandAssets(refreshKey = 0) {
 
             const assetsByCategory = await Promise.all(
               data.categories.map(async (category) => {
-                const response = await backendFetch(`/api/admin/customization/clipart/categories/${category.id}/assets`);
+                const response = await backendFetch(`/api/admin/customization/clipart/categories/${category.id}/assets?active=true`);
                 if (!response.ok) {
                   return [] as BrandClipartAsset[];
                 }

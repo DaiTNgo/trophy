@@ -1,4 +1,5 @@
 - OpenSpec Goal: `/goal /openspec-apply-change bilingual-catalog-localization`
+- Admin customization Preview field layout was updated on 2026-07-10 in `apps/admin/src/components/customization/customization-template-preview.tsx`. Scope was intentionally limited to `PreviewField` presentation: field cards, styled upload picker, compact crop buttons, larger clipart grid, and grouped text style controls. `pnpm --filter admin build` passes.
 - `catalog_translations` table schema was added.
 - `upsertTranslations` and `hydrateTranslations` helper functions implemented in `apps/backend/src/lib/catalog-translation.ts`.
 - `admin/products.ts` and `admin/product-metadata.ts` were updated to read and write translations.

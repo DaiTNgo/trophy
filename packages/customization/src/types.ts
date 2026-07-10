@@ -60,6 +60,8 @@ export type ClipartCategory = {
   name: string;
 };
 
+export type ClipartCategoryMode = "fixed" | "allow_list";
+
 export type ImageClipartSourcePolicy =
   | "upload_only"
   | "clipart_category_only"
@@ -156,9 +158,10 @@ export type ImageShapeEditorLayer = LayerBase & {
   };
   sourcePolicy?: ImageClipartSourcePolicy;
   presentation?: UploadClipartPresentation;
+  clipartCategoryMode?: ClipartCategoryMode;
   clipartCategory?: ClipartCategory | null;
-  defaultClipartAsset?: CustomizationClipartAsset | null;
-  allowedClipartAssets?: CustomizationClipartAsset[];
+  allowedClipartCategories?: ClipartCategory[];
+  clipartAssets?: CustomizationClipartAsset[];
 };
 
 export type CustomizationLayer = TextEditorLayer | ImageShapeEditorLayer;
@@ -238,9 +241,10 @@ export type RuntimeImageClipartLayer = {
   shape: ImageShapeEditorLayer["shape"];
   sourcePolicy: ImageClipartSourcePolicy;
   presentation?: UploadClipartPresentation;
+  clipartCategoryMode?: ClipartCategoryMode;
   clipartCategory?: ClipartCategory;
-  defaultClipartAsset?: CustomizationClipartAsset;
-  allowedClipartAssets: CustomizationClipartAsset[];
+  allowedClipartCategories: ClipartCategory[];
+  clipartAssets: CustomizationClipartAsset[];
   upload: {
     enabled: boolean;
     fit: "cover" | "contain";

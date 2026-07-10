@@ -1,5 +1,5 @@
 import type { ComponentType } from "react";
-import { Boxes, Package, Palette, Settings, ShoppingCart, Tag, Users } from "lucide-react";
+import { Boxes, Package, Palette, Settings, ShoppingCart, Tag, Type, Users } from "lucide-react";
 
 export type SidebarNavItem = {
   label: string;
@@ -65,10 +65,16 @@ export const operationsSidebarItems: SidebarNavItem[] = [
         prefixes: ["/customization/clipart"],
       },
       {
-        label: "Brand Assets",
-        to: "/customization/brand-assets",
+        label: "Colors",
+        to: "/customization/colors",
         icon: Palette,
-        prefixes: ["/customization/brand-assets"],
+        prefixes: ["/customization/colors"],
+      },
+      {
+        label: "Fonts",
+        to: "/customization/fonts",
+        icon: Type,
+        prefixes: ["/customization/fonts"],
       },
     ],
   },

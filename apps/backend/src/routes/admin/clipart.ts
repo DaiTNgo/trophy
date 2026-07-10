@@ -1,4 +1,4 @@
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { getDb } from "../../db/client";
 import {
@@ -54,10 +54,12 @@ function normalizeFiles(input: unknown) {
 export const adminClipartRoute = new Hono<AppEnv>()
   .get("/categories", async (c) => {
     const db = getDb(c.env);
+    const activeOnly = c.req.query("active") === "true";
     const [categories, assetRows] = await Promise.all([
       db
         .select()
         .from(customizationClipartCategories)
+        .where(activeOnly ? eq(customizationClipartCategories.active, true) : undefined)
         .orderBy(asc(customizationClipartCategories.sortOrder), asc(customizationClipartCategories.createdAt)),
       db
         .select({
@@ -152,6 +154,7 @@ export const adminClipartRoute = new Hono<AppEnv>()
   .get("/categories/:id/assets", async (c) => {
     const params = parseParams(c, clipartIdParamsSchema);
     if (!params.success) return params.response;
+    const activeOnly = c.req.query("active") === "true";
 
     const db = getDb(c.env);
     const category = await db
@@ -167,7 +170,14 @@ export const adminClipartRoute = new Hono<AppEnv>()
     const assets = await db
       .select()
       .from(customizationClipartAssets)
-      .where(eq(customizationClipartAssets.categoryId, params.output.id))
+      .where(
+        activeOnly
+          ? and(
+              eq(customizationClipartAssets.categoryId, params.output.id),
+              eq(customizationClipartAssets.active, true),
+            )
+          : eq(customizationClipartAssets.categoryId, params.output.id),
+      )
       .orderBy(asc(customizationClipartAssets.createdAt));
 
     return c.json({ assets: assets.map(serializeAsset) }, 200);

@@ -1,6 +1,9 @@
 import type {
+  ClipartCategory,
+  ClipartCategoryMode,
   CustomizationLayer,
   CustomizationTemplate,
+  CustomizationClipartAsset,
   ImageClipartSourcePolicy,
   ImageShapeEditorLayer,
   RuntimeImageClipartLayer,
@@ -13,6 +16,11 @@ export const isLayerVisible = (layer: CustomizationLayer) => !layer.hidden;
 
 export const getImageShapeSourcePolicy = (layer: ImageShapeEditorLayer): ImageClipartSourcePolicy =>
   layer.sourcePolicy ?? "upload_only";
+
+export const getImageShapeClipartCategoryMode = (
+  layer: ImageShapeEditorLayer,
+): ClipartCategoryMode =>
+  layer.clipartCategoryMode ?? "fixed";
 
 export const layerRequiresShopperInput = (_layer: CustomizationLayer) =>
   true;
@@ -41,16 +49,35 @@ export const buildRuntimeImageClipartLayer = ({
   layer,
   fieldId,
   required,
+  clipartCategoriesById,
+  clipartAssets = [],
 }: {
   layer: ImageShapeEditorLayer;
   fieldId?: string;
   required: boolean;
+  clipartCategoriesById?: Map<string, ClipartCategory>;
+  clipartAssets?: CustomizationClipartAsset[];
 }): RuntimeImageClipartLayer => {
   const sourcePolicy = getImageShapeSourcePolicy(layer);
-  const allowedClipartAssets = (layer.allowedClipartAssets ?? []).filter(
-    (asset) => asset.active && (!layer.clipartCategory || asset.categoryId === layer.clipartCategory.id),
+  const clipartCategoryMode = getImageShapeClipartCategoryMode(layer);
+  const resolveCategory = (category: ClipartCategory | null | undefined) =>
+    category ? clipartCategoriesById?.get(category.id) ?? category : undefined;
+
+  const clipartCategory =
+    clipartCategoryMode === "fixed" ? resolveCategory(layer.clipartCategory ?? undefined) : undefined;
+  const allowedClipartCategories =
+    clipartCategoryMode === "allow_list"
+      ? (layer.allowedClipartCategories ?? [])
+          .map((category) => resolveCategory(category))
+          .filter((category): category is ClipartCategory => !!category)
+      : [];
+  const effectiveCategoryIds = new Set(
+    clipartCategoryMode === "fixed"
+      ? clipartCategory
+        ? [clipartCategory.id]
+        : []
+      : allowedClipartCategories.map((category) => category.id),
   );
-  const defaultClipartAsset = layer.defaultClipartAsset;
 
   return {
     id: layer.id,
@@ -62,14 +89,12 @@ export const buildRuntimeImageClipartLayer = ({
     shape: layer.shape,
     sourcePolicy,
     presentation: layer.presentation,
-    clipartCategory: layer.clipartCategory ?? undefined,
-    defaultClipartAsset:
-      defaultClipartAsset &&
-      defaultClipartAsset.active &&
-      (!layer.clipartCategory || defaultClipartAsset.categoryId === layer.clipartCategory.id)
-        ? defaultClipartAsset
-        : undefined,
-    allowedClipartAssets,
+    clipartCategoryMode,
+    clipartCategory,
+    allowedClipartCategories,
+    clipartAssets: clipartAssets.filter(
+      (asset) => asset.active && effectiveCategoryIds.has(asset.categoryId),
+    ),
     upload: {
       enabled: sourcePolicy === "upload_only" || sourcePolicy === "upload_or_clipart_category",
       fit: layer.upload.fit,

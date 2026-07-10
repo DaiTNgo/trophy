@@ -1,9 +1,7 @@
 import type {
   BezierPoint,
-  ClipartFieldValue,
   CustomizationFieldValue,
   CustomizationFormValues,
-  CustomizationClipartAsset,
   CustomizationTemplate,
   TextColorPolicy,
   TextEditorLayer,
@@ -54,18 +52,6 @@ export const createDefaultTextValue = (layer: TextEditorLayer): TextFieldValue =
   align: resolveAlign(layer.text.alignPolicy),
 });
 
-const createDefaultClipartValue = (asset: CustomizationClipartAsset): ClipartFieldValue => ({
-  source: "clipart",
-  clipartAssetId: asset.id,
-  clipartAssetName: asset.name,
-  sourceAssetId: asset.sourceAssetId,
-  previewUrl: asset.previewUrl,
-  mimeType: asset.mimeType,
-  sourceWidthPx: asset.sourceWidthPx,
-  sourceHeightPx: asset.sourceHeightPx,
-  categoryId: asset.categoryId,
-});
-
 export const createDefaultFormValues = (template: CustomizationTemplate): CustomizationFormValues => {
   const values: CustomizationFormValues = {};
   for (const field of getOrderedFormFields(template)) {
@@ -76,14 +62,7 @@ export const createDefaultFormValues = (template: CustomizationTemplate): Custom
       continue;
     }
 
-    const sourcePolicy = layer.sourcePolicy ?? "upload_only";
-    const defaultClipartAsset = layer.defaultClipartAsset;
-    values[field.id] =
-      (sourcePolicy === "clipart_category_only" || sourcePolicy === "upload_or_clipart_category") &&
-      defaultClipartAsset &&
-      defaultClipartAsset.active
-        ? createDefaultClipartValue(defaultClipartAsset)
-        : null;
+    values[field.id] = null;
   }
   return values;
 };

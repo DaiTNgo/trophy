@@ -7,6 +7,7 @@ import type {
   ValidationIssue,
 } from "./types";
 import {
+  getImageShapeClipartCategoryMode,
   getImageShapeSourcePolicy,
   getLayerById,
   getOrderedFormFields,
@@ -14,12 +15,26 @@ import {
 } from "./template";
 import { isPathText, getTextValue } from "./text";
 
-const getActiveAllowedClipartAssets = (layer: ImageShapeEditorLayer) =>
-  (layer.allowedClipartAssets ?? []).filter((asset) => asset.active);
+const getActiveScopedClipartCategories = (layer: ImageShapeEditorLayer) => {
+  const clipartCategoryMode = getImageShapeClipartCategoryMode(layer);
+  if (clipartCategoryMode === "fixed") {
+    return layer.clipartCategory ? [layer.clipartCategory] : [];
+  }
+  return layer.allowedClipartCategories ?? [];
+};
+
+const isClipartCategoryAllowed = (layer: ImageShapeEditorLayer, categoryId: string) => {
+  const clipartCategoryMode = getImageShapeClipartCategoryMode(layer);
+  if (clipartCategoryMode === "fixed") {
+    return layer.clipartCategory?.id === categoryId;
+  }
+  return (layer.allowedClipartCategories ?? []).some((category) => category.id === categoryId);
+};
 
 const collectImageLayerPolicyIssues = (layer: ImageShapeEditorLayer): ValidationIssue[] => {
   const issues: ValidationIssue[] = [];
   const sourcePolicy = getImageShapeSourcePolicy(layer);
+  const clipartCategoryMode = getImageShapeClipartCategoryMode(layer);
   const validSourcePolicies = new Set([
     "upload_only",
     "clipart_category_only",
@@ -39,7 +54,7 @@ const collectImageLayerPolicyIssues = (layer: ImageShapeEditorLayer): Validation
     sourcePolicy === "clipart_category_only" ||
     sourcePolicy === "upload_or_clipart_category"
   ) {
-    if (!layer.clipartCategory) {
+    if (clipartCategoryMode === "fixed" && !layer.clipartCategory) {
       issues.push({
         code: "CLIPART_POLICY_INVALID",
         layerId: layer.id,
@@ -47,58 +62,24 @@ const collectImageLayerPolicyIssues = (layer: ImageShapeEditorLayer): Validation
       });
     }
 
-    const allowedClipartAssets = layer.allowedClipartAssets ?? [];
-    const activeAllowedClipartAssets = getActiveAllowedClipartAssets(layer);
-    if (activeAllowedClipartAssets.length === 0) {
+    if (clipartCategoryMode === "allow_list" && (layer.allowedClipartCategories ?? []).length === 0) {
       issues.push({
         code: "CLIPART_POLICY_INVALID",
         layerId: layer.id,
-        message: `${layer.name} needs active allowed clipart media.`,
+        message: `${layer.name} needs at least one allowed clipart category.`,
       });
     }
 
-    if (
-      layer.clipartCategory &&
-      allowedClipartAssets.some((asset) => asset.categoryId !== layer.clipartCategory?.id)
-    ) {
+    const activeScopedCategories = getActiveScopedClipartCategories(layer);
+    if (activeScopedCategories.length === 0) {
       issues.push({
         code: "CLIPART_POLICY_INVALID",
         layerId: layer.id,
-        message: `${layer.name} has clipart media outside the selected category.`,
+        message:
+          clipartCategoryMode === "allow_list"
+            ? `${layer.name} needs at least one allowed clipart category.`
+            : `${layer.name} needs a fixed clipart category.`,
       });
-    }
-
-    if (!layer.defaultClipartAsset) {
-      issues.push({
-        code: "CLIPART_POLICY_INVALID",
-        layerId: layer.id,
-        message: `${layer.name} needs a default clipart asset.`,
-      });
-    } else {
-      if (!layer.defaultClipartAsset.active) {
-        issues.push({
-          code: "CLIPART_POLICY_INVALID",
-          layerId: layer.id,
-          message: `${layer.name} default clipart must be active.`,
-        });
-      }
-      if (
-        layer.clipartCategory &&
-        layer.defaultClipartAsset.categoryId !== layer.clipartCategory.id
-      ) {
-        issues.push({
-          code: "CLIPART_POLICY_INVALID",
-          layerId: layer.id,
-          message: `${layer.name} default clipart must belong to the selected category.`,
-        });
-      }
-      if (!allowedClipartAssets.some((asset) => asset.id === layer.defaultClipartAsset?.id)) {
-        issues.push({
-          code: "CLIPART_POLICY_INVALID",
-          layerId: layer.id,
-          message: `${layer.name} default clipart must be in the allowed clipart list.`,
-        });
-      }
     }
   }
 
@@ -302,17 +283,15 @@ export const validateCustomizationValues = ({
       }
 
       if (clipartValue) {
-        const allowedClipartAssets = getActiveAllowedClipartAssets(layer);
-        const selectedClipartAsset = allowedClipartAssets.find((asset) => asset.id === clipartValue.clipartAssetId);
         const clipartAllowed =
           sourcePolicy === "clipart_category_only" || sourcePolicy === "upload_or_clipart_category";
 
-        if (sourcePolicy === "upload_only" || !clipartAllowed || !selectedClipartAsset) {
+        if (sourcePolicy === "upload_only" || !clipartAllowed) {
           issues.push({ code: "OPTION_NOT_ALLOWED", fieldId: field.id, layerId: layer.id, message: `${field.label} contains unavailable clipart.` });
           continue;
         }
 
-        if (layer.clipartCategory && selectedClipartAsset.categoryId !== layer.clipartCategory.id) {
+        if (!isClipartCategoryAllowed(layer, clipartValue.categoryId)) {
           issues.push({ code: "OPTION_NOT_ALLOWED", fieldId: field.id, layerId: layer.id, message: `${field.label} contains clipart from the wrong category.` });
         }
 
