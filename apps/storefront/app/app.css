@@ -31,63 +31,97 @@
   --radius-xl: var(--radius-xl);
 }
 
+/* ── Light Mode (TrophySmack brand) ────────────────────────────────── */
 :root {
-  --background: #fcf9f8;
-  --foreground: #1c1b1b;
-  --card: #ffffff;
-  --card-foreground: #1c1b1b;
-  --popover: #ffffff;
-  --popover-foreground: #1c1b1b;
-  --primary: #875200;
-  --primary-foreground: #ffffff;
-  --secondary: #f0eded;
-  --secondary-foreground: #1c1b1b;
-  --muted: #eae7e7;
-  --muted-foreground: #544433;
-  --accent: #e5e2e1;
-  --accent-foreground: #1c1b1b;
-  --destructive: #ba1a1a;
-  --destructive-foreground: #ffffff;
-  --border: #e5e2e1;
-  --input: #f0eded;
-  --ring: #875200;
-  
-  --radius-sm: 0.25rem;
-  --radius: 0.5rem;
-  --radius-md: 0.75rem;
-  --radius-lg: 1rem;
-  --radius-xl: 1.5rem;
+  /* Base surfaces */
+  --background:              #ffffff;
+  --foreground:              #232323;
+
+  /* Card / Popover */
+  --card:                    #e3effb;    /* sky-blue card bg  */
+  --card-foreground:         #232323;
+  --popover:                 #ffffff;
+  --popover-foreground:      #232323;
+
+  /* Primary — TrophySmack dark navy */
+  --primary:                 #244159;
+  --primary-foreground:      #ffffff;
+
+  /* Secondary — sky-blue surface */
+  --secondary:               #e3effb;
+  --secondary-foreground:    #244159;
+
+  /* Muted */
+  --muted:                   #eaf3f9;
+  --muted-foreground:        #3a5a73;
+
+  /* Accent — TrophySmack teal */
+  --accent:                  #04a387;
+  --accent-foreground:       #ffffff;
+
+  /* Destructive — TrophySmack orange */
+  --destructive:             #EA4222;
+  --destructive-foreground:  #ffffff;
+
+  /* Borders / Inputs */
+  --border:                  #c8dff0;
+  --input:                   #eaf3f9;
+  --ring:                    #288ab6;
+
+  /* Radius scale */
+  --radius-sm:               0.25rem;
+  --radius:                  0.5rem;
+  --radius-md:               0.75rem;
+  --radius-lg:               1rem;
+  --radius-xl:               1.5rem;
 }
 
+/* ── Dark Mode (TrophySmack deep navy theme) ──────────────────────── */
 .dark {
-  --background: #1c1b1b;
-  --foreground: #fcf9f8;
-  --card: #313030;
-  --card-foreground: #fcf9f8;
-  --popover: #313030;
-  --popover-foreground: #fcf9f8;
-  --primary: #ffb865;
-  --primary-foreground: #2b1700;
-  --secondary: #5d5f5f;
-  --secondary-foreground: #ffffff;
-  --muted: #544433;
-  --muted-foreground: #dcd9d9;
-  --accent: #544433;
-  --accent-foreground: #fcf9f8;
-  --destructive: #ffdad6;
-  --destructive-foreground: #93000a;
-  --border: #544433;
-  --input: #544433;
-  --ring: #ffb865;
+  /* Base surfaces */
+  --background:              #171740;   /* deep landing navy   */
+  --foreground:              #ffffff;
+
+  /* Card / Popover */
+  --card:                    #244159;   /* dark navy card      */
+  --card-foreground:         #ffffff;
+  --popover:                 #244159;
+  --popover-foreground:      #ffffff;
+
+  /* Primary — bright blue on dark */
+  --primary:                 #288ab6;
+  --primary-foreground:      #ffffff;
+
+  /* Secondary */
+  --secondary:               #244159;
+  --secondary-foreground:    #e3effb;
+
+  /* Muted */
+  --muted:                   #1f3a55;
+  --muted-foreground:        #80b8d4;
+
+  /* Accent — teal stays vivid */
+  --accent:                  #04a387;
+  --accent-foreground:       #ffffff;
+
+  /* Destructive */
+  --destructive:             #EA4222;
+  --destructive-foreground:  #ffffff;
+
+  /* Borders / Inputs */
+  --border:                  #2e5878;
+  --input:                   #1f3a55;
+  --ring:                    #04a387;
 }
 
+/* ── Base styles ──────────────────────────────────────────────────── */
 html,
 body {
   min-height: 100%;
   margin: 0;
   font-family: 'Inter', sans-serif;
-  background-color: #fcf9f8;
-  color: #1c1b1b;
+  background-color: #ffffff;
+  color: #232323;
   scroll-behavior: smooth;
 }
 
@@ -95,11 +129,12 @@ body {
   box-sizing: border-box;
 }
 
+/* ── Utility classes ──────────────────────────────────────────────── */
 .luxury-shadow {
-  box-shadow: 0px 4px 20px rgba(0,0,0,0.04);
+  box-shadow: 0px 4px 20px rgba(36, 65, 89, 0.08);
 }
 .luxury-shadow:hover {
-  box-shadow: 0px 8px 30px rgba(0,0,0,0.08);
+  box-shadow: 0px 8px 30px rgba(36, 65, 89, 0.16);
 }
 .reveal { opacity: 0; transform: translateY(20px); transition: all 0.6s ease-out; }
 .reveal.active { opacity: 1; transform: translateY(0); }

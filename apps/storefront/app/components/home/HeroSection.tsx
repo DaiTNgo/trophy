@@ -9,7 +9,7 @@ const HERO_IMAGE =
 export function HeroSection() {
   return (
     <section
-      className="relative w-full min-h-[90vh] flex items-center overflow-hidden bg-[#1c1b1b]"
+      className="relative w-full min-h-[90vh] flex items-center overflow-hidden bg-[#171740]"
       aria-label="Giới thiệu Trophy"
     >
       {/* Background image — award as main character */}
@@ -23,17 +23,17 @@ export function HeroSection() {
       </div>
 
       {/* Gradient: dark left zone for text, fade to transparent on right */}
-      <div className="absolute inset-0 z-10 bg-gradient-to-r from-[#1c1b1b]/90 via-[#1c1b1b]/55 to-transparent" />
+      <div className="absolute inset-0 z-10 bg-gradient-to-r from-[#171740]/90 via-[#171740]/55 to-transparent" />
       {/* Subtle bottom vignette for readability */}
-      <div className="absolute inset-x-0 bottom-0 h-32 z-10 bg-gradient-to-t from-[#1c1b1b]/60 to-transparent" />
+      <div className="absolute inset-x-0 bottom-0 h-32 z-10 bg-gradient-to-t from-[#171740]/60 to-transparent" />
 
       {/* Content */}
       <div className="relative z-20 px-4 md:px-margin-desktop max-w-container-max mx-auto w-full py-24">
         <div className="max-w-xl reveal active">
           {/* Eyebrow + accent rule */}
           <div className="flex items-center gap-3 mb-5">
-            <div className="w-16 h-[3px] bg-[#fea00c]" />
-            <span className="font-label-md text-label-md uppercase tracking-[0.35em] text-[#fea00c]">
+            <div className="w-16 h-[3px] bg-accent" />
+            <span className="font-label-md text-label-md uppercase tracking-[0.35em] text-accent">
               Phùng Thị
             </span>
           </div>
@@ -42,7 +42,7 @@ export function HeroSection() {
           <h1 className="font-heading uppercase text-white mb-6 leading-none tracking-wide inline-flex flex-col gap-3">
             <span className="block text-[56px] md:text-[72px] leading-[1]">VINH DANH</span>
             <span className="block text-[56px] md:text-[72px] leading-[1]">XỨNG TẦM</span>
-            <span className="block text-[56px] md:text-[72px] leading-[1] text-[#fea00c]">THÀNH TỰU</span>
+            <span className="block text-[56px] md:text-[72px] leading-[1] text-accent">THÀNH TỰU</span>
           </h1>
 
           {/* Body */}
@@ -55,7 +55,7 @@ export function HeroSection() {
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-10">
             <Link
               to="/products"
-              className="bg-[#875200] text-white font-label-md text-label-md uppercase px-8 py-4 rounded-lg tracking-widest hover:bg-[#fea00c] hover:text-[#1c1b1b] transition-all duration-300 flex items-center justify-center"
+              className="bg-primary text-primary-foreground font-label-md text-label-md uppercase px-8 py-4 rounded-lg tracking-widest hover:bg-accent hover:text-accent-foreground transition-all duration-300 flex items-center justify-center"
             >
               Khám phá sản phẩm
             </Link>
@@ -70,12 +70,12 @@ export function HeroSection() {
           {/* Compact proof line */}
           <div className="flex items-center gap-6 text-white/50 text-[13px] font-semibold uppercase tracking-wide">
             <span className="flex items-center gap-1.5">
-              <Trophy className="text-[16px] text-[#fea00c]" />
+              <Trophy className="text-[16px] text-accent" />
               600k+ sản phẩm vinh danh
             </span>
             <span className="w-1 h-1 rounded-full bg-white/30" />
             <span className="flex items-center gap-1.5">
-              <PenSquare className="text-[16px] text-[#fea00c]" />
+              <PenSquare className="text-[16px] text-accent" />
               Khắc theo yêu cầu
             </span>
           </div>

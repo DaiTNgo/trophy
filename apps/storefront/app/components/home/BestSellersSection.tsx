@@ -22,7 +22,7 @@ export function BestSellersSection({ products, locale = "vi" }: BestSellersSecti
         {/* Header row */}
         <div className="flex flex-col md:flex-row justify-between items-end mb-14 reveal active">
           <div>
-            <p className="font-label-md text-label-md uppercase tracking-[0.35em] text-[#875200] mb-3">
+            <p className="font-label-md text-label-md uppercase tracking-[0.35em] text-primary mb-3">
               Bán chạy
             </p>
             <h2 className="font-heading text-[36px] md:text-[44px] uppercase leading-none text-on-surface">
@@ -30,7 +30,7 @@ export function BestSellersSection({ products, locale = "vi" }: BestSellersSecti
             </h2>
           </div>
           <Link
-            className="hidden md:inline-flex items-center gap-1.5 font-label-md text-label-md text-[#875200] uppercase tracking-widest border-b-2 border-[#875200] pb-1 hover:text-[#fea00c] hover:border-[#fea00c] transition-colors"
+            className="hidden md:inline-flex items-center gap-1.5 font-label-md text-label-md text-primary uppercase tracking-widest border-b-2 border-primary pb-1 hover:text-accent hover:border-accent transition-colors"
             to="/products"
           >
             Xem tất cả
@@ -59,7 +59,7 @@ export function BestSellersSection({ products, locale = "vi" }: BestSellersSecti
         <div className="mt-12 text-center md:hidden">
           <Link
             to="/products"
-            className="inline-flex items-center gap-2 border-2 border-[#875200] text-[#875200] font-label-md text-label-md uppercase px-10 py-4 rounded-lg tracking-widest hover:bg-[#875200] hover:text-white transition-all duration-300"
+            className="inline-flex items-center gap-2 border-2 border-primary text-primary font-label-md text-label-md uppercase px-10 py-4 rounded-lg tracking-widest hover:bg-primary hover:text-primary-foreground transition-all duration-300"
           >
             Xem tất cả sản phẩm
           </Link>

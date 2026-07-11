@@ -39,7 +39,7 @@ export function CategoriesSection({ categories }: ShopByProductSectionProps) {
       <div className="max-w-container-max mx-auto">
         {/* Heading */}
         <div className="mb-14 reveal active">
-          <p className="font-label-md text-label-md uppercase tracking-[0.35em] text-[#875200] mb-3">
+          <p className="font-label-md text-label-md uppercase tracking-[0.35em] text-primary mb-3">
             Danh mục sản phẩm
           </p>
           <h2 className="font-heading text-[36px] md:text-[44px] uppercase leading-none text-on-surface">
@@ -76,7 +76,7 @@ export function CategoriesSection({ categories }: ShopByProductSectionProps) {
                   loading="lazy"
                 />
                 {/* Gradient overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-[#1c1b1b]/80 via-[#1c1b1b]/20 to-transparent transition-opacity duration-300 group-hover:from-[#1c1b1b]/90" />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#171740]/80 via-[#171740]/20 to-transparent transition-opacity duration-300 group-hover:from-[#171740]/90" />
 
                 {/* Text */}
                 <div className="absolute bottom-0 left-0 right-0 p-5 z-10">
@@ -86,7 +86,7 @@ export function CategoriesSection({ categories }: ShopByProductSectionProps) {
                   <p className="font-body-md text-body-md text-white/70 text-sm leading-snug opacity-0 group-hover:opacity-100 transition-opacity duration-300 mb-3 line-clamp-2">
                     {desc}
                   </p>
-                  <span className="inline-flex items-center gap-1.5 font-label-md text-label-md text-[13px] uppercase tracking-widest text-[#fea00c] group-hover:gap-3 transition-all duration-300">
+                  <span className="inline-flex items-center gap-1.5 font-label-md text-label-md text-[13px] uppercase tracking-widest text-accent group-hover:gap-3 transition-all duration-300">
                     Xem tất cả
                     <ArrowRight className="text-[16px]" />
                   </span>

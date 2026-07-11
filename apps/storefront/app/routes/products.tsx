@@ -66,7 +66,7 @@ export default function Products({ loaderData }: Route.ComponentProps) {
           <h1 className="font-display-lg-mobile md:font-display-lg text-display-lg-mobile md:text-display-lg text-on-background mb-8">
             DANH MỤC SẢN PHẨM
           </h1>
-          <div className="sticky top-[125px] z-30 bg-background/95 backdrop-blur-sm py-2 -mx-margin-mobile px-margin-mobile md:mx-0 md:px-0">
+          <div className="sticky top-[125px] z-30 bg-background/95 backdrop-blur-sm py-2 -mx-margin-mobile md:mx-0">
             <FilterChips 
               categories={categories} 
               activeCategory={activeCategory} 
