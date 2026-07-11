@@ -70,12 +70,12 @@ function cn(...inputs: ClassValue[]) {
 }
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/20 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0",
   {
     variants: {
       variant: {
-        default: "bg-primary text-white shadow hover:bg-primary/90",
-        outline: "border border-outline bg-white text-on-surface shadow-sm hover:border-primary hover:bg-primary-fixed/30",
+        default: "bg-accent text-accent-foreground shadow hover:bg-accent/90",
+        outline: "border border-outline bg-white text-on-surface shadow-sm hover:border-accent hover:bg-accent/10",
         ghost: "text-on-surface hover:bg-surface-container-low",
         destructive: "bg-destructive text-white shadow-sm hover:bg-destructive/90",
       },
@@ -255,7 +255,7 @@ export function ProductCustomizationPreview({
 
   return (
     <div
-      className="relative mx-auto flex h-[min(72vh,740px)] min-h-[520px] w-full flex-col overflow-hidden rounded-lg border border-outline-variant bg-[#f5f2ec]"
+      className="relative mx-auto flex h-[min(72vh,740px)] min-h-[520px] w-full flex-col overflow-hidden rounded-lg border border-outline-variant bg-surface-container-low"
       data-selected-variant-id={selectedVariantId ?? ""}
       data-preview-background-url={background?.previewUrl ?? ""}
     >
@@ -316,7 +316,7 @@ export function ProductCustomizationPreview({
           {mode === "edit" ? "Click an uploaded image to crop" : "Drag canvas to pan"}
         </span>
       </div>
-      <div className="sticky top-0 z-20 flex h-[76px] shrink-0 items-center border-b border-outline-variant bg-[#fbf8f5]/95 px-3 shadow-sm backdrop-blur sm:px-4">
+      <div className="sticky top-0 z-20 flex h-[76px] shrink-0 items-center border-b border-outline-variant bg-surface-container-low/95 px-3 shadow-sm backdrop-blur sm:px-4">
         {mode === "edit" && selectedImageField ? (
           <div className="flex min-w-0 items-center gap-3">
             <div className="min-w-0 rounded-md border border-outline-variant bg-white px-3 py-2">
@@ -538,45 +538,35 @@ export function ProductCustomizationForm({
     }
   }
 
+  const orderedFields = getOrderedFormFields(template);
+
   return (
-    <div className="space-y-8">
+      <div className="divide-y divide-outline-variant">
       {activeMessage ? (
-        <p className="text-base text-destructive">
-          {activeMessage}
-        </p>
+        <p className="px-0 py-3 text-sm text-destructive">{activeMessage}</p>
       ) : null}
-      {!validation.valid ? (
-        <div className="space-y-2">
-          {validation.issues.map((issue) => (
-            <p key={`${issue.fieldId}-${issue.code}`} className="text-sm text-destructive">
-              {issue.message}
-            </p>
-          ))}
-        </div>
-      ) : null}
-      <div className="space-y-8">
-        {getOrderedFormFields(template).map((field) => {
-          const layer = template.layers.find((entry) => entry.id === field.layerId);
-          if (!layer) return null;
-          return (
-            <FormField
-              key={field.id}
-              field={field}
-              layer={layer}
-              value={values[field.id]}
-              issue={validation.issues.find((issue) => issue.fieldId === field.id)?.message}
-              uploading={uploadingFieldId === field.id}
-              dynamicFonts={dynamicFonts}
-              resolveAssetUrl={resolveAssetUrl}
-              onChange={(value) => {
-                onValueChange(field.id, value);
-                setMessage("");
-              }}
-              onUpload={(file) => uploadImage(field, file)}
-            />
-          );
-        })}
-      </div>
+      {orderedFields.map((field, index) => {
+        const layer = template.layers.find((entry) => entry.id === field.layerId);
+        if (!layer) return null;
+        return (
+          <FormField
+            key={field.id}
+            field={field}
+            layer={layer}
+            stepNumber={index + 1}
+            value={values[field.id]}
+            issue={validation.issues.find((issue) => issue.fieldId === field.id)?.message}
+            uploading={uploadingFieldId === field.id}
+            dynamicFonts={dynamicFonts}
+            resolveAssetUrl={resolveAssetUrl}
+            onChange={(value) => {
+              onValueChange(field.id, value);
+              setMessage("");
+            }}
+            onUpload={(file) => uploadImage(field, file)}
+          />
+        );
+      })}
     </div>
   );
 }
@@ -1010,6 +1000,7 @@ function PreviewImageShape({
 function FormField({
   field,
   layer,
+  stepNumber,
   value,
   issue,
   uploading,
@@ -1019,6 +1010,7 @@ function FormField({
 }: {
   field: CustomizationFormField;
   layer: CustomizationLayer;
+  stepNumber: number;
   value: CustomizationFieldValue | undefined;
   issue?: string;
   uploading: boolean;
@@ -1029,10 +1021,20 @@ function FormField({
 }) {
   const imageLayer = layer.type === "image_shape" ? (layer as ImageShapeEditorLayer) : null;
   return (
-    <section className="space-y-3">
-      <label className="block text-[clamp(20px,2vw,26px)] font-normal leading-tight text-[#2d4056]">
-        {field.label}{field.required ? " *" : ""}
-      </label>
+    <section className="py-4">
+      {/* Step header */}
+      <div className="mb-3">
+        <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-accent">
+          STEP {stepNumber}{field.helpText ? (
+            <span className="ml-2 text-[11px] font-normal normal-case tracking-normal text-on-surface-variant">{field.helpText}</span>
+          ) : null}
+        </p>
+        <label className="mt-0.5 block text-sm font-semibold text-on-surface">
+          {field.label}{field.required ? (
+            <span className="ml-1 text-destructive" aria-hidden>*</span>
+          ) : null}
+        </label>
+      </div>
       {layer.type === "text" ? (
         <TextField field={field} layer={layer} value={value} onChange={onChange} />
       ) : (
@@ -1045,8 +1047,7 @@ function FormField({
           onUpload={onUpload}
         />
       )}
-      {field.helpText ? <p className="text-[clamp(16px,1.5vw,20px)] leading-snug text-[#9b9b9b]">{field.helpText}</p> : null}
-      {issue ? <p className="text-sm font-medium text-destructive">{issue}</p> : null}
+      {issue ? <p className="mt-2 text-xs font-medium text-destructive">{issue}</p> : null}
     </section>
   );
 }
@@ -1066,28 +1067,28 @@ function TextField({
   const pathText = layer.text.path.type !== "straight";
 
   return (
-    <div className="space-y-6">
-      <textarea
-        rows={pathText ? 1 : layer.text.maxLines}
-        value={textValue.text}
-        placeholder={field.placeholder}
+    <div className="space-y-4">
+      <input
+        type="text"
+        value={pathText ? textValue.text : textValue.text.replace(/\n/g, " ")}
+        placeholder={field.placeholder ?? "Letter limit varies, refer to preview to confirm your text is correct"}
         onChange={(event) =>
           onChange({
             ...textValue,
-            text: pathText ? event.target.value.replace(/\s*\n+\s*/g, " ") : event.target.value,
+            text: event.target.value,
           })
         }
-        className="min-h-14 w-full resize-none rounded-none border border-[#d5d5d5] bg-white px-4 py-3 text-[clamp(20px,2vw,26px)] leading-tight text-black outline-none transition focus:border-[#110023]"
+        className="h-10 w-full rounded border border-outline bg-white px-3 text-sm text-on-surface outline-none transition focus:border-accent focus:ring-1 focus:ring-accent/30"
       />
       {layer.text.colorPolicy.mode === "shopper_selectable" ? (
         (() => {
           const colorPolicy = layer.text.colorPolicy;
           return (
-            <div className="space-y-4">
-              <p className="text-[clamp(20px,2vw,26px)] font-normal leading-tight text-[#2d4056]">
-                Color
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-[0.1em] text-on-surface-variant">
+                Text Color
               </p>
-              <div className="flex flex-wrap gap-5">
+              <div className="flex flex-wrap gap-2">
                 {colorPolicy.options.map((option) => {
                   const selected = (textValue.color ?? colorPolicy.defaultColor) === option.value;
                   return (
@@ -1096,8 +1097,10 @@ function TextField({
                       type="button"
                       title={option.label}
                       onClick={() => onChange({ ...textValue, color: option.value })}
-                      className={`size-[clamp(64px,6vw,84px)] rounded-[18px] border-4 border-white shadow-[0_0_0_2px_rgba(0,0,0,0.12),0_2px_7px_rgba(0,0,0,0.26)] transition ${
-                        selected ? "ring-4 ring-[#110023]" : "hover:ring-2 hover:ring-[#110023]/30"
+                      className={`size-8 rounded-full border-2 transition ${
+                        selected
+                          ? "border-accent ring-2 ring-accent/40 ring-offset-1"
+                          : "border-white shadow-[0_0_0_1.5px_rgba(0,0,0,0.18)] hover:ring-2 hover:ring-accent/30"
                       }`}
                       style={{ backgroundColor: option.value }}
                     />
@@ -1112,9 +1115,9 @@ function TextField({
         (() => {
           const fontPolicy = layer.text.fontPolicy;
           return (
-            <div className="space-y-4">
-              <p className="text-[clamp(20px,2vw,26px)] font-normal leading-tight text-[#2d4056]">Choose Font</p>
-              <div className="flex flex-wrap gap-4">
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-[0.1em] text-on-surface-variant">Font</p>
+              <div className="flex flex-wrap gap-2">
                 {fontPolicy.options.map((option) => {
                   const selected = (textValue.fontId ?? fontPolicy.defaultFontId) === option.value;
                   return (
@@ -1123,12 +1126,14 @@ function TextField({
                       type="button"
                       title={option.label}
                       onClick={() => onChange({ ...textValue, fontId: option.value })}
-                      className={`flex size-[clamp(66px,6vw,86px)] items-center justify-center rounded-[18px] border bg-white text-[clamp(20px,2vw,26px)] shadow-[0_2px_7px_rgba(0,0,0,0.2)] transition ${
-                        selected ? "border-[#110023] ring-4 ring-[#110023]" : "border-[#d5d5d5] hover:border-[#110023]"
+                      className={`flex h-9 items-center justify-center rounded border px-3 text-sm transition ${
+                        selected
+                          ? "border-accent bg-accent/10 text-accent font-semibold"
+                          : "border-outline bg-white text-on-surface hover:border-accent"
                       }`}
                       style={{ fontFamily: option.value }}
                     >
-                      Abc
+                      {option.label}
                     </button>
                   );
                 })}
@@ -1203,18 +1208,11 @@ function ImageField({
     sourcePolicy === "clipart_category_only" ? "clipart" : clipartValue ? "clipart" : "upload";
 
   const uploadSection = (
-    <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-4">
-        {uploaded ? (
-          <img
-            src={resolveAssetUrl?.(uploaded.previewUrl) ?? uploaded.previewUrl}
-            alt=""
-            className="h-[100px] w-[88px] shrink-0 rounded-[12px] object-cover"
-          />
-        ) : null}
-        <label className="inline-flex h-[clamp(52px,5vw,60px)] cursor-pointer items-center justify-center gap-3 rounded-[12px] bg-[#110023] px-6 text-[clamp(20px,2vw,26px)] font-normal leading-none text-white transition hover:bg-[#1d0738]">
-          {uploaded ? <RotateCw className="size-6" /> : <ImagePlus className="size-6" />}
-          {uploading ? "Uploading..." : uploaded ? "Replace" : "Upload"}
+    <div className="space-y-2.5">
+      {!uploaded ? (
+        <label className="flex h-20 cursor-pointer items-center justify-center gap-2 rounded border border-dashed border-outline bg-white px-4 text-sm text-on-surface-variant transition hover:border-accent hover:text-accent">
+          <ImagePlus className="size-4" />
+          {uploading ? "Uploading..." : "Choose PNG or JPEG"}
           <input
             type="file"
             accept="image/png,image/jpeg"
@@ -1227,38 +1225,44 @@ function ImageField({
             className="sr-only"
           />
         </label>
-        {uploaded ? (
-          <button
-            type="button"
-            aria-label="Remove image"
-            onClick={() => onChange(null)}
-            className="flex size-[clamp(52px,5vw,60px)] items-center justify-center rounded-[12px] bg-[#e9eef0] text-[#1f2933] transition hover:bg-[#dfe6e9]"
-          >
-            <X className="size-7" />
-          </button>
-        ) : null}
-      </div>
-      {!uploaded ? (
-        <label className="flex min-h-[120px] cursor-pointer items-center justify-center rounded-none border border-dashed border-[#d5d5d5] bg-white px-4 py-5 text-center text-[clamp(16px,1.5vw,20px)] text-[#9b9b9b] transition hover:border-[#110023]">
-          Choose PNG or JPEG
-        <input
-          type="file"
-          accept="image/png,image/jpeg"
-          disabled={uploading}
-          onChange={(event) => {
-            const file = event.target.files?.[0];
-            if (file) onUpload(file);
-            event.target.value = "";
-          }}
-          className="sr-only"
-        />
-      </label>
-      ) : null}
+      ) : (
+        <div className="flex items-center gap-3">
+          <img
+            src={resolveAssetUrl?.(uploaded.previewUrl) ?? uploaded.previewUrl}
+            alt=""
+            className="h-14 w-14 shrink-0 rounded object-cover"
+          />
+          <div className="flex flex-1 items-center gap-2">
+            <label className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded border border-outline bg-white px-3 text-xs font-semibold text-on-surface transition hover:border-accent">
+              <RotateCw className="size-3" />
+              Replace
+              <input
+                type="file"
+                accept="image/png,image/jpeg"
+                disabled={uploading}
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (file) onUpload(file);
+                  event.target.value = "";
+                }}
+                className="sr-only"
+              />
+            </label>
+            <button
+              type="button"
+              aria-label="Remove image"
+              onClick={() => onChange(null)}
+              className="flex h-8 items-center gap-1.5 rounded border border-outline bg-white px-3 text-xs font-semibold text-destructive transition hover:border-destructive"
+            >
+              <X className="size-3" />
+              Remove
+            </button>
+          </div>
+        </div>
+      )}
       {uploaded ? (
-        <p className="max-w-[680px] text-[clamp(16px,1.5vw,20px)] leading-snug text-[#9b9b9b]">
-          Please give it a couple of seconds for the remove background and watercolor filter to be applied.
-          <br />
-          <strong>Click the image on the preview to move it around and position it as you like!</strong>
+        <p className="text-[11px] leading-snug text-on-surface-variant">
+          Click the image on the preview to move and position it.
         </p>
       ) : null}
     </div>
@@ -1266,16 +1270,13 @@ function ImageField({
 
   const clipartSection = (
     <div className="space-y-3">
-      {clipartCategoryMode === "fixed" && layer?.clipartCategory?.name ? (
-        <p className="text-[clamp(16px,1.5vw,20px)] text-[#9b9b9b]">Category: {layer.clipartCategory.name}</p>
-      ) : null}
       {clipartCategoryMode === "allow_list" && scopedClipartCategories.length > 0 ? (
-        <label className="block text-[clamp(20px,2vw,26px)] font-normal leading-tight text-[#2d4056]">
-          Category
+        <div className="space-y-1.5">
+          <p className="text-xs font-semibold uppercase tracking-[0.1em] text-on-surface-variant">Category</p>
           <select
             value={activeCategoryId}
             onChange={(event) => setSelectedCategoryId(event.target.value)}
-            className="mt-3 h-14 w-full rounded-none border border-[#d5d5d5] bg-white px-4 text-[clamp(20px,2vw,26px)] text-black"
+            className="h-9 w-full rounded border border-outline bg-white px-3 text-sm text-on-surface outline-none focus:border-accent"
           >
             {scopedClipartCategories.map((category) => (
               <option key={category.id} value={category.id}>
@@ -1283,9 +1284,12 @@ function ImageField({
               </option>
             ))}
           </select>
-        </label>
+        </div>
+      ) : clipartCategoryMode === "fixed" && layer?.clipartCategory?.name ? (
+        <p className="text-xs font-semibold text-on-surface-variant">{layer.clipartCategory.name}</p>
       ) : null}
-      <div className="grid grid-cols-2 gap-4">
+      {/* Dense 6-col icon grid */}
+      <div className="grid grid-cols-6 gap-1.5">
         {availableClipartAssets.map((clipart) => {
           const selected =
             clipartValue &&
@@ -1295,6 +1299,7 @@ function ImageField({
             <button
               key={clipart.id}
               type="button"
+              title={clipart.name}
               onClick={() =>
                 onChange({
                   source: "clipart",
@@ -1308,16 +1313,17 @@ function ImageField({
                   categoryId: clipart.categoryId,
                 })
               }
-              className={`min-h-[120px] rounded-none border bg-white p-3 transition hover:border-[#110023] ${
-                selected ? "border-[#110023] ring-4 ring-[#110023]" : "border-[#d5d5d5]"
+              className={`flex aspect-square items-center justify-center rounded border p-1 transition ${
+                selected
+                  ? "border-accent bg-accent/10 ring-1 ring-accent"
+                  : "border-outline-variant bg-white hover:border-accent hover:bg-accent/5"
               }`}
             >
               <img
                 src={resolveAssetUrl?.(clipart.previewUrl) ?? clipart.previewUrl}
                 alt={clipart.name}
-                className="mx-auto h-20 w-20 object-contain"
+                className="h-10 w-10 object-contain"
               />
-              <span className="mt-2 block truncate text-base">{clipart.name}</span>
             </button>
           );
         })}
@@ -1326,10 +1332,10 @@ function ImageField({
         <button
           type="button"
           onClick={() => onChange(null)}
-          className="inline-flex items-center gap-2 text-base font-semibold text-destructive"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-destructive"
         >
-            <X className="size-5" />
-          Clear clipart
+          <X className="size-3.5" />
+          Clear selection
         </button>
       ) : null}
     </div>
@@ -1341,7 +1347,7 @@ function ImageField({
       {sourcePolicy === "clipart_category_only" ? clipartSection : null}
       {sourcePolicy === "upload_or_clipart_category" && layer?.presentation === "source_select" ? (
         <>
-          <div className="grid grid-cols-2 gap-2 bg-[#f2f2f2] p-1">
+          <div className="flex gap-1 rounded border border-outline bg-surface-container p-0.5">
             <button
               type="button"
               onClick={() => {
@@ -1363,14 +1369,22 @@ function ImageField({
                   });
                 }
               }}
-              className={`px-4 py-3 text-base font-semibold transition ${currentSource === "clipart" ? "bg-[#110023] text-white shadow-sm" : "bg-white text-[#2d4056] hover:bg-[#f5f5f5]"}`}
+              className={`flex-1 rounded py-1.5 text-xs font-semibold transition ${
+                currentSource === "clipart"
+                  ? "bg-white text-on-surface shadow-sm"
+                  : "text-on-surface-variant hover:text-on-surface"
+              }`}
             >
               Clipart
             </button>
             <button
               type="button"
               onClick={() => onChange(uploaded ?? null)}
-              className={`px-4 py-3 text-base font-semibold transition ${currentSource === "upload" ? "bg-[#110023] text-white shadow-sm" : "bg-white text-[#2d4056] hover:bg-[#f5f5f5]"}`}
+              className={`flex-1 rounded py-1.5 text-xs font-semibold transition ${
+                currentSource === "upload"
+                  ? "bg-white text-on-surface shadow-sm"
+                  : "text-on-surface-variant hover:text-on-surface"
+              }`}
             >
               Upload image
             </button>
@@ -1379,13 +1393,13 @@ function ImageField({
         </>
       ) : null}
       {sourcePolicy === "upload_or_clipart_category" && layer?.presentation === "side_by_side" ? (
-        <div className="grid gap-4">
-          <div className="p-0">
-            <p className="mb-3 text-[clamp(20px,2vw,26px)] font-normal leading-tight text-[#2d4056]">Clipart</p>
+        <div className="space-y-4">
+          <div>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.1em] text-on-surface-variant">Clipart</p>
             {clipartSection}
           </div>
-          <div className="p-0">
-            <p className="mb-3 text-[clamp(20px,2vw,26px)] font-normal leading-tight text-[#2d4056]">Upload image</p>
+          <div>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.1em] text-on-surface-variant">Upload image</p>
             {uploadSection}
           </div>
         </div>

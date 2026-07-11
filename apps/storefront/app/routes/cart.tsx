@@ -93,7 +93,7 @@ export default function Cart() {
           ? {
               title: getLocalized(resolvedLine.product.title, locale),
               handle: resolvedLine.product.handle,
-              variantTitle: resolvedLine.product.variantTitle,
+              variantTitle: getLocalized(resolvedLine.product.variantTitle, locale),
               sku: resolvedLine.product.sku,
               thumbnail: resolvedLine.product.thumbnail,
               priceAmount: resolvedLine.product.priceAmount,
@@ -117,18 +117,18 @@ export default function Cart() {
           lineTotal: unitPrice === null ? null : unitPrice * line.quantity,
         };
       }),
-    [lines, resolved],
+    [lines, resolved, locale],
   );
 
   const subtotal = rows.reduce((sum, row) => sum + (row.lineTotal ?? 0), 0);
   const hasInvalidLines = rows.some((row) => !row.valid);
 
   return (
-    <div className="bg-white min-h-screen text-[#333] font-sans pb-0">
+    <div className="min-h-screen bg-white pb-0 font-sans text-text-base">
       <main className="max-w-7xl mx-auto px-4 py-8 md:py-12">
         {/* Title area */}
         <div className="flex flex-col md:flex-row md:items-center gap-6 mb-12">
-          <h1 className="font-heading text-4xl uppercase tracking-widest font-black">
+          <h1 className="font-heading text-[42px] uppercase leading-none tracking-[0.04em] text-brand-strong">
             Shopping Cart
           </h1>
         </div>
@@ -141,8 +141,8 @@ export default function Cart() {
 
         {rows.length === 0 ? (
           <div className="py-20 text-center">
-            <h2 className="text-2xl font-bold mb-4">Your cart is empty</h2>
-            <Button asChild size="lg" className="px-8 font-bold">
+            <h2 className="mb-4 font-heading text-[34px] uppercase leading-none tracking-[0.03em] text-brand-strong">Your cart is empty</h2>
+            <Button asChild size="lg" className="bg-action-support px-8 font-bold uppercase tracking-[0.12em] hover:bg-action-support-hover">
               <Link to="/products">Continue Shopping</Link>
             </Button>
           </div>
@@ -177,7 +177,7 @@ export default function Cart() {
                         {getLocalized(display.title, locale) ?? getLocalized(line.display.productTitle, locale)}
                       </Link>
                     </h3>
-                    <div className="text-gray-500 font-medium text-sm mb-4">
+                    <div className="mb-4 font-heading text-[22px] uppercase leading-none tracking-[0.02em] text-text-base">
                       {formatCurrency(display.priceAmount)}
                     </div>
                     {line.customizationSummary.length > 0 ? (
@@ -215,7 +215,7 @@ export default function Cart() {
                   </div>
 
                   {/* Price */}
-                  <div className="font-bold text-sm sm:text-base w-16 text-right shrink-0">
+                  <div className="w-16 shrink-0 text-right font-heading text-[22px] uppercase leading-none tracking-[0.02em] text-text-base">
                     {formatCurrency(lineTotal)}
                   </div>
 
@@ -235,12 +235,12 @@ export default function Cart() {
             </div>
 
             <div className="lg:col-span-4">
-              <Card className="shadow-[0_2px_10px_rgba(0,0,0,0.05)] border-gray-200 rounded-none">
+              <Card className="rounded-none border border-border-subtle shadow-[0_2px_10px_rgba(0,0,0,0.05)]">
                 <CardContent className="p-6">
                   <div className="flex justify-center items-center gap-2 mb-8">
-                    <ShieldCheck className="text-red-600 text-[24px]" />
-                    <span className="font-bold text-[13px] tracking-wider uppercase">
-                      <span className="text-red-600">100%</span> SATISFACTION
+                    <ShieldCheck className="text-indicator-trust text-[24px]" />
+                    <span className="font-bold text-[13px] tracking-wider uppercase text-brand-strong">
+                      <span className="text-indicator-trust">100%</span> SATISFACTION
                       GUARANTEE
                     </span>
                   </div>
@@ -252,7 +252,7 @@ export default function Cart() {
                   </div>
                   <Button
                     asChild
-                    className="w-full mt-4 font-bold tracking-widest text-sm uppercase py-6"
+                    className="mt-4 w-full bg-action-support py-6 text-sm font-bold uppercase tracking-[0.14em] text-white hover:bg-action-support-hover"
                     disabled={hasInvalidLines}
                   >
                     <Link
@@ -262,8 +262,8 @@ export default function Cart() {
                       CHECKOUT
                     </Link>
                   </Button>
-                  <div className="flex items-center justify-center gap-2 mt-5 text-sm text-gray-600">
-                    <CheckCircle className="text-[18px]" />
+                  <div className="mt-5 flex items-center justify-center gap-2 text-sm text-brand-strong">
+                    <CheckCircle className="text-[18px] text-indicator-trust" />
                     Free Shipping Over $40!
                   </div>
                 </CardContent>
@@ -275,7 +275,7 @@ export default function Cart() {
 
       {/* Recently Viewed Mock */}
       <section className="max-w-7xl mx-auto px-4 py-20 border-t border-gray-100 mt-10">
-        <h2 className="text-center font-bold text-xl mb-12">Recently Viewed</h2>
+        <h2 className="mb-12 text-center font-heading text-[32px] uppercase leading-none tracking-[0.03em] text-brand-strong">Recently Viewed</h2>
         <div className="flex overflow-x-auto gap-6 pb-4 md:grid md:grid-cols-5 md:overflow-visible relative items-center">
           {[
             {
@@ -312,10 +312,10 @@ export default function Cart() {
               <div className="w-full aspect-square bg-gray-50 flex items-center justify-center p-4 mb-4">
                 <Image className="text-gray-300 text-6xl" />
               </div>
-              <h4 className="font-semibold text-xs sm:text-sm mb-1">
+              <h4 className="mb-1 text-xs font-semibold uppercase tracking-[0.08em] text-brand-strong sm:text-sm">
                 {getLocalized(item.title, locale)}
               </h4>
-              <p className="text-gray-500 text-xs sm:text-sm">{item.price}</p>
+              <p className="font-heading text-[18px] uppercase leading-none text-indicator-price sm:text-[20px]">{item.price}</p>
             </div>
           ))}
           <button className="hidden md:flex absolute -right-6 w-10 h-10 bg-white border border-gray-200 shadow-sm items-center justify-center hover:bg-gray-50">

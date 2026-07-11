@@ -24,13 +24,15 @@ import {
 } from "@/components/ui/carousel";
 import { LanguageSwitcher } from "./language-switcher";
 import type { StorefrontCategory, StorefrontCollection } from "@/lib/api";
+import { getLocalized } from "@/lib/translation";
 
 interface NavbarProps {
   categories: StorefrontCategory[];
   collections: StorefrontCollection[];
+  locale?: string;
 }
 
-export function Navbar({ categories, collections }: NavbarProps) {
+export function Navbar({ categories, collections, locale = "vi" }: NavbarProps) {
   const { itemCount } = useCart();
   useNavbarScroll();
 
@@ -47,13 +49,13 @@ export function Navbar({ categories, collections }: NavbarProps) {
   useLockBody(isMobileMenuOpen);
 
   const productMenuItems = categories.map((cat) => ({
-    title: cat.name,
+    title: getLocalized(cat.name, locale),
     imageUrl: cat.imageUrl,
     href: `/products?category=${encodeURIComponent(cat.handle)}`,
   }));
 
   const themeMenuItems = collections.map((col) => ({
-    title: col.title,
+    title: getLocalized(col.title, locale),
     imageUrl: col.imageUrl,
     href: `/collections/${encodeURIComponent(col.handle)}`,
   }));
@@ -69,7 +71,7 @@ export function Navbar({ categories, collections }: NavbarProps) {
             <div className="flex xl:hidden shrink-0 w-10">
               <button
                 onClick={() => setIsMobileMenuOpen(true)}
-                className="p-2 -ml-2 text-[#1a2e44]"
+                className="p-2 -ml-2 text-brand-strong"
                 aria-label="Mở menu"
               >
                 <Menu className="w-6 h-6" />
@@ -87,7 +89,7 @@ export function Navbar({ categories, collections }: NavbarProps) {
               />
             </Link>
 
-            <div className="hidden xl:flex items-center gap-2 text-[13px] font-bold text-[#1a2e44] tracking-wide shrink-0 h-full">
+            <div className="hidden h-full shrink-0 items-center gap-2 text-[13px] font-bold tracking-wide text-brand-strong xl:flex">
               <div className="h-[40px] flex items-center relative">
                 <button
                   onClick={() =>
@@ -139,16 +141,16 @@ export function Navbar({ categories, collections }: NavbarProps) {
               className="hidden"
             />
 
-            <div className="flex items-center gap-4 text-[#1a2e44] shrink-0 justify-end w-10 xl:w-auto">
+            <div className="flex w-10 shrink-0 items-center justify-end gap-4 text-brand-strong xl:w-auto">
               <LanguageSwitcher />
               <NavbarMoreDropdown />
 
               <Link
                 to="/cart"
-                className="flex items-center justify-center h-10 w-10 rounded-full hover:bg-gray-100 transition-colors relative text-[#1a2e44] hover:text-primary"
+                className="relative flex h-10 w-10 items-center justify-center rounded-full text-brand-strong transition-colors hover:bg-surface-subtle hover:text-brand-support"
               >
                 <ShoppingCart className="text-[24px]" />
-                <div className="absolute top-0 right-0 bg-[#e03a3a] text-white text-[10px] font-bold h-[16px] min-w-[16px] px-1 rounded-full flex items-center justify-center border-2 border-white leading-none">
+                <div className="absolute right-0 top-0 flex h-[16px] min-w-[16px] items-center justify-center rounded-full border-2 border-white bg-action-positive px-1 text-[10px] font-bold leading-none text-white">
                   {itemCount}
                 </div>
               </Link>
@@ -156,7 +158,7 @@ export function Navbar({ categories, collections }: NavbarProps) {
           </Container>
 
           {activeDropdown && (
-            <div className="absolute left-0 right-0 top-full border-t border-gray-100 bg-white shadow-xl z-50 animate-in fade-in slide-in-from-top-2">
+            <div className="absolute left-0 right-0 top-full z-50 animate-in border-t border-gray-100 bg-white shadow-xl fade-in slide-in-from-top-2">
               <MegaMenuGrid
                 items={
                   activeDropdown === "products"
@@ -181,11 +183,12 @@ export function Navbar({ categories, collections }: NavbarProps) {
           onClose={() => setIsMobileMenuOpen(false)}
           categories={categories}
           collections={collections}
+          locale={locale}
         />
       </header>
 
       {categories.length > 0 && (
-        <div className="hidden sm:block w-full border-t border-b border-gray-100 bg-white relative z-10">
+        <div className="relative z-10 hidden w-full border-y border-gray-100 bg-white sm:block">
           <Container className="relative py-3">
             <Carousel
               opts={{
@@ -211,7 +214,7 @@ export function Navbar({ categories, collections }: NavbarProps) {
                         {cat.imageUrl ? (
                           <img
                             src={cat.imageUrl}
-                            alt={cat.name}
+                            alt={getLocalized(cat.name, locale)}
                             className="w-full h-full object-cover"
                           />
                         ) : (
@@ -220,8 +223,8 @@ export function Navbar({ categories, collections }: NavbarProps) {
                           </div>
                         )}
                       </div>
-                      <span className="block text-center lg:text-left text-[11px] lg:text-[13px] font-bold text-[#1a2e44] uppercase tracking-wide lg:whitespace-nowrap leading-tight hover:text-primary transition-colors">
-                        {cat.name}
+                      <span className="block text-center text-[11px] font-bold uppercase leading-tight tracking-wide text-brand-strong transition-colors hover:text-brand-support lg:text-left lg:text-[13px] lg:whitespace-nowrap">
+                        {getLocalized(cat.name, locale)}
                       </span>
                     </Link>
                   </CarouselItem>

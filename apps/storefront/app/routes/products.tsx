@@ -1,7 +1,5 @@
 import { useSearchParams } from "react-router";
-import { FilterChips } from "../components/products/FilterChips";
-import { ProductCard } from "../components/shared/ProductCard";
-import { Pagination } from "../components/shared/Pagination";
+import { ProductListingShell } from "../components/products/ProductListingShell";
 import { fetchStorefrontCategories, fetchStorefrontProducts } from "../lib/api";
 import { getLocaleFromRequest } from "../lib/locale";
 import { getLocalized } from "../lib/translation";
@@ -13,21 +11,18 @@ export async function loader({ request }: Route.LoaderArgs) {
   const activeCategory = url.searchParams.get("category") || "";
   const currentPage = Number(url.searchParams.get("page")) || 1;
 
-  // Fetch categories first to resolve the handle
-  const apiCategories = await fetchStorefrontCategories().catch(() => []);
-  const categoryHandle = activeCategory
-    ? apiCategories.find((c) => c.name === activeCategory)?.handle || ""
-    : "";
+  const apiCategories = await fetchStorefrontCategories(locale).catch(() => []);
 
   const data = await fetchStorefrontProducts({
-    category: categoryHandle || undefined,
+    category: activeCategory || undefined,
     page: currentPage,
     limit: 12,
+    locale,
   });
 
   const allCategories = [
     { name: "Tất cả", handle: "" },
-    ...apiCategories.map((c) => ({ name: c.name, handle: c.handle })),
+    ...apiCategories.map((c) => ({ name: getLocalized(c.name, locale), handle: c.handle })),
   ];
 
   return {
@@ -36,17 +31,22 @@ export async function loader({ request }: Route.LoaderArgs) {
     activeCategory,
     currentPage: data.page,
     totalPages: Math.max(1, Math.ceil(data.total / data.limit)),
+    totalItems: data.total,
     locale,
   };
 }
 
 export default function Products({ loaderData }: Route.ComponentProps) {
-  const { categories, products, activeCategory, currentPage, totalPages, locale } = loaderData;
+  const { categories, products, activeCategory, currentPage, totalPages, totalItems, locale } = loaderData;
   const [searchParams, setSearchParams] = useSearchParams();
 
   const handleCategorySelect = (category: string) => {
     setSearchParams((prev) => {
-      prev.set("category", category);
+      if (category) {
+        prev.set("category", category);
+      } else {
+        prev.delete("category");
+      }
       prev.set("page", "1");
       return prev;
     });
@@ -60,33 +60,33 @@ export default function Products({ loaderData }: Route.ComponentProps) {
   };
 
   return (
-    <div className="bg-background min-h-screen font-body-md text-on-background">
-      <main className="max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop py-12">
-        <div className="mb-12">
-          <h1 className="font-display-lg-mobile md:font-display-lg text-display-lg-mobile md:text-display-lg text-on-background mb-8">
-            DANH MỤC SẢN PHẨM
-          </h1>
-          <div className="sticky top-[125px] z-30 bg-background/95 backdrop-blur-sm py-2 -mx-margin-mobile px-margin-mobile md:mx-0 md:px-0">
-            <FilterChips 
-              categories={categories} 
-              activeCategory={activeCategory} 
-              onSelect={handleCategorySelect}
-            />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-gutter gap-y-16">
-          {products.map((product, index) => (
-            <ProductCard key={index} {...product} title={getLocalized(product.title, locale)} />
-          ))}
-        </div>
-
-        <Pagination 
-          currentPage={currentPage} 
-          totalPages={totalPages} 
-          onPageChange={handlePageChange} 
-        />
-      </main>
-    </div>
+    <ProductListingShell
+      breadcrumbs={[
+        { label: "Trang chủ", href: "/" },
+        { label: "Sản phẩm" },
+      ]}
+      eyebrow="Danh mục nổi bật"
+      title="Danh sách sản phẩm"
+      description="Khám phá các mẫu cúp, bảng vinh danh và quà tặng cá nhân hóa theo đúng tinh thần storefront reference: tiêu đề đậm, bộ lọc rõ ràng và lưới sản phẩm ưu tiên khả năng quét nhanh."
+      featuredImageSrc={products[0]?.thumbnail}
+      featuredImageAlt={products[0] ? getLocalized(products[0].title, locale) : "Sản phẩm nổi bật"}
+      products={products}
+      locale={locale}
+      totalItems={totalItems}
+      currentPage={currentPage}
+      totalPages={totalPages}
+      onPageChange={handlePageChange}
+      filters={{
+        categories,
+        activeCategory,
+        onSelect: handleCategorySelect,
+      }}
+      emptyState={{
+        title: "Chưa có sản phẩm phù hợp",
+        description: "Hiện chưa có sản phẩm cho bộ lọc này. Hãy quay lại toàn bộ danh mục để xem các mẫu đang mở bán.",
+        ctaLabel: "Xem tất cả sản phẩm",
+        ctaHref: "/products",
+      }}
+    />
   );
 }

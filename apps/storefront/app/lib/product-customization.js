@@ -1,12 +1,12 @@
 import { createDefaultFormValues } from "@trophy/customization";
-export function buildProductCustomizationTemplate({ productId, productTitle, customization, selectedVariant, }) {
+export function buildProductCustomizationTemplate({ productId, productTitle, customization, selectedVariant, selectedMedia, }) {
     return {
         id: `product_${productId}`,
         productId: String(productId),
         name: `${productTitle} customization`,
         revision: 1,
         status: "published",
-        background: getVariantBackground(selectedVariant),
+        background: getVariantBackground(selectedVariant, selectedMedia),
         layers: customization.layers,
         formFields: customization.formFields,
     };
@@ -21,8 +21,8 @@ export function mergeCustomizationValues(template, current) {
     }
     return nextValues;
 }
-function getVariantBackground(selectedVariant) {
-    const media = selectedVariant?.media[0];
+function getVariantBackground(selectedVariant, selectedMedia) {
+    const media = selectedMedia ?? selectedVariant?.media[0];
     if (!media?.contentUrl || media.widthPx == null || media.heightPx == null) {
         return null;
     }

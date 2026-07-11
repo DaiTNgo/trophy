@@ -12,6 +12,9 @@ import type {
 } from "../types";
 import { createDraftId, slugify, splitCommaValues, buildSku } from "./utils";
 
+export const DEFAULT_PRODUCT_OPTION_TITLE = "Default option";
+export const DEFAULT_PRODUCT_OPTION_VALUE = "Default option value";
+
 function createLocalizedText(value = "") {
   return {
     vi: value,
@@ -128,7 +131,12 @@ export function buildVariantBlueprints(
     return [
       {
         title: "Default variant",
-        options: [] as VariantOptionValue[],
+        options: [
+          {
+            option: DEFAULT_PRODUCT_OPTION_TITLE,
+            value: DEFAULT_PRODUCT_OPTION_VALUE,
+          },
+        ] as VariantOptionValue[],
       },
     ];
   }

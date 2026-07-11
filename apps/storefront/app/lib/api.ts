@@ -1,3 +1,5 @@
+import type { LocalizedTextValue } from "./translation";
+
 const BACKEND_URL =
   (import.meta.env.VITE_BACKEND_URL as string | undefined)?.replace(/\/$/, "") ??
   "http://localhost:8787";
@@ -10,14 +12,14 @@ export function backendAssetUrl(path: string | null | undefined) {
 
 export type StorefrontProductItem = {
   id: number;
-  title: string;
-  subtitle: string | null;
+  title: LocalizedTextValue;
+  subtitle: LocalizedTextValue;
   handle: string;
   priceAmount: number | null;
   priceFrom: boolean;
   thumbnail: string | null;
-  categorySummary: string | null;
-  typeValue: string | null;
+  categorySummary: LocalizedTextValue;
+  typeValue: LocalizedTextValue;
   customizable: boolean;
 };
 
@@ -31,18 +33,18 @@ export type StorefrontListingResponse = {
 export type StorefrontDetailResponse = {
   item: {
     id: number;
-    title: string;
-    subtitle: string | null;
+    title: LocalizedTextValue;
+    subtitle: LocalizedTextValue;
     handle: string;
-    description: string | null;
+    description: LocalizedTextValue;
     hasVariants: boolean;
-    type: { id: number; value: string } | null;
-    categories: Array<{ id: number; name: string; handle: string; parentId: number | null }>;
-    attributes: Array<{ id: number; productId: number; name: string; value: string; unit: string | null; position: number }>;
-    options: Array<{ id: number; productId: number; title: string; position: number; values: Array<{ id: number; optionId: number; value: string; position: number }> }>;
+    type: { id: number; value: LocalizedTextValue } | null;
+    categories: Array<{ id: number; name: LocalizedTextValue; handle: string; parentId: number | null }>;
+    attributes: Array<{ id: number; productId: number; name: LocalizedTextValue; value: LocalizedTextValue; unit: string | null; position: number }>;
+    options: Array<{ id: number; productId: number; title: LocalizedTextValue; position: number; values: Array<{ id: number; optionId: number; value: LocalizedTextValue; position: number }> }>;
     variants: Array<{
       id: number;
-      title: string;
+      title: LocalizedTextValue;
       sku: string | null;
       priceAmount: number | null;
       isDefault: boolean;
@@ -58,7 +60,7 @@ export type StorefrontDetailResponse = {
         position: number;
         contentUrl: string;
       }>;
-      optionValues: Array<{ id: number; value: string; optionId: number; optionTitle: string | null }>;
+      optionValues: Array<{ id: number; value: LocalizedTextValue; optionId: number; optionTitle: LocalizedTextValue }>;
     }>;
     customization: {
       enabled: boolean;
@@ -151,9 +153,9 @@ export async function fetchStorefrontDynamicFonts(): Promise<StorefrontDynamicFo
 
 export type StorefrontCategory = {
   id: number;
-  name: string;
+  name: LocalizedTextValue;
   handle: string;
-  description: string | null;
+  description: LocalizedTextValue;
   imageUrl: string | null;
   parentId: number | null;
 };
@@ -171,9 +173,9 @@ export async function fetchStorefrontCategories(locale?: string): Promise<Storef
 
 export type StorefrontCollection = {
   id: number;
-  title: string;
+  title: LocalizedTextValue;
   handle: string;
-  description: string | null;
+  description: LocalizedTextValue;
   imageUrl: string | null;
 };
 
@@ -277,9 +279,9 @@ export type StorefrontResolvedCartLine = {
   valid: boolean;
   reason: "product_unavailable" | "variant_missing" | "variant_mismatch" | "contact_price" | null;
   product?: {
-    title: string;
+    title: LocalizedTextValue;
     handle: string;
-    variantTitle: string;
+    variantTitle: LocalizedTextValue;
     sku: string | null;
     thumbnail: string | null;
     priceAmount: number | null;

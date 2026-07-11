@@ -73,9 +73,9 @@ type CreateFullProductPayload = {
   mode: "draft" | "publish";
   details: {
     title: LocalizedInput;
-    subtitle: LocalizedInput | null;
+    subtitle?: LocalizedInput | null;
     handle: string | null;
-    description: LocalizedInput | null;
+    description?: LocalizedInput | null;
   };
   organization: {
     collectionId?: number | null;

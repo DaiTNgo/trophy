@@ -14,15 +14,15 @@ export function ProductMobileActionBar({
   contactHref?: string;
 }) {
   return (
-    <div className="fixed bottom-0 left-0 z-50 flex w-full items-center gap-4 border-t border-[#d8c1ad] bg-white/95 p-4 backdrop-blur-md lg:hidden">
+    <div className="fixed bottom-0 left-0 z-50 flex w-full items-center gap-4 border-t border-border-subtle bg-white/96 p-4 shadow-[0_-18px_48px_rgba(24,22,26,0.08)] backdrop-blur-md lg:hidden">
       <div className="flex-shrink-0">
-        <p className="text-[12px] font-semibold uppercase tracking-[0.12em] text-[#7b6b5f]">Total</p>
-        <p className="font-bold text-[#110023]">{price}</p>
+        <p className="text-[12px] font-semibold uppercase tracking-[0.12em] text-text-muted">Total</p>
+        <p className="font-heading text-[24px] uppercase leading-none tracking-[0.02em] text-action-positive">{price}</p>
       </div>
       {contactHref ? (
         <Link
           to={contactHref}
-          className="flex-1 rounded-[14px] bg-[#110023] py-3 text-center font-label-md uppercase text-white"
+          className="flex-1 rounded-[14px] bg-brand-hero py-3 text-center font-label-md uppercase text-white"
         >
           Contact
         </Link>
@@ -31,7 +31,7 @@ export function ProductMobileActionBar({
           type="button"
           onClick={onClick}
           disabled={disabled}
-          className="flex-1 rounded-[14px] bg-[#110023] py-3 font-label-md uppercase text-white disabled:cursor-not-allowed disabled:opacity-60"
+          className="flex-1 rounded-[14px] bg-action-commerce py-3 font-label-md uppercase text-white disabled:cursor-not-allowed disabled:opacity-60"
         >
           {label}
         </button>

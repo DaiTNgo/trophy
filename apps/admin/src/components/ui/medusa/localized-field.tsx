@@ -6,6 +6,7 @@ const LOCALE_OPTIONS: Array<{ value: AdminLocale; label: string }> = [
   { value: "vi", label: "VI" },
   { value: "en", label: "EN" },
 ];
+const ALL_LOCALES = LOCALE_OPTIONS.map((locale) => locale.value);
 
 const localeNames: Record<AdminLocale, string> = {
   vi: "Vietnamese",
@@ -26,8 +27,11 @@ export function createLocalizedText(value = ""): LocalizedTextValue {
   };
 }
 
-export function getMissingLocalizedTextLocales(value: LocalizedTextValue) {
-  return LOCALE_OPTIONS.filter((locale) => !value[locale.value].trim()).map((locale) => locale.value);
+export function getMissingLocalizedTextLocales(
+  value: LocalizedTextValue,
+  requiredLocales: readonly AdminLocale[] = ALL_LOCALES,
+) {
+  return requiredLocales.filter((locale) => !value[locale].trim());
 }
 
 type LanguageSwitchProps = {
@@ -84,6 +88,7 @@ type LocalizedTextFieldProps = {
   onChange: (value: LocalizedTextValue) => void;
   placeholder?: Partial<Record<AdminLocale, string>>;
   helperText?: string;
+  requiredLocales?: readonly AdminLocale[];
   multiline?: boolean;
   rows?: number;
   className?: string;
@@ -98,11 +103,12 @@ export function LocalizedTextField({
   onChange,
   placeholder,
   helperText,
+  requiredLocales,
   multiline = false,
   rows = 4,
   className,
 }: LocalizedTextFieldProps) {
-  const missingLocales = getMissingLocalizedTextLocales(value);
+  const missingLocales = getMissingLocalizedTextLocales(value, requiredLocales);
   const fieldId = `${id}-${locale}`;
 
   const handleValueChange = (nextValue: string) => {

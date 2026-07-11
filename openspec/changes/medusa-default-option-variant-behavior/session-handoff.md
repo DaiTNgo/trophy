@@ -3,12 +3,18 @@
 ## Current State
 
 - OpenSpec change `medusa-default-option-variant-behavior` is proposed and apply-ready.
+- 2026-07-11 implementation slice completed:
+  - Admin create flow now submits `Default option` / `Default option value` when variants are not enabled.
+  - Backend `full-create` normalizes products without custom options into the same default option/value/variant-selection graph.
+  - Regular admin product create also persists the default option graph.
+  - Backend validation now treats `hasVariants=false` as a UI mode hint and validates variant option selections against persisted option rows.
+  - `tasks.md` marks 1.2 and 3.1 complete.
 - Artifacts:
   - `proposal.md`: motivation, capability, impact.
   - `design.md`: implementation decisions across backend admin routes, storefront routes, admin UI, storefront UI, and Contact Price inquiry.
   - `specs/medusa-product-options-and-variant-selection/spec.md`: normative requirements and scenarios.
   - `tasks.md`: implementation checklist.
-- `openspec validate medusa-default-option-variant-behavior --strict` passes.
+- Verification passed after the slice: `pnpm --filter backend check`, `pnpm --filter backend test`, `pnpm --filter backend build`, `pnpm --filter admin build`, and `openspec validate medusa-default-option-variant-behavior --strict`.
 
 ## Important Decisions
 
@@ -24,4 +30,4 @@
 
 ## Next Step
 
-- Start implementation at `tasks.md` section 1 with backend helpers and full-create normalization, adding route contract tests before integrating admin/storefront UI.
+- Continue with the remaining backend option model work: helpers/missing-option detection, option replacement/detail mutation behavior, used value deletion, unreconciled variant read models, and publish blocking tests. Then proceed through storefront contract/UI tasks.

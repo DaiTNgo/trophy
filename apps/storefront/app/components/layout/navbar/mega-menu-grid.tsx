@@ -13,12 +13,12 @@ interface MegaMenuGridProps {
 export function MegaMenuGrid({ items }: MegaMenuGridProps) {
   if (items.length === 0) return null;
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 border-gray-100">
+    <div className="grid grid-cols-2 border-border-subtle md:grid-cols-4 lg:grid-cols-5">
       {items.map((item, i) => (
         <Link
           key={i}
           to={item.href}
-          className="flex flex-row items-center justify-start px-8 py-6 bg-white transition-colors gap-4 border-r border-b border-gray-100 group [&:nth-child(5n)]:border-r-0 lg:[&:nth-child(5n)]:border-r-0 md:[&:nth-child(4n)]:border-r-0 max-md:[&:nth-child(2n)]:border-r-0"
+          className="group flex flex-row items-center justify-start gap-4 border-b border-r border-border-subtle bg-white px-8 py-6 transition-colors [&:nth-child(5n)]:border-r-0 lg:[&:nth-child(5n)]:border-r-0 md:[&:nth-child(4n)]:border-r-0 max-md:[&:nth-child(2n)]:border-r-0"
         >
           <div className="w-[50px] flex-shrink-0 flex items-center justify-center">
             {item.imageUrl ? (
@@ -29,12 +29,12 @@ export function MegaMenuGrid({ items }: MegaMenuGridProps) {
                 loading="lazy"
               />
             ) : (
-              <div className="w-[50px] h-[50px] bg-gray-100 rounded flex items-center justify-center">
+              <div className="flex h-[50px] w-[50px] items-center justify-center rounded bg-surface-subtle">
                 <Package className="text-[24px] text-gray-400" />
               </div>
             )}
           </div>
-          <span className="text-[12px] font-bold text-[#1a2e44] group-hover:text-primary uppercase tracking-wider text-left leading-tight">
+          <span className="text-left text-[12px] font-bold uppercase leading-tight tracking-wider text-brand-strong group-hover:text-primary">
             {item.title}
           </span>
         </Link>

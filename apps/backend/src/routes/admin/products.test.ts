@@ -193,7 +193,22 @@ describe("product full-create helpers", () => {
       categories: [],
       attributes: [],
       media: [],
-      options: [],
+      options: [
+        {
+          id: 10,
+          productId: 7,
+          title: "Default option",
+          position: 0,
+          values: [
+            {
+              id: 100,
+              optionId: 10,
+              value: "Default option value",
+              position: 0,
+            },
+          ],
+        },
+      ],
       customization: {
         productId: "7",
         enabled: true,
@@ -229,8 +244,15 @@ describe("product full-create helpers", () => {
               contentUrl: "/api/assets/products/asset_red_1/content",
             },
           ],
-          optionValueIds: [],
-          optionValues: [],
+          optionValueIds: [100],
+          optionValues: [
+            {
+              id: 100,
+              value: "Default option value",
+              optionId: 10,
+              optionTitle: "Default option",
+            },
+          ],
         },
       ],
     });

@@ -163,7 +163,6 @@ export const products = sqliteTable(
     handle: text("handle").notNull(),
     description: text("description"),
     status: text("status").notNull().default("draft"),
-    hasVariants: integer("has_variants", { mode: "boolean" }).notNull().default(false),
     collectionId: integer("collection_id"),
     createdAt: text("created_at")
       .notNull()

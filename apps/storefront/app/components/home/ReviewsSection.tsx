@@ -33,7 +33,7 @@ export function ReviewsSection() {
       <div className="max-w-container-max mx-auto">
         {/* Heading */}
         <div className="text-center mb-14 reveal active">
-          <p className="font-label-md text-label-md uppercase tracking-[0.35em] text-[#875200] mb-3">
+          <p className="mb-3 font-label-md text-label-md uppercase tracking-[0.35em] text-brand-accent">
             Cam kết của chúng tôi
           </p>
           <h2 className="font-heading text-[36px] md:text-[44px] uppercase leading-none text-on-surface">
@@ -46,13 +46,13 @@ export function ReviewsSection() {
           {GUARANTEES.map(({ icon, quote, author, role }, i) => (
             <div
               key={role}
-              className="bg-white rounded-xl p-8 border border-outline-variant luxury-shadow reveal active"
+              className="reveal active rounded-xl border border-outline-variant bg-white p-8 luxury-shadow"
               style={{ animationDelay: `${i * 80}ms` }}
             >
-              <div className="w-10 h-10 rounded-lg bg-[#875200]/10 flex items-center justify-center mb-6">
-                {icon === "ShieldCheck" && <ShieldCheck className="text-[22px] text-[#875200]" />}
-                {icon === "Eye" && <Eye className="text-[22px] text-[#875200]" />}
-                {icon === "Clock" && <Clock className="text-[22px] text-[#875200]" />}
+              <div className="mb-6 flex h-10 w-10 items-center justify-center rounded-lg bg-brand-strong/10">
+                {icon === "ShieldCheck" && <ShieldCheck className="text-[22px] text-brand-accent" />}
+                {icon === "Eye" && <Eye className="text-[22px] text-brand-strong" />}
+                {icon === "Clock" && <Clock className="text-[22px] text-brand-support" />}
               </div>
               <p className="font-body-lg text-body-lg text-on-surface-variant leading-relaxed mb-6 italic">
                 "{quote}"
@@ -61,7 +61,7 @@ export function ReviewsSection() {
                 <p className="font-label-md text-label-md uppercase tracking-wide text-on-surface">
                   {author}
                 </p>
-                <p className="font-body-md text-body-md text-[#875200] text-[13px]">
+                <p className="font-body-md text-body-md text-brand-accent text-[13px]">
                   {role}
                 </p>
               </div>

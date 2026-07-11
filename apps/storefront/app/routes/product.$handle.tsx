@@ -8,7 +8,7 @@ import {
   ProductCustomizationForm,
   ProductCustomizationPreview,
 } from "@trophy/customization-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLoaderData } from "react-router";
 import { Minus, Plus } from "lucide-react";
 import { validateCustomizationValues } from "@trophy/customization";
@@ -53,6 +53,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
 export default function ProductDetail() {
   const { product, dynamicFonts, locale } = useLoaderData<typeof loader>();
   const { addLine } = useCart();
+  const previewSectionRef = useRef<HTMLElement | null>(null);
   const defaultVariantId =
     product.variants.find((variant) => variant.isDefault && variant.priceAmount !== null)?.id ??
     product.variants.find((variant) => variant.priceAmount !== null)?.id ??
@@ -64,12 +65,36 @@ export default function ProductDetail() {
   const [cartMessage, setCartMessage] = useState("");
   const [uploadingFieldId, setUploadingFieldId] = useState("");
   const [quantity, setQuantity] = useState(1);
+  const [selectedMediaId, setSelectedMediaId] = useState<string | null>(null);
 
   const selectedVariant =
     product.variants.find((variant) => variant.id === selectedVariantId) ??
     product.variants.find((variant) => variant.id === defaultVariantId) ??
     null;
+  const selectedCustomizationVariant = useMemo(
+    () =>
+      selectedVariant
+        ? {
+            ...selectedVariant,
+            title: getLocalized(selectedVariant.title, locale),
+          }
+        : null,
+    [selectedVariant, locale],
+  );
+  const selectedVariantMedia = useMemo(
+    () =>
+      [...(selectedVariant?.media ?? [])]
+        .filter((media) => Boolean(media.contentUrl))
+        .sort((a, b) => a.position - b.position),
+    [selectedVariant],
+  );
+  const selectedMedia =
+    selectedVariantMedia.find((media) => media.id === selectedMediaId) ?? selectedVariantMedia[0] ?? null;
   const displayPrice = formatCurrency(selectedVariant?.priceAmount ?? null);
+
+  useEffect(() => {
+    setSelectedMediaId(selectedVariantMedia[0]?.id ?? null);
+  }, [selectedVariant?.id, selectedVariantMedia]);
 
   const customization = useMemo<ProductCustomization | null>(() => {
     if (!product.customization?.enabled) return null;
@@ -90,10 +115,11 @@ export default function ProductDetail() {
             productId: product.id,
             productTitle: getLocalized(product.title, locale),
             customization,
-            selectedVariant,
+            selectedVariant: selectedCustomizationVariant,
+            selectedMedia,
           })
         : null,
-    [customization, product.id, getLocalized(product.title, locale), selectedVariant],
+    [customization, product.id, product.title, locale, selectedCustomizationVariant, selectedMedia],
   );
 
   const [customizationValues, setCustomizationValues] = useState(() =>
@@ -114,12 +140,14 @@ export default function ProductDetail() {
     () =>
       product.attributes.reduce(
         (acc, attribute) => {
-          acc[attribute.name] = attribute.unit ? `${attribute.value} ${attribute.unit}` : attribute.value;
+          const name = getLocalized(attribute.name, locale);
+          const value = getLocalized(attribute.value, locale);
+          acc[name] = attribute.unit ? `${value} ${attribute.unit}` : value;
           return acc;
         },
         {} as Record<string, string>,
       ),
-    [product.attributes],
+    [product.attributes, locale],
   );
 
   const selectedOptionValueIds = new Map(
@@ -155,16 +183,16 @@ export default function ProductDetail() {
   }
 
   const optionGroups = visibleOptions.map((option) => (
-    <div key={option.id} className="space-y-3">
+    <div key={option.id} className="space-y-2">
       <div className="flex items-center justify-between gap-3">
-        <p className="text-[clamp(20px,2vw,26px)] font-normal leading-tight text-[#2d4056]">
-          {option.title}
+        <p className="font-heading text-[22px] uppercase leading-none tracking-[0.02em] text-brand-strong">
+          {getLocalized(option.title, locale)}
         </p>
-        <span className="text-sm text-[#7b6b5f]">
-          {option.values.find((value) => selectedOptionValueIds.get(option.id) === value.id)?.value ?? "Select"}
+        <span className="text-xs font-semibold uppercase tracking-[0.08em] text-on-surface-variant">
+          {getLocalized(option.values.find((value) => selectedOptionValueIds.get(option.id) === value.id)?.value, locale) || "Select"}
         </span>
       </div>
-      <div className="grid gap-2 sm:grid-cols-2">
+      <div className="grid gap-1.5 sm:grid-cols-2">
         {option.values.map((value) => {
           const nextVariant = findVariantForOptionValue(option.id, value.id);
           const selected = selectedOptionValueIds.get(option.id) === value.id;
@@ -180,13 +208,13 @@ export default function ProductDetail() {
               onClick={() => {
                 if (nextVariant) setSelectedVariantId(nextVariant.id);
               }}
-              className={`min-h-14 rounded-none border px-4 py-3 text-left text-[clamp(18px,1.5vw,22px)] font-normal transition ${
+              className={`h-10 rounded border px-3 text-left text-sm font-medium transition ${
                 selected
-                  ? "border-[#110023] bg-white text-black ring-2 ring-[#110023]"
-                  : "border-[#d5d5d5] bg-white text-black hover:border-[#110023] hover:bg-[#fbf8f5]"
+                  ? "border-brand-strong bg-white text-text-base ring-2 ring-brand-strong/15"
+                  : "border-border-subtle bg-white text-text-base hover:border-brand-support"
               } disabled:cursor-not-allowed disabled:opacity-40`}
             >
-              {value.value}
+              {getLocalized(value.value, locale)}
             </button>
           );
         })}
@@ -194,16 +222,14 @@ export default function ProductDetail() {
     </div>
   ));
 
-  const mainMedia = selectedVariant?.media[0] ?? null;
-  const galleryThumbnails = product.variants
-    .filter((variant) => variant.media[0]?.contentUrl)
-    .map((variant) => ({
-      id: String(variant.id),
-      src: variant.media[0]!.contentUrl,
-      alt: `${getLocalized(product.title, locale)} - ${getLocalized(variant.title, locale)}`,
-      active: variant.id === selectedVariant?.id,
-      onClick: () => setSelectedVariantId(variant.id),
-    }));
+  const mainMedia = selectedMedia;
+  const galleryThumbnails = selectedVariantMedia.map((media, index) => ({
+    id: media.id,
+    src: media.contentUrl,
+    alt: `${getLocalized(product.title, locale)} - image ${index + 1}`,
+    active: media.id === selectedMedia?.id,
+    onClick: () => setSelectedMediaId(media.id),
+  }));
   const contactHref = `/contact?product=${encodeURIComponent(getLocalized(product.title, locale))}${
     selectedVariant ? `&variant=${encodeURIComponent(getLocalized(selectedVariant.title, locale))}` : ""
   }${selectedVariant?.sku ? `&sku=${encodeURIComponent(selectedVariant.sku)}` : ""}`;
@@ -313,16 +339,25 @@ export default function ProductDetail() {
     }
   }
 
+  const shortDescription = useMemo(() => {
+    const full = getLocalized(product.description, locale) || "";
+    if (full.length <= 220) return full;
+    const cut = full.slice(0, 220);
+    const lastPeriod = cut.lastIndexOf(".");
+    return lastPeriod > 120 ? cut.slice(0, lastPeriod + 1) : cut + "…";
+  }, [product.description, locale]);
+
   return (
-    <div className="bg-white font-body-md text-on-surface selection:bg-[#f4eee8] selection:text-[#110023]">
-      <main className="mx-auto max-w-[1680px] px-4 pb-28 pt-6 sm:px-6 md:px-8 md:pb-16 lg:px-10">
+    <div className="bg-white font-body-md text-on-surface selection:bg-secondary-container selection:text-brand-strong">
+      <main className="mx-auto max-w-[1480px] px-4 pb-28 pt-6 sm:px-6 md:px-8 md:pb-16 lg:px-10">
         <ProductBreadcrumbs title={getLocalized(product.title, locale)} />
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.42fr)_minmax(400px,0.58fr)] lg:items-start">
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_440px] lg:items-start xl:grid-cols-[minmax(0,1fr)_480px]">
           <ProductGallery
             customizable={Boolean(customizationTemplate)}
             mainContent={
               customizationTemplate ? (
-                <div
+                <section
+                  ref={(el) => { previewSectionRef.current = el; }}
                   className="min-h-[560px]"
                   data-selected-variant-id={selectedVariant?.id ?? ""}
                 >
@@ -336,17 +371,17 @@ export default function ProductDetail() {
                       setCustomizationValues((current) => ({ ...current, [fieldId]: value }));
                     }}
                   />
-                </div>
+                </section>
               ) : mainMedia?.contentUrl ? (
-                <div className="group flex min-h-[560px] items-center justify-center p-6">
+                <div className="group flex min-h-[480px] items-center justify-center p-6">
                   <img
-                    className="max-h-[680px] w-full object-contain transition-transform duration-700 group-hover:scale-105"
+                    className="max-h-[600px] w-full object-contain transition-transform duration-700 group-hover:scale-105"
                     src={mainMedia.contentUrl}
                     alt={getLocalized(product.title, locale)}
                   />
                 </div>
               ) : (
-                <div className="flex min-h-[560px] items-center justify-center text-[#7b6b5f]">
+                <div className="flex min-h-[480px] items-center justify-center text-on-surface-variant">
                   Product image unavailable
                 </div>
               )
@@ -358,59 +393,17 @@ export default function ProductDetail() {
             price={displayPrice}
             rating={5}
             reviewsCount={0}
+            description={shortDescription}
             variantSelector={
-              product.variants.length > 0 ? (
-                <div className="space-y-8">
-                  {optionGroups.length > 0 ? (
-                    <div className="space-y-8">
-                      <div className="flex items-center justify-between gap-4">
-                        <h2 className="text-[clamp(20px,2vw,26px)] font-normal leading-tight text-[#2d4056]">Options</h2>
-                        {selectedVariant?.sku ? (
-                          <span className="text-xs font-semibold uppercase tracking-[0.12em] text-[#7b6b5f]">
-                            SKU {selectedVariant.sku}
-                          </span>
-                        ) : null}
-                      </div>
-                      {optionGroups}
-                    </div>
-                  ) : null}
-                  <div className="space-y-2">
-                    <label className="block text-[clamp(20px,2vw,26px)] font-normal leading-tight text-[#2d4056]">Quantity</label>
-                    <div className="inline-flex h-14 items-center overflow-hidden border border-[#d5d5d5] bg-white">
-                      <button
-                        type="button"
-                        aria-label="Decrease quantity"
-                        className="h-full px-4 text-[#2d4056] transition hover:bg-[#fbf8f5]"
-                        onClick={() => setQuantity((current) => Math.max(1, current - 1))}
-                      >
-                        <Minus className="size-4" />
-                      </button>
-                      <input
-                        type="number"
-                        min={1}
-                        value={quantity}
-                        onChange={(event) => {
-                          const nextValue = Number(event.target.value);
-                          setQuantity(Number.isFinite(nextValue) && nextValue > 0 ? Math.min(99, nextValue) : 1);
-                        }}
-                        className="h-full w-16 border-x border-[#d5d5d5] bg-white px-3 text-center text-[clamp(18px,1.5vw,22px)] outline-none"
-                      />
-                      <button
-                        type="button"
-                        aria-label="Increase quantity"
-                        className="h-full px-4 text-[#2d4056] transition hover:bg-[#fbf8f5]"
-                        onClick={() => setQuantity((current) => Math.min(99, current + 1))}
-                      >
-                        <Plus className="size-4" />
-                      </button>
-                    </div>
-                  </div>
+              optionGroups.length > 0 ? (
+                <div className="space-y-4">
+                  {optionGroups}
                 </div>
               ) : null
             }
             customizationSection={
               customizationTemplate ? (
-                <div className="space-y-8">
+                <div>
                   <ProductCustomizationForm
                     template={customizationTemplate}
                     values={customizationValues}
@@ -422,14 +415,78 @@ export default function ProductDetail() {
                       setCustomizationValues((current) => ({ ...current, [fieldId]: value }));
                     }}
                   />
+                  <div className="mt-4 border-t border-border-subtle pt-4">
+                    <label className="mb-2 block text-xs font-bold uppercase tracking-[0.12em] text-text-muted">Quantity</label>
+                    <div className="inline-flex h-10 items-center overflow-hidden rounded border border-border-subtle bg-white">
+                      <button
+                        type="button"
+                        aria-label="Decrease quantity"
+                        className="flex h-full w-10 items-center justify-center text-text-muted transition hover:bg-surface-subtle"
+                        onClick={() => setQuantity((c) => Math.max(1, c - 1))}
+                      >
+                        <Minus className="size-3.5" />
+                      </button>
+                      <input
+                        type="number"
+                        min={1}
+                        value={quantity}
+                        onChange={(event) => {
+                          const v = Number(event.target.value);
+                          setQuantity(Number.isFinite(v) && v > 0 ? Math.min(99, v) : 1);
+                        }}
+                        className="h-full w-14 border-x border-border-subtle bg-white px-2 text-center text-sm outline-none"
+                      />
+                      <button
+                        type="button"
+                        aria-label="Increase quantity"
+                        className="flex h-full w-10 items-center justify-center text-text-muted transition hover:bg-surface-subtle"
+                        onClick={() => setQuantity((c) => Math.min(99, c + 1))}
+                      >
+                        <Plus className="size-3.5" />
+                      </button>
+                    </div>
+                  </div>
                 </div>
-              ) : null
+              ) : (
+                <div className="space-y-2">
+                  <label className="block text-xs font-bold uppercase tracking-[0.12em] text-text-muted">Quantity</label>
+                  <div className="inline-flex h-10 items-center overflow-hidden rounded border border-border-subtle bg-white">
+                    <button
+                      type="button"
+                      aria-label="Decrease quantity"
+                      className="flex h-full w-10 items-center justify-center text-text-muted transition hover:bg-surface-subtle"
+                      onClick={() => setQuantity((c) => Math.max(1, c - 1))}
+                    >
+                      <Minus className="size-3.5" />
+                    </button>
+                    <input
+                      type="number"
+                      min={1}
+                      value={quantity}
+                      onChange={(event) => {
+                        const v = Number(event.target.value);
+                        setQuantity(Number.isFinite(v) && v > 0 ? Math.min(99, v) : 1);
+                      }}
+                      className="h-full w-14 border-x border-border-subtle bg-white px-2 text-center text-sm outline-none"
+                    />
+                    <button
+                      type="button"
+                      aria-label="Increase quantity"
+                      className="flex h-full w-10 items-center justify-center text-text-muted transition hover:bg-surface-subtle"
+                      onClick={() => setQuantity((c) => Math.min(99, c + 1))}
+                    >
+                      <Plus className="size-3.5" />
+                    </button>
+                  </div>
+                </div>
+              )
             }
             isContactPrice={selectedVariant?.priceAmount === null}
             contactHref={contactHref}
             primaryActionLabel="Add to Cart"
             primaryActionDisabled={addToCartDisabled}
             primaryActionMessage={addToCartMessage}
+            previewRef={previewSectionRef}
             onPrimaryAction={handleAddToCart}
             flatCustomization={Boolean(customizationTemplate)}
           />
