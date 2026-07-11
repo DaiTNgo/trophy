@@ -13,6 +13,7 @@ import {
 import { Container } from "@/components/container";
 import { MegaMenuGrid } from "./navbar/mega-menu-grid";
 import { NavbarMobileMenu } from "./navbar/mobile-menu";
+import { DesktopSearch } from "./navbar/DesktopSearch";
 import { NavbarSearchDialog } from "./navbar/search-dialog";
 import { NavbarMoreDropdown } from "./navbar/more-dropdown";
 import {
@@ -34,7 +35,6 @@ export function Navbar({ categories, collections }: NavbarProps) {
   const { itemCount } = useCart();
   const { isSticky, slideIn } = useNavbarScroll();
 
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<
     "products" | "themes" | null
@@ -76,14 +76,15 @@ export function Navbar({ categories, collections }: NavbarProps) {
       >
         <div ref={dropdownRef}>
           <Container className="flex items-center justify-between xl:justify-start gap-4 h-20 lg:gap-8 bg-white relative z-20">
-            <div className="flex xl:hidden shrink-0 w-10">
+            <div className="flex xl:hidden shrink-0 items-center gap-0">
               <button
                 onClick={() => setIsMobileMenuOpen(true)}
-                className="p-2 -ml-2 text-[#1a2e44]"
+                className="p-2 text-[#1a2e44]"
                 aria-label="Mở menu"
               >
                 <Menu className="w-6 h-6" />
               </button>
+              <NavbarSearchDialog />
             </div>
 
             <Link
@@ -143,11 +144,7 @@ export function Navbar({ categories, collections }: NavbarProps) {
               )}
             </div>
 
-            <NavbarSearchDialog
-              isOpen={isSearchOpen}
-              onOpenChange={setIsSearchOpen}
-              className="hidden"
-            />
+            <DesktopSearch />
 
             <div className="flex items-center gap-4 text-[#1a2e44] shrink-0 justify-end w-10 xl:w-auto">
               <LanguageSwitcher />
@@ -177,14 +174,6 @@ export function Navbar({ categories, collections }: NavbarProps) {
             </div>
           )}
         </div>
-
-        <Container className="xl:hidden mb-4">
-          <NavbarSearchDialog
-            isOpen={isSearchOpen}
-            onOpenChange={setIsSearchOpen}
-            className="w-full max-w-none"
-          />
-        </Container>
 
         <NavbarMobileMenu
           isOpen={isMobileMenuOpen}

@@ -44,12 +44,12 @@ export function FilterChips({ categories, activeCategory, onSelect }: FilterChip
       <CarouselPrevious
         variant="outline"
         size="icon"
-        className="absolute left-0 md:-left-2 top-1/2 -translate-y-1/2 z-10"
+        className="hidden md:inline-flex absolute left-0 md:-left-2 top-1/2 -translate-y-1/2 z-10"
       />
       <CarouselNext
         variant="outline"
         size="icon"
-        className="absolute right-0 md:-right-2 top-1/2 -translate-y-1/2 z-10"
+        className="hidden md:inline-flex absolute right-0 md:-right-2 top-1/2 -translate-y-1/2 z-10"
       />
     </Carousel>
   );
