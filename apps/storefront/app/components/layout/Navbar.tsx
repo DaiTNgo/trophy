@@ -118,7 +118,7 @@ export function Navbar({ categories, collections }: NavbarProps) {
                   SẢN PHẨM
                 </button>
               </div>
-
+              <div></div>
               {collections.length > 0 && (
                 <div className="h-10 flex items-center relative">
                   <button
