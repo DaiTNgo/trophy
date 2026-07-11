@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @config "../tailwind.config.js";
+@source "../../../packages/customization-react/src";
 
 @theme {
   --font-sans: "Hanken Grotesk", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";

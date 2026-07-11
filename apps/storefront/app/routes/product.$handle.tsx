@@ -1,13 +1,18 @@
-import type { DynamicFontFamily, ProductCustomization } from "@trophy/customization";
-import { useEffect, useMemo, useState } from "react";
-import { useLoaderData } from "react-router";
-import { Minus, PenSquare, Plus } from "lucide-react";
-import { validateCustomizationValues } from "@trophy/customization";
-import { ProductBreadcrumbs } from "../components/product/ProductBreadcrumbs";
+import type {
+  CustomizationFormField,
+  DynamicFontFamily,
+  ImageShapeFieldValue,
+  ProductCustomization,
+} from "@trophy/customization";
 import {
   ProductCustomizationForm,
   ProductCustomizationPreview,
-} from "../components/product/ProductCustomization";
+} from "@trophy/customization-react";
+import { useEffect, useMemo, useState } from "react";
+import { useLoaderData } from "react-router";
+import { Minus, Plus } from "lucide-react";
+import { validateCustomizationValues } from "@trophy/customization";
+import { ProductBreadcrumbs } from "../components/product/ProductBreadcrumbs";
 import { ProductGallery } from "../components/product/ProductGallery";
 import { ProductDetailSections, ProductInfo } from "../components/product/ProductInfo";
 import { ProductMobileActionBar } from "../components/product/ProductMobileActionBar";
@@ -25,6 +30,10 @@ import {
 } from "../lib/api";
 import type { Route } from "./+types/product.$handle";
 import { getLocaleFromRequest } from "../lib/locale";
+
+const BACKEND_URL =
+  (import.meta.env.VITE_BACKEND_URL as string | undefined)?.replace(/\/$/, "") ??
+  "http://localhost:8787";
 
 export async function loader({ params, request }: Route.LoaderArgs) {
   const locale = getLocaleFromRequest(request);
@@ -146,12 +155,12 @@ export default function ProductDetail() {
   }
 
   const optionGroups = visibleOptions.map((option) => (
-    <div key={option.id} className="space-y-2">
+    <div key={option.id} className="space-y-3">
       <div className="flex items-center justify-between gap-3">
-        <p className="font-label-md text-label-md uppercase tracking-[0.12em] text-on-surface">
+        <p className="text-[clamp(20px,2vw,26px)] font-normal leading-tight text-[#2d4056]">
           {option.title}
         </p>
-        <span className="text-xs text-on-surface-variant">
+        <span className="text-sm text-[#7b6b5f]">
           {option.values.find((value) => selectedOptionValueIds.get(option.id) === value.id)?.value ?? "Select"}
         </span>
       </div>
@@ -171,10 +180,10 @@ export default function ProductDetail() {
               onClick={() => {
                 if (nextVariant) setSelectedVariantId(nextVariant.id);
               }}
-              className={`rounded-lg border px-4 py-3 text-left text-sm font-semibold transition ${
+              className={`min-h-14 rounded-none border px-4 py-3 text-left text-[clamp(18px,1.5vw,22px)] font-normal transition ${
                 selected
-                  ? "border-primary bg-primary text-white shadow-[0_8px_22px_rgba(135,82,0,0.18)]"
-                  : "border-outline bg-surface-container-low text-on-surface hover:border-primary hover:bg-primary-fixed/30"
+                  ? "border-[#110023] bg-white text-black ring-2 ring-[#110023]"
+                  : "border-[#d5d5d5] bg-white text-black hover:border-[#110023] hover:bg-[#fbf8f5]"
               } disabled:cursor-not-allowed disabled:opacity-40`}
             >
               {value.value}
@@ -270,23 +279,58 @@ export default function ProductDetail() {
     setCartMessage("Added to cart. You can keep browsing or open the cart.");
   }
 
+  async function uploadCustomizationImage(
+    field: CustomizationFormField,
+    file: File,
+  ): Promise<ImageShapeFieldValue> {
+    setUploadingFieldId(field.id);
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/storefront/customizations/assets`, {
+        method: "POST",
+        headers: { "Content-Type": file.type, "X-Upload-Token": getUploadToken() },
+        body: file,
+      });
+      const payload = (await response.json()) as {
+        asset?: { id: string; widthPx: number; heightPx: number; contentUrl: string };
+        error?: string;
+      };
+      if (!response.ok || !payload.asset) {
+        throw new Error(payload.error ?? "Upload failed.");
+      }
+
+      return {
+        assetId: payload.asset.id,
+        previewUrl: `${BACKEND_URL}${payload.asset.contentUrl}`,
+        sourceWidthPx: payload.asset.widthPx,
+        sourceHeightPx: payload.asset.heightPx,
+        cropScale: 1,
+        cropXRatio: 0,
+        cropYRatio: 0,
+        cropRotationDeg: 0,
+      };
+    } finally {
+      setUploadingFieldId("");
+    }
+  }
+
   return (
-    <div className="bg-background text-on-surface font-body-md selection:bg-primary-fixed selection:text-on-primary-fixed">
-      <main className="max-w-container-max mx-auto px-margin-mobile pb-28 pt-8 md:px-margin-desktop md:pb-16 md:pt-12">
+    <div className="bg-white font-body-md text-on-surface selection:bg-[#f4eee8] selection:text-[#110023]">
+      <main className="mx-auto max-w-[1680px] px-4 pb-28 pt-6 sm:px-6 md:px-8 md:pb-16 lg:px-10">
         <ProductBreadcrumbs title={getLocalized(product.title, locale)} />
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1.35fr)_minmax(380px,0.85fr)] lg:items-start">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.42fr)_minmax(400px,0.58fr)] lg:items-start">
           <ProductGallery
             customizable={Boolean(customizationTemplate)}
             mainContent={
               customizationTemplate ? (
                 <div
-                  className="min-h-[520px]"
+                  className="min-h-[560px]"
                   data-selected-variant-id={selectedVariant?.id ?? ""}
                 >
                   <ProductCustomizationPreview
                     template={customizationTemplate}
                     values={customizationValues}
                     dynamicFonts={dynamicFonts as DynamicFontFamily[]}
+                    resolveFontUrl={(assetId) => `${BACKEND_URL}/api/storefront/brand-assets/fonts/file/${assetId}`}
                     selectedVariantId={selectedVariant?.id ?? null}
                     onImageValueChange={(fieldId, value) => {
                       setCustomizationValues((current) => ({ ...current, [fieldId]: value }));
@@ -294,7 +338,7 @@ export default function ProductDetail() {
                   />
                 </div>
               ) : mainMedia?.contentUrl ? (
-                <div className="group flex min-h-[520px] items-center justify-center p-6">
+                <div className="group flex min-h-[560px] items-center justify-center p-6">
                   <img
                     className="max-h-[680px] w-full object-contain transition-transform duration-700 group-hover:scale-105"
                     src={mainMedia.contentUrl}
@@ -302,7 +346,7 @@ export default function ProductDetail() {
                   />
                 </div>
               ) : (
-                <div className="flex min-h-[520px] items-center justify-center text-on-surface-variant">
+                <div className="flex min-h-[560px] items-center justify-center text-[#7b6b5f]">
                   Product image unavailable
                 </div>
               )
@@ -316,13 +360,13 @@ export default function ProductDetail() {
             reviewsCount={0}
             variantSelector={
               product.variants.length > 0 ? (
-                <div className="space-y-5">
+                <div className="space-y-8">
                   {optionGroups.length > 0 ? (
-                    <div className="space-y-4">
+                    <div className="space-y-8">
                       <div className="flex items-center justify-between gap-4">
-                        <h2 className="font-label-md text-on-surface uppercase tracking-[0.12em]">Options</h2>
+                        <h2 className="text-[clamp(20px,2vw,26px)] font-normal leading-tight text-[#2d4056]">Options</h2>
                         {selectedVariant?.sku ? (
-                          <span className="text-xs font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
+                          <span className="text-xs font-semibold uppercase tracking-[0.12em] text-[#7b6b5f]">
                             SKU {selectedVariant.sku}
                           </span>
                         ) : null}
@@ -331,12 +375,12 @@ export default function ProductDetail() {
                     </div>
                   ) : null}
                   <div className="space-y-2">
-                    <label className="font-label-md text-on-surface uppercase tracking-[0.12em]">Quantity</label>
-                    <div className="inline-flex items-center overflow-hidden rounded-lg border border-outline bg-white">
+                    <label className="block text-[clamp(20px,2vw,26px)] font-normal leading-tight text-[#2d4056]">Quantity</label>
+                    <div className="inline-flex h-14 items-center overflow-hidden border border-[#d5d5d5] bg-white">
                       <button
                         type="button"
                         aria-label="Decrease quantity"
-                        className="px-4 py-3 text-on-surface transition hover:bg-surface-container"
+                        className="h-full px-4 text-[#2d4056] transition hover:bg-[#fbf8f5]"
                         onClick={() => setQuantity((current) => Math.max(1, current - 1))}
                       >
                         <Minus className="size-4" />
@@ -349,12 +393,12 @@ export default function ProductDetail() {
                           const nextValue = Number(event.target.value);
                           setQuantity(Number.isFinite(nextValue) && nextValue > 0 ? Math.min(99, nextValue) : 1);
                         }}
-                        className="w-16 border-x border-outline bg-white px-3 py-3 text-center outline-none"
+                        className="h-full w-16 border-x border-[#d5d5d5] bg-white px-3 text-center text-[clamp(18px,1.5vw,22px)] outline-none"
                       />
                       <button
                         type="button"
                         aria-label="Increase quantity"
-                        className="px-4 py-3 text-on-surface transition hover:bg-surface-container"
+                        className="h-full px-4 text-[#2d4056] transition hover:bg-[#fbf8f5]"
                         onClick={() => setQuantity((current) => Math.min(99, current + 1))}
                       >
                         <Plus className="size-4" />
@@ -366,28 +410,14 @@ export default function ProductDetail() {
             }
             customizationSection={
               customizationTemplate ? (
-                <div className="space-y-4 border-t border-outline-variant pt-6">
-                  <div className="flex items-start gap-3">
-                    <span className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-md bg-primary-fixed text-primary">
-                      <PenSquare className="size-5" />
-                    </span>
-                    <div>
-                      <h2 className="font-headline-md text-[22px] uppercase tracking-wide text-on-surface">
-                        Personalize
-                      </h2>
-                      <p className="mt-1 text-sm text-on-surface-variant">
-                        Preview uses the currently selected variant image.
-                      </p>
-                    </div>
-                  </div>
+                <div className="space-y-8">
                   <ProductCustomizationForm
                     template={customizationTemplate}
                     values={customizationValues}
                     dynamicFonts={dynamicFonts as DynamicFontFamily[]}
                     message={message}
-                    uploadingFieldId={uploadingFieldId}
-                    onUploadingFieldIdChange={setUploadingFieldId}
                     onMessageChange={setMessage}
+                    onUploadImage={uploadCustomizationImage}
                     onValueChange={(fieldId, value) => {
                       setCustomizationValues((current) => ({ ...current, [fieldId]: value }));
                     }}
@@ -401,6 +431,7 @@ export default function ProductDetail() {
             primaryActionDisabled={addToCartDisabled}
             primaryActionMessage={addToCartMessage}
             onPrimaryAction={handleAddToCart}
+            flatCustomization={Boolean(customizationTemplate)}
           />
         </div>
         <ProductMobileActionBar
@@ -417,6 +448,15 @@ export default function ProductDetail() {
       </main>
     </div>
   );
+}
+
+function getUploadToken() {
+  const storageKey = "trophy-customization-upload-token";
+  const existing = window.sessionStorage.getItem(storageKey);
+  if (existing) return existing;
+  const token = crypto.randomUUID();
+  window.sessionStorage.setItem(storageKey, token);
+  return token;
 }
 
 export type StorefrontProductDetail = StorefrontDetailResponse["item"];

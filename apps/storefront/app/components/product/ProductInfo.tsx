@@ -15,6 +15,7 @@ export function ProductInfo({
   primaryActionDisabled,
   primaryActionMessage,
   onPrimaryAction,
+  flatCustomization = false,
 }: {
   title: string;
   price: string;
@@ -28,9 +29,55 @@ export function ProductInfo({
   primaryActionDisabled: boolean;
   primaryActionMessage?: string;
   onPrimaryAction: () => void;
+  flatCustomization?: boolean;
 }) {
   const fullStars = Math.floor(rating);
   const hasHalfStar = rating % 1 !== 0;
+
+  if (flatCustomization) {
+    return (
+      <aside className="rounded-[14px] border border-[#d8c1ad] bg-white p-5 md:p-6">
+        <div className="mb-7 border-b border-[#d8c1ad] pb-5">
+          <p className="text-[13px] font-bold uppercase tracking-[0.16em] text-[#7b6b5f]">Customize product</p>
+          <h1 className="mt-2 text-[clamp(28px,3vw,42px)] font-semibold leading-[1.05] text-[#2d4056]">
+            {title}
+          </h1>
+          <div className="mt-4 flex items-end justify-between gap-4">
+            <p className="text-[clamp(22px,2.5vw,32px)] font-semibold leading-none text-[#110023]">{price}</p>
+            <span className="text-xs font-semibold uppercase tracking-[0.14em] text-[#7b6b5f]">
+              {reviewsCount} reviews
+            </span>
+          </div>
+        </div>
+        <div className="space-y-8">
+        {variantSelector ? <div className="space-y-8">{variantSelector}</div> : null}
+        {customizationSection}
+        <div className="space-y-3">
+          {isContactPrice ? (
+            <Link
+              to={contactHref ?? "/contact"}
+              className="flex h-16 w-full items-center justify-center rounded-[14px] bg-[#110023] px-6 text-[clamp(20px,2vw,26px)] font-normal leading-none text-white transition hover:bg-[#1d0738]"
+            >
+              Contact for Pricing
+            </Link>
+          ) : (
+            <button
+              type="button"
+              onClick={onPrimaryAction}
+              disabled={primaryActionDisabled}
+              className="flex h-16 w-full items-center justify-center rounded-[14px] bg-[#110023] px-6 text-[clamp(20px,2vw,26px)] font-normal leading-none text-white transition hover:bg-[#1d0738] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {primaryActionLabel}
+            </button>
+          )}
+          {primaryActionMessage ? (
+            <p className="text-sm text-on-surface-variant">{primaryActionMessage}</p>
+          ) : null}
+        </div>
+        </div>
+      </aside>
+    );
+  }
 
   return (
     <aside className="space-y-5">
@@ -124,59 +171,59 @@ export function ProductDetailSections({
   specs: Record<string, string>;
 }) {
   return (
-    <section className="mt-14 grid gap-8 lg:grid-cols-[0.85fr_1.15fr]">
+    <section className="mt-10 grid gap-6 lg:grid-cols-[0.85fr_1.15fr]">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
-        <div className="flex items-center gap-3 rounded-lg border border-outline-variant bg-white p-4 shadow-[0_4px_20px_rgba(28,27,27,0.04)]">
-          <Award className="text-primary" />
+        <div className="flex items-center gap-3 rounded-[14px] border border-[#d8c1ad] bg-white p-4">
+          <Award className="text-[#110023]" />
           <div>
-            <p className="font-label-md text-on-surface uppercase leading-none">Handcrafted</p>
-            <p className="text-[11px] text-on-surface-variant mt-1">Premium materials only</p>
+            <p className="font-label-md text-[#2d4056] uppercase leading-none">Handcrafted</p>
+            <p className="mt-1 text-[11px] text-[#7b6b5f]">Premium materials only</p>
           </div>
         </div>
-        <div className="flex items-center gap-3 rounded-lg border border-outline-variant bg-white p-4 shadow-[0_4px_20px_rgba(28,27,27,0.04)]">
-          <Truck className="text-primary" />
+        <div className="flex items-center gap-3 rounded-[14px] border border-[#d8c1ad] bg-white p-4">
+          <Truck className="text-[#110023]" />
           <div>
-            <p className="font-label-md text-on-surface uppercase leading-none">Fast Shipping</p>
-            <p className="text-[11px] text-on-surface-variant mt-1">Global express delivery</p>
+            <p className="font-label-md text-[#2d4056] uppercase leading-none">Fast Shipping</p>
+            <p className="mt-1 text-[11px] text-[#7b6b5f]">Global express delivery</p>
           </div>
         </div>
-        <div className="flex items-center gap-3 rounded-lg border border-outline-variant bg-white p-4 shadow-[0_4px_20px_rgba(28,27,27,0.04)]">
-          <ShieldCheck className="text-primary" />
+        <div className="flex items-center gap-3 rounded-[14px] border border-[#d8c1ad] bg-white p-4">
+          <ShieldCheck className="text-[#110023]" />
           <div>
-            <p className="font-label-md text-on-surface uppercase leading-none">Safe Payment</p>
-            <p className="text-[11px] text-on-surface-variant mt-1">Secure encryption</p>
+            <p className="font-label-md text-[#2d4056] uppercase leading-none">Safe Payment</p>
+            <p className="mt-1 text-[11px] text-[#7b6b5f]">Secure encryption</p>
           </div>
         </div>
-        <div className="flex items-center gap-3 rounded-lg border border-outline-variant bg-white p-4 shadow-[0_4px_20px_rgba(28,27,27,0.04)]">
-          <ScrollText className="text-primary" />
+        <div className="flex items-center gap-3 rounded-[14px] border border-[#d8c1ad] bg-white p-4">
+          <ScrollText className="text-[#110023]" />
           <div>
-            <p className="font-label-md text-on-surface uppercase leading-none">Legacy Brand</p>
-            <p className="text-[11px] text-on-surface-variant mt-1">Since 1988</p>
+            <p className="font-label-md text-[#2d4056] uppercase leading-none">Legacy Brand</p>
+            <p className="mt-1 text-[11px] text-[#7b6b5f]">Since 1988</p>
           </div>
         </div>
       </div>
 
-      <div className="rounded-xl bg-white p-6 shadow-[0_10px_40px_rgba(28,27,27,0.06)] md:p-8">
-        <div className="divide-y divide-outline-variant">
+      <div className="rounded-[14px] border border-[#d8c1ad] bg-white p-6 md:p-8">
+        <div className="divide-y divide-[#d8c1ad]">
         <details className="group py-6" open>
-          <summary className="flex justify-between items-center cursor-pointer list-none font-label-md uppercase text-on-surface">
+          <summary className="flex cursor-pointer list-none items-center justify-between font-label-md uppercase text-[#2d4056]">
             Product Description
             <ChevronDown className="transition-transform duration-300 group-open:rotate-180" />
           </summary>
-          <div className="mt-4 text-on-surface-variant font-body-md leading-relaxed">
+          <div className="mt-4 font-body-md leading-relaxed text-[#7b6b5f]">
             {description}
           </div>
         </details>
         <details className="group py-6">
-          <summary className="flex justify-between items-center cursor-pointer list-none font-label-md uppercase text-on-surface">
+          <summary className="flex cursor-pointer list-none items-center justify-between font-label-md uppercase text-[#2d4056]">
             Specifications
             <ChevronDown className="transition-transform duration-300 group-open:rotate-180" />
           </summary>
           <div className="mt-4 grid grid-cols-2 gap-y-3 text-[14px]">
             {Object.entries(specs).map(([name, value]) => (
               <div key={name} className="contents">
-                <span className="text-on-surface-variant">{name}:</span>
-                <span className="text-on-surface font-semibold">{value}</span>
+                <span className="text-[#7b6b5f]">{name}:</span>
+                <span className="font-semibold text-[#2d4056]">{value}</span>
               </div>
             ))}
           </div>

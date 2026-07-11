@@ -1,5 +1,6 @@
 import {
   buildDesignFromForm,
+  FONT_FILES,
   getImageShapeClipartCategoryMode,
   getOrderedFormFields,
   getTextPathRenderAttributes,
@@ -25,6 +26,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type ButtonHTMLAttributes,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from "react";
@@ -42,20 +44,66 @@ import {
   RotateCw,
   X,
 } from "lucide-react";
-
-const BACKEND_URL =
-  (import.meta.env.VITE_BACKEND_URL as string | undefined)?.replace(/\/$/, "") ??
-  "http://localhost:8787";
+import { cva, type VariantProps } from "class-variance-authority";
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
 
 type PreviewMode = "edit" | "view";
 type ResizeCorner = "nw" | "ne" | "sw" | "se";
 type PanState = { x: number; y: number };
+export type CustomizationUploadImage = (
+  field: CustomizationFormField,
+  file: File,
+) => Promise<ImageShapeFieldValue> | ImageShapeFieldValue;
+export type ResolveCustomizationFontUrl = (assetId: string) => string;
+export type ResolveCustomizationStaticFontUrl = (fileName: string) => string;
+export type ResolveCustomizationAssetUrl = (url: string) => string;
 
 const MIN_FREE_IMAGE_SCALE = 0.02;
 const MIN_PREVIEW_ZOOM = 0.05;
 const MAX_PREVIEW_ZOOM = 4;
 const PREVIEW_ZOOM_STEP = 0.1;
 const FIT_PADDING_PX = 56;
+
+function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
+
+const buttonVariants = cva(
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0",
+  {
+    variants: {
+      variant: {
+        default: "bg-primary text-white shadow hover:bg-primary/90",
+        outline: "border border-outline bg-white text-on-surface shadow-sm hover:border-primary hover:bg-primary-fixed/30",
+        ghost: "text-on-surface hover:bg-surface-container-low",
+        destructive: "bg-destructive text-white shadow-sm hover:bg-destructive/90",
+      },
+      size: {
+        default: "h-9 px-4 py-2",
+        sm: "h-8 px-3 text-xs",
+        icon: "size-8",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+      size: "default",
+    },
+  },
+);
+
+type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> &
+  VariantProps<typeof buttonVariants>;
+
+function Button({ className, variant, size, type = "button", ...props }: ButtonProps) {
+  return (
+    <button
+      type={type}
+      className={cn(buttonVariants({ variant, size, className }))}
+      {...props}
+    />
+  );
+}
 
 function freeImageScale(value?: number) {
   return Math.max(MIN_FREE_IMAGE_SCALE, Number.isFinite(value) ? value! : 1);
@@ -111,12 +159,18 @@ export function ProductCustomizationPreview({
   values,
   dynamicFonts = [],
   selectedVariantId,
+  resolveAssetUrl,
+  resolveFontUrl,
+  resolveStaticFontUrl,
   onImageValueChange,
 }: {
   template: CustomizationTemplate;
   values: CustomizationFormValues;
   dynamicFonts?: DynamicFontFamily[];
   selectedVariantId?: number | null;
+  resolveAssetUrl?: ResolveCustomizationAssetUrl;
+  resolveFontUrl?: ResolveCustomizationFontUrl;
+  resolveStaticFontUrl?: ResolveCustomizationStaticFontUrl;
   onImageValueChange?: (fieldId: string, value: ImageShapeFieldValue) => void;
 }) {
   const design = useMemo(
@@ -205,11 +259,14 @@ export function ProductCustomizationPreview({
       data-selected-variant-id={selectedVariantId ?? ""}
       data-preview-background-url={background?.previewUrl ?? ""}
     >
-      <FontLoader layers={design.layers} dynamicFonts={dynamicFonts} />
+      <FontLoader
+        layers={design.layers}
+        dynamicFonts={dynamicFonts}
+        resolveFontUrl={resolveFontUrl}
+        resolveStaticFontUrl={resolveStaticFontUrl}
+      />
       <ShapeClipPaths layers={design.layers} />
-      <div
-        className="flex flex-wrap items-center gap-3 border-b border-outline-variant bg-white/95 px-3 py-3 shadow-sm backdrop-blur sm:px-4"
-      >
+      <div className="flex h-14 shrink-0 items-center gap-3 border-b border-outline-variant bg-white/95 px-3 shadow-sm backdrop-blur sm:px-4">
         <div className="inline-flex rounded-md border border-outline bg-surface-container-low p-0.5">
           {(["edit", "view"] as const).map((entry) => (
             <button
@@ -227,24 +284,6 @@ export function ProductCustomizationPreview({
             </button>
           ))}
         </div>
-        {mode === "edit" && selectedImageField ? (
-          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 rounded-md border border-outline-variant bg-surface-container-low px-2 py-1.5">
-            <span className="max-w-36 truncate px-1 text-[11px] font-bold uppercase tracking-[0.12em] text-on-surface-variant">
-              {selectedImageField.field.label}
-            </span>
-            <div className="flex flex-wrap gap-1.5">
-              <CanvasAction label="Zoom out image" onClick={() => adjustSelectedImage({ cropScale: Math.max(MIN_FREE_IMAGE_SCALE, (selectedImageField.value.cropScale ?? 1) / 1.1) })}><Minus className="size-3.5" /></CanvasAction>
-              <CanvasAction label="Zoom in image" onClick={() => adjustSelectedImage({ cropScale: (selectedImageField.value.cropScale ?? 1) * 1.1 })}><Plus className="size-3.5" /></CanvasAction>
-              <CanvasAction label="Rotate image left" onClick={() => adjustSelectedImage({ cropRotationDeg: (selectedImageField.value.cropRotationDeg ?? 0) - 5 })}><RotateCcw className="size-3.5" /></CanvasAction>
-              <CanvasAction label="Rotate image right" onClick={() => adjustSelectedImage({ cropRotationDeg: (selectedImageField.value.cropRotationDeg ?? 0) + 5 })}><RotateCw className="size-3.5" /></CanvasAction>
-              <CanvasAction label="Move image left" onClick={() => adjustSelectedImage({ cropXRatio: (selectedImageField.value.cropXRatio ?? 0) - 0.05 })}><ArrowLeft className="size-3.5" /></CanvasAction>
-              <CanvasAction label="Move image right" onClick={() => adjustSelectedImage({ cropXRatio: (selectedImageField.value.cropXRatio ?? 0) + 0.05 })}><ArrowRight className="size-3.5" /></CanvasAction>
-              <CanvasAction label="Move image up" onClick={() => adjustSelectedImage({ cropYRatio: (selectedImageField.value.cropYRatio ?? 0) - 0.05 })}><ArrowUp className="size-3.5" /></CanvasAction>
-              <CanvasAction label="Move image down" onClick={() => adjustSelectedImage({ cropYRatio: (selectedImageField.value.cropYRatio ?? 0) + 0.05 })}><ArrowDown className="size-3.5" /></CanvasAction>
-              <CanvasAction label="Reset image" onClick={() => adjustSelectedImage({ cropScale: 1, cropXRatio: 0, cropYRatio: 0, cropRotationDeg: 0 })}><RotateCcw className="size-3.5" /></CanvasAction>
-            </div>
-          </div>
-        ) : null}
         <div className="flex items-center gap-1.5">
           <CanvasAction label="Zoom out" onClick={() => setCommittedZoom(zoom - PREVIEW_ZOOM_STEP)}>
             <Minus className="size-3.5" />
@@ -276,6 +315,32 @@ export function ProductCustomizationPreview({
         <span className="ml-auto hidden text-xs text-on-surface-variant md:inline">
           {mode === "edit" ? "Click an uploaded image to crop" : "Drag canvas to pan"}
         </span>
+      </div>
+      <div className="sticky top-0 z-20 flex h-[76px] shrink-0 items-center border-b border-outline-variant bg-[#fbf8f5]/95 px-3 shadow-sm backdrop-blur sm:px-4">
+        {mode === "edit" && selectedImageField ? (
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="min-w-0 rounded-md border border-outline-variant bg-white px-3 py-2">
+              <p className="max-w-48 truncate text-[11px] font-bold uppercase tracking-[0.16em] text-on-surface-variant">
+                {selectedImageField.field.label}
+              </p>
+            </div>
+            <div className="flex min-w-0 gap-1.5 overflow-x-auto py-1">
+              <CanvasAction label="Zoom out image" onClick={() => adjustSelectedImage({ cropScale: Math.max(MIN_FREE_IMAGE_SCALE, (selectedImageField.value.cropScale ?? 1) / 1.1) })}><Minus className="size-3.5" /></CanvasAction>
+              <CanvasAction label="Zoom in image" onClick={() => adjustSelectedImage({ cropScale: (selectedImageField.value.cropScale ?? 1) * 1.1 })}><Plus className="size-3.5" /></CanvasAction>
+              <CanvasAction label="Rotate image left" onClick={() => adjustSelectedImage({ cropRotationDeg: (selectedImageField.value.cropRotationDeg ?? 0) - 5 })}><RotateCcw className="size-3.5" /></CanvasAction>
+              <CanvasAction label="Rotate image right" onClick={() => adjustSelectedImage({ cropRotationDeg: (selectedImageField.value.cropRotationDeg ?? 0) + 5 })}><RotateCw className="size-3.5" /></CanvasAction>
+              <CanvasAction label="Move image left" onClick={() => adjustSelectedImage({ cropXRatio: (selectedImageField.value.cropXRatio ?? 0) - 0.05 })}><ArrowLeft className="size-3.5" /></CanvasAction>
+              <CanvasAction label="Move image right" onClick={() => adjustSelectedImage({ cropXRatio: (selectedImageField.value.cropXRatio ?? 0) + 0.05 })}><ArrowRight className="size-3.5" /></CanvasAction>
+              <CanvasAction label="Move image up" onClick={() => adjustSelectedImage({ cropYRatio: (selectedImageField.value.cropYRatio ?? 0) - 0.05 })}><ArrowUp className="size-3.5" /></CanvasAction>
+              <CanvasAction label="Move image down" onClick={() => adjustSelectedImage({ cropYRatio: (selectedImageField.value.cropYRatio ?? 0) + 0.05 })}><ArrowDown className="size-3.5" /></CanvasAction>
+              <CanvasAction label="Reset image" onClick={() => adjustSelectedImage({ cropScale: 1, cropXRatio: 0, cropYRatio: 0, cropRotationDeg: 0 })}><RotateCcw className="size-3.5" /></CanvasAction>
+            </div>
+          </div>
+        ) : (
+          <div className="flex h-full items-center text-sm font-medium text-on-surface-variant">
+            {mode === "edit" ? "Select an uploaded image to show crop actions." : "Canvas actions are available in Edit mode."}
+          </div>
+        )}
       </div>
       <div
         ref={viewportRef}
@@ -341,7 +406,7 @@ export function ProductCustomizationPreview({
         >
           {background ? (
             <img
-              src={background.previewUrl}
+              src={resolveAssetUrl?.(background.previewUrl) ?? background.previewUrl}
               alt=""
               data-preview-background-image=""
               draggable={false}
@@ -377,6 +442,7 @@ export function ProductCustomizationPreview({
                 height={height}
                 scale={scale}
                 mode={mode}
+                resolveAssetUrl={resolveAssetUrl}
                 value={uploadValue}
                 onChange={field && uploadValue && onImageValueChange
                   ? (nextValue) => updateImageValue(field.id, nextValue)
@@ -402,15 +468,15 @@ function CanvasAction({
   onClick: () => void;
 }) {
   return (
-    <button
-      type="button"
+    <Button
+      variant="outline"
+      size="icon"
       title={label}
       aria-label={label}
       onClick={onClick}
-      className="flex h-8 min-w-8 items-center justify-center rounded-md border border-outline bg-white px-2 text-xs font-bold text-on-surface transition hover:border-primary hover:bg-primary-fixed/30"
     >
       {children}
-    </button>
+    </Button>
   );
 }
 
@@ -419,86 +485,76 @@ export function ProductCustomizationForm({
   values,
   dynamicFonts = [],
   message,
-  uploadingFieldId,
-  onUploadingFieldIdChange,
+  resolveAssetUrl,
   onMessageChange,
+  onUploadImage,
   onValueChange,
 }: {
   template: CustomizationTemplate;
   values: CustomizationFormValues;
   dynamicFonts?: DynamicFontFamily[];
-  message: string;
-  uploadingFieldId: string;
-  onUploadingFieldIdChange: (fieldId: string) => void;
-  onMessageChange: (message: string) => void;
+  message?: string;
+  resolveAssetUrl?: ResolveCustomizationAssetUrl;
+  onMessageChange?: (message: string) => void;
+  onUploadImage?: CustomizationUploadImage;
   onValueChange: (fieldId: string, value: CustomizationFieldValue) => void;
 }) {
+  const [uploadingFieldId, setUploadingFieldId] = useState("");
+  const [internalMessage, setInternalMessage] = useState("");
+  const activeMessage = message ?? internalMessage;
   const validation = useMemo(
     () => validateCustomizationValues({ template, values }),
     [template, values],
   );
 
+  function setMessage(nextMessage: string) {
+    setInternalMessage(nextMessage);
+    onMessageChange?.(nextMessage);
+  }
+
   async function uploadImage(field: CustomizationFormField, file: File) {
     if (!["image/png", "image/jpeg"].includes(file.type)) {
-      onMessageChange("Use a PNG or JPEG image.");
+      setMessage("Use a PNG or JPEG image.");
       return;
     }
     if (file.size > 20 * 1024 * 1024) {
-      onMessageChange("Image exceeds the 20 MB limit.");
+      setMessage("Image exceeds the 20 MB limit.");
+      return;
+    }
+    if (!onUploadImage) {
+      setMessage("Image upload is not configured.");
       return;
     }
 
-    onUploadingFieldIdChange(field.id);
+    setUploadingFieldId(field.id);
     try {
-      const response = await fetch(`${BACKEND_URL}/api/storefront/customizations/assets`, {
-        method: "POST",
-        headers: { "Content-Type": file.type, "X-Upload-Token": getUploadToken() },
-        body: file,
-      });
-      const payload = (await response.json()) as {
-        asset?: { id: string; widthPx: number; heightPx: number; contentUrl: string };
-        error?: string;
-      };
-      if (!response.ok || !payload.asset) throw new Error(payload.error ?? "Upload failed.");
-      onValueChange(field.id, {
-        assetId: payload.asset.id,
-        previewUrl: `${BACKEND_URL}${payload.asset.contentUrl}`,
-        sourceWidthPx: payload.asset.widthPx,
-        sourceHeightPx: payload.asset.heightPx,
-        cropScale: 1,
-        cropXRatio: 0,
-        cropYRatio: 0,
-        cropRotationDeg: 0,
-      });
-      onMessageChange("");
+      const value = await onUploadImage(field, file);
+      onValueChange(field.id, value);
+      setMessage("");
     } catch (error) {
-      onMessageChange(error instanceof Error ? error.message : "Upload failed.");
+      setMessage(error instanceof Error ? error.message : "Upload failed.");
     } finally {
-      onUploadingFieldIdChange("");
+      setUploadingFieldId("");
     }
   }
 
   return (
-    <div className="space-y-5">
-      {message ? (
-        <p className="rounded-lg bg-destructive/10 px-4 py-3 text-sm font-medium text-destructive">
-          {message}
+    <div className="space-y-8">
+      {activeMessage ? (
+        <p className="text-base text-destructive">
+          {activeMessage}
         </p>
       ) : null}
       {!validation.valid ? (
-        <div className="space-y-2 rounded-lg bg-white px-4 py-3">
+        <div className="space-y-2">
           {validation.issues.map((issue) => (
             <p key={`${issue.fieldId}-${issue.code}`} className="text-sm text-destructive">
               {issue.message}
             </p>
           ))}
         </div>
-      ) : (
-        <p className="rounded-lg bg-white px-4 py-3 text-sm text-on-surface-variant">
-          Preview updates on the selected variant image. Layer placement stays fixed to the same canvas.
-        </p>
-      )}
-      <div className="space-y-4">
+      ) : null}
+      <div className="space-y-8">
         {getOrderedFormFields(template).map((field) => {
           const layer = template.layers.find((entry) => entry.id === field.layerId);
           if (!layer) return null;
@@ -511,9 +567,10 @@ export function ProductCustomizationForm({
               issue={validation.issues.find((issue) => issue.fieldId === field.id)?.message}
               uploading={uploadingFieldId === field.id}
               dynamicFonts={dynamicFonts}
+              resolveAssetUrl={resolveAssetUrl}
               onChange={(value) => {
                 onValueChange(field.id, value);
-                onMessageChange("");
+                setMessage("");
               }}
               onUpload={(file) => uploadImage(field, file)}
             />
@@ -524,21 +581,74 @@ export function ProductCustomizationForm({
   );
 }
 
-function getUploadToken() {
-  const storageKey = "trophy-customization-upload-token";
-  const existing = window.sessionStorage.getItem(storageKey);
-  if (existing) return existing;
-  const token = crypto.randomUUID();
-  window.sessionStorage.setItem(storageKey, token);
-  return token;
+export function CustomizationStudio({
+  template,
+  values,
+  dynamicFonts = [],
+  selectedVariantId,
+  message,
+  resolveAssetUrl,
+  resolveFontUrl,
+  resolveStaticFontUrl,
+  onMessageChange,
+  onUploadImage,
+  onValueChange,
+}: {
+  template: CustomizationTemplate;
+  values: CustomizationFormValues;
+  dynamicFonts?: DynamicFontFamily[];
+  selectedVariantId?: number | null;
+  message?: string;
+  resolveAssetUrl?: ResolveCustomizationAssetUrl;
+  resolveFontUrl?: ResolveCustomizationFontUrl;
+  resolveStaticFontUrl?: ResolveCustomizationStaticFontUrl;
+  onMessageChange?: (message: string) => void;
+  onUploadImage?: CustomizationUploadImage;
+  onValueChange: (fieldId: string, value: CustomizationFieldValue) => void;
+}) {
+  return (
+    <div className="grid min-h-0 gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(360px,520px)]">
+      <ProductCustomizationPreview
+        template={template}
+        values={values}
+        dynamicFonts={dynamicFonts}
+        selectedVariantId={selectedVariantId}
+        resolveAssetUrl={resolveAssetUrl}
+        resolveFontUrl={resolveFontUrl}
+        resolveStaticFontUrl={resolveStaticFontUrl}
+        onImageValueChange={(fieldId, value) => onValueChange(fieldId, value)}
+      />
+      <aside className="min-h-0 overflow-y-auto bg-white">
+        <ProductCustomizationForm
+          template={template}
+          values={values}
+          dynamicFonts={dynamicFonts}
+          message={message}
+          resolveAssetUrl={resolveAssetUrl}
+          onMessageChange={onMessageChange}
+          onUploadImage={onUploadImage}
+          onValueChange={onValueChange}
+        />
+      </aside>
+    </div>
+  );
 }
+
+export {
+  ProductCustomizationPreview as CustomizationCanvas,
+  ProductCustomizationForm as CustomizationForm,
+};
 
 function FontLoader({
   layers,
   dynamicFonts = [],
+  resolveFontUrl,
+  resolveStaticFontUrl,
 }: {
   layers: RuntimeLayer[];
   dynamicFonts?: DynamicFontFamily[];
+  resolveFontUrl?: ResolveCustomizationFontUrl;
+  resolveStaticFontUrl?: ResolveCustomizationStaticFontUrl;
 }) {
   const fontFamilies = Array.from(
     new Set(
@@ -552,7 +662,26 @@ function FontLoader({
     <>
       {fontFamilies.flatMap((familyId) => {
         const dynamicFont = dynamicFonts.find((font) => font.id === familyId);
-        if (!dynamicFont) return [];
+        if (!dynamicFont) {
+          return ["regular", "bold", "italic", "bold-italic"].map((weight) => {
+            const variantId = `${familyId}-${weight}`;
+            const file = FONT_FILES[variantId];
+            if (!file) return null;
+            return (
+              <style
+                key={variantId}
+                dangerouslySetInnerHTML={{
+                  __html: `
+                    @font-face {
+                      font-family: '${variantId}';
+                      src: url('${resolveStaticFontUrl?.(file) ?? `/fonts/${file}`}') format('truetype');
+                    }
+                  `,
+                }}
+              />
+            );
+          });
+        }
 
         return [
           dynamicFont.regularAssetId,
@@ -560,7 +689,7 @@ function FontLoader({
           dynamicFont.italicAssetId,
           dynamicFont.boldItalicAssetId,
         ]
-          .filter(Boolean)
+          .filter((assetId): assetId is string => Boolean(assetId))
           .map((assetId) => (
             <style
               key={assetId}
@@ -568,7 +697,7 @@ function FontLoader({
                 __html: `
                   @font-face {
                     font-family: '${assetId}';
-                    src: url('${BACKEND_URL}/api/storefront/brand-assets/fonts/file/${assetId}') format('truetype');
+                    src: url('${resolveFontUrl?.(assetId) ?? assetId}') format('truetype');
                   }
                 `,
               }}
@@ -677,6 +806,7 @@ function PreviewImageShape({
   height,
   scale,
   mode,
+  resolveAssetUrl,
   value,
   onChange,
   selected,
@@ -687,6 +817,7 @@ function PreviewImageShape({
   height: number;
   scale: number;
   mode: PreviewMode;
+  resolveAssetUrl?: ResolveCustomizationAssetUrl;
   value?: ImageShapeFieldValue | null;
   onChange?: (value: ImageShapeFieldValue) => void;
   selected?: boolean;
@@ -826,7 +957,7 @@ function PreviewImageShape({
       }}
       >
         <img
-          src={value?.previewUrl ?? layer.previewUrl}
+          src={resolveAssetUrl?.(value?.previewUrl ?? layer.previewUrl) ?? value?.previewUrl ?? layer.previewUrl}
           alt=""
           draggable={false}
           className="pointer-events-none absolute max-w-none select-none"
@@ -882,6 +1013,7 @@ function FormField({
   value,
   issue,
   uploading,
+  resolveAssetUrl,
   onChange,
   onUpload,
 }: {
@@ -891,35 +1023,30 @@ function FormField({
   issue?: string;
   uploading: boolean;
   dynamicFonts?: DynamicFontFamily[];
+  resolveAssetUrl?: ResolveCustomizationAssetUrl;
   onChange: (value: CustomizationFieldValue) => void;
   onUpload: (file: File) => void;
 }) {
   const imageLayer = layer.type === "image_shape" ? (layer as ImageShapeEditorLayer) : null;
-  const kind = layer.type === "text" ? "Text" : "Image";
   return (
-    <section className="rounded-xl border border-outline-variant bg-white p-4 shadow-[0_4px_18px_rgba(28,27,27,0.04)]">
-      <div className="mb-3 flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <label className="block truncate text-sm font-bold text-on-surface">
-            {field.label}
-          </label>
-          <p className="mt-0.5 text-xs font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
-            {kind}
-          </p>
-        </div>
-        {field.required ? (
-          <span className="shrink-0 rounded-full bg-primary-fixed px-2 py-0.5 text-[11px] font-bold uppercase tracking-[0.08em] text-on-primary-fixed">
-            Required
-          </span>
-        ) : null}
-      </div>
+    <section className="space-y-3">
+      <label className="block text-[clamp(20px,2vw,26px)] font-normal leading-tight text-[#2d4056]">
+        {field.label}{field.required ? " *" : ""}
+      </label>
       {layer.type === "text" ? (
         <TextField field={field} layer={layer} value={value} onChange={onChange} />
       ) : (
-        <ImageField layer={imageLayer} value={value} uploading={uploading} onChange={onChange} onUpload={onUpload} />
+        <ImageField
+          layer={imageLayer}
+          value={value}
+          uploading={uploading}
+          resolveAssetUrl={resolveAssetUrl}
+          onChange={onChange}
+          onUpload={onUpload}
+        />
       )}
-      {field.helpText ? <p className="mt-2 text-xs text-on-surface-variant">{field.helpText}</p> : null}
-      {issue ? <p className="mt-2 text-xs font-medium text-destructive">{issue}</p> : null}
+      {field.helpText ? <p className="text-[clamp(16px,1.5vw,20px)] leading-snug text-[#9b9b9b]">{field.helpText}</p> : null}
+      {issue ? <p className="text-sm font-medium text-destructive">{issue}</p> : null}
     </section>
   );
 }
@@ -939,7 +1066,7 @@ function TextField({
   const pathText = layer.text.path.type !== "straight";
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-6">
       <textarea
         rows={pathText ? 1 : layer.text.maxLines}
         value={textValue.text}
@@ -950,17 +1077,17 @@ function TextField({
             text: pathText ? event.target.value.replace(/\s*\n+\s*/g, " ") : event.target.value,
           })
         }
-        className="w-full resize-none rounded-lg border border-outline bg-background px-4 py-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
+        className="min-h-14 w-full resize-none rounded-none border border-[#d5d5d5] bg-white px-4 py-3 text-[clamp(20px,2vw,26px)] leading-tight text-black outline-none transition focus:border-[#110023]"
       />
       {layer.text.colorPolicy.mode === "shopper_selectable" ? (
         (() => {
           const colorPolicy = layer.text.colorPolicy;
           return (
-            <div className="rounded-lg bg-surface-container-low p-3">
-              <p className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
+            <div className="space-y-4">
+              <p className="text-[clamp(20px,2vw,26px)] font-normal leading-tight text-[#2d4056]">
                 Color
               </p>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-5">
                 {colorPolicy.options.map((option) => {
                   const selected = (textValue.color ?? colorPolicy.defaultColor) === option.value;
                   return (
@@ -969,8 +1096,8 @@ function TextField({
                       type="button"
                       title={option.label}
                       onClick={() => onChange({ ...textValue, color: option.value })}
-                      className={`size-9 rounded-full border shadow-sm transition ${
-                        selected ? "border-primary ring-2 ring-primary/30" : "border-outline"
+                      className={`size-[clamp(64px,6vw,84px)] rounded-[18px] border-4 border-white shadow-[0_0_0_2px_rgba(0,0,0,0.12),0_2px_7px_rgba(0,0,0,0.26)] transition ${
+                        selected ? "ring-4 ring-[#110023]" : "hover:ring-2 hover:ring-[#110023]/30"
                       }`}
                       style={{ backgroundColor: option.value }}
                     />
@@ -982,20 +1109,33 @@ function TextField({
         })()
       ) : null}
       {layer.text.fontPolicy.mode === "shopper_selectable" ? (
-        <label className="block text-xs font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
-          Font
-          <select
-            value={textValue.fontId ?? layer.text.fontPolicy.defaultFontId}
-            onChange={(event) => onChange({ ...textValue, fontId: event.target.value })}
-            className="mt-2 w-full rounded-lg border border-outline bg-background px-4 py-3 text-sm font-normal normal-case tracking-normal text-on-surface"
-          >
-            {layer.text.fontPolicy.options.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
+        (() => {
+          const fontPolicy = layer.text.fontPolicy;
+          return (
+            <div className="space-y-4">
+              <p className="text-[clamp(20px,2vw,26px)] font-normal leading-tight text-[#2d4056]">Choose Font</p>
+              <div className="flex flex-wrap gap-4">
+                {fontPolicy.options.map((option) => {
+                  const selected = (textValue.fontId ?? fontPolicy.defaultFontId) === option.value;
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      title={option.label}
+                      onClick={() => onChange({ ...textValue, fontId: option.value })}
+                      className={`flex size-[clamp(66px,6vw,86px)] items-center justify-center rounded-[18px] border bg-white text-[clamp(20px,2vw,26px)] shadow-[0_2px_7px_rgba(0,0,0,0.2)] transition ${
+                        selected ? "border-[#110023] ring-4 ring-[#110023]" : "border-[#d5d5d5] hover:border-[#110023]"
+                      }`}
+                      style={{ fontFamily: option.value }}
+                    >
+                      Abc
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()
       ) : null}
     </div>
   );
@@ -1005,12 +1145,14 @@ function ImageField({
   layer,
   value,
   uploading,
+  resolveAssetUrl,
   onChange,
   onUpload,
 }: {
   layer: ImageShapeEditorLayer | null;
   value: CustomizationFieldValue | undefined;
   uploading: boolean;
+  resolveAssetUrl?: ResolveCustomizationAssetUrl;
   onChange: (value: ImageShapeFieldValue | ClipartFieldValue | null) => void;
   onUpload: (file: File) => void;
 }) {
@@ -1062,15 +1204,43 @@ function ImageField({
 
   const uploadSection = (
     <div className="space-y-3">
-      <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-dashed border-outline bg-surface-container-low px-4 py-4 text-sm font-semibold text-on-surface transition hover:border-primary hover:bg-primary-fixed/20">
-        <span className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-white text-primary shadow-sm">
-          <ImagePlus className="size-5" />
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block">{uploading ? "Uploading..." : uploaded ? "Replace image" : "Choose PNG or JPEG"}</span>
-          <span className="mt-0.5 block text-xs font-normal text-on-surface-variant">Up to 20 MB</span>
-        </span>
-        {uploaded ? <img src={uploaded.previewUrl} alt="" className="size-14 shrink-0 rounded-md border border-outline object-cover" /> : null}
+      <div className="flex flex-wrap items-center gap-4">
+        {uploaded ? (
+          <img
+            src={resolveAssetUrl?.(uploaded.previewUrl) ?? uploaded.previewUrl}
+            alt=""
+            className="h-[100px] w-[88px] shrink-0 rounded-[12px] object-cover"
+          />
+        ) : null}
+        <label className="inline-flex h-[clamp(52px,5vw,60px)] cursor-pointer items-center justify-center gap-3 rounded-[12px] bg-[#110023] px-6 text-[clamp(20px,2vw,26px)] font-normal leading-none text-white transition hover:bg-[#1d0738]">
+          {uploaded ? <RotateCw className="size-6" /> : <ImagePlus className="size-6" />}
+          {uploading ? "Uploading..." : uploaded ? "Replace" : "Upload"}
+          <input
+            type="file"
+            accept="image/png,image/jpeg"
+            disabled={uploading}
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (file) onUpload(file);
+              event.target.value = "";
+            }}
+            className="sr-only"
+          />
+        </label>
+        {uploaded ? (
+          <button
+            type="button"
+            aria-label="Remove image"
+            onClick={() => onChange(null)}
+            className="flex size-[clamp(52px,5vw,60px)] items-center justify-center rounded-[12px] bg-[#e9eef0] text-[#1f2933] transition hover:bg-[#dfe6e9]"
+          >
+            <X className="size-7" />
+          </button>
+        ) : null}
+      </div>
+      {!uploaded ? (
+        <label className="flex min-h-[120px] cursor-pointer items-center justify-center rounded-none border border-dashed border-[#d5d5d5] bg-white px-4 py-5 text-center text-[clamp(16px,1.5vw,20px)] text-[#9b9b9b] transition hover:border-[#110023]">
+          Choose PNG or JPEG
         <input
           type="file"
           accept="image/png,image/jpeg"
@@ -1083,20 +1253,13 @@ function ImageField({
           className="sr-only"
         />
       </label>
+      ) : null}
       {uploaded ? (
-        <div className="rounded-lg bg-surface-container-low px-4 py-3">
-          <p className="mb-2 text-xs text-on-surface-variant">
-            Select the image on the preview to adjust crop.
-          </p>
-          <button
-            type="button"
-            onClick={() => onChange(null)}
-            className="inline-flex items-center gap-1 text-xs font-semibold text-destructive"
-          >
-            <X className="size-3.5" />
-            Remove image
-          </button>
-        </div>
+        <p className="max-w-[680px] text-[clamp(16px,1.5vw,20px)] leading-snug text-[#9b9b9b]">
+          Please give it a couple of seconds for the remove background and watercolor filter to be applied.
+          <br />
+          <strong>Click the image on the preview to move it around and position it as you like!</strong>
+        </p>
       ) : null}
     </div>
   );
@@ -1104,15 +1267,15 @@ function ImageField({
   const clipartSection = (
     <div className="space-y-3">
       {clipartCategoryMode === "fixed" && layer?.clipartCategory?.name ? (
-        <p className="rounded-lg bg-surface-container-low px-3 py-2 text-xs text-on-surface-variant">Category: {layer.clipartCategory.name}</p>
+        <p className="text-[clamp(16px,1.5vw,20px)] text-[#9b9b9b]">Category: {layer.clipartCategory.name}</p>
       ) : null}
       {clipartCategoryMode === "allow_list" && scopedClipartCategories.length > 0 ? (
-        <label className="block text-xs font-semibold text-on-surface-variant">
+        <label className="block text-[clamp(20px,2vw,26px)] font-normal leading-tight text-[#2d4056]">
           Category
           <select
             value={activeCategoryId}
             onChange={(event) => setSelectedCategoryId(event.target.value)}
-            className="mt-2 w-full rounded-lg border border-outline bg-background px-4 py-3 text-sm text-on-surface"
+            className="mt-3 h-14 w-full rounded-none border border-[#d5d5d5] bg-white px-4 text-[clamp(20px,2vw,26px)] text-black"
           >
             {scopedClipartCategories.map((category) => (
               <option key={category.id} value={category.id}>
@@ -1122,7 +1285,7 @@ function ImageField({
           </select>
         </label>
       ) : null}
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-2 gap-4">
         {availableClipartAssets.map((clipart) => {
           const selected =
             clipartValue &&
@@ -1145,12 +1308,16 @@ function ImageField({
                   categoryId: clipart.categoryId,
                 })
               }
-              className={`min-h-[108px] rounded-lg border bg-background p-2 transition hover:border-primary ${
-                selected ? "border-primary ring-2 ring-primary/20" : "border-outline"
+              className={`min-h-[120px] rounded-none border bg-white p-3 transition hover:border-[#110023] ${
+                selected ? "border-[#110023] ring-4 ring-[#110023]" : "border-[#d5d5d5]"
               }`}
             >
-              <img src={clipart.previewUrl} alt={clipart.name} className="mx-auto h-16 w-16 object-contain" />
-              <span className="mt-2 block truncate text-xs">{clipart.name}</span>
+              <img
+                src={resolveAssetUrl?.(clipart.previewUrl) ?? clipart.previewUrl}
+                alt={clipart.name}
+                className="mx-auto h-20 w-20 object-contain"
+              />
+              <span className="mt-2 block truncate text-base">{clipart.name}</span>
             </button>
           );
         })}
@@ -1159,9 +1326,9 @@ function ImageField({
         <button
           type="button"
           onClick={() => onChange(null)}
-          className="inline-flex items-center gap-1 text-xs font-semibold text-destructive"
+          className="inline-flex items-center gap-2 text-base font-semibold text-destructive"
         >
-          <X className="size-3.5" />
+            <X className="size-5" />
           Clear clipart
         </button>
       ) : null}
@@ -1174,7 +1341,7 @@ function ImageField({
       {sourcePolicy === "clipart_category_only" ? clipartSection : null}
       {sourcePolicy === "upload_or_clipart_category" && layer?.presentation === "source_select" ? (
         <>
-          <div className="grid grid-cols-2 gap-2 rounded-lg bg-surface-container-low p-1">
+          <div className="grid grid-cols-2 gap-2 bg-[#f2f2f2] p-1">
             <button
               type="button"
               onClick={() => {
@@ -1196,14 +1363,14 @@ function ImageField({
                   });
                 }
               }}
-              className={`rounded-md px-4 py-3 text-sm font-semibold transition ${currentSource === "clipart" ? "bg-primary text-white shadow-sm" : "bg-white text-on-surface hover:bg-primary-fixed/30"}`}
+              className={`px-4 py-3 text-base font-semibold transition ${currentSource === "clipart" ? "bg-[#110023] text-white shadow-sm" : "bg-white text-[#2d4056] hover:bg-[#f5f5f5]"}`}
             >
               Clipart
             </button>
             <button
               type="button"
               onClick={() => onChange(uploaded ?? null)}
-              className={`rounded-md px-4 py-3 text-sm font-semibold transition ${currentSource === "upload" ? "bg-primary text-white shadow-sm" : "bg-white text-on-surface hover:bg-primary-fixed/30"}`}
+              className={`px-4 py-3 text-base font-semibold transition ${currentSource === "upload" ? "bg-[#110023] text-white shadow-sm" : "bg-white text-[#2d4056] hover:bg-[#f5f5f5]"}`}
             >
               Upload image
             </button>
@@ -1213,12 +1380,12 @@ function ImageField({
       ) : null}
       {sourcePolicy === "upload_or_clipart_category" && layer?.presentation === "side_by_side" ? (
         <div className="grid gap-4">
-          <div className="rounded-lg bg-surface-container-low p-3">
-            <p className="mb-2 text-xs font-semibold text-on-surface-variant">Clipart</p>
+          <div className="p-0">
+            <p className="mb-3 text-[clamp(20px,2vw,26px)] font-normal leading-tight text-[#2d4056]">Clipart</p>
             {clipartSection}
           </div>
-          <div className="rounded-lg bg-surface-container-low p-3">
-            <p className="mb-2 text-xs font-semibold text-on-surface-variant">Upload image</p>
+          <div className="p-0">
+            <p className="mb-3 text-[clamp(20px,2vw,26px)] font-normal leading-tight text-[#2d4056]">Upload image</p>
             {uploadSection}
           </div>
         </div>
