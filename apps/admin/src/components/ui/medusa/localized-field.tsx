@@ -29,7 +29,7 @@ export function createLocalizedText(value = ""): LocalizedTextValue {
 
 export function getMissingLocalizedTextLocales(
   value: LocalizedTextValue,
-  requiredLocales: readonly AdminLocale[] = ALL_LOCALES,
+  requiredLocales: readonly AdminLocale[] = [],
 ) {
   return requiredLocales.filter((locale) => !value[locale].trim());
 }

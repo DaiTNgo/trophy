@@ -1800,8 +1800,8 @@ export const validatePublishable = (product: NonNullable<Awaited<ReturnType<type
       return 'Products without variants must have exactly one default variant'
     }
 
-    if (product.options.length !== 1 || product.options[0]?.values.length !== 1) {
-      return 'Products without variants must have exactly one default option and value'
+    if (product.options.length > 1 || (product.options.length === 1 && product.options[0]?.values.length !== 1)) {
+      return 'Products without variants must have exactly one default option and value, or zero options'
     }
   }
 

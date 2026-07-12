@@ -105,32 +105,32 @@ export function ProductDetailAttributes({ product, mutate }: ProductDetailAttrib
                     <div className="flex-1 min-w-0">
                       <LocalizedTextField
                         id={`attribute-key-${index}`}
-                      value={attribute.key}
-                      locale={attributeLocale}
-                      onLocaleChange={setAttributeLocale}
-                      onChange={(val) => updateAttributeField(index, "key", val)}
-                      placeholder={{ vi: "Attribute name", en: "Attribute name" }}
-                        requiredLocales={["vi"]}
+                        value={attribute.key}
+                        locale={attributeLocale}
+                        onLocaleChange={setAttributeLocale}
+                        onChange={(val) => updateAttributeField(index, "key", val)}
+                        placeholder={{ vi: "Attribute name", en: "Attribute name" }}
+                        // requiredLocales={["vi"]}
                       />
                     </div>
                     <div className="flex-1 min-w-0">
                       <LocalizedTextField
                         id={`attribute-value-${index}`}
-                      value={attribute.value}
-                      locale={attributeLocale}
-                      onLocaleChange={setAttributeLocale}
-                      onChange={(val) => updateAttributeField(index, "value", val)}
-                      placeholder={{ vi: "Attribute value", en: "Attribute value" }}
-                        requiredLocales={["vi"]}
+                        value={attribute.value}
+                        locale={attributeLocale}
+                        onLocaleChange={setAttributeLocale}
+                        onChange={(val) => updateAttributeField(index, "value", val)}
+                        placeholder={{ vi: "Attribute value", en: "Attribute value" }}
+                        // requiredLocales={["vi"]}
                       />
                     </div>
                     <IconButton
-                        type="button"
-                        variant="transparent"
-                        onClick={() => removeAttributeRow(index)}
-                      >
-                        <Trash2 className="h-4 w-4 text-ui-fg-error" />
-                      </IconButton>
+                      type="button"
+                      variant="transparent"
+                      onClick={() => removeAttributeRow(index)}
+                    >
+                      <Trash2 className="h-4 w-4 text-ui-fg-error" />
+                    </IconButton>
                   </div>
                 ))}
               </div>
@@ -149,8 +149,8 @@ export function ProductDetailAttributes({ product, mutate }: ProductDetailAttrib
         <div className="flex flex-col">
           {product.attributes && product.attributes.length > 0 ? (
             product.attributes.map((attr, idx) => (
-              <div 
-                key={idx} 
+              <div
+                key={idx}
                 className="grid grid-cols-2 px-6 py-4 border-t border-ui-border-base"
               >
                 <Text size="small" className="text-ui-fg-subtle font-medium">{attr.key.vi}</Text>
