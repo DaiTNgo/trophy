@@ -16,6 +16,8 @@ import { hydrateTranslations, upsertTranslations } from '../../lib/catalog-trans
 const trimmedString = (min = 1, max = 255) =>
   v.pipe(v.string(), v.trim(), v.minLength(min), v.maxLength(max))
 
+const nonNegativeInt = v.pipe(v.number(), v.integer(), v.minValue(0))
+
 const optionalHandle = v.optional(
   v.nullable(
     v.pipe(
@@ -44,6 +46,7 @@ const createCollectionSchema = v.object({
 
 const createCategorySchema = v.object({
   name: localizedString(1, 120),
+  description: v.optional(localizedNullableText()),
   handle: optionalHandle,
   imageUrl: v.optional(v.nullable(v.string()))
 })
@@ -52,7 +55,7 @@ const updateCollectionSchema = v.object({
   title: v.optional(localizedString(1, 120)),
   handle: optionalHandle,
   imageUrl: v.optional(v.nullable(v.string())),
-  position: v.optional(v.number())
+  position: v.optional(nonNegativeInt)
 })
 
 const updateCategorySchema = v.object({
@@ -60,14 +63,14 @@ const updateCategorySchema = v.object({
   handle: optionalHandle,
   description: v.optional(localizedNullableText()),
   imageUrl: v.optional(v.nullable(v.string())),
-  position: v.optional(v.number())
+  position: v.optional(nonNegativeInt)
 })
 
 const updateCategoryRankingSchema = v.object({
   categories: v.array(
     v.object({
-      id: v.number(),
-      position: v.number()
+      id: v.pipe(v.number(), v.integer(), v.minValue(1)),
+      position: nonNegativeInt
     })
   )
 })
@@ -287,6 +290,7 @@ export const productMetadataRoute = new Hono<AppEnv>()
       .insert(productCategories)
       .values({
         name: parsed.output.name.vi,
+        description: parsed.output.description ? parsed.output.description.vi ?? null : null,
         handle,
         imageUrl: parsed.output.imageUrl
       })
@@ -294,6 +298,9 @@ export const productMetadataRoute = new Hono<AppEnv>()
       .get()
 
     await upsertTranslations(db, 'product_category', String(item.id), 'name', parsed.output.name)
+    if (parsed.output.description !== undefined) {
+      await upsertTranslations(db, 'product_category', String(item.id), 'description', parsed.output.description)
+    }
 
     return c.json({ item }, 201)
   })

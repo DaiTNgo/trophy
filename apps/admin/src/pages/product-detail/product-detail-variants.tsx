@@ -4,6 +4,7 @@ import {
   Button,
   Container,
   Drawer,
+  FocusModal,
   IconButton,
   Input,
   Label,
@@ -12,6 +13,7 @@ import {
   Switch,
   Table,
   Text,
+  toast,
 } from "@medusajs/ui";
 import {
   Boxes,
@@ -23,8 +25,12 @@ import {
   Trash,
 } from "lucide-react";
 import { DropdownMenu } from "@medusajs/ui";
-import { AdminMedia } from "../../components/ui/admin-media";
+import { MediaPreview } from "../../components/ui/media-preview";
 import { InlineError } from "../../components/ui/medusa/inline-error";
+import {
+  LocalizedTextField,
+  createLocalizedText,
+} from "../../components/ui/medusa";
 import {
   createProductVariant,
   deleteProductVariant,
@@ -35,7 +41,7 @@ import {
 } from "../../lib/products-client";
 import { uploadProductVariantMedia } from "../../lib/product-assets-client";
 import { convertPdfToImageFile } from "../../lib/pdf-preview";
-import type { CatalogProduct } from "../../types";
+import type { AdminLocale, CatalogProduct, LocalizedTextValue, ProductAttribute } from "../../types";
 
 type ProductDetailVariantsProps = {
   product: CatalogProduct;
@@ -44,10 +50,14 @@ type ProductDetailVariantsProps = {
 
 type VariantFormState = {
   id: number | null;
-  title: string;
+  titleTranslations: LocalizedTextValue;
   sku: string;
+  priceAmount: string;
+  inventoryQuantity: string;
   allowBackorder: boolean;
   optionSelections: Record<string, string>;
+  attributes: ProductAttribute[];
+  media: MediaDraft[];
 };
 
 type MediaDraft = {
@@ -56,6 +66,7 @@ type MediaDraft = {
   mimeType: string;
   fileName: string;
 };
+
 
 function buildVariantForm(product: CatalogProduct, variant?: CatalogProduct["variants"][number]): VariantFormState {
   const optionSelections = Object.fromEntries(
@@ -67,12 +78,24 @@ function buildVariantForm(product: CatalogProduct, variant?: CatalogProduct["var
     }),
   );
 
+  const attributes = product.attributes.map((prodAttr) => {
+    const variantAttr = variant?.attributes?.find((va) => va.key.vi === prodAttr.key.vi);
+    return {
+      key: { ...prodAttr.key },
+      value: variantAttr ? { ...variantAttr.value } : { ...prodAttr.value },
+    };
+  });
+
   return {
     id: variant ? Number(variant.id) : null,
-    title: variant?.title ?? "",
+    titleTranslations: variant?.titleTranslations ?? createLocalizedText(variant?.title ?? ""),
     sku: variant?.sku ?? "",
+    priceAmount: variant && variant.price > 0 ? String(variant.price) : "",
+    inventoryQuantity: variant ? String(variant.inventory) : "0",
     allowBackorder: variant?.allowBackorder ?? false,
     optionSelections,
+    attributes,
+    media: variant ? buildMediaDraft(variant) : [],
   };
 }
 
@@ -89,26 +112,23 @@ export function ProductDetailVariants({ product, mutate }: ProductDetailVariants
   const [priceOpen, setPriceOpen] = useState(false);
   const [stockOpen, setStockOpen] = useState(false);
   const [variantOpen, setVariantOpen] = useState(false);
-  const [mediaOpen, setMediaOpen] = useState(false);
 
   const [priceRows, setPriceRows] = useState<Array<{ id: number; title: string; priceAmount: string }>>([]);
   const [stockRows, setStockRows] = useState<Array<{ id: number; title: string; inventoryQuantity: string }>>([]);
   const [variantForm, setVariantForm] = useState<VariantFormState>(() => buildVariantForm(product));
-  const [mediaVariantId, setMediaVariantId] = useState<number | null>(null);
-  const [mediaDrafts, setMediaDrafts] = useState<MediaDraft[]>([]);
+  const [variantTitleLocale, setVariantTitleLocale] = useState<AdminLocale>("vi");
+  const [variantAttributeLocale, setVariantAttributeLocale] = useState<AdminLocale>("vi");
 
   const [priceError, setPriceError] = useState<string | null>(null);
   const [stockError, setStockError] = useState<string | null>(null);
   const [variantError, setVariantError] = useState<string | null>(null);
-  const [mediaError, setMediaError] = useState<string | null>(null);
 
   const [isSavingPrices, setIsSavingPrices] = useState(false);
   const [isSavingStock, setIsSavingStock] = useState(false);
   const [isSavingVariant, setIsSavingVariant] = useState(false);
-  const [isSavingMedia, setIsSavingMedia] = useState(false);
-  const [isUploadingMedia, setIsUploadingMedia] = useState(false);
+  const [isUploadingVariantMedia, setIsUploadingVariantMedia] = useState(false);
 
-  const mediaInputRef = useRef<HTMLInputElement | null>(null);
+  const variantMediaInputRef = useRef<HTMLInputElement | null>(null);
 
   function openPrices() {
     setPriceRows(
@@ -136,16 +156,25 @@ export function ProductDetailVariants({ product, mutate }: ProductDetailVariants
 
   function openVariantEditor(variant?: CatalogProduct["variants"][number]) {
     setVariantForm(buildVariantForm(product, variant));
+    setVariantTitleLocale("vi");
+    setVariantAttributeLocale("vi");
     setVariantError(null);
     setVariantOpen(true);
   }
 
-  function openMediaEditor(variant: CatalogProduct["variants"][number]) {
-    setMediaVariantId(Number(variant.id));
-    setMediaDrafts(buildMediaDraft(variant));
-    setMediaError(null);
-    setMediaOpen(true);
+  function updateVariantAttribute(
+    index: number,
+    field: "key" | "value",
+    value: LocalizedTextValue,
+  ) {
+    setVariantForm((current) => ({
+      ...current,
+      attributes: current.attributes.map((attribute, attributeIndex) =>
+        attributeIndex === index ? { ...attribute, [field]: value } : attribute,
+      ),
+    }));
   }
+
 
 
   async function savePrices() {
@@ -163,7 +192,9 @@ export function ProductDetailVariants({ product, mutate }: ProductDetailVariants
       await mutate();
       setPriceOpen(false);
     } catch (error) {
-      setPriceError(error instanceof Error ? error.message : "Failed to save price changes.");
+      const message = error instanceof Error ? error.message : "Failed to save price changes.";
+      setPriceError(message);
+      toast.error(message);
     } finally {
       setIsSavingPrices(false);
     }
@@ -184,7 +215,9 @@ export function ProductDetailVariants({ product, mutate }: ProductDetailVariants
       await mutate();
       setStockOpen(false);
     } catch (error) {
-      setStockError(error instanceof Error ? error.message : "Failed to save stock changes.");
+      const message = error instanceof Error ? error.message : "Failed to save stock changes.";
+      setStockError(message);
+      toast.error(message);
     } finally {
       setIsSavingStock(false);
     }
@@ -195,6 +228,10 @@ export function ProductDetailVariants({ product, mutate }: ProductDetailVariants
     setVariantError(null);
 
     try {
+      if (!variantForm.titleTranslations.vi.trim()) {
+        throw new Error("Vietnamese variant title is required.");
+      }
+
       const optionValueIds = product.optionDefinitions.map((option) => {
         const selected = variantForm.optionSelections[option.id];
         if (!selected || selected === "__none__") {
@@ -202,55 +239,90 @@ export function ProductDetailVariants({ product, mutate }: ProductDetailVariants
         }
         return Number(selected);
       });
+      const normalizedAttributes = variantForm.attributes
+        .filter((attribute, index) => {
+          const productAttribute = product.attributes[index];
+          if (!productAttribute) return true;
+          return attribute.value.vi.trim() !== productAttribute.value.vi.trim() ||
+                 attribute.value.en.trim() !== productAttribute.value.en.trim();
+        })
+        .map((attribute) => ({
+          name: {
+            vi: attribute.key.vi.trim(),
+            en: attribute.key.en.trim(),
+          },
+          value: {
+            vi: attribute.value.vi.trim(),
+            en: attribute.value.en.trim(),
+          },
+        }));
+
+      if (
+        normalizedAttributes.some((attribute) => !attribute.name.vi || !attribute.value.vi)
+      ) {
+        throw new Error("Each variant attribute override needs a Vietnamese value.");
+      }
+
+      const priceAmount = variantForm.priceAmount.trim() === "" ? null : Number(variantForm.priceAmount);
+      const inventoryQuantity = Number(variantForm.inventoryQuantity || 0);
+      const media = variantForm.media.map((asset) => ({ assetId: asset.assetId }));
+
+      if (priceAmount !== null && (!Number.isFinite(priceAmount) || priceAmount < 0)) {
+        throw new Error("Enter a valid variant price.");
+      }
+
+      if (!Number.isInteger(inventoryQuantity) || inventoryQuantity < 0) {
+        throw new Error("Enter a valid inventory quantity.");
+      }
 
       if (variantForm.id) {
         await updateProductVariantDetails(product.id, variantForm.id, {
-          title: variantForm.title.trim(),
+          title: {
+            vi: variantForm.titleTranslations.vi.trim(),
+            en: variantForm.titleTranslations.en.trim(),
+          },
           sku: variantForm.sku.trim() || null,
           allowBackorder: variantForm.allowBackorder,
           optionValueIds,
+          attributes: normalizedAttributes,
         });
+        await updateProductVariantPrices(product.id, [{ id: variantForm.id, priceAmount }]);
+        await updateProductVariantStock(product.id, [{ id: variantForm.id, inventoryQuantity }]);
+        await updateProductVariantMedia(product.id, variantForm.id, media);
       } else {
         await createProductVariant(product.id, {
-          title: variantForm.title.trim(),
+          title: {
+            vi: variantForm.titleTranslations.vi.trim(),
+            en: variantForm.titleTranslations.en.trim(),
+          },
           sku: variantForm.sku.trim() || null,
-          priceAmount: null,
-          inventoryQuantity: 0,
+          priceAmount,
+          inventoryQuantity,
           allowBackorder: variantForm.allowBackorder,
           optionValueIds,
-          media: [],
+          attributes: normalizedAttributes,
+          media,
         });
       }
 
       await mutate();
       setVariantOpen(false);
     } catch (error) {
-      setVariantError(error instanceof Error ? error.message : "Failed to save variant details.");
+      const message = error instanceof Error ? error.message : "Failed to save variant details.";
+      setVariantError(message);
+      toast.error(message);
     } finally {
       setIsSavingVariant(false);
     }
   }
 
-  async function handleDeleteVariant(variantId: number) {
-    if (!window.confirm("Delete this product variant?")) {
-      return;
-    }
-
-    try {
-      await deleteProductVariant(product.id, variantId);
-      await mutate();
-    } catch (error) {
-      setVariantError(error instanceof Error ? error.message : "Failed to delete variant.");
-    }
-  }
-
-  async function handleMediaUpload(fileList: FileList | null) {
+  async function handleVariantMediaUpload(fileList: FileList | null) {
     if (!fileList || fileList.length === 0) {
       return;
     }
 
-    setIsUploadingMedia(true);
-    setMediaError(null);
+    setIsUploadingVariantMedia(true);
+    setVariantError(null);
 
     try {
       const uploadedAssets = await Promise.all(
@@ -263,42 +335,39 @@ export function ProductDetailVariants({ product, mutate }: ProductDetailVariants
         }),
       );
 
-      setMediaDrafts((current) => [
+      setVariantForm((current) => ({
         ...current,
-        ...uploadedAssets.map((asset) => ({
-          assetId: asset.id,
-          url: asset.contentUrl,
-          mimeType: asset.mimeType,
-          fileName: asset.fileName,
-        })),
-      ]);
+        media: [
+          ...current.media,
+          ...uploadedAssets.map((asset) => ({
+            assetId: asset.id,
+            url: asset.contentUrl,
+            mimeType: asset.mimeType,
+            fileName: asset.fileName,
+          })),
+        ],
+      }));
     } catch (error) {
-      setMediaError(error instanceof Error ? error.message : "Failed to upload media.");
+      const message = error instanceof Error ? error.message : "Failed to upload variant media.";
+      setVariantError(message);
+      toast.error(message);
     } finally {
-      setIsUploadingMedia(false);
+      setIsUploadingVariantMedia(false);
     }
   }
 
-  async function saveMedia() {
-    if (!mediaVariantId) {
+  async function handleDeleteVariant(variantId: number) {
+    if (!window.confirm("Delete this product variant?")) {
       return;
     }
 
-    setIsSavingMedia(true);
-    setMediaError(null);
-
     try {
-      await updateProductVariantMedia(
-        product.id,
-        mediaVariantId,
-        mediaDrafts.map((asset) => ({ assetId: asset.assetId })),
-      );
+      await deleteProductVariant(product.id, variantId);
       await mutate();
-      setMediaOpen(false);
     } catch (error) {
-      setMediaError(error instanceof Error ? error.message : "Failed to save variant media.");
-    } finally {
-      setIsSavingMedia(false);
+      const message = error instanceof Error ? error.message : "Failed to delete variant.";
+      setVariantError(message);
+      toast.error(message);
     }
   }
 
@@ -335,8 +404,6 @@ export function ProductDetailVariants({ product, mutate }: ProductDetailVariants
         </div>
 
         <div className="flex flex-col">
-          {variantError ? <div className="px-6 pt-4"><InlineError message={variantError} /></div> : null}
-
           <div className="overflow-x-auto">
             <Table>
             <Table.Header>
@@ -372,7 +439,7 @@ export function ProductDetailVariants({ product, mutate }: ProductDetailVariants
                   <Table.Cell className="pl-6">
                     <div className="flex h-8 w-8 items-center justify-center rounded-md border border-ui-border-base bg-ui-bg-subtle overflow-hidden">
                       {variant.media.length > 0 ? (
-                        <AdminMedia
+                        <MediaPreview
                           src={variant.media[0].contentUrl}
                           mimeType={variant.media[0].mimeType}
                           alt={variant.title}
@@ -423,10 +490,6 @@ export function ProductDetailVariants({ product, mutate }: ProductDetailVariants
                         <DropdownMenu.Item onClick={() => openVariantEditor(variant)}>
                           <Pencil className="mr-2 h-4 w-4" />
                           Edit
-                        </DropdownMenu.Item>
-                        <DropdownMenu.Item onClick={() => openMediaEditor(variant)}>
-                          <ImagePlus className="mr-2 h-4 w-4" />
-                          Edit Media
                         </DropdownMenu.Item>
                         <DropdownMenu.Separator />
                         <DropdownMenu.Item onClick={() => void handleDeleteVariant(Number(variant.id))}>
@@ -530,162 +593,304 @@ export function ProductDetailVariants({ product, mutate }: ProductDetailVariants
         </Drawer.Content>
       </Drawer>
 
-      <Drawer open={variantOpen} onOpenChange={setVariantOpen}>
-        <Drawer.Content>
-          <Drawer.Header>
-            <Drawer.Title>{variantForm.id ? "Edit variant details" : "Create variant"}</Drawer.Title>
-          </Drawer.Header>
-          <Drawer.Body className="flex flex-col gap-y-6 overflow-y-auto">
-            {variantError ? <InlineError message={variantError} /> : null}
-            <div className="space-y-1.5">
-              <Label size="small">Title</Label>
-              <Input
-                value={variantForm.title}
-                onChange={(event) => setVariantForm((current) => ({ ...current, title: event.target.value }))}
-                placeholder="Default variant"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label size="small">SKU</Label>
-              <Input
-                value={variantForm.sku}
-                onChange={(event) => setVariantForm((current) => ({ ...current, sku: event.target.value }))}
-                placeholder="SKU-001"
-              />
-            </div>
-            <div className="flex items-start justify-between gap-4 rounded-lg border border-ui-border-base px-4 py-3">
-              <div className="space-y-1">
-                <Text size="small" weight="plus">
-                  Allow backorder
-                </Text>
-                <Text size="small" className="text-ui-fg-subtle">
-                  Keep this variant sellable even when stock reaches zero.
-                </Text>
-              </div>
-              <Switch
-                checked={variantForm.allowBackorder}
-                onCheckedChange={(checked) =>
-                  setVariantForm((current) => ({ ...current, allowBackorder: checked }))
-                }
-              />
-            </div>
-            {product.optionDefinitions.map((option) => (
-              <div key={option.id} className="space-y-1.5">
-                <Label size="small">{option.title}</Label>
-                <Select
-                  value={variantForm.optionSelections[option.id] ?? "__none__"}
-                  onValueChange={(value) =>
-                    setVariantForm((current) => ({
-                      ...current,
-                      optionSelections: {
-                        ...current.optionSelections,
-                        [option.id]: value,
-                      },
-                    }))
-                  }
-                >
-                  <Select.Trigger>
-                    <Select.Value placeholder={`Choose ${option.title.toLowerCase()}`} />
-                  </Select.Trigger>
-                  <Select.Content>
-                    <Select.Item value="__none__">Choose a value</Select.Item>
-                    {option.values.map((value) => (
-                      <Select.Item key={value.id} value={value.id}>
-                        {value.value}
-                      </Select.Item>
-                    ))}
-                  </Select.Content>
-                </Select>
-              </div>
-            ))}
-          </Drawer.Body>
-          <Drawer.Footer>
-            <Drawer.Close asChild>
-              <Button variant="secondary" disabled={isSavingVariant}>
-                Cancel
-              </Button>
-            </Drawer.Close>
-            <Button onClick={() => void saveVariant()} isLoading={isSavingVariant}>
-              {variantForm.id ? "Save variant" : "Create variant"}
-            </Button>
-          </Drawer.Footer>
-        </Drawer.Content>
-      </Drawer>
-
-      <Drawer open={mediaOpen} onOpenChange={setMediaOpen}>
-        <Drawer.Content>
-          <Drawer.Header>
-            <Drawer.Title>Manage variant media</Drawer.Title>
-          </Drawer.Header>
-          <Drawer.Body className="flex flex-col gap-y-6 overflow-y-auto">
-            {mediaError ? <InlineError message={mediaError} /> : null}
-            <input
-              ref={mediaInputRef}
-              type="file"
-              accept="image/png,image/jpeg,application/pdf"
-              multiple
-              className="hidden"
-              onChange={(event) => {
-                void handleMediaUpload(event.target.files);
-                event.target.value = "";
-              }}
-            />
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => mediaInputRef.current?.click()}
-              isLoading={isUploadingMedia}
-            >
-              <ImagePlus className="h-4 w-4" />
-              Upload media
-            </Button>
-            {mediaDrafts.length === 0 ? (
-              <Text size="small" className="text-ui-fg-subtle">
-                No variant media selected.
-              </Text>
-            ) : (
-              <div className="grid gap-3 sm:grid-cols-2">
-                {mediaDrafts.map((asset, index) => (
-                  <div key={`${asset.assetId}-${index}`} className="overflow-hidden rounded-lg border border-ui-border-base">
-                    <AdminMedia
-                      src={asset.url}
-                      mimeType={asset.mimeType}
-                      alt={asset.fileName}
-                      className="h-32 w-full object-contain"
+      <FocusModal open={variantOpen} onOpenChange={setVariantOpen}>
+        <FocusModal.Content>
+          <FocusModal.Header>
+          </FocusModal.Header>
+          <FocusModal.Body className="overflow-y-auto px-6 py-8">
+            <div className="mx-auto flex w-full max-w-[760px] flex-col gap-8">
+              <section className="space-y-4">
+                <div>
+                  <Heading level="h3" className="text-base font-medium">
+                    Details
+                  </Heading>
+                  <Text size="small" className="text-ui-fg-subtle">
+                    Name the variant and add an optional SKU.
+                  </Text>
+                </div>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <LocalizedTextField
+                    id="variant-title"
+                    label="Title"
+                    value={variantForm.titleTranslations}
+                    locale={variantTitleLocale}
+                    onLocaleChange={setVariantTitleLocale}
+                    onChange={(value) =>
+                      setVariantForm((current) => ({
+                        ...current,
+                        titleTranslations: value,
+                      }))
+                    }
+                    placeholder={{
+                      vi: "Default variant",
+                      en: "Default variant",
+                    }}
+                    requiredLocales={["vi"]}
+                  />
+                  <div className="space-y-1.5">
+                    <Label size="small">
+                      SKU <span className="text-ui-fg-muted">(Optional)</span>
+                    </Label>
+                    <Input
+                      value={variantForm.sku}
+                      onChange={(event) => setVariantForm((current) => ({ ...current, sku: event.target.value }))}
+                      placeholder="SKU-001"
                     />
-                    <div className="flex items-center justify-between px-3 py-3">
-                      <Text size="small" weight="plus" className="line-clamp-1">
-                        {asset.fileName}
-                      </Text>
-                      <IconButton
-                        type="button"
-                        variant="transparent"
-                        onClick={() =>
-                          setMediaDrafts((current) =>
-                            current.filter((_, currentIndex) => currentIndex !== index),
-                          )
-                        }
-                      >
-                        <Trash className="h-4 w-4 text-ui-fg-error" />
-                      </IconButton>
-                    </div>
                   </div>
-                ))}
-              </div>
-            )}
-          </Drawer.Body>
-          <Drawer.Footer>
-            <Drawer.Close asChild>
-              <Button variant="secondary" disabled={isSavingMedia}>
-                Cancel
+                </div>
+              </section>
+
+              <section className="space-y-4">
+                <div>
+                  <Heading level="h3" className="text-base font-medium">
+                    Options
+                  </Heading>
+                  <Text size="small" className="text-ui-fg-subtle">
+                    Choose one value from each product option.
+                  </Text>
+                </div>
+                {product.optionDefinitions.length === 0 ? (
+                  <div className="rounded-lg border border-ui-border-base bg-ui-bg-subtle px-4 py-3">
+                    <Text size="small" className="text-ui-fg-subtle">
+                      This product does not have custom options. The variant will use the default option value.
+                    </Text>
+                  </div>
+                ) : (
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {product.optionDefinitions.map((option) => (
+                      <div key={option.id} className="space-y-1.5">
+                        <Label size="small">{option.title}</Label>
+                        <Select
+                          value={variantForm.optionSelections[option.id] ?? "__none__"}
+                          onValueChange={(value) =>
+                            setVariantForm((current) => ({
+                              ...current,
+                              optionSelections: {
+                                ...current.optionSelections,
+                                [option.id]: value,
+                              },
+                            }))
+                          }
+                        >
+                          <Select.Trigger>
+                            <Select.Value placeholder={`Choose ${option.title.toLowerCase()}`} />
+                          </Select.Trigger>
+                          <Select.Content>
+                            <Select.Item value="__none__">Choose a value</Select.Item>
+                            {option.values.map((value) => (
+                              <Select.Item key={value.id} value={value.id}>
+                                {value.value}
+                              </Select.Item>
+                            ))}
+                          </Select.Content>
+                        </Select>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </section>
+
+              <section className="space-y-4">
+                <div>
+                  <Heading level="h3" className="text-base font-medium">
+                    Price
+                  </Heading>
+                  <Text size="small" className="text-ui-fg-subtle">
+                    Leave blank for Contact Price.
+                  </Text>
+                </div>
+                <div className="flex max-w-[240px] items-center rounded-md border border-ui-border-base bg-ui-bg-field px-2 shadow-buttons-neutral">
+                  <Text size="small" className="px-1 text-ui-fg-muted">
+                    $
+                  </Text>
+                  <Input
+                    value={variantForm.priceAmount}
+                    onChange={(event) =>
+                      setVariantForm((current) => ({
+                        ...current,
+                        priceAmount: event.target.value,
+                      }))
+                    }
+                    type="number"
+                    min="0"
+                    className="border-0 bg-transparent shadow-none"
+                    placeholder="0"
+                  />
+                </div>
+              </section>
+
+              <section className="space-y-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <Heading level="h3" className="text-base font-medium">
+                      Attributes
+                    </Heading>
+                    <Text size="small" className="text-ui-fg-subtle">
+                      Product detail attributes stay shared. Change values here only when this variant needs different values.
+                    </Text>
+                  </div>
+                </div>
+
+                {product.attributes.length === 0 ? (
+                  <div className="rounded-lg border border-dashed border-ui-border-base bg-ui-bg-subtle px-4 py-4">
+                    <Text size="small" className="text-ui-fg-subtle">
+                      This product has no attributes to override.
+                    </Text>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {variantForm.attributes.map((attribute, index) => (
+                      <div key={`variant-attribute-${index}`} className="grid gap-3 rounded-lg border border-ui-border-base p-4 md:grid-cols-[1fr_1fr]">
+                        <div className="flex items-center">
+                          <Text size="small" weight="plus">{attribute.key.vi}</Text>
+                        </div>
+                        <LocalizedTextField
+                          id={`variant-attribute-value-${index}`}
+                          value={attribute.value}
+                          locale={variantAttributeLocale}
+                          onLocaleChange={setVariantAttributeLocale}
+                          onChange={(value) => updateVariantAttribute(index, "value", value)}
+                          placeholder={{ vi: "18k gold", en: "18k gold" }}
+                          requiredLocales={["vi"]}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </section>
+
+              <section className="space-y-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <Heading level="h3" className="text-base font-medium">
+                      Media
+                    </Heading>
+                    <Text size="small" className="text-ui-fg-subtle">
+                      Upload images or PDFs for the variant preview.
+                    </Text>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="small"
+                    onClick={() => variantMediaInputRef.current?.click()}
+                    isLoading={isUploadingVariantMedia}
+                  >
+                    <ImagePlus className="h-4 w-4" />
+                    Upload media
+                  </Button>
+                </div>
+                <input
+                  ref={variantMediaInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,application/pdf"
+                  multiple
+                  className="hidden"
+                  onChange={(event) => {
+                    void handleVariantMediaUpload(event.target.files);
+                    event.target.value = "";
+                  }}
+                />
+                {variantForm.media.length === 0 ? (
+                  <div className="rounded-lg border border-dashed border-ui-border-base bg-ui-bg-subtle px-4 py-6 text-center">
+                    <ImageIcon className="mx-auto h-5 w-5 text-ui-fg-muted" />
+                    <Text size="small" className="mt-2 text-ui-fg-subtle">
+                      No variant media selected.
+                    </Text>
+                  </div>
+                ) : (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {variantForm.media.map((asset, index) => (
+                      <div key={`${asset.assetId}-${index}`} className="overflow-hidden rounded-lg border border-ui-border-base">
+                        <MediaPreview
+                          src={asset.url}
+                          mimeType={asset.mimeType}
+                          alt={asset.fileName}
+                          className="h-32 w-full object-contain bg-ui-bg-subtle"
+                        />
+                        <div className="flex items-center justify-between gap-3 px-3 py-3">
+                          <Text size="small" weight="plus" className="line-clamp-1">
+                            {asset.fileName}
+                          </Text>
+                          <IconButton
+                            type="button"
+                            variant="transparent"
+                            onClick={() =>
+                              setVariantForm((current) => ({
+                                ...current,
+                                media: current.media.filter((_, currentIndex) => currentIndex !== index),
+                              }))
+                            }
+                          >
+                            <Trash className="h-4 w-4 text-ui-fg-error" />
+                          </IconButton>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </section>
+
+              <section className="space-y-4">
+                <div>
+                  <Heading level="h3" className="text-base font-medium">
+                    Inventory
+                  </Heading>
+                  <Text size="small" className="text-ui-fg-subtle">
+                    Set stock quantity and selling behavior when quantity reaches zero.
+                  </Text>
+                </div>
+                <div className="grid gap-4 md:grid-cols-[220px_1fr]">
+                  <div className="space-y-1.5">
+                    <Label size="small">Inventory quantity</Label>
+                    <Input
+                      value={variantForm.inventoryQuantity}
+                      onChange={(event) =>
+                        setVariantForm((current) => ({
+                          ...current,
+                          inventoryQuantity: event.target.value,
+                        }))
+                      }
+                      type="number"
+                      min="0"
+                      placeholder="0"
+                    />
+                  </div>
+                  <div className="flex items-start justify-between gap-4 rounded-lg border border-ui-border-base px-4 py-3">
+                    <div className="space-y-1">
+                      <Text size="small" weight="plus">
+                        Allow backorder
+                      </Text>
+                      <Text size="small" className="text-ui-fg-subtle">
+                        Keep this variant sellable even when stock reaches zero.
+                      </Text>
+                    </div>
+                    <Switch
+                      checked={variantForm.allowBackorder}
+                      onCheckedChange={(checked) =>
+                        setVariantForm((current) => ({ ...current, allowBackorder: checked }))
+                      }
+                    />
+                  </div>
+                </div>
+              </section>
+            </div>
+          </FocusModal.Body>
+          <FocusModal.Footer>
+            <div className="flex w-full items-center justify-end gap-2">
+              <FocusModal.Close asChild>
+                <Button variant="secondary" disabled={isSavingVariant}>
+                  Cancel
+                </Button>
+              </FocusModal.Close>
+              <Button onClick={() => void saveVariant()} isLoading={isSavingVariant}>
+                {variantForm.id ? "Save variant" : "Create variant"}
               </Button>
-            </Drawer.Close>
-            <Button onClick={() => void saveMedia()} isLoading={isSavingMedia}>
-              Save media
-            </Button>
-          </Drawer.Footer>
-        </Drawer.Content>
-      </Drawer>
+            </div>
+          </FocusModal.Footer>
+        </FocusModal.Content>
+      </FocusModal>
+
     </Container>
   );
 }

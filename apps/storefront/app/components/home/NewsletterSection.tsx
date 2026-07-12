@@ -8,7 +8,7 @@ import { Button } from "../ui/button";
 
 export function NewsletterSection() {
   return (
-    <section className="py-20 px-4 md:px-margin-desktop bg-primary/6">
+    <section className="bg-secondary-container px-4 py-20 md:px-margin-desktop">
       <div className=" mx-auto flex flex-col items-center text-center">
         {/* Copy */}
         <div className="mb-8">
@@ -30,7 +30,7 @@ export function NewsletterSection() {
           <label htmlFor="newsletter-email" className="sr-only">
             Địa chỉ email
           </label>
-          <InputGroup className="rounded-sm py-6 border border-primary">
+          <InputGroup className="rounded-sm border border-border-strong py-6">
             <InputGroupInput
               id="newsletter-email"
               type="email"
@@ -39,7 +39,7 @@ export function NewsletterSection() {
               className="text-2xl"
             />
             <InputGroupAddon align="inline-end">
-              <Button className="rounded-sm px-5" type="submit" aria-label="Đăng ký" >
+              <Button className="rounded-sm bg-action-support px-5 hover:bg-action-support-hover" type="submit" aria-label="Đăng ký" >
                 <Mail />
               </Button>
             </InputGroupAddon>

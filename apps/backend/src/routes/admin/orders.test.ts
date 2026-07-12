@@ -200,6 +200,15 @@ describe("admin orders routes", () => {
     expect(body.order.items[0].customization).toEqual({
       values: [{ fieldId: "text_1", label: "Name", valueSummary: "Alice" }],
       hasRenderedDesign: true,
+      preview: {
+        values: { text_1: { text: "Alice" } },
+        templateSnapshot: {
+          layers: [],
+          formFields: [{ id: "text_1", layerId: "layer-1", label: "Name", required: true, order: 0 }],
+          canvasWidthPx: 100,
+          canvasHeightPx: 100,
+        },
+      },
     });
     expect(JSON.stringify(body)).not.toContain("productSnapshotJson");
   });

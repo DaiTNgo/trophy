@@ -85,7 +85,6 @@ function queueReadProduct(
     handle?: string;
     description?: string | null;
     status?: string;
-    hasVariants?: boolean;
     collectionId?: number | null;
     createdAt?: string;
     updatedAt?: string;
@@ -105,6 +104,14 @@ function queueReadProduct(
       position: number;
       createdAt: string;
       updatedAt: string;
+    }>;
+    variantAttributeRows?: Array<{
+      id: number;
+      variantId: number;
+      name: string;
+      value: string;
+      unit?: string | null;
+      position: number;
     }>;
     variantOptionRows?: Array<{ variantId: number; optionValueId: number }>;
     variantMediaRows?: Array<{
@@ -133,7 +140,7 @@ function queueReadProduct(
     handle: product.handle ?? "champion-cup",
     description: product.description ?? null,
     status: product.status ?? "draft",
-    hasVariants: product.hasVariants ?? true,
+
     collectionId: product.collectionId ?? null,
     createdAt: product.createdAt ?? "2026-07-04T00:00:00.000Z",
     updatedAt: product.updatedAt ?? "2026-07-04T00:00:00.000Z",
@@ -142,12 +149,10 @@ function queueReadProduct(
   db.getQueue.push(baseProduct);
   db.selectQueue.push([]); // category rows
   db.selectQueue.push([]); // attribute rows
-    db.selectQueue.push([
-    { ownerType: 'product', ownerKey: String(product.id), fieldName: 'title', locale: 'vi', value: 'Vietnamese Title' },
-    { ownerType: 'product', ownerKey: String(product.id), fieldName: 'title', locale: 'en', value: 'English Title' }
-  ]); // product media
+  db.selectQueue.push([]); // product media
   db.selectQueue.push(input?.optionRows ?? []);
   db.selectQueue.push(input?.variantRows ?? []);
+  db.selectQueue.push(input?.variantAttributeRows ?? []);
   db.selectQueue.push(input?.variantMediaRows ?? []);
   db.getQueue.push(input?.customizationRow ?? null);
 
@@ -159,14 +164,24 @@ function queueReadProduct(
     db.selectQueue.push(input?.variantOptionRows ?? []);
   }
 
+  if ((input?.variantAttributeRows ?? []).length > 0) {
+    db.selectQueue.push([]);
+  }
+
   // Translations
   if ((input?.optionRows ?? []).length > 0) {
-    db.selectQueue.push([{ ownerType: 'product', ownerKey: String(product.id), fieldName: 'title', locale: 'vi', value: 'Vietnamese Title' }, { ownerType: 'product', ownerKey: String(product.id), fieldName: 'title', locale: 'en', value: 'English Title' }]); // product_option
+    db.selectQueue.push([]);
   }
   if ((input?.optionValueRows ?? []).length > 0) {
-    db.selectQueue.push([{ ownerType: 'product', ownerKey: String(product.id), fieldName: 'title', locale: 'vi', value: 'Vietnamese Title' }, { ownerType: 'product', ownerKey: String(product.id), fieldName: 'title', locale: 'en', value: 'English Title' }]); // product_option_value
+    db.selectQueue.push([]);
   }
-  db.selectQueue.push([{ ownerType: 'product', ownerKey: String(product.id), fieldName: 'title', locale: 'vi', value: 'Vietnamese Title' }, { ownerType: 'product', ownerKey: String(product.id), fieldName: 'title', locale: 'en', value: 'English Title' }]); // product
+  if ((input?.variantRows ?? []).length > 0) {
+    db.selectQueue.push([]);
+  }
+  if ((input?.variantAttributeRows ?? []).length > 0) {
+    db.selectQueue.push([]);
+  }
+  db.selectQueue.push([]);
 }
 
 describe("admin products operation-specific routes", () => {
@@ -182,14 +197,13 @@ describe("admin products operation-specific routes", () => {
       id: 1,
       title: "Champion Cup",
       status: "draft",
-      hasVariants: true,
-    });
+          });
     db.selectQueue.push([]);
     db.selectQueue.push([{ id: 5 }]);
     db.getQueue.push({ id: 10, productId: 1, title: "Material", position: 1 });
     queueReadProduct(
       db,
-      { id: 1, hasVariants: true, status: "draft" },
+      { id: 1,  status: "draft" },
       {
         optionRows: [{ id: 10, productId: 1, title: "Material", position: 1 }],
         optionValueRows: [
@@ -254,7 +268,7 @@ describe("admin products operation-specific routes", () => {
 
   it("creates a variant with explicit option selections", async () => {
     // getProduct
-    db.getQueue.push({ id: 1, hasVariants: true, status: "draft" });
+    db.getQueue.push({ id: 1,  status: "draft" });
     // categories, attributes, media
     db.selectQueue.push([]);
     db.selectQueue.push([]);
@@ -263,6 +277,8 @@ describe("admin products operation-specific routes", () => {
     db.selectQueue.push([{ id: 10, productId: 1, title: "Material", position: 0 }]);
     // productVariants
     db.selectQueue.push([{ id: 21, productId: 1, title: "Crystal", sku: "CRY-2", position: 0 }]);
+    // variantAttributes
+    db.selectQueue.push([]);
     // variantMedia
     db.selectQueue.push([]);
     // customization
@@ -275,7 +291,8 @@ describe("admin products operation-specific routes", () => {
     // variantOptionValues
     db.selectQueue.push([{ variantId: 21, optionValueId: 100 }]);
     
-    // Translations: option, optionValue, product
+    // Translations: option, optionValue, variant, product
+    db.selectQueue.push([]);
     db.selectQueue.push([]);
     db.selectQueue.push([]);
     db.selectQueue.push([]);
@@ -310,9 +327,57 @@ describe("admin products operation-specific routes", () => {
     expect(res.status).toBe(201);
   });
 
+  it("creates a variant with attribute overrides", async () => {
+    // getProduct
+    db.getQueue.push({ id: 1, status: "draft" });
+    db.selectQueue.push([]);
+    db.selectQueue.push([]);
+    db.selectQueue.push([]);
+    db.selectQueue.push([]);
+    db.selectQueue.push([]);
+    db.selectQueue.push([]);
+    db.selectQueue.push([]);
+    db.getQueue.push(null);
+    db.selectQueue.push([]);
+    db.selectQueue.push([]);
+    db.getQueue.push({ id: 22 });
+
+    const res = await productsRoute.request("/1/variants", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: "Default variant",
+        sku: "SKU-22",
+        priceAmount: 5000,
+        inventoryQuantity: 2,
+        allowBackorder: false,
+        optionValueIds: [],
+        attributes: [
+          {
+            name: { vi: "Size", en: "Size" },
+            value: { vi: "Nhỏ", en: "Small" },
+          },
+        ],
+        media: [],
+      }),
+    });
+
+    expect(res.status).toBe(201);
+    expect(
+      db.mutations.some(
+        (entry: MutationRecord) =>
+          entry.kind === "insert" &&
+          Array.isArray(entry.values) &&
+          (entry.values as Array<any>).some(
+            (value) => value.variantId === 22 && value.name === "Size" && value.value === "Nhỏ",
+          ),
+      ),
+    ).toBe(true);
+  });
+
   it("rejects duplicate variant option combinations", async () => {
     // getProduct
-    db.getQueue.push({ id: 1, hasVariants: true, status: "draft" });
+    db.getQueue.push({ id: 1,  status: "draft" });
     // categories, attributes, media
     db.selectQueue.push([]);
     db.selectQueue.push([]);
@@ -321,6 +386,8 @@ describe("admin products operation-specific routes", () => {
     db.selectQueue.push([{ id: 10, productId: 1, title: "Material", position: 0 }]);
     // productVariants
     db.selectQueue.push([{ id: 20, productId: 1, title: "Crystal", sku: "CRY-1", position: 0 }]);
+    // variantAttributes
+    db.selectQueue.push([]);
     // variantMedia
     db.selectQueue.push([]);
     // customization
@@ -330,7 +397,8 @@ describe("admin products operation-specific routes", () => {
     // variantOptionValues
     db.selectQueue.push([{ variantId: 20, optionValueId: 100 }]);
     
-    // Translations: option, optionValue, product
+    // Translations: option, optionValue, variant, product
+    db.selectQueue.push([]);
     db.selectQueue.push([]);
     db.selectQueue.push([]);
     db.selectQueue.push([]);
@@ -367,7 +435,7 @@ describe("admin products operation-specific routes", () => {
   it("updates prices without overwriting unrelated variant fields", async () => {
     queueReadProduct(
       db,
-      { id: 1, hasVariants: true, status: "draft" },
+      { id: 1,  status: "draft" },
       {
         optionRows: [],
         variantRows: [
@@ -390,7 +458,7 @@ describe("admin products operation-specific routes", () => {
     db.selectQueue.push([{ id: 20 }, { id: 21 }]);
     queueReadProduct(
       db,
-      { id: 1, hasVariants: true, status: "draft" },
+      { id: 1,  status: "draft" },
       {
         optionRows: [],
         variantRows: [
@@ -429,17 +497,93 @@ describe("admin products operation-specific routes", () => {
     expect((updateRecord?.set as any).allowBackorder).toBeUndefined();
   });
 
+  it("updates variant attribute overrides without touching shared product attributes", async () => {
+    db.getQueue.push({ id: 1, status: "draft" });
+    db.getQueue.push({
+      id: 20,
+      productId: 1,
+      title: "Default",
+      sku: "SKU-1",
+      priceAmount: 5000,
+      inventoryQuantity: 8,
+      allowBackorder: false,
+      isDefault: true,
+      position: 0,
+      createdAt: "2026-07-04T00:00:00.000Z",
+      updatedAt: "2026-07-04T00:00:00.000Z",
+    });
+    db.selectQueue.push([]);
+    db.selectQueue.push([]);
+    queueReadProduct(
+      db,
+      { id: 1, status: "draft" },
+      {
+        variantRows: [
+          {
+            id: 20,
+            productId: 1,
+            title: "Default",
+            sku: "SKU-1",
+            priceAmount: 5000,
+            inventoryQuantity: 8,
+            allowBackorder: false,
+            isDefault: true,
+            position: 0,
+            createdAt: "2026-07-04T00:00:00.000Z",
+            updatedAt: "2026-07-04T00:00:00.000Z",
+          },
+        ],
+        variantAttributeRows: [
+          {
+            id: 301,
+            variantId: 20,
+            name: "Finish",
+            value: "Glossy",
+            unit: null,
+            position: 0,
+          },
+        ],
+      },
+    );
+
+    const res = await productsRoute.request("/1/variants/20", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: { vi: "Default variant", en: "Default variant" },
+        sku: "SKU-1",
+        attributes: [
+          {
+            name: { vi: "Finish", en: "Finish" },
+            value: { vi: "Mờ", en: "Matte" },
+          },
+        ],
+      }),
+    });
+
+    expect(res.status).toBe(200);
+    expect(
+      db.mutations.some(
+        (entry: MutationRecord) =>
+          entry.kind === "insert" &&
+          Array.isArray(entry.values) &&
+          (entry.values as Array<any>).some(
+            (value) => value.variantId === 20 && value.name === "Finish" && value.value === "Mờ",
+          ),
+      ),
+    ).toBe(true);
+  });
+
   it("updates stock without overwriting non-stock fields", async () => {
     db.getQueue.push({
       id: 1,
       title: "Champion Cup",
       status: "draft",
-      hasVariants: true,
-    });
+          });
     db.selectQueue.push([{ id: 20 }]);
     queueReadProduct(
       db,
-      { id: 1, hasVariants: true, status: "draft" },
+      { id: 1,  status: "draft" },
       {
         optionRows: [],
         variantRows: [
@@ -480,9 +624,14 @@ describe("admin products operation-specific routes", () => {
   it("rejects media changes that would break customization publish readiness", async () => {
     queueReadProduct(
       db,
-      { id: 1, hasVariants: true, status: "published" },
+      { id: 1,  status: "published" },
       {
-        optionRows: [],
+        optionRows: [
+          { id: 1, productId: 1, title: "Default option", position: 0 }
+        ],
+        optionValueRows: [
+          { id: 1, optionId: 1, value: "Default option value", position: 0 }
+        ],
         variantRows: [
           {
             id: 20,
@@ -497,6 +646,9 @@ describe("admin products operation-specific routes", () => {
             createdAt: "2026-07-04T00:00:00.000Z",
             updatedAt: "2026-07-04T00:00:00.000Z",
           },
+        ],
+        variantOptionRows: [
+          { variantId: 20, optionValueId: 1 }
         ],
         variantMediaRows: [
           {
@@ -529,5 +681,46 @@ describe("admin products operation-specific routes", () => {
     expect(res.status).toBe(409);
     const body = (await res.json()) as any;
     expect(body.error).toContain("Customization requires at least one valid variant image before publish");
+  });
+
+  it("returns absolute URLs for product media and variant media", async () => {
+    queueReadProduct(
+      db,
+      { id: 1, status: "draft" },
+      {
+        variantRows: [
+          {
+            id: 20,
+            productId: 1,
+            title: "Default",
+            sku: "SKU-1",
+            priceAmount: 5000,
+            inventoryQuantity: 8,
+            allowBackorder: false,
+            isDefault: true,
+            position: 0,
+            createdAt: "2026-07-04T00:00:00.000Z",
+            updatedAt: "2026-07-04T00:00:00.000Z",
+          },
+        ],
+        variantMediaRows: [
+          {
+            variantId: 20,
+            assetId: "asset-1",
+            position: 0,
+            fileName: "asset-1.png",
+            mimeType: "image/png",
+            widthPx: 1200,
+            heightPx: 900,
+            byteSize: 1024,
+          },
+        ],
+      },
+    );
+
+    const res = await productsRoute.request("http://localhost:8787/1");
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as any;
+    expect(body.item.variants[0].media[0].contentUrl).toBe("http://localhost:8787/api/assets/products/asset-1/content");
   });
 });

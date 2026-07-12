@@ -1,5 +1,5 @@
 import type { ComponentType } from "react";
-import { Boxes, Package, Palette, Settings, ShoppingCart, Tag, Users } from "lucide-react";
+import { Boxes, Package, Palette, Settings, ShoppingCart, Tag, Type, Users } from "lucide-react";
 
 export type SidebarNavItem = {
   label: string;
@@ -48,15 +48,35 @@ export const primarySidebarItems: SidebarNavItem[] = [
 export const operationsSidebarItems: SidebarNavItem[] = [
   {
     label: "Customization",
-    to: "/customization-templates",
+    to: "/customization/templates",
     icon: Palette,
-    prefixes: ["/customization-templates"],
-  },
-  {
-    label: "Brand Assets",
-    to: "/brand-assets",
-    icon: Palette,
-    prefixes: ["/brand-assets"],
+    prefixes: ["/customization"],
+    children: [
+      {
+        label: "Templates",
+        to: "/customization/templates",
+        icon: Palette,
+        prefixes: ["/customization/templates"],
+      },
+      {
+        label: "Clipart",
+        to: "/customization/clipart",
+        icon: Palette,
+        prefixes: ["/customization/clipart"],
+      },
+      {
+        label: "Colors",
+        to: "/customization/colors",
+        icon: Palette,
+        prefixes: ["/customization/colors"],
+      },
+      {
+        label: "Fonts",
+        to: "/customization/fonts",
+        icon: Type,
+        prefixes: ["/customization/fonts"],
+      },
+    ],
   },
   {
     label: "Team",
@@ -80,7 +100,7 @@ export const shellSections = [
   { label: "Orders", prefixes: ["/orders"] },
   { label: "Products", prefixes: ["/products", "/collections", "/categories"] },
   { label: "Inventory", prefixes: ["/inventory"] },
-  { label: "Customization", prefixes: ["/customization-templates"] },
+  { label: "Customization", prefixes: ["/customization"] },
   { label: "Team", prefixes: ["/team"] },
   { label: "Settings", prefixes: ["/settings"] },
 ];

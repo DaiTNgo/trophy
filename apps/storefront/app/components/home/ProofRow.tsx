@@ -25,7 +25,7 @@ const CLAIMS = [
 
 export function ProofRow() {
   return (
-    <section className="py-16 px-4 md:px-margin-desktop bg-surface-container-low border-b border-outline-variant">
+    <section className="border-b border-outline-variant bg-surface-container-low px-4 py-16 md:px-margin-desktop">
       <div className="max-w-container-max mx-auto">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {CLAIMS.map(({ icon, title, body }) => (
@@ -33,11 +33,11 @@ export function ProofRow() {
               key={icon}
               className="flex gap-4 items-start reveal active"
             >
-              <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center mt-0.5">
-                {icon === "Wrench" && <Wrench className="text-[20px] text-primary" />}
-                {icon === "Eye" && <Eye className="text-[20px] text-primary" />}
-                {icon === "Gem" && <Gem className="text-[20px] text-primary" />}
-                {icon === "Truck" && <Truck className="text-[20px] text-primary" />}
+              <div className="mt-0.5 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-brand-strong/10">
+                {icon === "Wrench" && <Wrench className="text-[20px] text-brand-strong" />}
+                {icon === "Eye" && <Eye className="text-[20px] text-brand-strong" />}
+                {icon === "Gem" && <Gem className="text-[20px] text-brand-accent" />}
+                {icon === "Truck" && <Truck className="text-[20px] text-brand-support" />}
               </div>
               <div>
                 <p className="font-label-md text-label-md uppercase tracking-wide text-on-surface mb-1">

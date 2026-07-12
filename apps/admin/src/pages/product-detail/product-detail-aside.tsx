@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Badge, Container, Heading, Text, Button } from "@medusajs/ui";
+import { Badge, Container, Heading, Text, Button, toast } from "@medusajs/ui";
 import { CheckCircle2, Globe, Archive } from "lucide-react";
 import { ChecklistItem } from "../../components/ui/medusa";
 import { publishProduct, archiveProduct } from "../../lib/products-client";
@@ -32,7 +32,9 @@ export function ProductDetailAside({ product, mutate }: ProductDetailAsideProps)
       await publishProduct(product.id);
       await mutate();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to publish");
+      const message = err instanceof Error ? err.message : "Failed to publish";
+      setError(message);
+      toast.error(message);
     } finally {
       setIsPublishing(false);
     }
@@ -45,7 +47,9 @@ export function ProductDetailAside({ product, mutate }: ProductDetailAsideProps)
       await archiveProduct(product.id);
       await mutate();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to archive");
+      const message = err instanceof Error ? err.message : "Failed to archive";
+      setError(message);
+      toast.error(message);
     } finally {
       setIsPublishing(false);
     }

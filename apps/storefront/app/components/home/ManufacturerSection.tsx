@@ -18,8 +18,8 @@ export function CustomizationFeatureSection() {
       <div className="max-w-container-max mx-auto">
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-12 2xl:gap-8 items-center">
           {/* Image — left on desktop, first on mobile */}
-          <div className="reveal active h-full">
-            <div className="relative rounded-xl overflow-hidden aspect-[4/3] h-full">
+          <div className="reveal active">
+            <div className="relative aspect-[4/3] overflow-hidden rounded-xl">
               <img
                 className="w-full h-full object-cover"
                 src={FEATURE_IMAGE}
@@ -27,9 +27,9 @@ export function CustomizationFeatureSection() {
                 loading="lazy"
               />
               {/* Subtle overlay badge */}
-              <div className="absolute bottom-4 sm:bottom-6 left-4 sm:left-6 bg-primary text-primary-foreground px-4 py-2 sm:px-5 sm:py-3 rounded-lg">
-                <span className="block font-heading text-[20px] sm:text-[28px] uppercase leading-none">25+</span>
-                <span className="block font-label-md sm:text-label-md text-[12px] font-medium uppercase tracking-wider text-white/90 mt-1">
+              <div className="absolute bottom-6 left-6 rounded-lg bg-brand-hero px-5 py-3 text-white">
+                <span className="block font-heading text-[28px] uppercase leading-none">25+</span>
+                <span className="block font-label-md text-label-md uppercase tracking-wider text-white/90 mt-1">
                   Năm kinh nghiệm
                 </span>
               </div>
@@ -38,13 +38,13 @@ export function CustomizationFeatureSection() {
 
           {/* Copy — right on desktop */}
           <div className="reveal active">
-            <p className="font-label-md text-label-md uppercase tracking-[0.35em] text-primary mb-4">
+            <p className="mb-4 font-label-md text-label-md uppercase tracking-[0.35em] text-brand-accent">
               Tùy chỉnh
             </p>
             <h2 className="font-heading text-[32px] md:text-[40px] uppercase leading-10 text-on-surface mb-4">
               Thiết kế riêng cho từng khoảnh khắc
             </h2>
-            <div className="w-16 h-[3px] bg-accent mb-6" />
+            <div className="mb-6 h-[3px] w-16 bg-brand-support" />
             <p className="font-body-lg text-body-lg text-on-surface-variant mb-8 leading-relaxed">
               Thêm logo, tên người nhận, hạng mục giải thưởng và thông điệp
               riêng. Mỗi sản phẩm có thể được duyệt thiết kế trước khi sản
@@ -54,11 +54,11 @@ export function CustomizationFeatureSection() {
             <ul className="space-y-4 mb-10">
               {BULLETS.map(({ icon, text }) => (
                 <li key={icon} className="flex items-center gap-3">
-                  <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                    {icon === "Building2" && <Building2 className="text-[18px] text-primary" />}
-                    {icon === "User" && <User className="text-[18px] text-primary" />}
-                    {icon === "PenSquare" && <PenSquare className="text-[18px] text-primary" />}
-                    {icon === "Eye" && <Eye className="text-[18px] text-primary" />}
+                  <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-brand-strong/10">
+                    {icon === "Building2" && <Building2 className="text-[18px] text-brand-strong" />}
+                    {icon === "User" && <User className="text-[18px] text-brand-strong" />}
+                    {icon === "PenSquare" && <PenSquare className="text-[18px] text-brand-strong" />}
+                    {icon === "Eye" && <Eye className="text-[18px] text-brand-strong" />}
                   </div>
                   <span className="font-body-md text-body-md text-on-surface">
                     {text}
@@ -69,7 +69,7 @@ export function CustomizationFeatureSection() {
 
             <Link
               to="/contact"
-              className="inline-flex items-center gap-2 bg-primary text-primary-foreground font-label-md text-label-md uppercase px-8 py-4 rounded-lg tracking-widest hover:bg-accent hover:text-accent-foreground transition-all duration-300"
+              className="inline-flex items-center gap-2 rounded-lg bg-action-support px-8 py-4 font-label-md text-label-md uppercase tracking-widest text-white transition-all duration-300 hover:bg-action-support-hover"
             >
               Bắt đầu tùy chỉnh
               <ArrowRight className="text-[18px]" />

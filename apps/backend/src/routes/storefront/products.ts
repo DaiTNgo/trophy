@@ -1,8 +1,9 @@
 import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm'
-import { Hono } from 'hono'
+import { Hono, type Context } from 'hono'
+import { makeCustomizationUrlsAbsolute, toAbsoluteAssetUrl } from '../../lib/url'
 import * as v from 'valibot'
 import {
-  buildRuntimeImageIconLayer,
+  buildRuntimeImageClipartLayer,
   getFormFieldForLayer,
   type CustomizationFormField,
   type CustomizationLayer,
@@ -12,6 +13,8 @@ import { getDb } from '../../db/client'
 import {
   productAttributes,
   productAssets,
+  customizationClipartAssets,
+  customizationClipartCategories,
   productCategories,
   productCategoryLinks,
   productCustomizations,
@@ -99,6 +102,28 @@ function parseQuery<TOutput>(
 }
 
 export function sanitizeShopperCustomization(customization: ProductCustomization) {
+  const clipartCategoriesById = new Map<
+    string,
+    { id: string; name: string }
+  >();
+  const clipartAssetsByCategoryId = new Map<string, Array<any>>();
+
+  return sanitizeShopperCustomizationWithClipart(customization, {
+    clipartCategoriesById,
+    clipartAssetsByCategoryId,
+  });
+}
+
+function sanitizeShopperCustomizationWithClipart(
+  customization: ProductCustomization,
+  {
+    clipartCategoriesById,
+    clipartAssetsByCategoryId,
+  }: {
+    clipartCategoriesById: Map<string, { id: string; name: string }>;
+    clipartAssetsByCategoryId: Map<string, Array<any>>;
+  },
+) {
   return {
     enabled: customization.enabled,
     canvasWidthPx: customization.canvasWidthPx,
@@ -122,24 +147,51 @@ export function sanitizeShopperCustomization(customization: ProductCustomization
         layer.id,
       );
 
-      const runtime = buildRuntimeImageIconLayer({
+      const runtime = buildRuntimeImageClipartLayer({
         layer,
         fieldId: field?.id,
         required: field?.required ?? false,
+        clipartCategoriesById,
+        clipartAssets: (() => {
+          const categoryIds = runtimeCategoryIds(layer, clipartCategoriesById);
+          const derivedAssets = categoryIds.flatMap(
+            (categoryId) => clipartAssetsByCategoryId.get(categoryId) ?? [],
+          );
+          if (derivedAssets.length > 0) {
+            return derivedAssets.filter(
+              (asset, index, array) => array.findIndex((candidate) => candidate.id === asset.id) === index,
+            );
+          }
+          return layer.clipartAssets ?? [];
+        })(),
       });
 
       return {
         ...layer,
         sourcePolicy: runtime.sourcePolicy,
         presentation: runtime.presentation,
-        fixedIcon: runtime.fixedIcon,
-        fixedCategory: runtime.fixedCategory,
-        allowedIcons: runtime.allowedIcons,
+        clipartCategoryMode: runtime.clipartCategoryMode,
+        clipartCategory: runtime.clipartCategory,
+        allowedClipartCategories: runtime.allowedClipartCategories,
+        clipartAssets: runtime.clipartAssets,
         upload: runtime.upload,
       };
     }) as CustomizationLayer[],
     formFields: customization.formFields,
   };
+}
+
+function runtimeCategoryIds(
+  layer: ProductCustomization["layers"][number],
+  clipartCategoriesById: Map<string, { id: string; name: string }>,
+) {
+  if (layer.type !== "image_shape") return [];
+  const clipartCategoryMode = layer.clipartCategoryMode ?? "fixed";
+  if (clipartCategoryMode === "allow_list") {
+    return (layer.allowedClipartCategories ?? [])
+      .map((category) => clipartCategoriesById.get(category.id)?.id ?? category.id);
+  }
+  return layer.clipartCategory ? [clipartCategoriesById.get(layer.clipartCategory.id)?.id ?? layer.clipartCategory.id] : [];
 }
 
 export const storefrontProductsRoute = new Hono<AppEnv>()
@@ -199,7 +251,7 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
           title: products.title,
           subtitle: products.subtitle,
           handle: products.handle,
-          hasVariants: products.hasVariants
+          status: products.status
         })
         .from(products)
         .where(whereClause)
@@ -306,6 +358,7 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
 
     const listingItems = resolvedItems.map((item) =>
       buildListingItem(
+        c,
         item,
         categoriesByProductId.get(item.id) ?? [],
         variantsByProductId.get(item.id) ?? [],
@@ -483,14 +536,77 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
         formFields: JSON.parse(customizationRow.formFieldsJson)
       };
       await hydrateCustomization(db, parsedCustomization);
-      customization = sanitizeShopperCustomization({
+      const clipartCategoryIds = Array.from(
+        new Set(
+          (parsedCustomization.layers as ProductCustomization["layers"]).flatMap((layer) => {
+            if (layer.type !== "image_shape") return [];
+            const clipartCategoryMode = layer.clipartCategoryMode ?? "fixed";
+            if (clipartCategoryMode === "allow_list") {
+              return (layer.allowedClipartCategories ?? []).map((category) => category.id);
+            }
+            return layer.clipartCategory ? [layer.clipartCategory.id] : [];
+          }),
+        ),
+      );
+
+      const [clipartCategoryRows, clipartAssetRows] = clipartCategoryIds.length
+        ? await Promise.all([
+            db
+              .select({
+                id: customizationClipartCategories.id,
+                name: customizationClipartCategories.name,
+              })
+              .from(customizationClipartCategories)
+              .where(
+                and(
+                  inArray(customizationClipartCategories.id, clipartCategoryIds),
+                  eq(customizationClipartCategories.active, true),
+                ),
+              ),
+            db
+              .select({
+                id: customizationClipartAssets.id,
+                sourceAssetId: customizationClipartAssets.sourceAssetId,
+                name: customizationClipartAssets.name,
+                fileName: customizationClipartAssets.fileName,
+                categoryId: customizationClipartAssets.categoryId,
+                previewUrl: customizationClipartAssets.previewUrl,
+                mimeType: customizationClipartAssets.mimeType,
+                sourceWidthPx: customizationClipartAssets.sourceWidthPx,
+                sourceHeightPx: customizationClipartAssets.sourceHeightPx,
+                active: customizationClipartAssets.active,
+              })
+              .from(customizationClipartAssets)
+              .where(
+                and(
+                  inArray(customizationClipartAssets.categoryId, clipartCategoryIds),
+                  eq(customizationClipartAssets.active, true),
+                ),
+              ),
+          ])
+        : [[], []];
+
+      const clipartCategoriesById = new Map(
+        clipartCategoryRows.map((category) => [category.id, category] as const),
+      );
+      const clipartAssetsByCategoryId = new Map<string, Array<(typeof clipartAssetRows)[number]>>();
+      for (const asset of clipartAssetRows) {
+        const current = clipartAssetsByCategoryId.get(asset.categoryId) ?? [];
+        current.push(asset);
+        clipartAssetsByCategoryId.set(asset.categoryId, current);
+      }
+
+      customization = makeCustomizationUrlsAbsolute(c, sanitizeShopperCustomizationWithClipart({
         productId: String(product.id),
         enabled: true,
         canvasWidthPx: parsedCustomization.canvasWidthPx,
         canvasHeightPx: parsedCustomization.canvasHeightPx,
         layers: parsedCustomization.layers as ProductCustomization["layers"],
         formFields: parsedCustomization.formFields as CustomizationFormField[],
-      });
+      }, {
+        clipartCategoriesById,
+        clipartAssetsByCategoryId,
+      }));
     }
 
     const detail = {
@@ -499,7 +615,7 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
       subtitle: product.subtitle,
       handle: product.handle,
       description: product.description,
-      hasVariants: product.hasVariants,
+      status: product.status,
       categories: resolvedCategories,
       attributes: resolvedAttributes,
       options: resolvedOptions.map((option) => ({
@@ -527,7 +643,7 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
             heightPx: m.heightPx,
             byteSize: m.byteSize,
             position: m.position,
-            contentUrl: `/api/assets/products/${m.assetId}/content`
+            contentUrl: toAbsoluteAssetUrl(c, `/api/assets/products/${m.assetId}/content`) as string
           })),
           optionValues: ovIds
             .map((ovId) => {
@@ -558,6 +674,7 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
 export type StorefrontListingItem = ReturnType<typeof buildListingItem>
 
 export function buildListingItem(
+  c: Context<AppEnv>,
   item: {
     id: number
     title: string
@@ -582,14 +699,14 @@ export function buildListingItem(
   if (defaultVariant) {
     const defaultMedia = variantMediaByVariantId.get(defaultVariant.id) ?? []
     if (defaultMedia.length > 0) {
-      thumbnail = `/api/assets/products/${defaultMedia[0].assetId}/content`
+      thumbnail = toAbsoluteAssetUrl(c, `/api/assets/products/${defaultMedia[0].assetId}/content`) as string
     }
   }
   if (!thumbnail) {
     for (const variant of variants) {
       const media = variantMediaByVariantId.get(variant.id) ?? []
       if (media.length > 0) {
-        thumbnail = `/api/assets/products/${media[0].assetId}/content`
+        thumbnail = toAbsoluteAssetUrl(c, `/api/assets/products/${media[0].assetId}/content`) as string
         break
       }
     }

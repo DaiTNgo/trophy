@@ -1,4 +1,9 @@
 import { backendFetch } from "./fetch";
+import type {
+  CustomizationFormField,
+  CustomizationFormValues,
+  CustomizationLayer,
+} from "@trophy/customization";
 
 export type AdminOrderListItem = {
   orderNumber: string;
@@ -84,6 +89,15 @@ export type AdminOrderDetail = {
         valueSummary: string;
       }>;
       hasRenderedDesign: boolean;
+      preview?: {
+        values: CustomizationFormValues;
+        templateSnapshot: {
+          layers: CustomizationLayer[];
+          formFields: CustomizationFormField[];
+          canvasWidthPx: number | null;
+          canvasHeightPx: number | null;
+        };
+      };
     } | null;
   }>;
 };

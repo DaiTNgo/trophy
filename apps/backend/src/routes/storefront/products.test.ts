@@ -25,7 +25,7 @@ const makeMedia = (assetId: string) => ({
 
 describe("buildListingItem", () => {
   it("returns lowest non-null variant price", () => {
-    const item = buildListingItem(
+    const item = buildListingItem({ req: { url: "http://localhost/" } } as any, 
       baseItem,
       [],
       [
@@ -41,7 +41,7 @@ describe("buildListingItem", () => {
   });
 
   it("returns null priceAmount for Contact Price (no variant prices)", () => {
-    const item = buildListingItem(
+    const item = buildListingItem({ req: { url: "http://localhost/" } } as any, 
       baseItem,
       [],
       [
@@ -57,7 +57,7 @@ describe("buildListingItem", () => {
   });
 
   it("sets priceFrom false when all variants share the same price", () => {
-    const item = buildListingItem(
+    const item = buildListingItem({ req: { url: "http://localhost/" } } as any, 
       baseItem,
       [],
       [
@@ -73,7 +73,7 @@ describe("buildListingItem", () => {
   });
 
   it("sets priceFrom true when variants have different prices", () => {
-    const item = buildListingItem(
+    const item = buildListingItem({ req: { url: "http://localhost/" } } as any, 
       baseItem,
       [],
       [
@@ -93,7 +93,7 @@ describe("buildListingItem", () => {
       [2, [makeMedia("asset_b")]],
     ]);
 
-    const item = buildListingItem(
+    const item = buildListingItem({ req: { url: "http://localhost/" } } as any, 
       baseItem,
       [],
       [
@@ -104,7 +104,7 @@ describe("buildListingItem", () => {
       false,
     );
 
-    expect(item.thumbnail).toBe("/api/assets/products/asset_a/content");
+    expect(item.thumbnail).toBe("http://localhost/api/assets/products/asset_a/content");
   });
 
   it("falls back to first variant with media when default has none", () => {
@@ -112,7 +112,7 @@ describe("buildListingItem", () => {
       [2, [makeMedia("asset_b")]],
     ]);
 
-    const item = buildListingItem(
+    const item = buildListingItem({ req: { url: "http://localhost/" } } as any, 
       baseItem,
       [],
       [
@@ -123,11 +123,11 @@ describe("buildListingItem", () => {
       false,
     );
 
-    expect(item.thumbnail).toBe("/api/assets/products/asset_b/content");
+    expect(item.thumbnail).toBe("http://localhost/api/assets/products/asset_b/content");
   });
 
   it("returns null thumbnail when no variant has media", () => {
-    const item = buildListingItem(
+    const item = buildListingItem({ req: { url: "http://localhost/" } } as any, 
       baseItem,
       [],
       [makeVariant({ id: 1, isDefault: true })],
@@ -139,7 +139,7 @@ describe("buildListingItem", () => {
   });
 
   it("builds categorySummary from category names", () => {
-    const item = buildListingItem(
+    const item = buildListingItem({ req: { url: "http://localhost/" } } as any, 
       baseItem,
       ["Crystal", "Premium"],
       [makeVariant({ id: 1, isDefault: true })],
@@ -151,7 +151,7 @@ describe("buildListingItem", () => {
   });
 
   it("returns null categorySummary when no categories", () => {
-    const item = buildListingItem(
+    const item = buildListingItem({ req: { url: "http://localhost/" } } as any, 
       baseItem,
       [],
       [makeVariant({ id: 1, isDefault: true })],
@@ -163,7 +163,7 @@ describe("buildListingItem", () => {
   });
 
   it("marks product as customizable", () => {
-    const item = buildListingItem(
+    const item = buildListingItem({ req: { url: "http://localhost/" } } as any, 
       baseItem,
       [],
       [makeVariant({ id: 1, isDefault: true })],
@@ -175,7 +175,7 @@ describe("buildListingItem", () => {
   });
 
   it("marks product as non-customizable by default", () => {
-    const item = buildListingItem(
+    const item = buildListingItem({ req: { url: "http://localhost/" } } as any, 
       baseItem,
       [],
       [makeVariant({ id: 1, isDefault: true })],
@@ -188,66 +188,7 @@ describe("buildListingItem", () => {
 });
 
 describe("sanitizeShopperCustomization", () => {
-  it("keeps only an active fixed icon for fixed-clipart layers", () => {
-    const customization: ProductCustomization = {
-      productId: "1",
-      enabled: true,
-      canvasWidthPx: 1200,
-      canvasHeightPx: 900,
-      layers: DEFAULT_TEMPLATE.layers.map((layer) =>
-        layer.id === "badge_shape" && layer.type === "image_shape"
-          ? {
-              ...layer,
-              sourcePolicy: "fixed_clipart",
-              fixedIcon: {
-                id: "icon_fixed",
-                sourceAssetId: "asset_fixed",
-                name: "Fixed Star",
-                categoryId: "sports",
-                categoryLabel: "Sports",
-                tags: ["star"],
-                previewUrl: "/api/assets/customizations/asset_fixed/content",
-                mimeType: "image/svg+xml",
-                sourceWidthPx: 200,
-                sourceHeightPx: 200,
-                active: true,
-              },
-              allowedIcons: [
-                {
-                  id: "icon_inactive",
-                  sourceAssetId: "asset_inactive",
-                  name: "Inactive Star",
-                  categoryId: "sports",
-                  categoryLabel: "Sports",
-                  tags: ["inactive"],
-                  previewUrl: "/api/assets/customizations/asset_inactive/content",
-                  mimeType: "image/png",
-                  sourceWidthPx: 200,
-                  sourceHeightPx: 200,
-                  active: false,
-                },
-              ],
-            }
-          : layer,
-      ),
-      formFields: DEFAULT_TEMPLATE.formFields,
-    };
-
-    const result = sanitizeShopperCustomization(customization);
-    const imageLayer = result.layers.find((layer) => layer.id === "badge_shape");
-
-    expect(imageLayer).toMatchObject({
-      sourcePolicy: "fixed_clipart",
-      fixedIcon: {
-        id: "icon_fixed",
-        sourceAssetId: "asset_fixed",
-        name: "Fixed Star",
-      },
-      allowedIcons: [],
-    });
-  });
-
-  it("keeps only shopper-safe allowed icons for clipart-enabled layers", () => {
+  it("keeps only shopper-safe derived clipart assets for clipart-enabled layers", () => {
     const customization: ProductCustomization = {
       productId: "1",
       enabled: true,
@@ -259,15 +200,15 @@ describe("sanitizeShopperCustomization", () => {
               ...layer,
               sourcePolicy: "upload_or_clipart_category",
               presentation: "source_select",
-              fixedCategory: { id: "sports", label: "Sports" },
-              allowedIcons: [
+              clipartCategoryMode: "allow_list",
+              allowedClipartCategories: [{ id: "sports", name: "Sports" }],
+              clipartAssets: [
                 {
-                  id: "icon_active",
+                  id: "clipart_active",
                   sourceAssetId: "asset_active",
-                  name: "Active Icon",
+                  name: "Active Clipart",
                   categoryId: "sports",
-                  categoryLabel: "Sports",
-                  tags: ["active"],
+                  fileName: "active.svg",
                   previewUrl: "/api/assets/customizations/asset_active/content",
                   mimeType: "image/svg+xml",
                   sourceWidthPx: 200,
@@ -275,12 +216,11 @@ describe("sanitizeShopperCustomization", () => {
                   active: true,
                 },
                 {
-                  id: "icon_inactive",
+                  id: "clipart_inactive",
                   sourceAssetId: "asset_inactive",
-                  name: "Inactive Icon",
+                  name: "Inactive Clipart",
                   categoryId: "sports",
-                  categoryLabel: "Sports",
-                  tags: ["inactive"],
+                  fileName: "inactive.png",
                   previewUrl: "/api/assets/customizations/asset_inactive/content",
                   mimeType: "image/png",
                   sourceWidthPx: 200,
@@ -300,14 +240,15 @@ describe("sanitizeShopperCustomization", () => {
     expect(imageLayer).toMatchObject({
       sourcePolicy: "upload_or_clipart_category",
       presentation: "source_select",
-      fixedCategory: { id: "sports", label: "Sports" },
+      clipartCategoryMode: "allow_list",
+      allowedClipartCategories: [{ id: "sports", name: "Sports" }],
     });
-    expect((imageLayer as any).allowedIcons).toEqual([
+    expect((imageLayer as any).clipartAssets).toEqual([
       expect.objectContaining({
-        id: "icon_active",
+        id: "clipart_active",
         sourceAssetId: "asset_active",
       }),
     ]);
-    expect((imageLayer as any).allowedIcons).toHaveLength(1);
+    expect((imageLayer as any).clipartAssets).toHaveLength(1);
   });
 });

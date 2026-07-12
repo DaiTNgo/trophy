@@ -7,25 +7,27 @@ import {
   type StorefrontCategory,
   type StorefrontCollection,
 } from "../../lib/api";
+import { getLocaleFromRequest } from "../../lib/locale";
 import { TrustBar } from "../home/TrustBar";
 
-export async function loader() {
+export async function loader({ request }: { request: Request }) {
+  const locale = getLocaleFromRequest(request);
   const [categories, collections] = await Promise.all([
-    fetchStorefrontCategories().catch(() => [] as StorefrontCategory[]),
-    fetchStorefrontCollections().catch(() => [] as StorefrontCollection[]),
+    fetchStorefrontCategories(locale).catch(() => [] as StorefrontCategory[]),
+    fetchStorefrontCollections(locale).catch(() => [] as StorefrontCollection[]),
   ]);
 
-  return { categories, collections };
+  return { categories, collections, locale };
 }
 
 export default function StorefrontLayout() {
-  const { categories, collections } = useLoaderData<typeof loader>();
+  const { categories, collections, locale } = useLoaderData<typeof loader>();
 
   return (
     <div className="flex min-h-screen flex-col">
       <TrustBar />
-      <Navbar categories={categories} collections={collections} />
-      <div className="flex-1 overflow-x-hidden">
+      <Navbar categories={categories} collections={collections} locale={locale} />
+      <div className="flex-1">
         <Outlet />
       </div>
       <Footer />

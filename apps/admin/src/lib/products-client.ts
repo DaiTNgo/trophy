@@ -27,11 +27,12 @@ type ApiProduct = {
   }>;
   variants: Array<{
     id: number;
-    title: string;
+    title: LocalizedInput;
     sku: string | null;
     priceAmount: number | null;
     inventoryQuantity: number;
     allowBackorder: boolean;
+    attributes?: Array<{ name: LocalizedInput; value: LocalizedInput; unit?: string | null }>;
     media: Array<{
       id: string;
       fileName: string;
@@ -73,9 +74,9 @@ type CreateFullProductPayload = {
   mode: "draft" | "publish";
   details: {
     title: LocalizedInput;
-    subtitle: LocalizedInput | null;
+    subtitle?: LocalizedInput | null;
     handle: string | null;
-    description: LocalizedInput | null;
+    description?: LocalizedInput | null;
   };
   organization: {
     collectionId?: number | null;
@@ -84,13 +85,14 @@ type CreateFullProductPayload = {
   attributes: Array<{ name: LocalizedInput; value: LocalizedInput; unit?: string | null }>;
   options: Array<{ title: LocalizedInput; values: Array<{ value: LocalizedInput }> }>;
   variants: Array<{
-    title: string;
+    title: LocalizedInput;
     sku: string | null;
     priceAmount: number | null;
     inventoryQuantity: number;
     allowBackorder: boolean;
     isDefault?: boolean;
     optionValues: Array<{ optionTitle: string; value: string }>;
+    attributes?: Array<{ name: LocalizedInput; value: LocalizedInput; unit?: string | null }>;
     media: Array<{ assetId: string }>;
   }>;
   customization?: {
@@ -252,7 +254,7 @@ export async function updateProductOptions(id: string, items: Array<{ title: { v
 
 export async function createProductOption(
   id: string,
-  payload: { title: { vi: string; en?: string }; values?: { vi: string; en?: string }[] },
+  payload: { title: { vi: string; en?: string }; values?: Array<{ value: { vi: string; en?: string } }> },
 ) {
   const response = await backendFetch(`/api/admin/products/${id}/options`, {
     method: "POST",
@@ -355,7 +357,7 @@ export async function deleteProductOptionValue(id: string, valueId: number) {
 // the operation-specific variant methods below.
 export async function updateProductVariants(id: string, items: Array<{
   id?: number;
-  title: string;
+  title: LocalizedInput;
   sku: string | null;
   priceAmount: number | null;
   inventoryQuantity?: number;
@@ -381,12 +383,13 @@ export async function updateProductVariants(id: string, items: Array<{
 export async function createProductVariant(
   id: string,
   payload: {
-    title: string;
+    title: LocalizedInput;
     sku: string | null;
     priceAmount: number | null;
     inventoryQuantity: number;
     allowBackorder: boolean;
     optionValueIds: number[];
+    attributes?: Array<{ name: LocalizedInput; value: LocalizedInput; unit?: string | null }>;
     media?: Array<{ assetId: string }>;
   },
 ) {
@@ -408,10 +411,11 @@ export async function updateProductVariantDetails(
   id: string,
   variantId: number,
   payload: {
-    title: string;
+    title: LocalizedInput;
     sku: string | null;
     allowBackorder: boolean;
     optionValueIds?: number[];
+    attributes?: Array<{ name: LocalizedInput; value: LocalizedInput; unit?: string | null }>;
   },
 ) {
   const response = await backendFetch(`/api/admin/products/${id}/variants/${variantId}`, {
@@ -553,7 +557,8 @@ export async function archiveProduct(id: string) {
 export function mapApiProductToCatalogProduct(product: Partial<ApiProduct> & Pick<ApiProduct, 'id' | 'title' | 'handle' | 'status' | 'updatedAt'>): CatalogProduct {
   const variants = (product.variants || []).map((variant) => ({
     id: String(variant.id),
-    title: variant.title,
+    title: toLocalized(variant.title).vi,
+    titleTranslations: toLocalized(variant.title),
     sku: variant.sku ?? "",
     price: variant.priceAmount ?? 0,
     inventory: variant.inventoryQuantity,
@@ -569,6 +574,10 @@ export function mapApiProductToCatalogProduct(product: Partial<ApiProduct> & Pic
       });
       return { option: optionTitle, value: optionValue, optionValueId: id };
     }),
+    attributes: (variant.attributes || []).map((attribute) => ({
+      key: toLocalized(attribute.name),
+      value: toLocalized(attribute.value),
+    })),
     allowBackorder: variant.allowBackorder,
     media: (variant.media || []).map((asset) => ({
       id: asset.id,

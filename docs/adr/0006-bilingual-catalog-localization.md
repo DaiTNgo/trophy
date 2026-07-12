@@ -12,6 +12,8 @@ Trophy will model Vietnamese and English catalog text as localized content attac
 
 Admin route surfaces must hydrate and save localized catalog content alongside the canonical records they manage. Admin route surfaces and Storefront route surfaces will both return the full localized text object (`LocalizedTextValue`: `{ vi?: string, en?: string }`). Storefront API endpoints no longer resolve localization down to a string on the backend to avoid redundant API calls. Instead, the React Storefront UI is responsible for deriving the final display string based on the user's active locale (using helpers like `getLocalized`). Variant generation, option selection, category links, handles, prices, order snapshots, and customization geometry must continue to use canonical IDs and VND prices rather than localized text.
 
+Product field requirements are field-specific. Product title requires Vietnamese (`vi`) text only; English (`en`) title is optional. Product subtitle and product description are optional in both locales. The backend must not block draft save or publish solely because product title `en`, subtitle, or description is empty.
+
 **API Payload Convention (Storefront & Admin)**
 
 All displayable catalog strings (e.g., `title`, `subtitle`, `description`, `name`) are returned as objects of type `LocalizedTextValue`:

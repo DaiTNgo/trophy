@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { getProductCustomizationPublishIssue } from "./product-customization-publish";
 
 describe("getProductCustomizationPublishIssue", () => {
-  it("returns the fixed clipart validation message when no active fixed icon is selected", () => {
+  it("returns the fixed category validation message when no fixed category is selected", () => {
     const issue = getProductCustomizationPublishIssue({
       productId: "product_1",
       initialCustomization: {
@@ -20,16 +20,22 @@ describe("getProductCustomizationPublishIssue", () => {
         },
         layers: DEFAULT_TEMPLATE.layers.map((layer) =>
           layer.id === "badge_shape" && layer.type === "image_shape"
-            ? { ...layer, sourcePolicy: "fixed_clipart", fixedIcon: null, allowedIcons: [] }
+            ? {
+                ...layer,
+                sourcePolicy: "clipart_category_only",
+                clipartCategoryMode: "fixed",
+                clipartCategory: null,
+                allowedClipartCategories: [],
+              }
             : layer,
         ),
       },
     });
 
-    expect(issue).toBe("Badge artwork needs one active fixed clipart icon.");
+    expect(issue).toBe("Badge artwork needs a fixed clipart category.");
   });
 
-  it("returns the clipart category validation message when there are no active allowed icons", () => {
+  it("returns the allowed-category validation message when there are no allowed categories", () => {
     const issue = getProductCustomizationPublishIssue({
       productId: "product_1",
       initialCustomization: {
@@ -50,14 +56,15 @@ describe("getProductCustomizationPublishIssue", () => {
                 ...layer,
                 sourcePolicy: "upload_or_clipart_category",
                 presentation: "side_by_side",
-                fixedCategory: { id: "sports", label: "Sports" },
-                allowedIcons: [],
+                clipartCategoryMode: "allow_list",
+                clipartCategory: null,
+                allowedClipartCategories: [],
               }
             : layer,
         ),
       },
     });
 
-    expect(issue).toBe("Badge artwork needs active allowed clipart icons.");
+    expect(issue).toBe("Badge artwork needs at least one allowed clipart category.");
   });
 });

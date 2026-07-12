@@ -1,5 +1,12 @@
-import { describe, expect, it } from "vitest";
-import { mapApiProductToCatalogProduct } from "./products-client";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const backendFetchMock = vi.fn();
+
+vi.mock("./fetch", () => ({
+  backendFetch: (...args: unknown[]) => backendFetchMock(...args),
+}));
+
+import { createProductOption, mapApiProductToCatalogProduct } from "./products-client";
 
 const apiProduct = {
   id: 10,
@@ -19,6 +26,10 @@ const apiProduct = {
 };
 
 describe("mapApiProductToCatalogProduct", () => {
+  beforeEach(() => {
+    backendFetchMock.mockReset();
+  });
+
   it("maps the lowercase publish status returned by the admin product API", () => {
     expect(
       mapApiProductToCatalogProduct({
@@ -26,5 +37,34 @@ describe("mapApiProductToCatalogProduct", () => {
         status: "published",
       }).status,
     ).toBe("Published");
+  });
+
+  it("sends option values with the nested value object expected by the admin products route", async () => {
+    backendFetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ item: apiProduct }),
+    });
+
+    await createProductOption("10", {
+      title: { vi: "Mau sac", en: "" },
+      values: [
+        { value: { vi: "Do", en: "" } },
+        { value: { vi: "Xanh", en: "" } },
+      ],
+    });
+
+    expect(backendFetchMock).toHaveBeenCalledWith(
+      "/api/admin/products/10/options",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          title: { vi: "Mau sac", en: "" },
+          values: [
+            { value: { vi: "Do", en: "" } },
+            { value: { vi: "Xanh", en: "" } },
+          ],
+        }),
+      }),
+    );
   });
 });

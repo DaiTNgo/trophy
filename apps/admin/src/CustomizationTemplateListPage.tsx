@@ -84,7 +84,7 @@ export default function CustomizationTemplateListPage() {
             </p>
           </div>
           <Link
-            to="/customization-templates?edit=new"
+            to="/customization/templates?edit=new"
             className="rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white"
           >
             New template
@@ -127,14 +127,14 @@ export default function CustomizationTemplateListPage() {
                 <div className="mt-4 flex gap-3">
                   <button
                     type="button"
-                    onClick={() => navigate(`/customization-templates?edit=${template.productId}`)}
+                    onClick={() => navigate(`/customization/templates?edit=${template.productId}`)}
                     className="rounded-full border border-dashed border-slate-400 px-4 py-2 text-sm font-semibold text-slate-700"
                   >
                     Create template
                   </button>
                   <button
                     type="button"
-                    onClick={() => navigate(`/customization-templates?edit=${template.id}`)}
+                    onClick={() => navigate(`/customization/templates?edit=${template.id}`)}
                     className="rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800"
                   >
                     Edit

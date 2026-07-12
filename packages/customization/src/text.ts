@@ -16,7 +16,7 @@ import { clamp } from "./geometry";
 import { getLayerById, getOrderedFormFields, normalizeSingleLine } from "./template";
 import { resolveFontVariant, type DynamicFontFamily } from "./constants";
 
-const resolveColor = (policy: TextColorPolicy, selected?: string) => {
+export const resolveColor = (policy: TextColorPolicy, selected?: string) => {
   if (policy.mode === "fixed") return policy.color;
   if (selected) {
     if (policy.allowCustomColor) return selected;
@@ -25,22 +25,21 @@ const resolveColor = (policy: TextColorPolicy, selected?: string) => {
   return policy.defaultColor;
 };
 
-const resolveFont = (policy: TextFontPolicy, selected?: string) => {
+export const resolveFont = (policy: TextFontPolicy, selected?: string) => {
   if (policy.mode === "fixed") return policy.fontId;
   if (selected && policy.options.some((option) => option.value === selected)) return selected;
   return policy.defaultFontId;
 };
 
-const resolveFormat = (policy: TextFormatPolicy, selected?: { isBold?: boolean; isItalic?: boolean; isUnderline?: boolean }) => {
-  if (policy.mode === "fixed") return { isBold: policy.isBold, isItalic: policy.isItalic, isUnderline: policy.isUnderline };
+export const resolveFormat = (policy: TextFormatPolicy, selected?: { isBold?: boolean; isItalic?: boolean }) => {
+  if (policy.mode === "fixed") return { isBold: policy.isBold, isItalic: policy.isItalic };
   return {
     isBold: selected?.isBold ?? policy.defaultBold,
     isItalic: selected?.isItalic ?? policy.defaultItalic,
-    isUnderline: selected?.isUnderline ?? policy.defaultUnderline,
   };
 };
 
-const resolveAlign = (policy: TextAlignPolicy, selected?: TextAlign) => {
+export const resolveAlign = (policy: TextAlignPolicy, selected?: TextAlign) => {
   if (policy.mode === "fixed") return policy.align;
   return selected ?? policy.defaultAlign;
 };
@@ -58,7 +57,12 @@ export const createDefaultFormValues = (template: CustomizationTemplate): Custom
   for (const field of getOrderedFormFields(template)) {
     const layer = getLayerById(template, field.layerId);
     if (!layer) continue;
-    values[field.id] = layer.type === "text" ? createDefaultTextValue(layer) : null;
+    if (layer.type === "text") {
+      values[field.id] = createDefaultTextValue(layer);
+      continue;
+    }
+
+    values[field.id] = null;
   }
   return values;
 };
@@ -72,7 +76,6 @@ const getTextValue = (layer: TextEditorLayer, value: CustomizationFieldValue | u
       ...resolveFormat(layer.text.formatPolicy, {
         isBold: typeof value.isBold === "boolean" ? value.isBold : undefined,
         isItalic: typeof value.isItalic === "boolean" ? value.isItalic : undefined,
-        isUnderline: typeof value.isUnderline === "boolean" ? value.isUnderline : undefined,
       }),
       align: typeof value.align === "string" ? value.align as TextAlign : resolveAlign(layer.text.alignPolicy),
     };
@@ -176,10 +179,10 @@ export const getTextPathRenderAttributes = ({
   const closedPath = path.type === "closed_ellipse"
     ? normalizeTextPath(path) as Extract<TextPath, { type: "closed_ellipse" }>
     : null;
+  const pathLengthPx = getTextPathLengthPx({ path, widthPx, heightPx });
   let textAnchor: "start" | "middle" | "end";
   let startOffset: string;
   let pathStartAngleDeg: number | undefined;
-  const pathLengthPx = getTextPathLengthPx({ path, widthPx, heightPx });
   let textLength: number | undefined;
   let lengthAdjust: "spacing" | undefined;
   let wordSpacingPx: number | undefined;
@@ -353,7 +356,7 @@ export const fitTextToLayer = ({
     .filter(Boolean);
   const baseFontId = resolveFont(layer.text.fontPolicy, value.fontId);
   const color = resolveColor(layer.text.colorPolicy, value.color);
-  const { isBold, isItalic, isUnderline } = resolveFormat(layer.text.formatPolicy, value);
+  const { isBold, isItalic } = resolveFormat(layer.text.formatPolicy, value);
   const align = resolveAlign(layer.text.alignPolicy, value.align);
   const fontId = resolveFontVariant(baseFontId, isBold ?? false, isItalic ?? false, dynamicFonts);
   const text = lines.join("\n");
@@ -391,7 +394,7 @@ export const fitTextToLayer = ({
   const exactFontSize = best ?? layer.text.minFontSizePt;
   const fontSizePt = Math.floor(exactFontSize * 100) / 100;
   if (fitsAt(fontSizePt, text)) {
-    return { text, fontId, color, fontSizePt, align, isBold: isBold ?? false, isItalic: isItalic ?? false, isUnderline: isUnderline ?? false, trimmed: false };
+    return { text, fontId, color, fontSizePt, align, isBold: isBold ?? false, isItalic: isItalic ?? false, trimmed: false };
   }
 
   const fittedLines = text.split("\n").map((line) => {
@@ -410,7 +413,6 @@ export const fitTextToLayer = ({
     align,
     isBold: isBold ?? false,
     isItalic: isItalic ?? false,
-    isUnderline: isUnderline ?? false,
     trimmed: true,
   };
 };

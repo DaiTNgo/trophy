@@ -96,6 +96,7 @@ export function CreateProductDetails({ state }: CreateProductDetailsProps) {
             onLocaleChange={setTitleLocale}
             onChange={(value) => setValue("title", value)}
             placeholder={{ vi: "Ao khoac mua dong", en: "Winter jacket" }}
+            requiredLocales={["vi"]}
           />
           {errors.title ? (
             <Text size="small" className="text-rose-700">
@@ -104,7 +105,12 @@ export function CreateProductDetails({ state }: CreateProductDetailsProps) {
           ) : null}
         </div>
         <div className="space-y-2">
-          <Label htmlFor="product-subtitle">Subtitle</Label>
+          <Label htmlFor="product-subtitle" className="flex items-center gap-x-1">
+            Subtitle
+            <Text as="span" size="small" className="text-ui-fg-muted">
+              (Optional)
+            </Text>
+          </Label>
           <LocalizedTextField
             id="product-subtitle"
             value={values.subtitle}
@@ -112,10 +118,16 @@ export function CreateProductDetails({ state }: CreateProductDetailsProps) {
             onLocaleChange={setSubtitleLocale}
             onChange={(value) => setValue("subtitle", value)}
             placeholder={{ vi: "Am ap va de chiu", en: "Warm and cosy" }}
+            requiredLocales={[]}
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="product-handle">Handle</Label>
+          <Label htmlFor="product-handle" className="flex items-center gap-x-1">
+            Handle
+            <Text as="span" size="small" className="text-ui-fg-muted">
+              (Optional)
+            </Text>
+          </Label>
           <div className="flex items-center rounded-md border border-ui-border-base bg-ui-bg-field px-2 shadow-buttons-neutral">
             <Text size="small" className="px-1 text-ui-fg-muted">
               /
@@ -141,7 +153,12 @@ export function CreateProductDetails({ state }: CreateProductDetailsProps) {
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="product-description">Description</Label>
+        <Label htmlFor="product-description" className="flex items-center gap-x-1">
+          Description
+          <Text as="span" size="small" className="text-ui-fg-muted">
+            (Optional)
+          </Text>
+        </Label>
         <LocalizedTextField
           id="product-description"
           value={values.description}
@@ -149,6 +166,7 @@ export function CreateProductDetails({ state }: CreateProductDetailsProps) {
           onLocaleChange={setDescriptionLocale}
           onChange={(value) => setValue("description", value)}
           placeholder={{ vi: "Một chiếc áo ấm áp", en: "A warm and cozy jacket" }}
+          requiredLocales={[]}
           multiline
         />
       </div>

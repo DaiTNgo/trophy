@@ -15,7 +15,7 @@ export function LanguageSwitcher() {
       <input type="hidden" name="returnTo" value={pathname + search} />
       <button
         type="submit"
-        className="flex items-center justify-center h-10 w-10 rounded-full hover:bg-gray-100 transition-colors relative text-[#1a2e44] hover:text-primary"
+        className="relative flex h-10 w-10 items-center justify-center rounded-full text-brand-strong transition-colors hover:bg-surface-subtle hover:text-primary"
         title="Change Language"
       >
         <div className="flex items-center gap-1 font-bold text-sm">

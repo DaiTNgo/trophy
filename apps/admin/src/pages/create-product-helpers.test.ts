@@ -20,6 +20,7 @@ const buildVariant = ({
   price: 100,
   inventory: 10,
   options: [],
+  attributes: [],
   allowBackorder: false,
   media,
   shouldCreate: true,

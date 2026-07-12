@@ -10,6 +10,8 @@ export type OwnerType =
   | "product_category"
   | "product_collection"
   | "product_attribute"
+  | "product_variant"
+  | "product_variant_attribute"
   | "customization_form_field"
   | "customization_layer";
 

@@ -1,20 +1,13 @@
 import { Link } from "react-router";
 import { Image, Star, StarHalf, Headset } from "lucide-react";
-
-function formatPrice(cents: number | null): string {
-  if (cents === null) {
-    return "Liên Hệ";
-  }
-  return new Intl.NumberFormat("vi-VN", {
-    style: "currency",
-    currency: "VND",
-  }).format(cents);
-}
+import { cn, formatCurrency } from "@/lib/utils";
 
 interface ProductCardProps {
   handle?: string;
   series?: string;
   category?: string;
+  categorySummary?: string | null;
+  subtitle?: string | null;
   title: string;
   price?: string | number | null;
   priceAmount?: number | null;
@@ -28,6 +21,9 @@ interface ProductCardProps {
 
 export function ProductCard({
   handle,
+  category,
+  categorySummary,
+  subtitle,
   title,
   price,
   priceAmount,
@@ -40,12 +36,13 @@ export function ProductCard({
 }: ProductCardProps) {
   const displayHandle = handle || "cup-hop-kim-kl1-premium";
   const displayPrice = priceAmount !== undefined
-    ? formatPrice(priceAmount)
+    ? formatCurrency(priceAmount)
     : typeof price === "string"
       ? price
-      : formatPrice(Number(price) || 0);
+      : formatCurrency(Number(price) || 0);
   const imgSrc = imageSrc || thumbnail || "";
   const isContactPrice = (priceAmount === undefined ? (typeof price === "string" ? false : price === null) : priceAmount === null);
+  const metaLine = categorySummary || category || subtitle;
 
   const fullStars = Math.floor(rating);
   const hasHalfStar = rating % 1 !== 0;
@@ -55,7 +52,7 @@ export function ProductCard({
       <Link to={`/product/${displayHandle}`} className="w-full relative aspect-[4/5] sm:aspect-square mb-6 flex items-center justify-center p-4">
         {imgSrc ? (
           <img
-            className="w-full h-full object-contain transition-transform duration-500 group-hover:scale-105"
+            className="w-full h-full object-contain transition-transform duration-500"
             data-alt={imageAlt}
             src={imgSrc}
             alt={imageAlt}
@@ -94,7 +91,7 @@ export function ProductCard({
           ) : (
             <>{priceFrom ? "Từ " : ""}{displayPrice}</>
           )}
-        </span>
+          </span>
       </div>
     </div>
   );

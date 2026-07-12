@@ -56,19 +56,33 @@ Admin UI surfaces SHALL use shared localized UI primitives or helpers for transl
 - **WHEN** an admin edits SKU, inventory, price, handles, media, or variant identity fields
 - **THEN** the UI keeps those fields as single canonical values without language controls
 
-### Requirement: Publish requires bilingual completeness
-The system SHALL block product publish attempts when required localized catalog content is missing for either Vietnamese or English.
+### Requirement: Product title requires Vietnamese only
+The system SHALL require Vietnamese (`vi`) product title text before a product can be saved or published, while treating English (`en`) product title text as optional.
 
-#### Scenario: Missing English title blocks publish
-- **WHEN** an admin attempts to publish a product whose required English product title is missing
+#### Scenario: Missing Vietnamese title blocks publish
+- **WHEN** an admin attempts to publish a product whose Vietnamese product title is missing
 - **THEN** the publish route returns a typed validation error and the product remains unpublished
+
+#### Scenario: Missing English title does not block publish
+- **WHEN** an admin attempts to publish a product with Vietnamese title text and no English title text
+- **THEN** the publish route does not reject the product because of the missing English product title
+
+### Requirement: Product subtitle and description are optional
+The system SHALL treat product subtitle and product description as optional localized fields in both Vietnamese and English.
+
+#### Scenario: Missing subtitle and description do not block publish
+- **WHEN** an admin attempts to publish a product with no subtitle and no description in either locale
+- **THEN** the publish route does not reject the product because those optional fields are empty
+
+### Requirement: Other required localized content follows its field rules
+The system SHALL block product publish attempts when required non-product-title localized catalog content is missing according to that field's active publish rule.
 
 #### Scenario: Missing option value translation blocks publish
 - **WHEN** an admin attempts to publish a product with a variant option value missing either Vietnamese or English label
 - **THEN** the publish route returns a typed validation error that identifies localized catalog content as incomplete
 
 #### Scenario: Draft save allows incomplete translations
-- **WHEN** an admin saves a draft product with incomplete Vietnamese or English localized content
+- **WHEN** an admin saves a draft product with incomplete localized content
 - **THEN** the system saves the draft and reports translation completeness separately from draft persistence
 
 ### Requirement: Storefront routes resolve localized strings

@@ -1,42 +1,42 @@
 ---
 name: Prestige Excellence
 colors:
-  surface: '#fcf9f8'
-  surface-dim: '#dcd9d9'
-  surface-bright: '#fcf9f8'
+  surface: '#ffffff'
+  surface-dim: '#ebebeb'
+  surface-bright: '#ffffff'
   surface-container-lowest: '#ffffff'
-  surface-container-low: '#f6f3f2'
-  surface-container: '#f0eded'
-  surface-container-high: '#eae7e7'
-  surface-container-highest: '#e5e2e1'
-  on-surface: '#1c1b1b'
-  on-surface-variant: '#544433'
+  surface-container-low: '#f8f8f8'
+  surface-container: '#f5f5f5'
+  surface-container-high: '#efefef'
+  surface-container-highest: '#e5e5e5'
+  on-surface: '#232323'
+  on-surface-variant: '#6b7280'
   inverse-surface: '#313030'
-  inverse-on-surface: '#f3f0ef'
-  outline: '#867461'
-  outline-variant: '#d9c3ad'
-  surface-tint: '#875200'
-  primary: '#875200'
+  inverse-on-surface: '#ffffff'
+  outline: '#d7d7d7'
+  outline-variant: '#e5e5e5'
+  surface-tint: '#171740'
+  primary: '#244159'
   on-primary: '#ffffff'
-  primary-container: '#fea00c'
-  on-primary-container: '#663d00'
-  inverse-primary: '#ffb865'
-  secondary: '#5d5f5f'
-  on-secondary: '#ffffff'
-  secondary-container: '#dcdddd'
-  on-secondary-container: '#5f6161'
-  tertiary: '#5d5f5f'
+  primary-container: '#04a387'
+  on-primary-container: '#ffffff'
+  inverse-primary: '#288ab6'
+  secondary: '#f5f5f5'
+  on-secondary: '#232323'
+  secondary-container: '#e9f7f4'
+  on-secondary-container: '#232323'
+  tertiary: '#288ab6'
   on-tertiary: '#ffffff'
-  tertiary-container: '#b5b5b5'
-  on-tertiary-container: '#454747'
+  tertiary-container: '#e8f1f7'
+  on-tertiary-container: '#244159'
   error: '#ba1a1a'
   on-error: '#ffffff'
   error-container: '#ffdad6'
   on-error-container: '#93000a'
-  primary-fixed: '#ffddba'
-  primary-fixed-dim: '#ffb865'
-  on-primary-fixed: '#2b1700'
-  on-primary-fixed-variant: '#673d00'
+  primary-fixed: '#171740'
+  primary-fixed-dim: '#288ab6'
+  on-primary-fixed: '#ffffff'
+  on-primary-fixed-variant: '#ffffff'
   secondary-fixed: '#e2e2e2'
   secondary-fixed-dim: '#c6c6c7'
   on-secondary-fixed: '#1a1c1c'
@@ -45,46 +45,46 @@ colors:
   tertiary-fixed-dim: '#c6c6c6'
   on-tertiary-fixed: '#1a1c1c'
   on-tertiary-fixed-variant: '#454747'
-  background: '#fcf9f8'
-  on-background: '#1c1b1b'
-  surface-variant: '#e5e2e1'
+  background: '#ffffff'
+  on-background: '#232323'
+  surface-variant: '#f4f4f4'
 typography:
   display-lg:
-    fontFamily: Anton
+    fontFamily: Koulen
     fontSize: 72px
     fontWeight: '400'
     lineHeight: 72px
     letterSpacing: 0.04em
   display-lg-mobile:
-    fontFamily: Anton
+    fontFamily: Koulen
     fontSize: 48px
     fontWeight: '400'
     lineHeight: 48px
     letterSpacing: 0.04em
   headline-lg:
-    fontFamily: Anton
+    fontFamily: Koulen
     fontSize: 40px
     fontWeight: '400'
     lineHeight: 44px
     letterSpacing: 0.02em
   headline-md:
-    fontFamily: Anton
+    fontFamily: Koulen
     fontSize: 32px
     fontWeight: '400'
     lineHeight: 36px
     letterSpacing: 0.02em
   body-lg:
-    fontFamily: Hanken Grotesk
+    fontFamily: Open Sans
     fontSize: 18px
     fontWeight: '400'
     lineHeight: 28px
   body-md:
-    fontFamily: Hanken Grotesk
+    fontFamily: Open Sans
     fontSize: 16px
     fontWeight: '400'
     lineHeight: 24px
   label-md:
-    fontFamily: Hanken Grotesk
+    fontFamily: Open Sans
     fontSize: 14px
     fontWeight: '600'
     lineHeight: 20px
@@ -107,50 +107,53 @@ spacing:
 ## Brand & Style
 The design system is engineered to evoke the prestige, precision, and legacy of high-end trophy manufacturing. It targets corporate leaders, sports organizations, and luxury event planners who value craftsmanship and achievement.
 
-The aesthetic blends **Modern Minimalism** with **High-End Editorial** influences. The UI is defined by expansive white space, sharp typographic hierarchies, and a restrained use of "Championship Gold" to highlight moments of victory. The emotional response should be one of "earned success"—clean, authoritative, and celebratory without being garish. We avoid heavy borders in favor of subtle depth to maintain a "crystal-clear" glass-like purity across the interface.
+This revision aligns the storefront to the **TrophySmack sports-commerce system**: loud display type, white retail surfaces, dark-blue structural framing, blue retail-action CTAs, orange purchase-intent CTAs, and teal pricing/success accents. The emotional target is not gallery minimalism; it is confident, conversion-oriented championship merch with clear hierarchy and strong retail energy.
 
 ## Colors
-This design system utilizes a sophisticated light-centric palette designed to mirror the materials of the products: crystal and polished alloy.
+This design system uses the TrophySmack palette as the brand source of truth.
 
-- **Primary (Championship Gold):** Used exclusively for call-to-action elements, success states, and brand-critical accents. It represents the trophy itself.
-- **Surface & Backgrounds:** We use pure white (#FFFFFF) for primary surfaces to ensure maximum clarity. Light Gray (#F5F5F5) is used for secondary containers and section backgrounds to provide subtle grouping.
-- **Typography:** Deep Charcoal (#1A1A1A) provides high-contrast legibility for body text, while a slightly softer charcoal (#333333) is used for secondary information.
-- **Accents:** Use Tertiary Gray (#E5E5E5) for subtle structural elements like dividers or inactive states.
+- **Landing Dark Blue:** `#171740` is the heaviest brand tone. Use it for hero framing, the strongest dark surfaces, and moments that need more gravity than the standard navy.
+- **Dark Blue:** `#244159` is the structural brand color for headings, navigation emphasis, borders with intent, and non-destructive primary actions.
+- **Orange:** `#EA4222` is the high-intent commerce color. Reserve it for PDP purchase actions, sale urgency, and product-list pricing where the grid should feel shoppable.
+- **Teal Green:** `#04A387` is used for payment completion, success cues, trust highlights, and positive states. Use it for pay/order submission, guarantee emphasis, and selected payment affordances.
+- **Blue:** `#288AB6` is the supportive retail action color. Use it for checkout buttons, continue-shopping CTAs, newsletter/actions, and other non-final purchase steps.
+- **Base Neutrals:** `#FFFFFF` and `#232323` remain the page floor and main text, with `#F5F5F5`, `#F8F8F8`, and `#E5E5E5` providing retail-style section separation.
 
 ## Typography
-The typography strategy creates a stark contrast between "The Achievement" and "The Detail." 
+The typography strategy creates a stark contrast between "The Achievement" and "The Detail."
 
-**Anton** is used for all major headlines. It must always be set in uppercase with slight tracking (letter-spacing) to enhance its authoritative, sporting feel. This font captures the energy of a championship win.
+**Koulen** is the display face. It should carry hero lines, section titles, and large labels in uppercase with tight leading. This is a loud retail display font and should be used deliberately, but it is core to the look.
 
-**Hanken Grotesk** serves as the functional counterpart. It is a clean, contemporary sans-serif that ensures technical specifications and brand narratives are highly readable. 
+**Open Sans** is the functional counterpart. It handles forms, product details, navigation, and supporting copy with a practical ecommerce tone.
 
-For mobile devices, display sizes scale down aggressively to maintain the "big-type" impact without breaking layout constraints.
+For mobile devices, display sizes scale down aggressively to maintain impact without breaking layout constraints. Supporting labels should stay bold and compact rather than airy or editorial.
 
 ## Layout & Spacing
-The design system employs a **Fixed Grid** philosophy for desktop to maintain an editorial, "lookbook" feel, transitioning to a fluid model for mobile.
+The design system employs a **Retail Conversion Grid** for product detail pages: generous media on the left, dense merchandising and CTA stack on the right.
 
-- **Grid:** A 12-column grid is used for desktop (1280px max width).
-- **Rhythm:** A strict 8px baseline grid dictates all vertical spacing. Components are separated by large increments (64px, 80px, 128px) to emphasize a premium, uncrowded experience.
-- **Mobile:** Margins shrink to 16px, and complex multi-column layouts reflow into a single-column stack. Large images of trophies should span the full width of the viewport to showcase detail.
+- **Grid:** Product detail can stay wide, but the right rail should feel packed and actionable rather than spacious and gallery-like.
+- **Rhythm:** Use a visible 4/8/12/16/24/32 spacing rhythm. TrophySmack reads more retail than luxury editorial, so sections can sit tighter.
+- **Mobile:** Margins shrink to 16px. CTA and price must remain immediately visible and high-contrast.
 
 ## Elevation & Depth
-Depth is conveyed through **Ambient Shadows** and **Tonal Layers** rather than borders. This mimics the way light interacts with crystal.
+Depth is conveyed through **flat retail planes with selective emphasis**.
 
-- **Level 0 (Floor):** Pure white or #F5F5F5 background.
-- **Level 1 (Card):** White surface with an extremely soft, diffused shadow (0px 4px 20px rgba(0,0,0,0.04)).
-- **Level 2 (Interactive/Hover):** The shadow tightens and darkens slightly (0px 8px 30px rgba(0,0,0,0.08)) to indicate lift.
-- **Dividers:** Use color-based separation (#E5E5E5) only when necessary; prefer whitespace to define boundaries.
+- **Level 0 (Floor):** Pure white background.
+- **Level 1 (Retail Panel):** White cards with `#E5E5E5` borders and very light gray fills behind grouped tools.
+- **Level 2 (Emphasis):** Use color before shadow. Orange and teal do more work than layered luxury shadows here.
+- **Dividers:** Thin gray borders are standard and should be used freely for retail clarity.
 
 ## Shapes
-The shape language is "Rounded" (Level 2), providing a modern, friendly touch to balance the aggressive, sharp nature of the Anton typeface.
+The shape language is **retail practical**.
 
-- **Standard Elements:** Buttons and input fields use a 0.5rem (8px) radius.
-- **Large Containers:** Cards and product modals use a 1rem (16px) radius.
+- **Standard Elements:** Buttons and input fields use 6px to 8px radius.
+- **Large Containers:** Product shells can use 8px radius. Avoid over-rounding.
 - **Icons:** Should feature slightly rounded terminals to match the UI's radius, avoiding needle-sharp points.
 
 ## Components
-- **Buttons:** Primary buttons feature a solid Championship Gold background with White text. The label is Hanken Grotesk, Semi-Bold, Uppercase. Secondary buttons are ghost-style with a thick 2px gold border or a subtle gray fill.
-- **Cards:** Product cards use a white background and Level 1 elevation. Images of trophies should have a light gray (#F5F5F5) background within the card to provide contrast against the white site background.
-- **Input Fields:** Minimalist design with a #F5F5F5 fill and no border. Upon focus, a 2px Championship Gold bottom-border appears.
-- **Chips/Tags:** Used for "Material" (e.g., *Crystal*, *Alloy*) or "Category" (e.g., *Tennis*, *Corporate*). These use a #F5F5F5 background with #1A1A1A text in uppercase label style.
-- **Lists:** Clean, high-contrast rows separated by 1px #E5E5E5 lines, with generous 24px vertical padding.
+- **Buttons:** Use orange for PDP buy/add-to-cart actions, teal for payment/confirmation actions, blue for cart/checkout/supportive journey actions, dark blue for utility-contact actions, and white bordered buttons for secondary preview/configuration actions.
+- **Cards:** Product cards and detail shells are white with gray borders and compact padding. This should feel like performant merch UI, not luxury brochure layout.
+- **Input Fields:** Inputs use white fill, simple gray borders, and clear hover/focus contrast. They should feel immediately familiar.
+- **Chips/Tags:** Use uppercase, compact, bold labels with white or light-gray backgrounds.
+- **Lists:** Clean rows with retail-style separators and high-contrast values.
+- **Role Mapping:** Product-list titles and section headings use dark blue; product-list prices use orange; cart totals stay neutral/dark; cart checkout buttons use blue; checkout pay/submit buttons and selected payment states use teal.

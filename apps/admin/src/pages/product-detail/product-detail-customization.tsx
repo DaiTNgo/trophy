@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router";
-import { Badge, Button, Container, Heading, Text } from "@medusajs/ui";
+import { Badge, Button, Container, Heading, Text, toast } from "@medusajs/ui";
 import { Play, Trash2 } from "lucide-react";
 import { updateProductCustomization } from "../../lib/products-client";
 import type { CatalogProduct } from "../../types";
@@ -28,7 +28,9 @@ export function ProductDetailCustomization({ product, mutate }: ProductDetailCus
       });
       await mutate();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to enable customization");
+      const message = err instanceof Error ? err.message : "Failed to enable customization";
+      setError(message);
+      toast.error(message);
     } finally {
       setIsSubmitting(false);
     }
@@ -43,7 +45,9 @@ export function ProductDetailCustomization({ product, mutate }: ProductDetailCus
       });
       await mutate();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to disable customization");
+      const message = err instanceof Error ? err.message : "Failed to disable customization";
+      setError(message);
+      toast.error(message);
     } finally {
       setIsSubmitting(false);
     }

@@ -42,9 +42,8 @@ import {
   type CustomizationTemplate,
   type ShapeType,
 } from "@trophy/customization";
+import { Heading, Text, Input, Textarea } from "@medusajs/ui";
 import {
-  PanelTitle,
-  Input,
   BackgroundUpload,
   shapeLabel,
   type RailTab,
@@ -189,14 +188,14 @@ function BlocksPanel({
   const disabled = !template.background;
   return (
     <div className="space-y-4">
-      <PanelTitle
-        title="Blocks"
-        subtitle={
-          disabled
+      <div>
+        <Heading level="h3" className="text-sm font-semibold text-ui-fg-base">Blocks</Heading>
+        <Text size="small" className="mt-1 text-ui-fg-muted">
+          {disabled
             ? "Upload a background before creating blocks."
-            : "Create text or image shape layers."
-        }
-      />
+            : "Create text or image shape layers."}
+        </Text>
+      </div>
       <button
         type="button"
         disabled={disabled}
@@ -313,10 +312,10 @@ function LayersPanel({
   }
   return (
     <div className="space-y-4">
-      <PanelTitle
-        title="Layers"
-        subtitle="Top item renders above lower layers."
-      />
+      <div>
+        <Heading level="h3" className="text-sm font-semibold text-ui-fg-base">Layers</Heading>
+        <Text size="small" className="mt-1 text-ui-fg-muted">Top item renders above lower layers.</Text>
+      </div>
       {topFirst.map((layer) => (
         <SortablePanelItem
           key={layer.id}
@@ -455,7 +454,10 @@ function FormPanel({
   }
   return (
     <div className="space-y-4">
-      <PanelTitle title="Form" subtitle="Shopper field order and copy." />
+      <div>
+        <Heading level="h3" className="text-sm font-semibold text-ui-fg-base">Form</Heading>
+        <Text size="small" className="mt-1 text-ui-fg-muted">Shopper field order and copy.</Text>
+      </div>
       {fields.map((field) => {
         const layer = template.layers.find((l) => l.id === field.layerId);
         return (
@@ -488,32 +490,31 @@ function FormPanel({
           <Input
             value={field.label}
             onFocus={() => onSelectLayer(field.layerId)}
-            onChange={(label) =>
-              onUpdateField(field.id, (current) => ({ ...current, label }))
+            onChange={(e) =>
+              onUpdateField(field.id, (current) => ({ ...current, label: e.target.value }))
             }
           />
           <Input
             value={field.placeholder ?? ""}
             placeholder="Placeholder"
             onFocus={() => onSelectLayer(field.layerId)}
-            onChange={(placeholder) =>
+            onChange={(e) =>
               onUpdateField(field.id, (current) => ({
                 ...current,
-                placeholder,
+                placeholder: e.target.value,
               }))
             }
           />
-          <textarea
+          <Textarea
             value={field.helpText ?? ""}
             placeholder="Help text"
             onFocus={() => onSelectLayer(field.layerId)}
-            onChange={(event) =>
+            onChange={(e) =>
               onUpdateField(field.id, (current) => ({
                 ...current,
-                helpText: event.target.value,
+                helpText: e.target.value,
               }))
             }
-            className="w-full rounded-md border border-ui-border-base px-2 py-1 text-sm"
           />
           <label className="flex items-center gap-2 text-sm">
             <input
@@ -690,10 +691,10 @@ function BackgroundPanel({
   const background = template.background;
   return (
     <div className="space-y-4">
-      <PanelTitle
-        title="Background"
-        subtitle="Single template coordinate image."
-      />
+      <div>
+        <Heading level="h3" className="text-sm font-semibold text-ui-fg-base">Background</Heading>
+        <Text size="small" className="mt-1 text-ui-fg-muted">Single template coordinate image.</Text>
+      </div>
       {background ? (
         <div className="space-y-3">
           <img
@@ -742,10 +743,10 @@ function EmbeddedBackgroundPanel({
 }) {
   return (
     <div className="space-y-4">
-      <PanelTitle
-        title="Background"
-        subtitle="Choose a variant image for preview placement checks. This does not save a customization background asset."
-      />
+      <div>
+        <Heading level="h3" className="text-sm font-semibold text-ui-fg-base">Background</Heading>
+        <Text size="small" className="mt-1 text-ui-fg-muted">Choose a variant image for preview placement checks. This does not save a customization background asset.</Text>
+      </div>
       {template.background ? (
         <div className="space-y-3">
           <img

@@ -31,8 +31,8 @@ export function meta({}: Route.MetaArgs) {
 export async function loader({ request }: Route.LoaderArgs) {
   const locale = getLocaleFromRequest(request);
   const [categories, bestSellersData] = await Promise.all([
-    fetchStorefrontCategories().catch(() => []),
-    fetchStorefrontCollectionProducts("best-sellers", { limit: 8 }).catch(
+    fetchStorefrontCategories(locale).catch(() => []),
+    fetchStorefrontCollectionProducts("best-sellers", { limit: 8, locale }).catch(
       () => ({ items: [], page: 1, limit: 8, total: 0 })
     ),
   ]);
@@ -41,7 +41,7 @@ export async function loader({ request }: Route.LoaderArgs) {
   const bestSellers =
     bestSellersData.items.length > 0
       ? bestSellersData.items
-      : await fetchStorefrontProducts({ limit: 8 })
+      : await fetchStorefrontProducts({ limit: 8, locale })
           .then((d) => d.items)
           .catch(() => []);
 
@@ -65,10 +65,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       <ProofRow />
 
       {/* 4. Shop by product type */}
-      <CategoriesSection categories={categories} />
+      <CategoriesSection categories={categories} locale={locale} />
 
       {/* 5. Best-selling products (hides if empty) */}
-      <BestSellersSection products={bestSellers} />
+      <BestSellersSection products={bestSellers} locale={locale} />
 
       {/* 6. Customization story */}
       <CustomizationFeatureSection />

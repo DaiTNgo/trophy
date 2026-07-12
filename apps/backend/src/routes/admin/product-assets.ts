@@ -12,6 +12,7 @@ import {
 } from "../../lib/asset-utils";
 import type { AppEnv } from "../../lib/env";
 import { readImageDimensions } from "../../lib/image-dimensions";
+import { toAbsoluteAssetUrl } from "../../lib/url";
 import { jsonError, parseParams } from "../../lib/validation";
 
 async function requireAdminSession(c: Context<AppEnv>) {
@@ -110,7 +111,7 @@ export const productAssetsRoute = new Hono<AppEnv>()
           widthPx: dimensions.width,
           heightPx: dimensions.height,
           byteSize: buffer.byteLength,
-          contentUrl: `/api/assets/products/${id}/content`,
+          contentUrl: toAbsoluteAssetUrl(c, `/api/assets/products/${id}/content`) as string,
         },
       },
       201,

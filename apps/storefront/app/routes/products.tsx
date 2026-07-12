@@ -1,7 +1,7 @@
+import { FilterChips } from "@/components/products/FilterChips";
+import { Pagination } from "@/components/shared/Pagination";
+import { ProductCard } from "@/components/shared/ProductCard";
 import { useSearchParams } from "react-router";
-import { FilterChips } from "../components/products/FilterChips";
-import { ProductCard } from "../components/shared/ProductCard";
-import { Pagination } from "../components/shared/Pagination";
 import { fetchStorefrontCategories, fetchStorefrontProducts } from "../lib/api";
 import { getLocaleFromRequest } from "../lib/locale";
 import { getLocalized } from "../lib/translation";
@@ -13,21 +13,21 @@ export async function loader({ request }: Route.LoaderArgs) {
   const activeCategory = url.searchParams.get("category") || "";
   const currentPage = Number(url.searchParams.get("page")) || 1;
 
-  // Fetch categories first to resolve the handle
-  const apiCategories = await fetchStorefrontCategories().catch(() => []);
-  const categoryHandle = activeCategory
-    ? apiCategories.find((c) => c.name === activeCategory)?.handle || ""
-    : "";
+  const apiCategories = await fetchStorefrontCategories(locale).catch(() => []);
 
   const data = await fetchStorefrontProducts({
-    category: categoryHandle || undefined,
+    category: activeCategory || undefined,
     page: currentPage,
     limit: 12,
+    locale,
   });
 
   const allCategories = [
     { name: "Tất cả", handle: "" },
-    ...apiCategories.map((c) => ({ name: c.name, handle: c.handle })),
+    ...apiCategories.map((c) => ({
+      name: getLocalized(c.name, locale),
+      handle: c.handle,
+    })),
   ];
 
   return {
@@ -36,17 +36,30 @@ export async function loader({ request }: Route.LoaderArgs) {
     activeCategory,
     currentPage: data.page,
     totalPages: Math.max(1, Math.ceil(data.total / data.limit)),
+    totalItems: data.total,
     locale,
   };
 }
 
 export default function Products({ loaderData }: Route.ComponentProps) {
-  const { categories, products, activeCategory, currentPage, totalPages, locale } = loaderData;
+  const {
+    categories,
+    products,
+    activeCategory,
+    currentPage,
+    totalPages,
+    totalItems,
+    locale,
+  } = loaderData;
   const [searchParams, setSearchParams] = useSearchParams();
 
   const handleCategorySelect = (category: string) => {
     setSearchParams((prev) => {
-      prev.set("category", category);
+      if (category) {
+        prev.set("category", category);
+      } else {
+        prev.delete("category");
+      }
       prev.set("page", "1");
       return prev;
     });
@@ -66,10 +79,10 @@ export default function Products({ loaderData }: Route.ComponentProps) {
           <h1 className="font-display-lg-mobile md:font-display-lg text-display-lg-mobile md:text-display-lg text-on-background mb-8">
             DANH MỤC SẢN PHẨM
           </h1>
-          <div className="sticky top-[125px] z-30 bg-background/95 backdrop-blur-sm py-2 -mx-margin-mobile md:mx-0">
-            <FilterChips 
-              categories={categories} 
-              activeCategory={activeCategory} 
+          <div className="sticky top-[125px] z-30 bg-background/95 backdrop-blur-sm py-2 -mx-margin-mobile px-margin-mobile md:mx-0 md:px-0">
+            <FilterChips
+              categories={categories}
+              activeCategory={activeCategory}
               onSelect={handleCategorySelect}
             />
           </div>
@@ -77,14 +90,23 @@ export default function Products({ loaderData }: Route.ComponentProps) {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-gutter gap-y-16">
           {products.map((product, index) => (
-            <ProductCard key={index} {...product} title={getLocalized(product.title, locale)} />
+            <ProductCard
+              key={index}
+              {...product}
+              title={getLocalized(product.title, locale)}
+              subtitle={getLocalized(product.subtitle, locale) || null}
+              categorySummary={
+                getLocalized(product.categorySummary, locale) || null
+              }
+              imageAlt={getLocalized(product.title, locale)}
+            />
           ))}
         </div>
 
-        <Pagination 
-          currentPage={currentPage} 
-          totalPages={totalPages} 
-          onPageChange={handlePageChange} 
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={handlePageChange}
         />
       </main>
     </div>

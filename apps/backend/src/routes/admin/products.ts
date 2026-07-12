@@ -5,7 +5,8 @@ import {
 } from '@trophy/customization'
 import { and, asc, desc, eq, inArray, like, or, sql } from 'drizzle-orm'
 import { hydrateTranslations, upsertTranslations } from '../../lib/catalog-translation'
-import { Hono } from 'hono'
+import { Hono, type Context } from 'hono'
+import { makeCustomizationUrlsAbsolute, toAbsoluteAssetUrl } from '../../lib/url'
 import * as v from 'valibot'
 import { getDb } from '../../db/client'
 import {
@@ -19,6 +20,7 @@ import {
   productOptionValues,
   productOptions,
   productVariantMedia,
+  productVariantAttributes,
   productVariantOptionValues,
   productVariants,
   products
@@ -29,6 +31,10 @@ import {
   parseStoredProductCustomizationModel
 } from './customizations/helpers'
 import { hydrateCustomization, persistCustomizationTranslations } from '../../lib/customization-translation'
+
+const DEFAULT_PRODUCT_OPTION_TITLE = 'Default option'
+const DEFAULT_PRODUCT_OPTION_VALUE = 'Default option value'
+const DEFAULT_PRODUCT_VARIANT_TITLE = 'Default variant'
 
 const trimmedString = (min = 1, max = 255) =>
   v.pipe(v.string(), v.trim(), v.minLength(min), v.maxLength(max))
@@ -147,11 +153,18 @@ const searchProductsQuerySchema = v.object({
 
 import { localizedNullableText, localizedString } from "../../lib/locale"
 
+const optionalLocalizedNullableText = (maxLength = 2000) =>
+  v.optional(v.nullable(localizedNullableText(maxLength)))
+
+const nullableLocalizedPatch = (
+  value: v.InferOutput<ReturnType<typeof optionalLocalizedNullableText>>
+) => value ?? { vi: null, en: null }
+
 const createProductSchema = v.object({
   title: localizedString(1, 200),
-  subtitle: localizedNullableText(255),
+  subtitle: optionalLocalizedNullableText(255),
   handle: optionalHandle,
-  description: localizedNullableText(),
+  description: optionalLocalizedNullableText(),
   defaultVariantTitle: nullableText(255),
   priceAmount: v.optional(
     v.nullable(v.pipe(v.number(), v.integer(), v.minValue(0)))
@@ -160,9 +173,9 @@ const createProductSchema = v.object({
 
 const updateProductSchema = v.object({
   title: v.optional(localizedString(1, 200)),
-  subtitle: localizedNullableText(255),
+  subtitle: optionalLocalizedNullableText(255),
   handle: optionalHandle,
-  description: localizedNullableText()
+  description: optionalLocalizedNullableText()
 })
 
 const organizeSchema = v.object({
@@ -179,6 +192,14 @@ const attributesSchema = v.object({
     })
   )
 })
+
+const variantAttributesSchema = v.array(
+  v.object({
+    name: localizedString(1, 120),
+    value: localizedString(1, 255),
+    unit: nullableText(50)
+  })
+)
 
 const mediaSchema = v.object({
   items: v.array(
@@ -240,12 +261,13 @@ const optionValueUpdateSchema = v.object({
 })
 
 const assetIdSchema = v.pipe(v.string(), v.uuid())
+const localizedVariantTitleSchema = v.union([trimmedString(1, 200), localizedString(1, 200)])
 
 const variantsSchema = v.object({
   items: v.array(
     v.object({
       id: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1))),
-      title: trimmedString(1, 200),
+      title: localizedVariantTitleSchema,
       sku: nullableText(120),
       priceAmount: v.optional(
         v.nullable(v.pipe(v.number(), v.integer(), v.minValue(0)))
@@ -256,6 +278,7 @@ const variantsSchema = v.object({
       optionValueIds: v.optional(
         v.array(v.pipe(v.number(), v.integer(), v.minValue(1)))
       ),
+      attributes: v.optional(variantAttributesSchema),
       media: v.optional(
         v.array(
           v.object({
@@ -268,19 +291,21 @@ const variantsSchema = v.object({
 })
 
 const variantDetailSchema = v.object({
-  title: trimmedString(1, 200),
+  title: localizedVariantTitleSchema,
   sku: nullableText(120),
   allowBackorder: v.optional(v.boolean()),
-  optionValueIds: v.optional(v.array(v.pipe(v.number(), v.integer(), v.minValue(1))))
+  optionValueIds: v.optional(v.array(v.pipe(v.number(), v.integer(), v.minValue(1)))),
+  attributes: v.optional(variantAttributesSchema)
 })
 
 const variantCreateSchema = v.object({
-  title: trimmedString(1, 200),
+  title: localizedVariantTitleSchema,
   sku: nullableText(120),
   priceAmount: v.optional(v.nullable(v.pipe(v.number(), v.integer(), v.minValue(0)))),
   inventoryQuantity: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0))),
   allowBackorder: v.optional(v.boolean()),
   optionValueIds: v.optional(v.array(v.pipe(v.number(), v.integer(), v.minValue(1)))),
+  attributes: v.optional(variantAttributesSchema),
   media: v.optional(
     v.array(
       v.object({
@@ -339,9 +364,9 @@ const fullCreateProductSchema = v.object({
   mode: v.union([v.literal('draft'), v.literal('publish')]),
   details: v.object({
     title: localizedString(1, 200),
-    subtitle: localizedNullableText(255),
+    subtitle: optionalLocalizedNullableText(255),
     handle: optionalHandle,
-    description: localizedNullableText()
+    description: optionalLocalizedNullableText()
   }),
   organization: fullCreateOrganizationSchema,
   attributes: v.array(
@@ -369,12 +394,13 @@ const fullCreateProductSchema = v.object({
   ),
   variants: v.array(
     v.object({
-      title: trimmedString(1, 200),
+      title: localizedVariantTitleSchema,
       sku: nullableText(120),
       priceAmount: v.optional(v.nullable(v.pipe(v.number(), v.integer(), v.minValue(0)))),
       inventoryQuantity: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0))),
       allowBackorder: v.optional(v.boolean()),
       isDefault: v.optional(v.boolean()),
+      attributes: v.optional(variantAttributesSchema),
       optionValues: v.optional(
         v.array(
           v.object({
@@ -442,7 +468,7 @@ const getRelatedCount = async (
   return (await db.select({ id: table.id }).from(table).where(inArray(table.id, ids))).length
 }
 
-const readProduct = async (db: ReturnType<typeof getDb>, productId: number) => {
+const readProduct = async (c: Context<AppEnv>, db: ReturnType<typeof getDb>, productId: number) => {
   const product = await db.select().from(products).where(eq(products.id, productId)).get()
 
   if (!product) {
@@ -456,6 +482,7 @@ const readProduct = async (db: ReturnType<typeof getDb>, productId: number) => {
     mediaRows,
     optionRows,
     variantRows,
+    variantAttributeRows,
     variantMediaRows,
     customizationRow
   ] = await Promise.all([
@@ -498,6 +525,28 @@ const readProduct = async (db: ReturnType<typeof getDb>, productId: number) => {
       .from(productVariants)
       .where(eq(productVariants.productId, productId))
       .orderBy(asc(productVariants.position), asc(productVariants.id)),
+    db
+      .select({
+        id: productVariantAttributes.id,
+        variantId: productVariantAttributes.variantId,
+        name: productVariantAttributes.name,
+        value: productVariantAttributes.value,
+        unit: productVariantAttributes.unit,
+        position: productVariantAttributes.position
+      })
+      .from(productVariantAttributes)
+      .where(
+        sql`${productVariantAttributes.variantId} in (
+          select ${productVariants.id}
+          from ${productVariants}
+          where ${productVariants.productId} = ${productId}
+        )`
+      )
+      .orderBy(
+        asc(productVariantAttributes.variantId),
+        asc(productVariantAttributes.position),
+        asc(productVariantAttributes.id)
+      ),
     db
       .select({
         variantId: productVariantMedia.variantId,
@@ -587,6 +636,35 @@ const readProduct = async (db: ReturnType<typeof getDb>, productId: number) => {
     )
   }
 
+  const hydratedVariantRows =
+    variantRows.length > 0
+      ? await hydrateTranslations(
+          db,
+          'product_variant',
+          variantRows,
+          (variant) => String(variant.id),
+          [{ fieldName: 'title', objectKey: 'title' }],
+          [{ fieldName: 'title', objectKey: 'title' }]
+        )
+      : variantRows
+
+  const hydratedVariantAttributeRows =
+    variantAttributeRows.length > 0
+      ? await hydrateTranslations(
+          db,
+          'product_variant_attribute',
+          variantAttributeRows,
+          (attribute) => String(attribute.id),
+          [
+            { fieldName: 'name', objectKey: 'name' },
+            { fieldName: 'value', objectKey: 'value' }
+          ],
+          [
+            { fieldName: 'name', objectKey: 'name' },
+            { fieldName: 'value', objectKey: 'value' }
+          ]
+        )
+      : variantAttributeRows
 
   const optionValuesByOptionId = new Map<number, typeof optionValueRows>()
   const optionValueById = new Map<number, (typeof optionValueRows)[number]>()
@@ -599,6 +677,7 @@ const readProduct = async (db: ReturnType<typeof getDb>, productId: number) => {
 
   const optionById = new Map(optionRows.map((row) => [row.id, row]))
   const variantOptionIds = new Map<number, number[]>()
+  const variantAttributesByVariantId = new Map<number, typeof hydratedVariantAttributeRows>()
   const variantMediaByVariantId = new Map<number, typeof variantMediaRows>()
   for (const variantOption of variantOptionRows) {
     const current = variantOptionIds.get(variantOption.variantId) ?? []
@@ -612,29 +691,32 @@ const readProduct = async (db: ReturnType<typeof getDb>, productId: number) => {
     variantMediaByVariantId.set(variantMedia.variantId, current)
   }
 
+  for (const variantAttribute of hydratedVariantAttributeRows) {
+    const current = variantAttributesByVariantId.get(variantAttribute.variantId) ?? []
+    current.push(variantAttribute)
+    variantAttributesByVariantId.set(variantAttribute.variantId, current)
+  }
+
   const customization = customizationRow
-    ? (() => {
-        const stored = parseStoredProductCustomizationModel(
-          JSON.stringify({
+    ? makeCustomizationUrlsAbsolute(c, {
+        ...(() => {
+          const stored = {
             canvasWidthPx: customizationRow.canvasWidthPx,
             canvasHeightPx: customizationRow.canvasHeightPx,
             layers: JSON.parse(customizationRow.layersJson),
             formFields: JSON.parse(customizationRow.formFieldsJson)
-          })
-        )
-
-        return {
-          productId: String(productId),
-          enabled: customizationRow.enabled,
-          canvasWidthPx: stored.canvasWidthPx,
-          canvasHeightPx: stored.canvasHeightPx,
-          layers: stored.layers,
-          formFields: stored.formFields,
-          layerCount: stored.layers.length,
-          formFieldCount: stored.formFields.length
-        }
-      })()
-    : null
+          };
+          return {
+            ...stored,
+            layerCount: stored.layers.length,
+            formFieldCount: stored.formFields.length
+          };
+        })(),
+        enabled: customizationRow.enabled,
+        createdAt: customizationRow.createdAt,
+        updatedAt: customizationRow.updatedAt
+      })
+    : null;
 
   if (customization) {
     await hydrateCustomization(db, customization)
@@ -645,17 +727,18 @@ const readProduct = async (db: ReturnType<typeof getDb>, productId: number) => {
     collection,
     categories: categoryRows,
     attributes: attributeRows,
-    media: mediaRows,
+    media: mediaRows.map(m => ({ ...m, url: toAbsoluteAssetUrl(c, m.url) as string })),
     options: optionRows.map((option) => ({
       ...option,
       values: optionValuesByOptionId.get(option.id) ?? []
     })),
     customization,
-    variants: variantRows.map((variant) => {
+    variants: hydratedVariantRows.map((variant) => {
       const optionValueIds = (variantOptionIds.get(variant.id) ?? []).sort((a, b) => a - b)
 
       return {
         ...variant,
+        attributes: variantAttributesByVariantId.get(variant.id) ?? [],
         media: (variantMediaByVariantId.get(variant.id) ?? []).map((media) => ({
           id: media.assetId,
           fileName: media.fileName,
@@ -664,7 +747,7 @@ const readProduct = async (db: ReturnType<typeof getDb>, productId: number) => {
           heightPx: media.heightPx,
           byteSize: media.byteSize,
           position: media.position,
-          contentUrl: `/api/assets/products/${media.assetId}/content`
+          contentUrl: toAbsoluteAssetUrl(c, `/api/assets/products/${media.assetId}/content`) as string
         })),
         optionValueIds,
         optionValues: optionValueIds
@@ -733,6 +816,51 @@ const replaceAttributes = async (
   for (let i = 0; i < insertedAttributes.length; i++) {
     await upsertTranslations(db, 'product_attribute', String(insertedAttributes[i].id), 'name', items[i].name)
     await upsertTranslations(db, 'product_attribute', String(insertedAttributes[i].id), 'value', items[i].value)
+  }
+}
+
+const replaceVariantAttributes = async (
+  db: ReturnType<typeof getDb>,
+  variantId: number,
+  items: Array<any>
+) => {
+  await db
+    .delete(productVariantAttributes)
+    .where(eq(productVariantAttributes.variantId, variantId))
+
+  if (items.length === 0) {
+    return
+  }
+
+  const insertedAttributes = await db
+    .insert(productVariantAttributes)
+    .values(
+      items.map((item, index) => ({
+        variantId,
+        name: item.name.vi,
+        value: item.value.vi,
+        unit: item.unit ?? null,
+        position: index
+      }))
+    )
+    .returning()
+
+  for (let index = 0; index < insertedAttributes.length; index += 1) {
+    const attribute = items[index]
+    await upsertTranslations(
+      db,
+      'product_variant_attribute',
+      String(insertedAttributes[index].id),
+      'name',
+      attribute.name
+    )
+    await upsertTranslations(
+      db,
+      'product_variant_attribute',
+      String(insertedAttributes[index].id),
+      'value',
+      attribute.value
+    )
   }
 }
 
@@ -838,7 +966,6 @@ const replaceOptions = async (
   await db
     .update(products)
     .set({
-      hasVariants: items.length > 0,
       updatedAt: nowIso()
     })
     .where(eq(products.id, productId))
@@ -994,7 +1121,7 @@ const validateVariantSelectionForProduct = async ({
   if (expectedOptionCount === 0) {
     if (optionValueIds.length > 0) {
       return {
-        error: 'Default variant cannot reference option values when variants are disabled',
+        error: 'Variant cannot reference option values when the product has no options',
         status: 409 as const
       }
     }
@@ -1116,13 +1243,18 @@ const replaceVariants = async (
   productId: number,
   items: Array<{
     id?: number
-    title: string
+    title: string | { vi: string; en?: string | null }
     sku?: string | null
     priceAmount?: number | null
     inventoryQuantity?: number
     allowBackorder?: boolean
     isDefault?: boolean
     optionValueIds?: number[]
+    attributes?: Array<{
+      name: { vi: string; en?: string | null }
+      value: { vi: string; en?: string | null }
+      unit?: string | null
+    }>
     media?: Array<{ assetId: string }>
   }>
 ) => {
@@ -1154,7 +1286,12 @@ const replaceVariants = async (
     optionValueRows.map((row) => [row.id, row.optionId] as const)
   )
 
-  if (!product.hasVariants && items.length !== 1) {
+  const computedHasVariants = 
+    optionRows.length > 1 || 
+    (optionRows.length === 1 && optionRows[0].title !== DEFAULT_PRODUCT_OPTION_TITLE) ||
+    (optionRows.length === 1 && optionValueRows.some(v => v.value !== DEFAULT_PRODUCT_OPTION_VALUE));
+
+  if (!computedHasVariants && items.length !== 1) {
     return {
       error: 'Products without variant mode can only have one default variant',
       status: 409 as const
@@ -1168,74 +1305,71 @@ const replaceVariants = async (
     inventoryQuantity: item.inventoryQuantity ?? 0,
     allowBackorder: item.allowBackorder ?? false,
     optionValueIds: [...new Set(item.optionValueIds ?? [])].sort((a, b) => a - b),
+    attributes: item.attributes ?? [],
     isDefault: item.isDefault ?? false,
     position: index
   }))
 
-  if (!product.hasVariants) {
-    if (normalized[0].optionValueIds.length > 0) {
+  const expectedOptionCount = optionRows.length
+  const seenCombinations = new Set<string>()
+
+  for (const variant of normalized) {
+    if (expectedOptionCount === 0) {
+      if (variant.optionValueIds.length > 0) {
+        return {
+          error: 'Variant cannot reference option values when the product has no options',
+          status: 409 as const
+        }
+      }
+      continue
+    }
+
+    if (variant.optionValueIds.length !== expectedOptionCount) {
       return {
-        error: 'Default variant cannot reference option values when variants are disabled',
+        error: 'Each variant must include exactly one value for every option',
         status: 409 as const
       }
     }
 
+    if (!ensureArrayUnique(variant.optionValueIds)) {
+      return {
+        error: 'Variant option values must be unique',
+        status: 409 as const
+      }
+    }
+
+    const optionIdsForVariant = variant.optionValueIds.map((optionValueId) =>
+      optionValueToOptionId.get(optionValueId)
+    )
+
+    if (optionIdsForVariant.some((value) => value === undefined)) {
+      return {
+        error: 'Variant references an unknown option value',
+        status: 409 as const
+      }
+    }
+
+    if (new Set(optionIdsForVariant).size !== expectedOptionCount) {
+      return {
+        error: 'Variant must contain at most one value from each option',
+        status: 409 as const
+      }
+    }
+
+    const combinationKey = variant.optionValueIds.join(':')
+    if (seenCombinations.has(combinationKey)) {
+      return {
+        error: 'Duplicate variant option combination',
+        status: 409 as const
+      }
+    }
+
+    seenCombinations.add(combinationKey)
+  }
+
+  if (!computedHasVariants) {
     normalized[0].isDefault = true
   } else {
-    if (optionRows.length === 0) {
-      return {
-        error: 'Define product options before saving multiple variants',
-        status: 409 as const
-      }
-    }
-
-    const expectedOptionCount = optionRows.length
-    const seenCombinations = new Set<string>()
-
-    for (const variant of normalized) {
-      if (variant.optionValueIds.length !== expectedOptionCount) {
-        return {
-          error: 'Each variant must include exactly one value for every option',
-          status: 409 as const
-        }
-      }
-
-      if (!ensureArrayUnique(variant.optionValueIds)) {
-        return {
-          error: 'Variant option values must be unique',
-          status: 409 as const
-        }
-      }
-
-      const optionIdsForVariant = variant.optionValueIds.map((optionValueId) =>
-        optionValueToOptionId.get(optionValueId)
-      )
-
-      if (optionIdsForVariant.some((value) => value === undefined)) {
-        return {
-          error: 'Variant references an unknown option value',
-          status: 409 as const
-        }
-      }
-
-      if (new Set(optionIdsForVariant).size !== expectedOptionCount) {
-        return {
-          error: 'Variant must contain at most one value from each option',
-          status: 409 as const
-        }
-      }
-
-      const combinationKey = variant.optionValueIds.join(':')
-      if (seenCombinations.has(combinationKey)) {
-        return {
-          error: 'Duplicate variant option combination',
-          status: 409 as const
-        }
-      }
-
-      seenCombinations.add(combinationKey)
-    }
-
     if (!normalized.some((variant) => variant.isDefault)) {
       normalized[0].isDefault = true
     }
@@ -1260,7 +1394,9 @@ const replaceVariants = async (
     await db
       .delete(productVariantOptionValues)
       .where(inArray(productVariantOptionValues.variantId, existingVariantIds))
-    
+    await db
+      .delete(productVariantAttributes)
+      .where(inArray(productVariantAttributes.variantId, existingVariantIds))
     await db
       .delete(productVariantMedia)
       .where(inArray(productVariantMedia.variantId, existingVariantIds))
@@ -1272,7 +1408,7 @@ const replaceVariants = async (
     .values(
       normalized.map((item, index) => ({
         productId,
-        title: item.title,
+        title: localizedInputValue(item.title),
         sku: item.sku,
         priceAmount: item.priceAmount,
         inventoryQuantity: item.inventoryQuantity,
@@ -1283,6 +1419,22 @@ const replaceVariants = async (
       }))
     )
     .returning()
+
+  for (let index = 0; index < insertedVariants.length; index += 1) {
+    const title = normalized[index].title
+    await upsertTranslations(
+      db,
+      'product_variant',
+      String(insertedVariants[index].id),
+      'title',
+      typeof title === 'string' ? defaultLocalizedText(title) : title
+    )
+    await replaceVariantAttributes(
+      db,
+      insertedVariants[index].id,
+      normalized[index].attributes
+    )
+  }
 
   const variantOptionPayload = insertedVariants.flatMap((variant, index) =>
     normalized[index].optionValueIds.map((optionValueId) => ({
@@ -1382,6 +1534,95 @@ export const buildVariantMediaInsertRows = (
       position: mediaIndex
     }))
   )
+
+const defaultLocalizedText = (value: string) => ({ vi: value, en: value })
+
+const defaultProductOptionInput = () => ({
+  title: defaultLocalizedText(DEFAULT_PRODUCT_OPTION_TITLE),
+  values: [{ value: defaultLocalizedText(DEFAULT_PRODUCT_OPTION_VALUE) }]
+})
+
+const defaultProductVariantInput = () => ({
+  title: DEFAULT_PRODUCT_VARIANT_TITLE,
+  sku: null,
+  priceAmount: null,
+  inventoryQuantity: 0,
+  allowBackorder: false,
+  isDefault: true,
+  attributes: [] as Array<{
+    name: { vi: string; en?: string | null }
+    value: { vi: string; en?: string | null }
+    unit?: string | null
+  }>,
+  optionValues: [
+    {
+      optionTitle: DEFAULT_PRODUCT_OPTION_TITLE,
+      value: DEFAULT_PRODUCT_OPTION_VALUE
+    }
+  ],
+  media: [] as Array<{ assetId: string }>
+})
+
+const localizedInputValue = (value: string | { vi: string }) =>
+  typeof value === 'string' ? value : value.vi
+
+const localizedStoredValue = (value: unknown) => {
+  if (typeof value === 'string') {
+    return value
+  }
+
+  if (value && typeof value === 'object' && 'vi' in value && typeof value.vi === 'string') {
+    return value.vi
+  }
+
+  return ''
+}
+
+const productUsesVariantMode = (product: {
+  options: Array<{ title: unknown; values: Array<{ value: unknown }> }>
+  variants: Array<unknown>
+}) =>
+  product.options.length > 1 ||
+  (product.options.length === 1 &&
+    localizedStoredValue(product.options[0]?.title) !== DEFAULT_PRODUCT_OPTION_TITLE) ||
+  (product.options.length === 1 &&
+    product.options[0]!.values.some(
+      (optionValue) => localizedStoredValue(optionValue.value) !== DEFAULT_PRODUCT_OPTION_VALUE
+    )) ||
+  product.variants.length > 1
+
+const isDefaultOptionInput = (
+  options: v.InferOutput<typeof fullCreateProductSchema>['options']
+) =>
+  options.length === 1 &&
+  localizedInputValue(options[0].title) === DEFAULT_PRODUCT_OPTION_TITLE &&
+  options[0].values.length === 1 &&
+  localizedInputValue(options[0].values[0].value) === DEFAULT_PRODUCT_OPTION_VALUE
+
+const normalizeFullCreateDefaultOptionGraph = (
+  input: v.InferOutput<typeof fullCreateProductSchema>
+) => {
+  const hasCustomOptions = input.options.length > 0 && !isDefaultOptionInput(input.options)
+  const options = hasCustomOptions ? input.options : [defaultProductOptionInput()]
+  const variants = (input.variants.length > 0 ? input.variants : [defaultProductVariantInput()]).map(
+    (variant, index) => ({
+      ...variant,
+      title: variant.title || DEFAULT_PRODUCT_VARIANT_TITLE,
+      isDefault: index === 0 ? true : (variant.isDefault ?? false),
+      optionValues:
+        !hasCustomOptions && (!variant.optionValues || variant.optionValues.length === 0)
+          ? [
+              {
+                optionTitle: DEFAULT_PRODUCT_OPTION_TITLE,
+                value: DEFAULT_PRODUCT_OPTION_VALUE
+              }
+            ]
+          : (variant.optionValues ?? [])
+    })
+  )
+
+  return { hasCustomOptions, options, variants }
+}
 
 const insertVariantMedia = async (
   db: ReturnType<typeof getDb>,
@@ -1502,14 +1743,20 @@ export const validateCustomizationPublishReadiness = ({
 }
 
 
+const hasVietnameseCatalogText = (val: any) => {
+  if (typeof val === 'string') return val.trim().length > 0;
+  if (!val) return false;
+  return (val.vi || '').trim().length > 0;
+}
+
 const isLocComplete = (val: any) => {
   if (typeof val === 'string') return val.trim().length > 0;
   if (!val) return false;
   return (val.vi || '').trim().length > 0 && (val.en || '').trim().length > 0;
 }
 export const validatePublishable = (product: NonNullable<Awaited<ReturnType<typeof readProduct>>>) => {
-  if (!isLocComplete(product.title)) {
-    return 'Product title is missing required translations for publish (requires both Vietnamese and English)'
+  if (!hasVietnameseCatalogText(product.title)) {
+    return 'Product title requires Vietnamese text before publish'
   }
 
   for (const attr of product.attributes) {
@@ -1537,32 +1784,38 @@ export const validatePublishable = (product: NonNullable<Awaited<ReturnType<type
     if (variant.priceAmount === null) {
       return 'Every variant must have a price before publish'
     }
+    for (const attr of variant.attributes ?? []) {
+      if (!isLocComplete(attr.name) || !isLocComplete(attr.value)) {
+        return 'All variant attributes must have translated names and values before publish'
+      }
+    }
   }
 
-  if (!product.hasVariants) {
+  const expectedOptionCount = product.options.length
+
+  if (!productUsesVariantMode(product)) {
     if (product.variants.length !== 1 || !product.variants[0].isDefault) {
       return 'Products without variants must have exactly one default variant'
     }
 
-    if (product.variants[0].optionValueIds.length > 0) {
-      return 'Default variant cannot contain option values when variants are disabled'
+    if (product.options.length > 1 || (product.options.length === 1 && product.options[0]?.values.length !== 1)) {
+      return 'Products without variants must have exactly one default option and value, or zero options'
     }
-  } else {
-    const expectedOptionCount = product.options.length
-    const seenCombinations = new Set<string>()
+  }
 
-    for (const variant of product.variants) {
-      if (variant.optionValueIds.length !== expectedOptionCount) {
-        return 'Every variant must include exactly one value for each option'
-      }
+  const seenCombinations = new Set<string>()
 
-      const key = [...variant.optionValueIds].sort((a, b) => a - b).join(':')
-      if (seenCombinations.has(key)) {
-        return 'Variant combinations must be unique'
-      }
-
-      seenCombinations.add(key)
+  for (const variant of product.variants) {
+    if (variant.optionValueIds.length !== expectedOptionCount) {
+      return 'Every variant must include exactly one value for each option'
     }
+
+    const key = [...variant.optionValueIds].sort((a, b) => a - b).join(':')
+    if (seenCombinations.has(key)) {
+      return 'Variant combinations must be unique'
+    }
+
+    seenCombinations.add(key)
   }
 
   if (product.customization?.enabled) {
@@ -1667,7 +1920,6 @@ export const productsRoute = new Hono<AppEnv>()
           subtitle: products.subtitle,
           handle: products.handle,
           status: products.status,
-          hasVariants: products.hasVariants,
           createdAt: products.createdAt,
           updatedAt: products.updatedAt,
           collection: {
@@ -1725,8 +1977,7 @@ export const productsRoute = new Hono<AppEnv>()
         subtitle: parsed.output.subtitle?.vi ?? null,
         handle,
         description: parsed.output.description?.vi ?? null,
-        status: 'draft',
-        hasVariants: false
+        status: 'draft'
       })
       .returning()
       .get()
@@ -1739,7 +1990,41 @@ export const productsRoute = new Hono<AppEnv>()
       await upsertTranslations(db, 'product', String(insertedProduct.id), 'description', parsed.output.description)
     }
 
-    await db.insert(productVariants).values({
+    const insertedDefaultOption = await db
+      .insert(productOptions)
+      .values({
+        productId: insertedProduct.id,
+        title: DEFAULT_PRODUCT_OPTION_TITLE,
+        position: 0
+      })
+      .returning()
+      .get()
+    await upsertTranslations(
+      db,
+      'product_option',
+      String(insertedDefaultOption.id),
+      'title',
+      defaultLocalizedText(DEFAULT_PRODUCT_OPTION_TITLE)
+    )
+
+    const insertedDefaultValue = await db
+      .insert(productOptionValues)
+      .values({
+        optionId: insertedDefaultOption.id,
+        value: DEFAULT_PRODUCT_OPTION_VALUE,
+        position: 0
+      })
+      .returning()
+      .get()
+    await upsertTranslations(
+      db,
+      'product_option_value',
+      String(insertedDefaultValue.id),
+      'value',
+      defaultLocalizedText(DEFAULT_PRODUCT_OPTION_VALUE)
+    )
+
+    const insertedDefaultVariant = await db.insert(productVariants).values({
       productId: insertedProduct.id,
       title: defaultVariantTitle,
       sku: null,
@@ -1749,9 +2034,14 @@ export const productsRoute = new Hono<AppEnv>()
       isDefault: true,
       position: 0,
       updatedAt: nowIso()
+    }).returning().get()
+
+    await db.insert(productVariantOptionValues).values({
+      variantId: insertedDefaultVariant.id,
+      optionValueId: insertedDefaultValue.id
     })
 
-    const product = await readProduct(db, insertedProduct.id)
+    const product = await readProduct(c, db, insertedProduct.id)
     return c.json({ item: product }, 201)
   })
   .post('/full-create', async (c) => {
@@ -1761,9 +2051,11 @@ export const productsRoute = new Hono<AppEnv>()
       return parsed.response
     }
 
+    const normalizedInput = normalizeFullCreateDefaultOptionGraph(parsed.output)
+
     if (
-      new Set(parsed.output.options.map((item) => (typeof item.title === 'string' ? item.title : item.title.vi).toLowerCase())).size !==
-      parsed.output.options.length
+      new Set(normalizedInput.options.map((item) => (typeof item.title === 'string' ? item.title : item.title.vi).toLowerCase())).size !==
+      normalizedInput.options.length
     ) {
       return jsonError(c, 409, 'Option titles must be unique')
     }
@@ -1771,7 +2063,7 @@ export const productsRoute = new Hono<AppEnv>()
     const db = getDb(c.env)
     const allAssetIds = [
       ...new Set(
-        parsed.output.variants.flatMap((variant) =>
+        normalizedInput.variants.flatMap((variant) =>
           variant.media.map((media) => media.assetId)
         )
       )
@@ -1794,7 +2086,7 @@ export const productsRoute = new Hono<AppEnv>()
       if (parsed.output.mode === 'publish') {
         const publishCustomizationError = validateCustomizationPublishReadiness({
           customization: parsed.output.customization,
-          submittedVariants: parsed.output.variants,
+          submittedVariants: normalizedInput.variants,
           assetsById
         })
 
@@ -1817,7 +2109,6 @@ export const productsRoute = new Hono<AppEnv>()
         handle,
         description: (typeof parsed.output.details.description === 'string' ? parsed.output.details.description : parsed.output.details.description?.vi) ?? null,
         status: 'draft',
-        hasVariants: parsed.output.options.length > 0,
         collectionId: parsed.output.organization.collectionId ?? null
       })
       .returning()
@@ -1845,7 +2136,7 @@ export const productsRoute = new Hono<AppEnv>()
     const replaceOptionsError = await replaceOptions(
       db,
       insertedProduct.id,
-      parsed.output.options
+      normalizedInput.options
     )
     if (replaceOptionsError) {
       return jsonError(c, replaceOptionsError.status, replaceOptionsError.error)
@@ -1853,16 +2144,21 @@ export const productsRoute = new Hono<AppEnv>()
 
     const optionValueLookup = await loadOptionValueLookup(db, insertedProduct.id)
     const variantInput = [] as Array<{
-      title: string
+      title: string | { vi: string; en?: string | null }
       sku?: string | null
       priceAmount?: number | null
       inventoryQuantity?: number
       allowBackorder?: boolean
       isDefault?: boolean
       optionValueIds?: number[]
+      attributes?: Array<{
+        name: { vi: string; en?: string | null }
+        value: { vi: string; en?: string | null }
+        unit?: string | null
+      }>
     }>
 
-    for (const variant of parsed.output.variants) {
+    for (const variant of normalizedInput.variants) {
       const optionValueIds = [] as number[]
 
       for (const selection of variant.optionValues ?? []) {
@@ -1874,7 +2170,7 @@ export const productsRoute = new Hono<AppEnv>()
           return jsonError(
             c,
             409,
-            `Variant ${variant.title} references an unknown option value: ${selection.optionTitle} / ${selection.value}`
+            `Variant ${localizedInputValue(variant.title)} references an unknown option value: ${selection.optionTitle} / ${selection.value}`
           )
         }
 
@@ -1888,7 +2184,8 @@ export const productsRoute = new Hono<AppEnv>()
         inventoryQuantity: variant.inventoryQuantity ?? 0,
         allowBackorder: variant.allowBackorder ?? false,
         isDefault: variant.isDefault,
-        optionValueIds
+        optionValueIds,
+        attributes: variant.attributes ?? []
       })
     }
 
@@ -1897,18 +2194,18 @@ export const productsRoute = new Hono<AppEnv>()
       return jsonError(c, replaceVariantsError.status, replaceVariantsError.error)
     }
 
-    const persistedProduct = await readProduct(db, insertedProduct.id)
+    const persistedProduct = await readProduct(c, db, insertedProduct.id)
     if (!persistedProduct) {
       return jsonError(c, 500, 'Created product could not be loaded')
     }
 
-    await insertVariantMedia(db, persistedProduct.variants, parsed.output.variants)
+    await insertVariantMedia(db, persistedProduct.variants, normalizedInput.variants)
 
     if (parsed.output.customization?.enabled) {
       const customizationRow = buildProductCustomizationInsert({
         productId: insertedProduct.id,
         customization: parsed.output.customization,
-        submittedVariants: parsed.output.variants,
+        submittedVariants: normalizedInput.variants,
         assetsById
       })
 
@@ -1922,7 +2219,7 @@ export const productsRoute = new Hono<AppEnv>()
     }
 
     if (parsed.output.mode === 'publish') {
-      const publishCandidate = await readProduct(db, insertedProduct.id)
+      const publishCandidate = await readProduct(c, db, insertedProduct.id)
       if (!publishCandidate) {
         return jsonError(c, 500, 'Created product could not be loaded for publish')
       }
@@ -1941,7 +2238,7 @@ export const productsRoute = new Hono<AppEnv>()
         .where(eq(products.id, insertedProduct.id))
     }
 
-    const product = await readProduct(db, insertedProduct.id)
+    const product = await readProduct(c, db, insertedProduct.id)
     return c.json({ item: product }, 201)
   })
   .get('/:id', async (c) => {
@@ -1952,7 +2249,7 @@ export const productsRoute = new Hono<AppEnv>()
     }
 
     const db = getDb(c.env)
-    const product = await readProduct(db, parsed.output.id)
+    const product = await readProduct(c, db, parsed.output.id)
 
     if (!product) {
       return jsonError(c, 404, 'Product not found')
@@ -2018,13 +2315,13 @@ export const productsRoute = new Hono<AppEnv>()
       await upsertTranslations(db, 'product', String(current.id), 'title', parsed.output.title)
     }
     if (parsed.output.subtitle !== undefined) {
-      await upsertTranslations(db, 'product', String(current.id), 'subtitle', parsed.output.subtitle)
+      await upsertTranslations(db, 'product', String(current.id), 'subtitle', nullableLocalizedPatch(parsed.output.subtitle))
     }
     if (parsed.output.description !== undefined) {
-      await upsertTranslations(db, 'product', String(current.id), 'description', parsed.output.description)
+      await upsertTranslations(db, 'product', String(current.id), 'description', nullableLocalizedPatch(parsed.output.description))
     }
 
-    const product = await readProduct(db, current.id)
+    const product = await readProduct(c, db, current.id)
     return c.json({ item: product }, 200)
   })
   .patch('/:id/organize', async (c) => {
@@ -2082,7 +2379,7 @@ export const productsRoute = new Hono<AppEnv>()
       }
     }
 
-    const product = await readProduct(db, current.id)
+    const product = await readProduct(c, db, current.id)
     return c.json({ item: product }, 200)
   })
   .put('/:id/attributes', async (c) => {
@@ -2115,7 +2412,7 @@ export const productsRoute = new Hono<AppEnv>()
       .set({ updatedAt: nowIso() })
       .where(eq(products.id, params.output.id))
 
-    const product = await readProduct(db, params.output.id)
+    const product = await readProduct(c, db, params.output.id)
     return c.json({ item: product }, 200)
   })
   .put('/:id/media', async (c) => {
@@ -2148,7 +2445,7 @@ export const productsRoute = new Hono<AppEnv>()
       .set({ updatedAt: nowIso() })
       .where(eq(products.id, params.output.id))
 
-    const product = await readProduct(db, params.output.id)
+    const product = await readProduct(c, db, params.output.id)
     return c.json({ item: product }, 200)
   })
   .post('/:id/options', async (c) => {
@@ -2223,12 +2520,11 @@ export const productsRoute = new Hono<AppEnv>()
     await db
       .update(products)
       .set({
-        hasVariants: true,
         updatedAt: nowIso()
       })
       .where(eq(products.id, product.id))
 
-    const nextProduct = await readProduct(db, product.id)
+    const nextProduct = await readProduct(c, db, product.id)
     return c.json({ item: nextProduct }, 201)
   })
   .patch('/:id/options/:optionId', async (c) => {
@@ -2268,9 +2564,14 @@ export const productsRoute = new Hono<AppEnv>()
 
     await upsertTranslations(db, 'product_option', String(option.id), 'title', parsed.output.title)
 
-    await updateProductTimestamp(db, params.output.id)
+    await db
+      .update(products)
+      .set({
+        updatedAt: nowIso()
+      })
+      .where(eq(products.id, params.output.id))
 
-    const product = await readProduct(db, params.output.id)
+    const product = await readProduct(c, db, params.output.id)
     return c.json({ item: product }, 200)
   })
   .delete('/:id/options/:optionId', async (c) => {
@@ -2343,16 +2644,14 @@ export const productsRoute = new Hono<AppEnv>()
     }
     await db.delete(productOptions).where(eq(productOptions.id, option.id))
 
-    const nextHasVariants = currentOptions.length > 1
     await db
       .update(products)
       .set({
-        hasVariants: nextHasVariants,
         updatedAt: nowIso()
       })
       .where(eq(products.id, product.id))
 
-    if (!nextHasVariants && currentVariants.length === 1) {
+    if (currentOptions.length === 1 && currentVariants.length === 1) {
       await db
         .update(productVariants)
         .set({
@@ -2363,7 +2662,7 @@ export const productsRoute = new Hono<AppEnv>()
         .where(eq(productVariants.id, currentVariants[0].id))
     }
 
-    const nextProduct = await readProduct(db, product.id)
+    const nextProduct = await readProduct(c, db, product.id)
     return c.json({ item: nextProduct }, 200)
   })
   .post('/:id/options/:optionId/values', async (c) => {
@@ -2408,9 +2707,14 @@ export const productsRoute = new Hono<AppEnv>()
 
     await upsertTranslations(db, 'product_option_value', String(insertedValue.id), 'value', parsed.output.value)
 
-    await updateProductTimestamp(db, params.output.id)
+    await db
+      .update(products)
+      .set({
+        updatedAt: nowIso()
+      })
+      .where(eq(products.id, params.output.id))
 
-    const product = await readProduct(db, params.output.id)
+    const product = await readProduct(c, db, params.output.id)
     return c.json({ item: product }, 201)
   })
   .patch('/:id/option-values/:valueId', async (c) => {
@@ -2450,9 +2754,14 @@ export const productsRoute = new Hono<AppEnv>()
 
     await upsertTranslations(db, 'product_option_value', String(optionValue.id), 'value', parsed.output.value)
 
-    await updateProductTimestamp(db, params.output.id)
+    await db
+      .update(products)
+      .set({
+        updatedAt: nowIso()
+      })
+      .where(eq(products.id, params.output.id))
 
-    const product = await readProduct(db, params.output.id)
+    const product = await readProduct(c, db, params.output.id)
     return c.json({ item: product }, 200)
   })
   .delete('/:id/option-values/:valueId', async (c) => {
@@ -2482,7 +2791,7 @@ export const productsRoute = new Hono<AppEnv>()
     await db.delete(productOptionValues).where(eq(productOptionValues.id, optionValue.id))
     await updateProductTimestamp(db, params.output.id)
 
-    const product = await readProduct(db, params.output.id)
+    const product = await readProduct(c, db, params.output.id)
     return c.json({ item: product }, 200)
   })
   // Legacy full-replace option editor. Product detail must use operation-specific option routes.
@@ -2513,7 +2822,7 @@ export const productsRoute = new Hono<AppEnv>()
       return jsonError(c, replaceError.status, replaceError.error)
     }
 
-    const product = await readProduct(db, params.output.id)
+    const product = await readProduct(c, db, params.output.id)
     return c.json({ item: product }, 200)
   })
   .patch('/:id/variants/prices', async (c) => {
@@ -2530,7 +2839,7 @@ export const productsRoute = new Hono<AppEnv>()
     }
 
     const db = getDb(c.env)
-    const product = await readProduct(db, params.output.id)
+    const product = await readProduct(c, db, params.output.id)
 
     if (!product) {
       return jsonError(c, 404, 'Product not found')
@@ -2570,7 +2879,7 @@ export const productsRoute = new Hono<AppEnv>()
 
     await updateProductTimestamp(db, product.id)
 
-    const nextProduct = await readProduct(db, product.id)
+    const nextProduct = await readProduct(c, db, product.id)
     return c.json({ item: nextProduct }, 200)
   })
   .patch('/:id/variants/stock', async (c) => {
@@ -2620,7 +2929,7 @@ export const productsRoute = new Hono<AppEnv>()
 
     await updateProductTimestamp(db, product.id)
 
-    const nextProduct = await readProduct(db, product.id)
+    const nextProduct = await readProduct(c, db, product.id)
     return c.json({ item: nextProduct }, 200)
   })
   .post('/:id/variants', async (c) => {
@@ -2637,13 +2946,13 @@ export const productsRoute = new Hono<AppEnv>()
     }
 
     const db = getDb(c.env)
-    const product = await readProduct(db, params.output.id)
+    const product = await readProduct(c, db, params.output.id)
 
     if (!product) {
       return jsonError(c, 404, 'Product not found')
     }
 
-    if (!product.hasVariants && product.variants.length >= 1) {
+    if (!productUsesVariantMode(product) && product.variants.length >= 1) {
       return jsonError(c, 409, 'Define product options before creating multiple variants')
     }
 
@@ -2675,7 +2984,7 @@ export const productsRoute = new Hono<AppEnv>()
       .insert(productVariants)
       .values({
         productId: product.id,
-        title: parsed.output.title,
+        title: localizedInputValue(parsed.output.title),
         sku: parsed.output.sku ?? null,
         priceAmount: parsed.output.priceAmount ?? null,
         inventoryQuantity: parsed.output.inventoryQuantity ?? 0,
@@ -2686,6 +2995,16 @@ export const productsRoute = new Hono<AppEnv>()
       })
       .returning()
       .get()
+
+    await upsertTranslations(
+      db,
+      'product_variant',
+      String(insertedVariant.id),
+      'title',
+      typeof parsed.output.title === 'string'
+        ? defaultLocalizedText(parsed.output.title)
+        : parsed.output.title
+    )
 
     if (optionValueIds.length > 0) {
       await db.insert(productVariantOptionValues).values(
@@ -2706,9 +3025,15 @@ export const productsRoute = new Hono<AppEnv>()
       )
     }
 
+    await replaceVariantAttributes(
+      db,
+      insertedVariant.id,
+      parsed.output.attributes ?? []
+    )
+
     await updateProductTimestamp(db, product.id)
 
-    const nextProduct = await readProduct(db, product.id)
+    const nextProduct = await readProduct(c, db, product.id)
     return c.json({ item: nextProduct }, 201)
   })
   .patch('/:id/variants/:variantId', async (c) => {
@@ -2757,12 +3082,22 @@ export const productsRoute = new Hono<AppEnv>()
     await db
       .update(productVariants)
       .set({
-        title: parsed.output.title,
+        title: localizedInputValue(parsed.output.title),
         sku: parsed.output.sku ?? null,
         allowBackorder: parsed.output.allowBackorder ?? variant.allowBackorder,
         updatedAt: nowIso()
       })
       .where(eq(productVariants.id, variant.id))
+
+    await upsertTranslations(
+      db,
+      'product_variant',
+      String(variant.id),
+      'title',
+      typeof parsed.output.title === 'string'
+        ? defaultLocalizedText(parsed.output.title)
+        : parsed.output.title
+    )
 
     if (parsed.output.optionValueIds !== undefined) {
       await db
@@ -2779,9 +3114,13 @@ export const productsRoute = new Hono<AppEnv>()
       }
     }
 
+    if (parsed.output.attributes !== undefined) {
+      await replaceVariantAttributes(db, variant.id, parsed.output.attributes)
+    }
+
     await updateProductTimestamp(db, product.id)
 
-    const nextProduct = await readProduct(db, product.id)
+    const nextProduct = await readProduct(c, db, product.id)
     return c.json({ item: nextProduct }, 200)
   })
   .delete('/:id/variants/:variantId', async (c) => {
@@ -2792,7 +3131,7 @@ export const productsRoute = new Hono<AppEnv>()
     }
 
     const db = getDb(c.env)
-    const product = await readProduct(db, params.output.id)
+    const product = await readProduct(c, db, params.output.id)
 
     if (!product) {
       return jsonError(c, 404, 'Product not found')
@@ -2810,6 +3149,9 @@ export const productsRoute = new Hono<AppEnv>()
     await db
       .delete(productVariantOptionValues)
       .where(eq(productVariantOptionValues.variantId, variant.id))
+    await db
+      .delete(productVariantAttributes)
+      .where(eq(productVariantAttributes.variantId, variant.id))
     await db
       .delete(productVariantMedia)
       .where(eq(productVariantMedia.variantId, variant.id))
@@ -2843,7 +3185,7 @@ export const productsRoute = new Hono<AppEnv>()
 
     await updateProductTimestamp(db, product.id)
 
-    const nextProduct = await readProduct(db, product.id)
+    const nextProduct = await readProduct(c, db, product.id)
     return c.json({ item: nextProduct }, 200)
   })
   .put('/:id/variants/:variantId/media', async (c) => {
@@ -2860,7 +3202,7 @@ export const productsRoute = new Hono<AppEnv>()
     }
 
     const db = getDb(c.env)
-    const product = await readProduct(db, params.output.id)
+    const product = await readProduct(c, db, params.output.id)
 
     if (!product) {
       return jsonError(c, 404, 'Product not found')
@@ -2894,7 +3236,7 @@ export const productsRoute = new Hono<AppEnv>()
                     heightPx: asset.heightPx,
                     byteSize: asset.byteSize,
                     position: index,
-                    contentUrl: `/api/assets/products/${asset.id}/content`
+                    contentUrl: toAbsoluteAssetUrl(c, `/api/assets/products/${asset.id}/content`) as string
                   }
                 })
               }
@@ -2926,7 +3268,7 @@ export const productsRoute = new Hono<AppEnv>()
 
     await updateProductTimestamp(db, product.id)
 
-    const nextProduct = await readProduct(db, product.id)
+    const nextProduct = await readProduct(c, db, product.id)
     return c.json({ item: nextProduct }, 200)
   })
   // Legacy full-replace variant editor. Product detail must use operation-specific variant routes.
@@ -2944,7 +3286,7 @@ export const productsRoute = new Hono<AppEnv>()
     }
 
     const db = getDb(c.env)
-    const existingProduct = await readProduct(db, params.output.id)
+    const existingProduct = await readProduct(c, db, params.output.id)
 
     if (!existingProduct) {
       return jsonError(c, 404, 'Product not found')
@@ -3000,7 +3342,7 @@ export const productsRoute = new Hono<AppEnv>()
       .set({ updatedAt: nowIso() })
       .where(eq(products.id, params.output.id))
 
-    const product = await readProduct(db, params.output.id)
+    const product = await readProduct(c, db, params.output.id)
     return c.json({ item: product }, 200)
   })
   .put('/:id/customization', async (c) => {
@@ -3017,7 +3359,7 @@ export const productsRoute = new Hono<AppEnv>()
     }
 
     const db = getDb(c.env)
-    const product = await readProduct(db, params.output.id)
+    const product = await readProduct(c, db, params.output.id)
 
     if (!product) {
       return jsonError(c, 404, 'Product not found')
@@ -3086,7 +3428,7 @@ export const productsRoute = new Hono<AppEnv>()
       .set({ updatedAt: nowIso() })
       .where(eq(products.id, product.id))
 
-    const updatedProduct = await readProduct(db, product.id)
+    const updatedProduct = await readProduct(c, db, product.id)
     return c.json({ item: updatedProduct }, 200)
   })
   .post('/:id/publish', async (c) => {
@@ -3097,7 +3439,7 @@ export const productsRoute = new Hono<AppEnv>()
     }
 
     const db = getDb(c.env)
-    const product = await readProduct(db, params.output.id)
+    const product = await readProduct(c, db, params.output.id)
 
     if (!product) {
       return jsonError(c, 404, 'Product not found')
@@ -3117,7 +3459,7 @@ export const productsRoute = new Hono<AppEnv>()
       })
       .where(eq(products.id, product.id))
 
-    const publishedProduct = await readProduct(db, product.id)
+    const publishedProduct = await readProduct(c, db, product.id)
     return c.json({ item: publishedProduct }, 200)
   })
   .post('/:id/archive', async (c) => {
@@ -3146,6 +3488,6 @@ export const productsRoute = new Hono<AppEnv>()
       })
       .where(eq(products.id, current.id))
 
-    const archivedProduct = await readProduct(db, current.id)
+    const archivedProduct = await readProduct(c, db, current.id)
     return c.json({ item: archivedProduct }, 200)
   })

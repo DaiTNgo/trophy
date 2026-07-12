@@ -63,42 +63,7 @@ export function FontLoader({ layers, dynamicFonts = [] }: { layers: Customizatio
   );
 }
 
-export function PanelTitle({ title, subtitle }: { title: string; subtitle: string }) {
-  return (
-    <div>
-      <p className="text-sm font-semibold text-ui-fg-base">{title}</p>
-      <p className="mt-1 text-xs text-ui-fg-muted">{subtitle}</p>
-    </div>
-  );
-}
 
-export function Input({ value, onChange, placeholder, onFocus }: { value: string; onChange: (value: string) => void; placeholder?: string; onFocus?: () => void }) {
-  return <input value={value} placeholder={placeholder} onFocus={onFocus} onChange={(event) => onChange(event.target.value)} className="w-full rounded-md border border-ui-border-base px-2 py-1 text-sm" />;
-}
-
-export function NumberInput({ label, value, onChange, disabled }: { label: string; value: number; onChange: (value: number) => void; disabled?: boolean }) {
-  return (
-    <label className="block text-xs font-medium text-ui-fg-muted">
-      {label}
-      <input type="number" disabled={disabled} value={Number.isFinite(value) ? value : 0} onChange={(event) => onChange(Number(event.target.value))} className="mt-1 w-full rounded-md border border-ui-border-base px-2 py-1 text-sm text-ui-fg-base disabled:bg-ui-bg-subtle" />
-    </label>
-  );
-}
-
-export function Select({ label, value, options, onChange }: { label: string; value: string; options: (string | { value: string; label: string })[]; onChange: (value: string) => void }) {
-  return (
-    <label className="block text-xs font-medium text-ui-fg-muted">
-      {label}
-      <select value={value} onChange={(event) => onChange(event.target.value)} className="mt-1 w-full rounded-md border border-ui-border-base px-2 py-1 text-sm text-ui-fg-base">
-        {options.map((option) => {
-          const optValue = typeof option === "string" ? option : option.value;
-          const optLabel = typeof option === "string" ? option : option.label;
-          return <option key={optValue} value={optValue}>{optLabel}</option>;
-        })}
-      </select>
-    </label>
-  );
-}
 
 export function BackgroundUpload({ onUpload, hidden }: { onUpload: (background: BackgroundAsset, file: File) => void; hidden?: boolean }) {
   return (

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Container, Heading, Text, Drawer, Button, Input, StatusBadge, DropdownMenu, IconButton, Select, Label } from "@medusajs/ui";
+import { Container, Heading, Text, Drawer, Button, Input, StatusBadge, DropdownMenu, IconButton, Select, Label, toast } from "@medusajs/ui";
 import { MoreHorizontal } from "lucide-react";
 import type { CatalogProduct } from "../../types";
 import { updateProductOverview, publishProduct, archiveProduct } from "../../lib/products-client";
@@ -16,7 +16,7 @@ export function ProductDetailOverview({ product, mutate }: ProductDetailOverview
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState(product.title);
   const [handle, setHandle] = useState(product.handle);
-  const [subtitle, setSubtitle] = useState(product.subtitle ?? "");
+  const [subtitle, setSubtitle] = useState(product.subtitle ?? { vi: "", en: "" });
   const [description, setDescription] = useState(product.description ?? { vi: "", en: "" });
   const [status, setStatus] = useState<string>(product.status);
   const [titleLocale, setTitleLocale] = useState<AdminLocale>("vi");
@@ -41,6 +41,10 @@ export function ProductDetailOverview({ product, mutate }: ProductDetailOverview
     setIsSubmitting(true);
     setError(null);
     try {
+      if (!title.vi.trim()) {
+        throw new Error("Vietnamese product title is required.");
+      }
+
       await updateProductOverview(product.id, {
         title: { vi: title.vi, en: title.en || undefined },
         handle,
@@ -59,7 +63,9 @@ export function ProductDetailOverview({ product, mutate }: ProductDetailOverview
       await mutate();
       setOpen(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save overview");
+      const message = err instanceof Error ? err.message : "Failed to save overview";
+      setError(message);
+      toast.error(message);
     } finally {
       setIsSubmitting(false);
     }
@@ -113,7 +119,9 @@ export function ProductDetailOverview({ product, mutate }: ProductDetailOverview
               </div>
               <div className="grid gap-5 md:grid-cols-2">
                 <div className="flex flex-col gap-y-1.5">
-                  <span className="text-sm text-ui-fg-subtle">Title</span>
+                  <Label htmlFor="edit-title-vi" size="small" weight="plus">
+                    Title
+                  </Label>
                   <LocalizedTextField
                     id="edit-title"
                     value={title}
@@ -121,6 +129,7 @@ export function ProductDetailOverview({ product, mutate }: ProductDetailOverview
                     onLocaleChange={setTitleLocale}
                     onChange={setTitle}
                     placeholder={{ vi: "Tieu de", en: "Product title" }}
+                    requiredLocales={["vi"]}
                   />
                 </div>
                 <div className="flex flex-col gap-y-1.5">
@@ -133,7 +142,12 @@ export function ProductDetailOverview({ product, mutate }: ProductDetailOverview
                 </div>
               </div>
               <div className="flex flex-col gap-y-1.5">
-                <span className="text-sm text-ui-fg-subtle">Subtitle</span>
+                <Label htmlFor="edit-subtitle-vi" size="small" weight="plus" className="flex items-center gap-x-1">
+                  Subtitle
+                  <Text as="span" size="small" className="text-ui-fg-muted">
+                    (Optional)
+                  </Text>
+                </Label>
                 <LocalizedTextField
                   id="edit-subtitle"
                   value={subtitle}
@@ -141,10 +155,16 @@ export function ProductDetailOverview({ product, mutate }: ProductDetailOverview
                   onLocaleChange={setSubtitleLocale}
                   onChange={setSubtitle}
                   placeholder={{ vi: "Tieu de phu", en: "Optional subtitle" }}
+                  requiredLocales={[]}
                 />
               </div>
               <div className="flex flex-col gap-y-1.5">
-                <span className="text-sm text-ui-fg-subtle">Description</span>
+                <Label htmlFor="edit-description-vi" size="small" weight="plus" className="flex items-center gap-x-1">
+                  Description
+                  <Text as="span" size="small" className="text-ui-fg-muted">
+                    (Optional)
+                  </Text>
+                </Label>
                 <LocalizedTextField
                   id="edit-description"
                   value={description}
@@ -152,6 +172,7 @@ export function ProductDetailOverview({ product, mutate }: ProductDetailOverview
                   onLocaleChange={setDescriptionLocale}
                   onChange={setDescription}
                   placeholder={{ vi: "Mo ta", en: "Product description" }}
+                  requiredLocales={[]}
                   multiline
                 />
               </div>

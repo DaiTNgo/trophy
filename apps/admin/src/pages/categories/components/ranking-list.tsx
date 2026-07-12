@@ -15,7 +15,7 @@ interface RankingListProps {
 
 export function RankingList({ items, onReorder }: RankingListProps) {
   return (
-    <div className="flex flex-col border border-ui-border-base rounded-md overflow-hidden bg-ui-bg-base shadow-sm">
+    <div className="flex flex-col border border-ui-border-base rounded-md bg-ui-bg-base shadow-sm my-2">
       {items.map((item, index) => (
         <SortableItem
           key={item.id}
@@ -24,7 +24,7 @@ export function RankingList({ items, onReorder }: RankingListProps) {
           onReorder={onReorder}
           className={index !== items.length - 1 ? "border-b border-ui-border-base" : ""}
         >
-          <div className="flex items-center gap-x-4 bg-ui-bg-base px-4 py-3 hover:bg-ui-bg-base-hover transition-colors">
+          <div className={`flex items-center gap-x-4 bg-ui-bg-base px-4 py-3 hover:bg-ui-bg-base-hover transition-colors ${index === 0 ? "rounded-t-md" : ""} ${index === items.length - 1 ? "rounded-b-md" : ""}`}>
             <DragHandle label={`Move ${item.name}`} />
             <TagSolid className="w-5 h-5 text-ui-fg-subtle" />
             <Text size="small" className="text-ui-fg-base flex items-center gap-x-2">

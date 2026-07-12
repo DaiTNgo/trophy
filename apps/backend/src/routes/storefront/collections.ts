@@ -1,5 +1,6 @@
 import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm'
-import { Hono } from 'hono'
+import { Hono, type Context } from 'hono'
+import { toAbsoluteAssetUrl } from '../../lib/url'
 import * as v from 'valibot'
 import { getDb } from '../../db/client'
 import {
@@ -47,7 +48,7 @@ export const storefrontCollectionsRoute = new Hono<AppEnv>()
       .orderBy(asc(productCollections.position))
 
     const resolvedItems = await hydrateTranslations(db, 'product_collection', items, i => String(i.id), [{fieldName: 'title', objectKey: 'title'}], [{fieldName: 'title', objectKey: 'title'}])
-    return c.json({ items: resolvedItems }, 200)
+    return c.json({ items: resolvedItems.map(item => ({ ...item, imageUrl: item.imageUrl ? toAbsoluteAssetUrl(c, item.imageUrl) as string : null })) }, 200)
   })
   .get('/:handle/products', async (c) => {
     const parsed = parseParams(c, handleParamsSchema)
@@ -83,7 +84,7 @@ export const storefrontCollectionsRoute = new Hono<AppEnv>()
           title: products.title,
           subtitle: products.subtitle,
           handle: products.handle,
-          hasVariants: products.hasVariants
+          status: products.status
         })
         .from(products)
         .where(whereClause)
@@ -189,6 +190,7 @@ export const storefrontCollectionsRoute = new Hono<AppEnv>()
 
     const listingItems = resolvedItems.map((item) =>
       buildListingItem(
+        c,
         item,
         categoriesByProductId.get(item.id) ?? [],
         variantsByProductId.get(item.id) ?? [],

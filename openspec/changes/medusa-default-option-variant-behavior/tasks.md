@@ -1,7 +1,7 @@
 ## 1. Backend Product Option Model
 
 - [ ] 1.1 Add backend helpers/constants for `Default option`, `Default option value`, complete variant option selection checks, and missing option detection.
-- [ ] 1.2 Update full-create normalization so products created without custom options persist one default option, one default option value, and one default variant selecting that value.
+- [x] 1.2 Update full-create normalization so products created without custom options persist one default option, one default option value, and one default variant selecting that value.
 - [ ] 1.3 Update option replacement/create flows so default option/value are treated as real option data rather than a hidden no-option product mode.
 - [ ] 1.4 Update option title and option value update routes so option and value labels rename in place while preserving uniqueness within the product/option.
 - [ ] 1.5 Update option value delete route so used values can be deleted and variant-option join rows referencing the deleted value are removed.
@@ -19,7 +19,7 @@
 
 ## 3. Admin UI
 
-- [ ] 3.1 Update admin product create flow so default-only products submit default option/value/variant selections to the backend.
+- [x] 3.1 Update admin product create flow so default-only products submit default option/value/variant selections to the backend.
 - [ ] 3.2 Update admin product detail options UI to render default option/value as normal editable data.
 - [ ] 3.3 Update option value editing UI so value labels can be renamed in place.
 - [ ] 3.4 Update option value delete UI to allow deleting values used by variants without forcing immediate replacement.

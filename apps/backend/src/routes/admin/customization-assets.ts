@@ -11,6 +11,7 @@ import {
 } from "../../lib/asset-utils";
 import type { AppEnv } from "../../lib/env";
 import { readImageDimensions } from "../../lib/image-dimensions";
+import { toAbsoluteAssetUrl } from "../../lib/url";
 import { jsonError, parseParams } from "../../lib/validation";
 
 export const customizationAssetsRoute = new Hono<AppEnv>()
@@ -131,8 +132,10 @@ export const customizationAssetsRoute = new Hono<AppEnv>()
             ? { widthPt: dimensions.width, heightPt: dimensions.height, pageCount }
             : { widthPx: dimensions.width, heightPx: dimensions.height }),
           byteSize: buffer.byteLength,
-          contentUrl: `/api/assets/customizations/${id}/content`,
-          ...(previewObjectKey ? { previewUrl: `/api/assets/customizations/${id}/preview` } : {}),
+          contentUrl: toAbsoluteAssetUrl(c, `/api/assets/customizations/${id}/content`) as string,
+          ...(previewObjectKey
+            ? { previewUrl: toAbsoluteAssetUrl(c, `/api/assets/customizations/${id}/preview`) as string }
+            : {}),
         },
       },
       201,

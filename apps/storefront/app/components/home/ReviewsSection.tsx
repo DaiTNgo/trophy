@@ -33,7 +33,7 @@ export function ReviewsSection() {
       <div className="max-w-container-max mx-auto">
         {/* Heading */}
         <div className="text-center mb-14 reveal active">
-          <p className="font-label-md text-label-md uppercase tracking-[0.35em] text-primary mb-3">
+          <p className="mb-3 font-label-md text-label-md uppercase tracking-[0.35em] text-brand-accent">
             Cam kết của chúng tôi
           </p>
           <h2 className="font-heading text-[36px] md:text-[44px] uppercase leading-none text-on-surface">
@@ -49,21 +49,19 @@ export function ReviewsSection() {
               className="bg-white rounded-xl p-8 border border-outline-variant luxury-shadow reveal active flex flex-col justify-between"
               style={{ animationDelay: `${i * 80}ms` }}
             >
-              <div className="flex flex-col mb-6">
-              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center mb-4">
-                {icon === "ShieldCheck" && <ShieldCheck className="text-[22px] text-primary" />}
-                {icon === "Eye" && <Eye className="text-[22px] text-primary" />}
-                {icon === "Clock" && <Clock className="text-[22px] text-primary" />}
+              <div className="mb-6 flex h-10 w-10 items-center justify-center rounded-lg bg-brand-strong/10">
+                {icon === "ShieldCheck" && <ShieldCheck className="text-[22px] text-brand-accent" />}
+                {icon === "Eye" && <Eye className="text-[22px] text-brand-strong" />}
+                {icon === "Clock" && <Clock className="text-[22px] text-brand-support" />}
               </div>
               <p className="font-body-lg text-body-lg text-on-surface-variant leading-relaxed italic">
                 "{quote}"
               </p>
-              </div>
               <div className="border-t border-outline-variant pt-4">
                 <p className="font-label-md text-label-md uppercase tracking-wide text-on-surface">
                   {author}
                 </p>
-                <p className="font-body-md text-body-md text-primary text-[13px]">
+                <p className="font-body-md text-body-md text-brand-accent text-[13px]">
                   {role}
                 </p>
               </div>

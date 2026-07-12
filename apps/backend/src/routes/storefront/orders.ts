@@ -1,5 +1,6 @@
 import { and, asc, eq } from "drizzle-orm";
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
+import { toAbsoluteAssetUrl } from "../../lib/url";
 import * as v from "valibot";
 import {
   buildDesignFromForm,
@@ -232,6 +233,7 @@ function buildBackendCustomizationTemplate(
 }
 
 async function validateAndBuildItemSnapshot(
+  c: Context<AppEnv>,
   db: DbType,
   item: OrderItemInput,
   locale: "vi" | "en"
@@ -267,7 +269,7 @@ async function validateAndBuildItemSnapshot(
   const backgroundSnapshot: BackgroundSnapshot | null = firstMedia
     ? {
         assetId: firstMedia.assetId,
-        previewUrl: `/api/assets/products/${firstMedia.assetId}/content`,
+        previewUrl: toAbsoluteAssetUrl(c, `/api/assets/products/${firstMedia.assetId}/content`) as string,
         widthPx: null,
         heightPx: null,
       }
@@ -327,7 +329,7 @@ async function validateAndBuildItemSnapshot(
       values,
       design: buildDesignFromForm({ template, values }),
       templateSnapshot: {
-        layers: parsedCustomization.layers as unknown[],
+        layers: parsedCustomization.layers as CustomizationTemplate["layers"],
         formFields: parsedCustomization.formFields as CustomizationFormField[],
         canvasWidthPx: customizationRow.canvasWidthPx,
         canvasHeightPx: customizationRow.canvasHeightPx,
@@ -475,7 +477,7 @@ export const storefrontOrdersRoute = new Hono<AppEnv>()
               handle: product.handle,
               variantTitle: variant.title,
               sku: variant.sku,
-              thumbnail: firstMedia ? `/api/assets/products/${firstMedia.assetId}/content` : null,
+              thumbnail: firstMedia ? (toAbsoluteAssetUrl(c, `/api/assets/products/${firstMedia.assetId}/content`) as string) : null,
               priceAmount: null,
               customizable: customization?.enabled === true,
               requiresCustomization: customization?.enabled === true,
@@ -494,7 +496,7 @@ export const storefrontOrdersRoute = new Hono<AppEnv>()
             handle: product.handle,
             variantTitle: variant.title,
             sku: variant.sku,
-            thumbnail: firstMedia ? `/api/assets/products/${firstMedia.assetId}/content` : null,
+            thumbnail: firstMedia ? (toAbsoluteAssetUrl(c, `/api/assets/products/${firstMedia.assetId}/content`) as string) : null,
             priceAmount: variant.priceAmount,
             customizable: customization?.enabled === true,
             requiresCustomization: customization?.enabled === true,
@@ -563,7 +565,7 @@ export const storefrontOrdersRoute = new Hono<AppEnv>()
     }> = [];
 
     for (const item of input.items) {
-      const result = await validateAndBuildItemSnapshot(db, item, input.locale as "vi"|"en");
+      const result = await validateAndBuildItemSnapshot(c, db, item, input.locale as "vi"|"en");
       if (!result.ok) {
         return c.json({ error: result.error }, result.status as 422);
       }

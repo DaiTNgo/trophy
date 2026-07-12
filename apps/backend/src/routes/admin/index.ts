@@ -5,6 +5,7 @@ import type { AppEnv } from "../../lib/env";
 import { adminAccountsRoute } from "./accounts";
 import { adminBootstrapRoute } from "./bootstrap";
 import { adminBrandAssetsRoute } from "./brand-assets";
+import { adminClipartRoute } from "./clipart";
 import { customizationAssetsRoute as adminCustomizationAssetsRoute } from "./customization-assets";
 import { customizationsRoute as adminCustomizationsRoute } from "./customizations/index";
 import { adminOrdersRoute } from "./orders";
@@ -40,6 +41,7 @@ export const adminRoute = new Hono<AppEnv>()
   .use("*", requireAdminSession)
   .route("/accounts", adminAccountsRoute)
   .route("/brand-assets", adminBrandAssetsRoute)
+  .route("/customization/clipart", adminClipartRoute)
   .route("/customizations/assets", adminCustomizationAssetsRoute)
   .route("/customizations", adminCustomizationsRoute)
   .route("/orders", adminOrdersRoute)
