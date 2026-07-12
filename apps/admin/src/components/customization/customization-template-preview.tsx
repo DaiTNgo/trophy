@@ -14,7 +14,6 @@ import {
 } from "@trophy/customization";
 import { createId, fileToBackground } from "./customization-template-ui";
 import { exportVectorPdfClientSide } from "../../lib/pdf-export";
-import { normalizeContentUrl } from "../../lib/product-assets-client";
 
 type PreviewChange = (fieldId: string, value: TextFieldValue | ImageShapeFieldValue | ClipartFieldValue | null) => void;
 
@@ -78,7 +77,6 @@ export function PreviewDialog({
           <ProductCustomizationPreview
             template={template}
             values={values}
-            resolveAssetUrl={normalizeContentUrl}
             resolveFontUrl={(assetId) => `${import.meta.env.VITE_BACKEND_URL ?? "http://localhost:8787"}/api/admin/brand-assets/fonts/file/${assetId}`}
             resolveStaticFontUrl={(fileName) => `${import.meta.env.VITE_BACKEND_URL ?? "http://localhost:8787"}/fonts/${fileName}`}
             onImageValueChange={(fieldId, value) => onChange(fieldId, value)}
@@ -102,7 +100,6 @@ export function PreviewDialog({
           <ProductCustomizationForm
             template={template}
             values={values}
-            resolveAssetUrl={normalizeContentUrl}
             onUploadImage={async (_field, file) => {
               const asset = await fileToBackground(file);
               return {

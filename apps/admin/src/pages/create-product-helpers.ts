@@ -1,6 +1,5 @@
 import type { BackgroundAsset, ProductCustomization } from "@trophy/customization";
 import type { ProductVariant, ProductVariantMedia } from "../types";
-import { normalizeContentUrl } from "../lib/product-assets-client";
 
 export type EmbeddedCustomizationDraft = Pick<
   ProductCustomization,
@@ -23,7 +22,7 @@ export const hasEmbeddedCustomizationDraft = (draft: EmbeddedCustomizationDraft)
 
 export const toPreviewBackgroundAsset = (asset: ProductVariantMedia): BackgroundAsset => ({
   assetId: asset.id,
-  previewUrl: normalizeContentUrl(asset.contentUrl),
+  previewUrl: asset.contentUrl,
   filename: asset.fileName,
   mimeType: asset.mimeType,
   widthPx: asset.widthPx,

@@ -1,6 +1,6 @@
 import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm'
 import { Hono, type Context } from 'hono'
-import { toAbsoluteAssetUrl } from '../../lib/url'
+import { makeCustomizationUrlsAbsolute, toAbsoluteAssetUrl } from '../../lib/url'
 import * as v from 'valibot'
 import {
   buildRuntimeImageClipartLayer,
@@ -596,7 +596,7 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
         clipartAssetsByCategoryId.set(asset.categoryId, current);
       }
 
-      customization = sanitizeShopperCustomizationWithClipart({
+      customization = makeCustomizationUrlsAbsolute(c, sanitizeShopperCustomizationWithClipart({
         productId: String(product.id),
         enabled: true,
         canvasWidthPx: parsedCustomization.canvasWidthPx,
@@ -606,7 +606,7 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
       }, {
         clipartCategoriesById,
         clipartAssetsByCategoryId,
-      });
+      }));
     }
 
     const detail = {

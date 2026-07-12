@@ -21,7 +21,6 @@ import {
   type AdminOrderDetail,
 } from "../lib/orders-client";
 import { useBreadcrumbs } from "../hooks/use-breadcrumbs";
-import { normalizeContentUrl } from "../lib/product-assets-client";
 import { backendFetch } from "../lib/fetch";
 
 type OrderDetailItem = AdminOrderDetail["items"][number];
@@ -138,7 +137,7 @@ function getUploadedImageEntries(item: OrderDetailItem) {
 }
 
 async function fetchUploadBytes(previewUrl: string) {
-  const url = normalizeContentUrl(previewUrl);
+  const url = previewUrl;
   const response = url.startsWith("blob:") || url.startsWith("data:")
     ? await fetch(url)
     : await backendFetch(url);
@@ -226,7 +225,6 @@ function OrderCustomizationPreviewModal({
                   values={preview.values}
                   readOnly
                   selectedVariantId={item.variant?.id ?? null}
-                  resolveAssetUrl={normalizeContentUrl}
                   resolveFontUrl={(assetId) => `${import.meta.env.VITE_BACKEND_URL ?? "http://localhost:8787"}/api/admin/brand-assets/fonts/file/${assetId}`}
                   resolveStaticFontUrl={(fileName) => `${import.meta.env.VITE_BACKEND_URL ?? "http://localhost:8787"}/fonts/${fileName}`}
                 />

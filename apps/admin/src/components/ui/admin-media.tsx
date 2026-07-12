@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import * as pdfjsLib from "pdfjs-dist";
-import { normalizeContentUrl } from "../../lib/product-assets-client";
 import { backendFetch } from "../../lib/fetch";
 import pdfjsWorkerUrl from "pdfjs-dist/build/pdf.worker?url";
 import { Package, FileText } from "lucide-react";
@@ -58,7 +57,7 @@ export function AdminMedia({ src, mimeType, className = "", fallback, alt = "Med
 
       const loadPdfPreview = async () => {
         try {
-          const fullUrl = normalizeContentUrl(src);
+          const fullUrl = src;
           const res = await backendFetch(fullUrl);
           if (!res.ok) throw new Error(`Failed to fetch PDF: ${res.status}`);
           const blob = await res.blob();
@@ -113,7 +112,7 @@ export function AdminMedia({ src, mimeType, className = "", fallback, alt = "Med
 
       const loadImageBlob = async () => {
         try {
-          const fullUrl = normalizeContentUrl(src);
+          const fullUrl = src;
           const res = await backendFetch(fullUrl);
           if (!res.ok) throw new Error(`Failed to fetch media: ${res.status}`);
           const blob = await res.blob();
@@ -135,7 +134,7 @@ export function AdminMedia({ src, mimeType, className = "", fallback, alt = "Med
     }
 
     // ── Plain remote URL (SVG, PNG served without CORS issues) ────────────
-    setDataUrl(normalizeContentUrl(src));
+    setDataUrl(src);
     setIsLoadingPdf(false);
   }, [src, mimeType]);
 

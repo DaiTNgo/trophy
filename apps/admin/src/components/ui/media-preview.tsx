@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import * as pdfjsLib from "pdfjs-dist";
-import { normalizeContentUrl } from "../../lib/product-assets-client";
 import { backendFetch } from "../../lib/fetch";
 import pdfjsWorkerUrl from "pdfjs-dist/build/pdf.worker?url";
 import { Package, FileText } from "lucide-react";
@@ -151,7 +150,7 @@ function UrlPreview({
 
       const load = async () => {
         try {
-          const res = await backendFetch(normalizeContentUrl(src));
+          const res = await backendFetch(src);
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
           const buffer = await res.blob().then((b) => b.arrayBuffer());
           if (isCancelled) return;
@@ -191,7 +190,7 @@ function UrlPreview({
 
       const load = async () => {
         try {
-          const res = await backendFetch(normalizeContentUrl(src));
+          const res = await backendFetch(src);
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
           const blob = await res.blob();
           if (isCancelled) return;
@@ -210,7 +209,7 @@ function UrlPreview({
     }
 
     // Plain remote URL (SVG, PNG, JPEG — no CORS issue).
-    setDataUrl(normalizeContentUrl(src));
+    setDataUrl(src);
     setIsLoadingPdf(false);
   }, [src, mimeType]);
 

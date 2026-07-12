@@ -6,7 +6,7 @@ import {
 import { and, asc, desc, eq, inArray, like, or, sql } from 'drizzle-orm'
 import { hydrateTranslations, upsertTranslations } from '../../lib/catalog-translation'
 import { Hono, type Context } from 'hono'
-import { toAbsoluteAssetUrl } from '../../lib/url'
+import { makeCustomizationUrlsAbsolute, toAbsoluteAssetUrl } from '../../lib/url'
 import * as v from 'valibot'
 import { getDb } from '../../db/client'
 import {
@@ -698,28 +698,25 @@ const readProduct = async (c: Context<AppEnv>, db: ReturnType<typeof getDb>, pro
   }
 
   const customization = customizationRow
-    ? (() => {
-        const stored = parseStoredProductCustomizationModel(
-          JSON.stringify({
+    ? makeCustomizationUrlsAbsolute(c, {
+        ...(() => {
+          const stored = {
             canvasWidthPx: customizationRow.canvasWidthPx,
             canvasHeightPx: customizationRow.canvasHeightPx,
             layers: JSON.parse(customizationRow.layersJson),
             formFields: JSON.parse(customizationRow.formFieldsJson)
-          })
-        )
-
-        return {
-          productId: String(productId),
-          enabled: customizationRow.enabled,
-          canvasWidthPx: stored.canvasWidthPx,
-          canvasHeightPx: stored.canvasHeightPx,
-          layers: stored.layers,
-          formFields: stored.formFields,
-          layerCount: stored.layers.length,
-          formFieldCount: stored.formFields.length
-        }
-      })()
-    : null
+          };
+          return {
+            ...stored,
+            layerCount: stored.layers.length,
+            formFieldCount: stored.formFields.length
+          };
+        })(),
+        enabled: customizationRow.enabled,
+        createdAt: customizationRow.createdAt,
+        updatedAt: customizationRow.updatedAt
+      })
+    : null;
 
   if (customization) {
     await hydrateCustomization(db, customization)

@@ -1,6 +1,6 @@
 import type { ProductVariantMedia } from "../types";
 
-import { backendFetch, BACKEND_URL } from "./fetch";
+import { backendFetch } from "./fetch";
 
 type ProductAssetResponse = {
   asset?: {
@@ -15,15 +15,7 @@ type ProductAssetResponse = {
   error?: string;
 };
 
-export function normalizeContentUrl(contentUrl: string) {
-  if (contentUrl.startsWith("blob:") || contentUrl.startsWith("data:")) {
-    return contentUrl;
-  }
-  if (contentUrl.startsWith("/")) {
-    return `${BACKEND_URL}${contentUrl}`;
-  }
-  return contentUrl;
-}
+
 
 import { getImageDimensions } from "./image-dimensions";
 
@@ -65,7 +57,7 @@ export async function uploadProductVariantMedia(file: File, widthPx?: number, he
 
   return {
     ...body.asset,
-    contentUrl: normalizeContentUrl(body.asset.contentUrl),
+    contentUrl: body.asset.contentUrl,
   };
 }
 
