@@ -16,11 +16,13 @@ type ProductAssetResponse = {
 };
 
 export function normalizeContentUrl(contentUrl: string) {
-  if (/^https?:\/\//i.test(contentUrl) || contentUrl.startsWith("blob:") || contentUrl.startsWith("data:")) {
+  if (contentUrl.startsWith("blob:") || contentUrl.startsWith("data:")) {
     return contentUrl;
   }
-
-  return `${BACKEND_URL}${contentUrl.startsWith("/") ? contentUrl : `/${contentUrl}`}`;
+  if (contentUrl.startsWith("/")) {
+    return `${BACKEND_URL}${contentUrl}`;
+  }
+  return contentUrl;
 }
 
 import { getImageDimensions } from "./image-dimensions";

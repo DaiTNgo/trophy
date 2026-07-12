@@ -25,7 +25,7 @@ const makeMedia = (assetId: string) => ({
 
 describe("buildListingItem", () => {
   it("returns lowest non-null variant price", () => {
-    const item = buildListingItem(
+    const item = buildListingItem({ req: { url: "http://localhost/" } } as any, 
       baseItem,
       [],
       [
@@ -41,7 +41,7 @@ describe("buildListingItem", () => {
   });
 
   it("returns null priceAmount for Contact Price (no variant prices)", () => {
-    const item = buildListingItem(
+    const item = buildListingItem({ req: { url: "http://localhost/" } } as any, 
       baseItem,
       [],
       [
@@ -57,7 +57,7 @@ describe("buildListingItem", () => {
   });
 
   it("sets priceFrom false when all variants share the same price", () => {
-    const item = buildListingItem(
+    const item = buildListingItem({ req: { url: "http://localhost/" } } as any, 
       baseItem,
       [],
       [
@@ -73,7 +73,7 @@ describe("buildListingItem", () => {
   });
 
   it("sets priceFrom true when variants have different prices", () => {
-    const item = buildListingItem(
+    const item = buildListingItem({ req: { url: "http://localhost/" } } as any, 
       baseItem,
       [],
       [
@@ -93,7 +93,7 @@ describe("buildListingItem", () => {
       [2, [makeMedia("asset_b")]],
     ]);
 
-    const item = buildListingItem(
+    const item = buildListingItem({ req: { url: "http://localhost/" } } as any, 
       baseItem,
       [],
       [
@@ -104,7 +104,7 @@ describe("buildListingItem", () => {
       false,
     );
 
-    expect(item.thumbnail).toBe("/api/assets/products/asset_a/content");
+    expect(item.thumbnail).toBe("http://localhost/api/assets/products/asset_a/content");
   });
 
   it("falls back to first variant with media when default has none", () => {
@@ -112,7 +112,7 @@ describe("buildListingItem", () => {
       [2, [makeMedia("asset_b")]],
     ]);
 
-    const item = buildListingItem(
+    const item = buildListingItem({ req: { url: "http://localhost/" } } as any, 
       baseItem,
       [],
       [
@@ -123,11 +123,11 @@ describe("buildListingItem", () => {
       false,
     );
 
-    expect(item.thumbnail).toBe("/api/assets/products/asset_b/content");
+    expect(item.thumbnail).toBe("http://localhost/api/assets/products/asset_b/content");
   });
 
   it("returns null thumbnail when no variant has media", () => {
-    const item = buildListingItem(
+    const item = buildListingItem({ req: { url: "http://localhost/" } } as any, 
       baseItem,
       [],
       [makeVariant({ id: 1, isDefault: true })],
@@ -139,7 +139,7 @@ describe("buildListingItem", () => {
   });
 
   it("builds categorySummary from category names", () => {
-    const item = buildListingItem(
+    const item = buildListingItem({ req: { url: "http://localhost/" } } as any, 
       baseItem,
       ["Crystal", "Premium"],
       [makeVariant({ id: 1, isDefault: true })],
@@ -151,7 +151,7 @@ describe("buildListingItem", () => {
   });
 
   it("returns null categorySummary when no categories", () => {
-    const item = buildListingItem(
+    const item = buildListingItem({ req: { url: "http://localhost/" } } as any, 
       baseItem,
       [],
       [makeVariant({ id: 1, isDefault: true })],
@@ -163,7 +163,7 @@ describe("buildListingItem", () => {
   });
 
   it("marks product as customizable", () => {
-    const item = buildListingItem(
+    const item = buildListingItem({ req: { url: "http://localhost/" } } as any, 
       baseItem,
       [],
       [makeVariant({ id: 1, isDefault: true })],
@@ -175,7 +175,7 @@ describe("buildListingItem", () => {
   });
 
   it("marks product as non-customizable by default", () => {
-    const item = buildListingItem(
+    const item = buildListingItem({ req: { url: "http://localhost/" } } as any, 
       baseItem,
       [],
       [makeVariant({ id: 1, isDefault: true })],

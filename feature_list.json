@@ -1,6 +1,6 @@
 {
   "notes": "OpenSpec change state lives under openspec/changes/<change>/; use this file only as a repo-level fallback index for non-OpenSpec work.",
-  "latest_evidence": "Added variant-specific attribute overrides on 2026-07-12. Backend now stores per-variant attributes in product_variant_attributes with localized translations, admin product-detail variant create/edit can keep shared product attributes or persist variant-only overrides, and publish validation now checks translated variant override rows. Verified with pnpm --filter backend exec vitest run --config vitest.config.ts src/routes/admin/products.test.ts src/routes/admin/products.route.test.ts, pnpm --filter backend check, pnpm --filter backend build, pnpm --filter admin build, and ./init.sh.",
+  "latest_evidence": "Implemented the backend absolute asset URL refactor on 2026-07-12. The backend API now returns absolute asset URLs across all modules, and client-side URL normalization has been simplified.",
   "features": [
     {
       "id": "feat-001",

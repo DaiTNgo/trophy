@@ -225,6 +225,9 @@ describe("admin clipart routes", () => {
     );
 
     expect(res.status).toBe(201);
+    const data = await res.json() as any;
+    expect(data.assets[0].previewUrl).toBe("http://localhost/api/assets/customizations/asset_star/content");
+
     expect(env.CUSTOMIZATION_ASSETS.put).toHaveBeenCalledTimes(1);
     expect(
       db.mutations.some(
@@ -278,6 +281,40 @@ describe("admin clipart routes", () => {
       rowErrors: [{ row: 2, message: "Duplicate files in the same clipart batch are not allowed" }],
     });
     expect(env.CUSTOMIZATION_ASSETS.put).not.toHaveBeenCalled();
+  });
+
+  it("returns absolute preview URLs when listing clipart assets", async () => {
+    db.getQueue.push({
+      id: "sports",
+      name: "Sports",
+      active: true,
+      sortOrder: 0,
+      createdAt: 1,
+      updatedAt: 1,
+    });
+    db.selectQueue.push([
+      {
+        id: "clipart_star",
+        categoryId: "sports",
+        sourceAssetId: "asset_star",
+        name: "Star",
+        fileName: "star.svg",
+        previewUrl: "/api/assets/customizations/asset_star/content", // relative in DB
+        mimeType: "image/svg+xml",
+        sourceWidthPx: 128,
+        sourceHeightPx: 128,
+        active: true,
+        createdAt: 10,
+        updatedAt: 10,
+      },
+    ]);
+
+    const res = await adminClipartRoute.request("http://localhost:8787/categories/sports/assets", {}, env);
+
+    expect(res.status).toBe(200);
+    const data = await res.json() as any;
+    expect(data.assets).toHaveLength(1);
+    expect(data.assets[0].previewUrl).toBe("http://localhost:8787/api/assets/customizations/asset_star/content");
   });
 
   it("rejects clipart asset listing for a missing category", async () => {

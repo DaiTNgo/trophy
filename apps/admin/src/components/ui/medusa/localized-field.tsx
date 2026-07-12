@@ -6,7 +6,6 @@ const LOCALE_OPTIONS: Array<{ value: AdminLocale; label: string }> = [
   { value: "vi", label: "VI" },
   { value: "en", label: "EN" },
 ];
-const ALL_LOCALES = LOCALE_OPTIONS.map((locale) => locale.value);
 
 const localeNames: Record<AdminLocale, string> = {
   vi: "Vietnamese",

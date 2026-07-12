@@ -326,7 +326,7 @@ export default function ProductDetail() {
 
       return {
         assetId: payload.asset.id,
-        previewUrl: `${BACKEND_URL}${payload.asset.contentUrl}`,
+        previewUrl: payload.asset.contentUrl,
         sourceWidthPx: payload.asset.widthPx,
         sourceHeightPx: payload.asset.heightPx,
         cropScale: 1,

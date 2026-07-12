@@ -682,4 +682,45 @@ describe("admin products operation-specific routes", () => {
     const body = (await res.json()) as any;
     expect(body.error).toContain("Customization requires at least one valid variant image before publish");
   });
+
+  it("returns absolute URLs for product media and variant media", async () => {
+    queueReadProduct(
+      db,
+      { id: 1, status: "draft" },
+      {
+        variantRows: [
+          {
+            id: 20,
+            productId: 1,
+            title: "Default",
+            sku: "SKU-1",
+            priceAmount: 5000,
+            inventoryQuantity: 8,
+            allowBackorder: false,
+            isDefault: true,
+            position: 0,
+            createdAt: "2026-07-04T00:00:00.000Z",
+            updatedAt: "2026-07-04T00:00:00.000Z",
+          },
+        ],
+        variantMediaRows: [
+          {
+            variantId: 20,
+            assetId: "asset-1",
+            position: 0,
+            fileName: "asset-1.png",
+            mimeType: "image/png",
+            widthPx: 1200,
+            heightPx: 900,
+            byteSize: 1024,
+          },
+        ],
+      },
+    );
+
+    const res = await productsRoute.request("http://localhost:8787/1");
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as any;
+    expect(body.item.variants[0].media[0].contentUrl).toBe("http://localhost:8787/api/assets/products/asset-1/content");
+  });
 });

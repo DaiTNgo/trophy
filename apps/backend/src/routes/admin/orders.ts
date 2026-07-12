@@ -121,6 +121,10 @@ export const adminOrdersRoute = new Hono<AppEnv>()
                 ? {
                     values: buildCustomizationValueSummaries(customizationSnapshot),
                     hasRenderedDesign: true,
+                    preview: {
+                      values: customizationSnapshot.values,
+                      templateSnapshot: customizationSnapshot.templateSnapshot,
+                    },
                   }
                 : null,
             };

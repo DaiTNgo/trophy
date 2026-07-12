@@ -5,7 +5,8 @@ import {
 } from '@trophy/customization'
 import { and, asc, desc, eq, inArray, like, or, sql } from 'drizzle-orm'
 import { hydrateTranslations, upsertTranslations } from '../../lib/catalog-translation'
-import { Hono } from 'hono'
+import { Hono, type Context } from 'hono'
+import { toAbsoluteAssetUrl } from '../../lib/url'
 import * as v from 'valibot'
 import { getDb } from '../../db/client'
 import {
@@ -467,7 +468,7 @@ const getRelatedCount = async (
   return (await db.select({ id: table.id }).from(table).where(inArray(table.id, ids))).length
 }
 
-const readProduct = async (db: ReturnType<typeof getDb>, productId: number) => {
+const readProduct = async (c: Context<AppEnv>, db: ReturnType<typeof getDb>, productId: number) => {
   const product = await db.select().from(products).where(eq(products.id, productId)).get()
 
   if (!product) {
@@ -729,7 +730,7 @@ const readProduct = async (db: ReturnType<typeof getDb>, productId: number) => {
     collection,
     categories: categoryRows,
     attributes: attributeRows,
-    media: mediaRows,
+    media: mediaRows.map(m => ({ ...m, url: toAbsoluteAssetUrl(c, m.url) as string })),
     options: optionRows.map((option) => ({
       ...option,
       values: optionValuesByOptionId.get(option.id) ?? []
@@ -749,7 +750,7 @@ const readProduct = async (db: ReturnType<typeof getDb>, productId: number) => {
           heightPx: media.heightPx,
           byteSize: media.byteSize,
           position: media.position,
-          contentUrl: `/api/assets/products/${media.assetId}/content`
+          contentUrl: toAbsoluteAssetUrl(c, `/api/assets/products/${media.assetId}/content`) as string
         })),
         optionValueIds,
         optionValues: optionValueIds
@@ -2043,7 +2044,7 @@ export const productsRoute = new Hono<AppEnv>()
       optionValueId: insertedDefaultValue.id
     })
 
-    const product = await readProduct(db, insertedProduct.id)
+    const product = await readProduct(c, db, insertedProduct.id)
     return c.json({ item: product }, 201)
   })
   .post('/full-create', async (c) => {
@@ -2196,7 +2197,7 @@ export const productsRoute = new Hono<AppEnv>()
       return jsonError(c, replaceVariantsError.status, replaceVariantsError.error)
     }
 
-    const persistedProduct = await readProduct(db, insertedProduct.id)
+    const persistedProduct = await readProduct(c, db, insertedProduct.id)
     if (!persistedProduct) {
       return jsonError(c, 500, 'Created product could not be loaded')
     }
@@ -2221,7 +2222,7 @@ export const productsRoute = new Hono<AppEnv>()
     }
 
     if (parsed.output.mode === 'publish') {
-      const publishCandidate = await readProduct(db, insertedProduct.id)
+      const publishCandidate = await readProduct(c, db, insertedProduct.id)
       if (!publishCandidate) {
         return jsonError(c, 500, 'Created product could not be loaded for publish')
       }
@@ -2240,7 +2241,7 @@ export const productsRoute = new Hono<AppEnv>()
         .where(eq(products.id, insertedProduct.id))
     }
 
-    const product = await readProduct(db, insertedProduct.id)
+    const product = await readProduct(c, db, insertedProduct.id)
     return c.json({ item: product }, 201)
   })
   .get('/:id', async (c) => {
@@ -2251,7 +2252,7 @@ export const productsRoute = new Hono<AppEnv>()
     }
 
     const db = getDb(c.env)
-    const product = await readProduct(db, parsed.output.id)
+    const product = await readProduct(c, db, parsed.output.id)
 
     if (!product) {
       return jsonError(c, 404, 'Product not found')
@@ -2323,7 +2324,7 @@ export const productsRoute = new Hono<AppEnv>()
       await upsertTranslations(db, 'product', String(current.id), 'description', nullableLocalizedPatch(parsed.output.description))
     }
 
-    const product = await readProduct(db, current.id)
+    const product = await readProduct(c, db, current.id)
     return c.json({ item: product }, 200)
   })
   .patch('/:id/organize', async (c) => {
@@ -2381,7 +2382,7 @@ export const productsRoute = new Hono<AppEnv>()
       }
     }
 
-    const product = await readProduct(db, current.id)
+    const product = await readProduct(c, db, current.id)
     return c.json({ item: product }, 200)
   })
   .put('/:id/attributes', async (c) => {
@@ -2414,7 +2415,7 @@ export const productsRoute = new Hono<AppEnv>()
       .set({ updatedAt: nowIso() })
       .where(eq(products.id, params.output.id))
 
-    const product = await readProduct(db, params.output.id)
+    const product = await readProduct(c, db, params.output.id)
     return c.json({ item: product }, 200)
   })
   .put('/:id/media', async (c) => {
@@ -2447,7 +2448,7 @@ export const productsRoute = new Hono<AppEnv>()
       .set({ updatedAt: nowIso() })
       .where(eq(products.id, params.output.id))
 
-    const product = await readProduct(db, params.output.id)
+    const product = await readProduct(c, db, params.output.id)
     return c.json({ item: product }, 200)
   })
   .post('/:id/options', async (c) => {
@@ -2526,7 +2527,7 @@ export const productsRoute = new Hono<AppEnv>()
       })
       .where(eq(products.id, product.id))
 
-    const nextProduct = await readProduct(db, product.id)
+    const nextProduct = await readProduct(c, db, product.id)
     return c.json({ item: nextProduct }, 201)
   })
   .patch('/:id/options/:optionId', async (c) => {
@@ -2573,7 +2574,7 @@ export const productsRoute = new Hono<AppEnv>()
       })
       .where(eq(products.id, params.output.id))
 
-    const product = await readProduct(db, params.output.id)
+    const product = await readProduct(c, db, params.output.id)
     return c.json({ item: product }, 200)
   })
   .delete('/:id/options/:optionId', async (c) => {
@@ -2664,7 +2665,7 @@ export const productsRoute = new Hono<AppEnv>()
         .where(eq(productVariants.id, currentVariants[0].id))
     }
 
-    const nextProduct = await readProduct(db, product.id)
+    const nextProduct = await readProduct(c, db, product.id)
     return c.json({ item: nextProduct }, 200)
   })
   .post('/:id/options/:optionId/values', async (c) => {
@@ -2716,7 +2717,7 @@ export const productsRoute = new Hono<AppEnv>()
       })
       .where(eq(products.id, params.output.id))
 
-    const product = await readProduct(db, params.output.id)
+    const product = await readProduct(c, db, params.output.id)
     return c.json({ item: product }, 201)
   })
   .patch('/:id/option-values/:valueId', async (c) => {
@@ -2763,7 +2764,7 @@ export const productsRoute = new Hono<AppEnv>()
       })
       .where(eq(products.id, params.output.id))
 
-    const product = await readProduct(db, params.output.id)
+    const product = await readProduct(c, db, params.output.id)
     return c.json({ item: product }, 200)
   })
   .delete('/:id/option-values/:valueId', async (c) => {
@@ -2793,7 +2794,7 @@ export const productsRoute = new Hono<AppEnv>()
     await db.delete(productOptionValues).where(eq(productOptionValues.id, optionValue.id))
     await updateProductTimestamp(db, params.output.id)
 
-    const product = await readProduct(db, params.output.id)
+    const product = await readProduct(c, db, params.output.id)
     return c.json({ item: product }, 200)
   })
   // Legacy full-replace option editor. Product detail must use operation-specific option routes.
@@ -2824,7 +2825,7 @@ export const productsRoute = new Hono<AppEnv>()
       return jsonError(c, replaceError.status, replaceError.error)
     }
 
-    const product = await readProduct(db, params.output.id)
+    const product = await readProduct(c, db, params.output.id)
     return c.json({ item: product }, 200)
   })
   .patch('/:id/variants/prices', async (c) => {
@@ -2841,7 +2842,7 @@ export const productsRoute = new Hono<AppEnv>()
     }
 
     const db = getDb(c.env)
-    const product = await readProduct(db, params.output.id)
+    const product = await readProduct(c, db, params.output.id)
 
     if (!product) {
       return jsonError(c, 404, 'Product not found')
@@ -2881,7 +2882,7 @@ export const productsRoute = new Hono<AppEnv>()
 
     await updateProductTimestamp(db, product.id)
 
-    const nextProduct = await readProduct(db, product.id)
+    const nextProduct = await readProduct(c, db, product.id)
     return c.json({ item: nextProduct }, 200)
   })
   .patch('/:id/variants/stock', async (c) => {
@@ -2931,7 +2932,7 @@ export const productsRoute = new Hono<AppEnv>()
 
     await updateProductTimestamp(db, product.id)
 
-    const nextProduct = await readProduct(db, product.id)
+    const nextProduct = await readProduct(c, db, product.id)
     return c.json({ item: nextProduct }, 200)
   })
   .post('/:id/variants', async (c) => {
@@ -2948,7 +2949,7 @@ export const productsRoute = new Hono<AppEnv>()
     }
 
     const db = getDb(c.env)
-    const product = await readProduct(db, params.output.id)
+    const product = await readProduct(c, db, params.output.id)
 
     if (!product) {
       return jsonError(c, 404, 'Product not found')
@@ -3035,7 +3036,7 @@ export const productsRoute = new Hono<AppEnv>()
 
     await updateProductTimestamp(db, product.id)
 
-    const nextProduct = await readProduct(db, product.id)
+    const nextProduct = await readProduct(c, db, product.id)
     return c.json({ item: nextProduct }, 201)
   })
   .patch('/:id/variants/:variantId', async (c) => {
@@ -3122,7 +3123,7 @@ export const productsRoute = new Hono<AppEnv>()
 
     await updateProductTimestamp(db, product.id)
 
-    const nextProduct = await readProduct(db, product.id)
+    const nextProduct = await readProduct(c, db, product.id)
     return c.json({ item: nextProduct }, 200)
   })
   .delete('/:id/variants/:variantId', async (c) => {
@@ -3133,7 +3134,7 @@ export const productsRoute = new Hono<AppEnv>()
     }
 
     const db = getDb(c.env)
-    const product = await readProduct(db, params.output.id)
+    const product = await readProduct(c, db, params.output.id)
 
     if (!product) {
       return jsonError(c, 404, 'Product not found')
@@ -3187,7 +3188,7 @@ export const productsRoute = new Hono<AppEnv>()
 
     await updateProductTimestamp(db, product.id)
 
-    const nextProduct = await readProduct(db, product.id)
+    const nextProduct = await readProduct(c, db, product.id)
     return c.json({ item: nextProduct }, 200)
   })
   .put('/:id/variants/:variantId/media', async (c) => {
@@ -3204,7 +3205,7 @@ export const productsRoute = new Hono<AppEnv>()
     }
 
     const db = getDb(c.env)
-    const product = await readProduct(db, params.output.id)
+    const product = await readProduct(c, db, params.output.id)
 
     if (!product) {
       return jsonError(c, 404, 'Product not found')
@@ -3238,7 +3239,7 @@ export const productsRoute = new Hono<AppEnv>()
                     heightPx: asset.heightPx,
                     byteSize: asset.byteSize,
                     position: index,
-                    contentUrl: `/api/assets/products/${asset.id}/content`
+                    contentUrl: toAbsoluteAssetUrl(c, `/api/assets/products/${asset.id}/content`) as string
                   }
                 })
               }
@@ -3270,7 +3271,7 @@ export const productsRoute = new Hono<AppEnv>()
 
     await updateProductTimestamp(db, product.id)
 
-    const nextProduct = await readProduct(db, product.id)
+    const nextProduct = await readProduct(c, db, product.id)
     return c.json({ item: nextProduct }, 200)
   })
   // Legacy full-replace variant editor. Product detail must use operation-specific variant routes.
@@ -3288,7 +3289,7 @@ export const productsRoute = new Hono<AppEnv>()
     }
 
     const db = getDb(c.env)
-    const existingProduct = await readProduct(db, params.output.id)
+    const existingProduct = await readProduct(c, db, params.output.id)
 
     if (!existingProduct) {
       return jsonError(c, 404, 'Product not found')
@@ -3344,7 +3345,7 @@ export const productsRoute = new Hono<AppEnv>()
       .set({ updatedAt: nowIso() })
       .where(eq(products.id, params.output.id))
 
-    const product = await readProduct(db, params.output.id)
+    const product = await readProduct(c, db, params.output.id)
     return c.json({ item: product }, 200)
   })
   .put('/:id/customization', async (c) => {
@@ -3361,7 +3362,7 @@ export const productsRoute = new Hono<AppEnv>()
     }
 
     const db = getDb(c.env)
-    const product = await readProduct(db, params.output.id)
+    const product = await readProduct(c, db, params.output.id)
 
     if (!product) {
       return jsonError(c, 404, 'Product not found')
@@ -3430,7 +3431,7 @@ export const productsRoute = new Hono<AppEnv>()
       .set({ updatedAt: nowIso() })
       .where(eq(products.id, product.id))
 
-    const updatedProduct = await readProduct(db, product.id)
+    const updatedProduct = await readProduct(c, db, product.id)
     return c.json({ item: updatedProduct }, 200)
   })
   .post('/:id/publish', async (c) => {
@@ -3441,7 +3442,7 @@ export const productsRoute = new Hono<AppEnv>()
     }
 
     const db = getDb(c.env)
-    const product = await readProduct(db, params.output.id)
+    const product = await readProduct(c, db, params.output.id)
 
     if (!product) {
       return jsonError(c, 404, 'Product not found')
@@ -3461,7 +3462,7 @@ export const productsRoute = new Hono<AppEnv>()
       })
       .where(eq(products.id, product.id))
 
-    const publishedProduct = await readProduct(db, product.id)
+    const publishedProduct = await readProduct(c, db, product.id)
     return c.json({ item: publishedProduct }, 200)
   })
   .post('/:id/archive', async (c) => {
@@ -3490,6 +3491,6 @@ export const productsRoute = new Hono<AppEnv>()
       })
       .where(eq(products.id, current.id))
 
-    const archivedProduct = await readProduct(db, current.id)
+    const archivedProduct = await readProduct(c, db, current.id)
     return c.json({ item: archivedProduct }, 200)
   })

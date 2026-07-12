@@ -156,7 +156,7 @@ describe("storefront orders route", () => {
             handle: "champion-cup",
             variantTitle: "Gold",
             sku: "SKU-1",
-            thumbnail: "/api/assets/products/asset-1/content",
+            thumbnail: "http://localhost/api/assets/products/asset-1/content",
             priceAmount: 5000,
             customizable: true,
             requiresCustomization: true,

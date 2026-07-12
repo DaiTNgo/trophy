@@ -1,5 +1,6 @@
 import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm'
-import { Hono } from 'hono'
+import { Hono, type Context } from 'hono'
+import { toAbsoluteAssetUrl } from '../../lib/url'
 import * as v from 'valibot'
 import {
   buildRuntimeImageClipartLayer,
@@ -357,6 +358,7 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
 
     const listingItems = resolvedItems.map((item) =>
       buildListingItem(
+        c,
         item,
         categoriesByProductId.get(item.id) ?? [],
         variantsByProductId.get(item.id) ?? [],
@@ -641,7 +643,7 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
             heightPx: m.heightPx,
             byteSize: m.byteSize,
             position: m.position,
-            contentUrl: `/api/assets/products/${m.assetId}/content`
+            contentUrl: toAbsoluteAssetUrl(c, `/api/assets/products/${m.assetId}/content`) as string
           })),
           optionValues: ovIds
             .map((ovId) => {
@@ -672,6 +674,7 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
 export type StorefrontListingItem = ReturnType<typeof buildListingItem>
 
 export function buildListingItem(
+  c: Context<AppEnv>,
   item: {
     id: number
     title: string
@@ -696,14 +699,14 @@ export function buildListingItem(
   if (defaultVariant) {
     const defaultMedia = variantMediaByVariantId.get(defaultVariant.id) ?? []
     if (defaultMedia.length > 0) {
-      thumbnail = `/api/assets/products/${defaultMedia[0].assetId}/content`
+      thumbnail = toAbsoluteAssetUrl(c, `/api/assets/products/${defaultMedia[0].assetId}/content`) as string
     }
   }
   if (!thumbnail) {
     for (const variant of variants) {
       const media = variantMediaByVariantId.get(variant.id) ?? []
       if (media.length > 0) {
-        thumbnail = `/api/assets/products/${media[0].assetId}/content`
+        thumbnail = toAbsoluteAssetUrl(c, `/api/assets/products/${media[0].assetId}/content`) as string
         break
       }
     }

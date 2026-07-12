@@ -21,6 +21,9 @@ import {
 import type { AppEnv } from "../../lib/env";
 import { jsonError, parseJson, parseParams } from "../../lib/validation";
 
+import { toAbsoluteAssetUrl } from "../../lib/url";
+import { type Context } from "hono";
+
 const serializeCategory = (category: typeof customizationClipartCategories.$inferSelect) => ({
   id: category.id,
   name: category.name,
@@ -30,13 +33,13 @@ const serializeCategory = (category: typeof customizationClipartCategories.$infe
   updatedAt: category.updatedAt,
 });
 
-const serializeAsset = (asset: typeof customizationClipartAssets.$inferSelect) => ({
+const serializeAsset = (c: Context<AppEnv>, asset: typeof customizationClipartAssets.$inferSelect) => ({
   id: asset.id,
   categoryId: asset.categoryId,
   sourceAssetId: asset.sourceAssetId,
   name: asset.name,
   fileName: asset.fileName,
-  previewUrl: asset.previewUrl,
+  previewUrl: toAbsoluteAssetUrl(c, asset.previewUrl) as string,
   mimeType: asset.mimeType,
   sourceWidthPx: asset.sourceWidthPx,
   sourceHeightPx: asset.sourceHeightPx,
@@ -180,7 +183,7 @@ export const adminClipartRoute = new Hono<AppEnv>()
       )
       .orderBy(asc(customizationClipartAssets.createdAt));
 
-    return c.json({ assets: assets.map(serializeAsset) }, 200);
+    return c.json({ assets: assets.map((a) => serializeAsset(c, a)) }, 200);
   })
   .post("/categories/:id/assets/batch", async (c) => {
     const params = parseParams(c, clipartIdParamsSchema);
@@ -291,7 +294,7 @@ export const adminClipartRoute = new Hono<AppEnv>()
       return jsonError(c, 500, "Failed to upload clipart batch");
     }
 
-    return c.json({ assets: insertedAssets.map(serializeAsset) }, 201);
+    return c.json({ assets: insertedAssets.map((a) => serializeAsset(c, a)) }, 201);
   })
   .patch("/assets/:id", async (c) => {
     const params = parseParams(c, clipartIdParamsSchema);
@@ -316,7 +319,7 @@ export const adminClipartRoute = new Hono<AppEnv>()
       .returning();
 
     if (!asset) return jsonError(c, 404, "Clipart asset not found");
-    return c.json({ asset: serializeAsset(asset) }, 200);
+    return c.json({ asset: serializeAsset(c, asset) }, 200);
   })
   .delete("/assets/:id", async (c) => {
     const params = parseParams(c, clipartIdParamsSchema);
@@ -330,5 +333,5 @@ export const adminClipartRoute = new Hono<AppEnv>()
       .returning();
 
     if (!asset) return jsonError(c, 404, "Clipart asset not found");
-    return c.json({ success: true, asset: serializeAsset(asset) }, 200);
+    return c.json({ success: true, asset: serializeAsset(c, asset) }, 200);
   });

@@ -159,6 +159,7 @@ export function ProductCustomizationPreview({
   values,
   dynamicFonts = [],
   selectedVariantId,
+  readOnly = false,
   resolveAssetUrl,
   resolveFontUrl,
   resolveStaticFontUrl,
@@ -168,6 +169,7 @@ export function ProductCustomizationPreview({
   values: CustomizationFormValues;
   dynamicFonts?: DynamicFontFamily[];
   selectedVariantId?: number | null;
+  readOnly?: boolean;
   resolveAssetUrl?: ResolveCustomizationAssetUrl;
   resolveFontUrl?: ResolveCustomizationFontUrl;
   resolveStaticFontUrl?: ResolveCustomizationStaticFontUrl;
@@ -181,7 +183,7 @@ export function ProductCustomizationPreview({
   const background = template.background;
   const width = background?.widthPx ?? 900;
   const height = background?.heightPx ?? 900;
-  const [mode, setMode] = useState<PreviewMode>("edit");
+  const [mode, setMode] = useState<PreviewMode>(readOnly ? "view" : "edit");
   const [zoom, setZoom] = useState(0.72);
   const [zoomInput, setZoomInput] = useState("72");
   const [pan, setPan] = useState<PanState>({ x: 0, y: 0 });
@@ -233,6 +235,13 @@ export function ProductCustomizationPreview({
     fitToView();
   }, [fitToView]);
 
+  useEffect(() => {
+    if (readOnly && mode !== "view") {
+      setMode("view");
+      setSelectedImageFieldId("");
+    }
+  }, [mode, readOnly]);
+
   function commitZoomInput() {
     const parsed = Number.parseFloat(zoomInput.replace("%", ""));
     if (!Number.isFinite(parsed)) {
@@ -267,23 +276,25 @@ export function ProductCustomizationPreview({
       />
       <ShapeClipPaths layers={design.layers} />
       <div className="flex h-14 shrink-0 items-center gap-3 border-b border-outline-variant bg-white/95 px-3 shadow-sm backdrop-blur sm:px-4">
-        <div className="inline-flex rounded-md border border-outline bg-surface-container-low p-0.5">
-          {(["edit", "view"] as const).map((entry) => (
-            <button
-              key={entry}
-              type="button"
-              onClick={() => setMode(entry)}
-              className={`inline-flex h-8 items-center gap-1.5 rounded px-3 text-xs font-bold uppercase tracking-[0.08em] transition ${
-                mode === entry
-                  ? "bg-white text-on-surface shadow-sm"
-                  : "text-on-surface-variant hover:text-on-surface"
-              }`}
-            >
-              <MousePointer2 className="size-3.5" />
-              {entry}
-            </button>
-          ))}
-        </div>
+        {!readOnly ? (
+          <div className="inline-flex rounded-md border border-outline bg-surface-container-low p-0.5">
+            {(["edit", "view"] as const).map((entry) => (
+              <button
+                key={entry}
+                type="button"
+                onClick={() => setMode(entry)}
+                className={`inline-flex h-8 items-center gap-1.5 rounded px-3 text-xs font-bold uppercase tracking-[0.08em] transition ${
+                  mode === entry
+                    ? "bg-white text-on-surface shadow-sm"
+                    : "text-on-surface-variant hover:text-on-surface"
+                }`}
+              >
+                <MousePointer2 className="size-3.5" />
+                {entry}
+              </button>
+            ))}
+          </div>
+        ) : null}
         <div className="flex items-center gap-1.5">
           <CanvasAction label="Zoom out" onClick={() => setCommittedZoom(zoom - PREVIEW_ZOOM_STEP)}>
             <Minus className="size-3.5" />
@@ -313,11 +324,11 @@ export function ProductCustomizationPreview({
           </CanvasAction>
         </div>
         <span className="ml-auto hidden text-xs text-on-surface-variant md:inline">
-          {mode === "edit" ? "Click an uploaded image to crop" : "Drag canvas to pan"}
+          {readOnly ? "Read-only order preview" : mode === "edit" ? "Click an uploaded image to crop" : "Drag canvas to pan"}
         </span>
       </div>
       <div className="sticky top-0 z-20 flex h-[76px] shrink-0 items-center border-b border-outline-variant bg-surface-container-low/95 px-3 shadow-sm backdrop-blur sm:px-4">
-        {mode === "edit" && selectedImageField ? (
+        {!readOnly && mode === "edit" && selectedImageField ? (
           <div className="flex min-w-0 items-center gap-3">
             <div className="min-w-0 rounded-md border border-outline-variant bg-white px-3 py-2">
               <p className="max-w-48 truncate text-[11px] font-bold uppercase tracking-[0.16em] text-on-surface-variant">
@@ -338,7 +349,7 @@ export function ProductCustomizationPreview({
           </div>
         ) : (
           <div className="flex h-full items-center text-sm font-medium text-on-surface-variant">
-            {mode === "edit" ? "Select an uploaded image to show crop actions." : "Canvas actions are available in Edit mode."}
+            {readOnly ? "This preview uses the customer's submitted values and cannot be edited." : mode === "edit" ? "Select an uploaded image to show crop actions." : "Canvas actions are available in Edit mode."}
           </div>
         )}
       </div>
@@ -460,7 +471,7 @@ export function ProductCustomizationPreview({
                   ? (nextValue) => updateImageValue(field.id, nextValue)
                   : undefined}
                 selected={Boolean(field && selectedImageField?.field.id === field.id)}
-                onSelect={field && uploadValue ? () => setSelectedImageFieldId(field.id) : undefined}
+                onSelect={!readOnly && field && uploadValue ? () => setSelectedImageFieldId(field.id) : undefined}
               />
             );
           })}

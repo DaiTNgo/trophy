@@ -37,7 +37,7 @@ describe("GET /api/storefront/collections", () => {
   it("returns all collections ordered by position", async () => {
     const rows = [
       { id: 2, title: "Bộ Sưu Tập 2", handle: "bo-suu-tap-2", description: null, imageUrl: null },
-      { id: 1, title: "Bộ Sưu Tập 1", handle: "bo-suu-tap-1", description: "First", imageUrl: "/images/col1.png" },
+      { id: 1, title: "Bộ Sưu Tập 1", handle: "bo-suu-tap-1", description: "First", imageUrl: "http://localhost/images/col1.png" },
     ];
     mockDb.orderBy.mockResolvedValue(rows);
     vi.mocked(hydrateAndResolveTranslations).mockResolvedValue(rows);

@@ -2,6 +2,7 @@ import type {
   CustomizationFieldValue,
   CustomizationFormField,
   CustomizationFormValues,
+  CustomizationLayer,
 } from "@trophy/customization";
 
 export type OrderAddressSnapshot = {
@@ -44,7 +45,7 @@ export type StoredCustomizationSnapshot = {
   values: CustomizationFormValues;
   design: object;
   templateSnapshot: {
-    layers: unknown[];
+    layers: CustomizationLayer[];
     formFields: CustomizationFormField[];
     canvasWidthPx: number | null;
     canvasHeightPx: number | null;

@@ -1,17 +1,15 @@
+import {
+    Award,
+    ChevronDown,
+    Package,
+    Phone,
+    Star,
+    StarHalf,
+    Truck,
+    Zap
+} from "lucide-react";
 import type { ReactNode } from "react";
 import { Link } from "react-router";
-import {
-  Award,
-  ChevronDown,
-  Minus,
-  Package,
-  Phone,
-  Plus,
-  Star,
-  StarHalf,
-  Truck,
-  Zap,
-} from "lucide-react";
 
 export function ProductInfo({
   title,
