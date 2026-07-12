@@ -105,6 +105,7 @@ export type ProductVariant = {
   price: number;
   inventory: number;
   options: VariantOptionValue[];
+  attributes: ProductAttribute[];
   allowBackorder: boolean;
   media: ProductVariantMedia[];
   shouldCreate: boolean;

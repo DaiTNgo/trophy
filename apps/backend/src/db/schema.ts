@@ -262,6 +262,15 @@ export const productVariantOptionValues = sqliteTable(
   (table) => [primaryKey({ columns: [table.variantId, table.optionValueId] })],
 );
 
+export const productVariantAttributes = sqliteTable("product_variant_attributes", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  variantId: integer("variant_id").notNull(),
+  name: text("name").notNull(),
+  value: text("value").notNull(),
+  unit: text("unit"),
+  position: integer("position").notNull(),
+});
+
 export const productAttributes = sqliteTable("product_attributes", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   productId: integer("product_id").notNull(),

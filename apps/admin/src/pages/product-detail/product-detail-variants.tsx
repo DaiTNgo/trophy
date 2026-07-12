@@ -41,7 +41,7 @@ import {
 } from "../../lib/products-client";
 import { uploadProductVariantMedia } from "../../lib/product-assets-client";
 import { convertPdfToImageFile } from "../../lib/pdf-preview";
-import type { AdminLocale, CatalogProduct, LocalizedTextValue } from "../../types";
+import type { AdminLocale, CatalogProduct, LocalizedTextValue, ProductAttribute } from "../../types";
 
 type ProductDetailVariantsProps = {
   product: CatalogProduct;
@@ -56,6 +56,7 @@ type VariantFormState = {
   inventoryQuantity: string;
   allowBackorder: boolean;
   optionSelections: Record<string, string>;
+  attributes: ProductAttribute[];
   media: MediaDraft[];
 };
 
@@ -65,6 +66,7 @@ type MediaDraft = {
   mimeType: string;
   fileName: string;
 };
+
 
 function buildVariantForm(product: CatalogProduct, variant?: CatalogProduct["variants"][number]): VariantFormState {
   const optionSelections = Object.fromEntries(
@@ -76,6 +78,14 @@ function buildVariantForm(product: CatalogProduct, variant?: CatalogProduct["var
     }),
   );
 
+  const attributes = product.attributes.map((prodAttr) => {
+    const variantAttr = variant?.attributes?.find((va) => va.key.vi === prodAttr.key.vi);
+    return {
+      key: { ...prodAttr.key },
+      value: variantAttr ? { ...variantAttr.value } : { ...prodAttr.value },
+    };
+  });
+
   return {
     id: variant ? Number(variant.id) : null,
     titleTranslations: variant?.titleTranslations ?? createLocalizedText(variant?.title ?? ""),
@@ -84,6 +94,7 @@ function buildVariantForm(product: CatalogProduct, variant?: CatalogProduct["var
     inventoryQuantity: variant ? String(variant.inventory) : "0",
     allowBackorder: variant?.allowBackorder ?? false,
     optionSelections,
+    attributes,
     media: variant ? buildMediaDraft(variant) : [],
   };
 }
@@ -106,6 +117,7 @@ export function ProductDetailVariants({ product, mutate }: ProductDetailVariants
   const [stockRows, setStockRows] = useState<Array<{ id: number; title: string; inventoryQuantity: string }>>([]);
   const [variantForm, setVariantForm] = useState<VariantFormState>(() => buildVariantForm(product));
   const [variantTitleLocale, setVariantTitleLocale] = useState<AdminLocale>("vi");
+  const [variantAttributeLocale, setVariantAttributeLocale] = useState<AdminLocale>("vi");
 
   const [priceError, setPriceError] = useState<string | null>(null);
   const [stockError, setStockError] = useState<string | null>(null);
@@ -145,9 +157,25 @@ export function ProductDetailVariants({ product, mutate }: ProductDetailVariants
   function openVariantEditor(variant?: CatalogProduct["variants"][number]) {
     setVariantForm(buildVariantForm(product, variant));
     setVariantTitleLocale("vi");
+    setVariantAttributeLocale("vi");
     setVariantError(null);
     setVariantOpen(true);
   }
+
+  function updateVariantAttribute(
+    index: number,
+    field: "key" | "value",
+    value: LocalizedTextValue,
+  ) {
+    setVariantForm((current) => ({
+      ...current,
+      attributes: current.attributes.map((attribute, attributeIndex) =>
+        attributeIndex === index ? { ...attribute, [field]: value } : attribute,
+      ),
+    }));
+  }
+
+
 
   async function savePrices() {
     setIsSavingPrices(true);
@@ -211,6 +239,30 @@ export function ProductDetailVariants({ product, mutate }: ProductDetailVariants
         }
         return Number(selected);
       });
+      const normalizedAttributes = variantForm.attributes
+        .filter((attribute, index) => {
+          const productAttribute = product.attributes[index];
+          if (!productAttribute) return true;
+          return attribute.value.vi.trim() !== productAttribute.value.vi.trim() ||
+                 attribute.value.en.trim() !== productAttribute.value.en.trim();
+        })
+        .map((attribute) => ({
+          name: {
+            vi: attribute.key.vi.trim(),
+            en: attribute.key.en.trim(),
+          },
+          value: {
+            vi: attribute.value.vi.trim(),
+            en: attribute.value.en.trim(),
+          },
+        }));
+
+      if (
+        normalizedAttributes.some((attribute) => !attribute.name.vi || !attribute.value.vi)
+      ) {
+        throw new Error("Each variant attribute override needs a Vietnamese value.");
+      }
+
       const priceAmount = variantForm.priceAmount.trim() === "" ? null : Number(variantForm.priceAmount);
       const inventoryQuantity = Number(variantForm.inventoryQuantity || 0);
       const media = variantForm.media.map((asset) => ({ assetId: asset.assetId }));
@@ -232,6 +284,7 @@ export function ProductDetailVariants({ product, mutate }: ProductDetailVariants
           sku: variantForm.sku.trim() || null,
           allowBackorder: variantForm.allowBackorder,
           optionValueIds,
+          attributes: normalizedAttributes,
         });
         await updateProductVariantPrices(product.id, [{ id: variantForm.id, priceAmount }]);
         await updateProductVariantStock(product.id, [{ id: variantForm.id, inventoryQuantity }]);
@@ -247,6 +300,7 @@ export function ProductDetailVariants({ product, mutate }: ProductDetailVariants
           inventoryQuantity,
           allowBackorder: variantForm.allowBackorder,
           optionValueIds,
+          attributes: normalizedAttributes,
           media,
         });
       }
@@ -665,6 +719,46 @@ export function ProductDetailVariants({ product, mutate }: ProductDetailVariants
                     placeholder="0"
                   />
                 </div>
+              </section>
+
+              <section className="space-y-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <Heading level="h3" className="text-base font-medium">
+                      Attributes
+                    </Heading>
+                    <Text size="small" className="text-ui-fg-subtle">
+                      Product detail attributes stay shared. Change values here only when this variant needs different values.
+                    </Text>
+                  </div>
+                </div>
+
+                {product.attributes.length === 0 ? (
+                  <div className="rounded-lg border border-dashed border-ui-border-base bg-ui-bg-subtle px-4 py-4">
+                    <Text size="small" className="text-ui-fg-subtle">
+                      This product has no attributes to override.
+                    </Text>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {variantForm.attributes.map((attribute, index) => (
+                      <div key={`variant-attribute-${index}`} className="grid gap-3 rounded-lg border border-ui-border-base p-4 md:grid-cols-[1fr_1fr]">
+                        <div className="flex items-center">
+                          <Text size="small" weight="plus">{attribute.key.vi}</Text>
+                        </div>
+                        <LocalizedTextField
+                          id={`variant-attribute-value-${index}`}
+                          value={attribute.value}
+                          locale={variantAttributeLocale}
+                          onLocaleChange={setVariantAttributeLocale}
+                          onChange={(value) => updateVariantAttribute(index, "value", value)}
+                          placeholder={{ vi: "18k gold", en: "18k gold" }}
+                          requiredLocales={["vi"]}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
               </section>
 
               <section className="space-y-4">

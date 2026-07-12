@@ -32,6 +32,7 @@ type ApiProduct = {
     priceAmount: number | null;
     inventoryQuantity: number;
     allowBackorder: boolean;
+    attributes?: Array<{ name: LocalizedInput; value: LocalizedInput; unit?: string | null }>;
     media: Array<{
       id: string;
       fileName: string;
@@ -91,6 +92,7 @@ type CreateFullProductPayload = {
     allowBackorder: boolean;
     isDefault?: boolean;
     optionValues: Array<{ optionTitle: string; value: string }>;
+    attributes?: Array<{ name: LocalizedInput; value: LocalizedInput; unit?: string | null }>;
     media: Array<{ assetId: string }>;
   }>;
   customization?: {
@@ -387,6 +389,7 @@ export async function createProductVariant(
     inventoryQuantity: number;
     allowBackorder: boolean;
     optionValueIds: number[];
+    attributes?: Array<{ name: LocalizedInput; value: LocalizedInput; unit?: string | null }>;
     media?: Array<{ assetId: string }>;
   },
 ) {
@@ -412,6 +415,7 @@ export async function updateProductVariantDetails(
     sku: string | null;
     allowBackorder: boolean;
     optionValueIds?: number[];
+    attributes?: Array<{ name: LocalizedInput; value: LocalizedInput; unit?: string | null }>;
   },
 ) {
   const response = await backendFetch(`/api/admin/products/${id}/variants/${variantId}`, {
@@ -570,6 +574,10 @@ export function mapApiProductToCatalogProduct(product: Partial<ApiProduct> & Pic
       });
       return { option: optionTitle, value: optionValue, optionValueId: id };
     }),
+    attributes: (variant.attributes || []).map((attribute) => ({
+      key: toLocalized(attribute.name),
+      value: toLocalized(attribute.value),
+    })),
     allowBackorder: variant.allowBackorder,
     media: (variant.media || []).map((asset) => ({
       id: asset.id,

@@ -19,6 +19,7 @@ import {
   productOptionValues,
   productOptions,
   productVariantMedia,
+  productVariantAttributes,
   productVariantOptionValues,
   productVariants,
   products
@@ -191,6 +192,14 @@ const attributesSchema = v.object({
   )
 })
 
+const variantAttributesSchema = v.array(
+  v.object({
+    name: localizedString(1, 120),
+    value: localizedString(1, 255),
+    unit: nullableText(50)
+  })
+)
+
 const mediaSchema = v.object({
   items: v.array(
     v.object({
@@ -268,6 +277,7 @@ const variantsSchema = v.object({
       optionValueIds: v.optional(
         v.array(v.pipe(v.number(), v.integer(), v.minValue(1)))
       ),
+      attributes: v.optional(variantAttributesSchema),
       media: v.optional(
         v.array(
           v.object({
@@ -283,7 +293,8 @@ const variantDetailSchema = v.object({
   title: localizedVariantTitleSchema,
   sku: nullableText(120),
   allowBackorder: v.optional(v.boolean()),
-  optionValueIds: v.optional(v.array(v.pipe(v.number(), v.integer(), v.minValue(1))))
+  optionValueIds: v.optional(v.array(v.pipe(v.number(), v.integer(), v.minValue(1)))),
+  attributes: v.optional(variantAttributesSchema)
 })
 
 const variantCreateSchema = v.object({
@@ -293,6 +304,7 @@ const variantCreateSchema = v.object({
   inventoryQuantity: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0))),
   allowBackorder: v.optional(v.boolean()),
   optionValueIds: v.optional(v.array(v.pipe(v.number(), v.integer(), v.minValue(1)))),
+  attributes: v.optional(variantAttributesSchema),
   media: v.optional(
     v.array(
       v.object({
@@ -387,6 +399,7 @@ const fullCreateProductSchema = v.object({
       inventoryQuantity: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0))),
       allowBackorder: v.optional(v.boolean()),
       isDefault: v.optional(v.boolean()),
+      attributes: v.optional(variantAttributesSchema),
       optionValues: v.optional(
         v.array(
           v.object({
@@ -468,6 +481,7 @@ const readProduct = async (db: ReturnType<typeof getDb>, productId: number) => {
     mediaRows,
     optionRows,
     variantRows,
+    variantAttributeRows,
     variantMediaRows,
     customizationRow
   ] = await Promise.all([
@@ -510,6 +524,28 @@ const readProduct = async (db: ReturnType<typeof getDb>, productId: number) => {
       .from(productVariants)
       .where(eq(productVariants.productId, productId))
       .orderBy(asc(productVariants.position), asc(productVariants.id)),
+    db
+      .select({
+        id: productVariantAttributes.id,
+        variantId: productVariantAttributes.variantId,
+        name: productVariantAttributes.name,
+        value: productVariantAttributes.value,
+        unit: productVariantAttributes.unit,
+        position: productVariantAttributes.position
+      })
+      .from(productVariantAttributes)
+      .where(
+        sql`${productVariantAttributes.variantId} in (
+          select ${productVariants.id}
+          from ${productVariants}
+          where ${productVariants.productId} = ${productId}
+        )`
+      )
+      .orderBy(
+        asc(productVariantAttributes.variantId),
+        asc(productVariantAttributes.position),
+        asc(productVariantAttributes.id)
+      ),
     db
       .select({
         variantId: productVariantMedia.variantId,
@@ -611,6 +647,23 @@ const readProduct = async (db: ReturnType<typeof getDb>, productId: number) => {
         )
       : variantRows
 
+  const hydratedVariantAttributeRows =
+    variantAttributeRows.length > 0
+      ? await hydrateTranslations(
+          db,
+          'product_variant_attribute',
+          variantAttributeRows,
+          (attribute) => String(attribute.id),
+          [
+            { fieldName: 'name', objectKey: 'name' },
+            { fieldName: 'value', objectKey: 'value' }
+          ],
+          [
+            { fieldName: 'name', objectKey: 'name' },
+            { fieldName: 'value', objectKey: 'value' }
+          ]
+        )
+      : variantAttributeRows
 
   const optionValuesByOptionId = new Map<number, typeof optionValueRows>()
   const optionValueById = new Map<number, (typeof optionValueRows)[number]>()
@@ -623,6 +676,7 @@ const readProduct = async (db: ReturnType<typeof getDb>, productId: number) => {
 
   const optionById = new Map(optionRows.map((row) => [row.id, row]))
   const variantOptionIds = new Map<number, number[]>()
+  const variantAttributesByVariantId = new Map<number, typeof hydratedVariantAttributeRows>()
   const variantMediaByVariantId = new Map<number, typeof variantMediaRows>()
   for (const variantOption of variantOptionRows) {
     const current = variantOptionIds.get(variantOption.variantId) ?? []
@@ -634,6 +688,12 @@ const readProduct = async (db: ReturnType<typeof getDb>, productId: number) => {
     const current = variantMediaByVariantId.get(variantMedia.variantId) ?? []
     current.push(variantMedia)
     variantMediaByVariantId.set(variantMedia.variantId, current)
+  }
+
+  for (const variantAttribute of hydratedVariantAttributeRows) {
+    const current = variantAttributesByVariantId.get(variantAttribute.variantId) ?? []
+    current.push(variantAttribute)
+    variantAttributesByVariantId.set(variantAttribute.variantId, current)
   }
 
   const customization = customizationRow
@@ -680,6 +740,7 @@ const readProduct = async (db: ReturnType<typeof getDb>, productId: number) => {
 
       return {
         ...variant,
+        attributes: variantAttributesByVariantId.get(variant.id) ?? [],
         media: (variantMediaByVariantId.get(variant.id) ?? []).map((media) => ({
           id: media.assetId,
           fileName: media.fileName,
@@ -757,6 +818,51 @@ const replaceAttributes = async (
   for (let i = 0; i < insertedAttributes.length; i++) {
     await upsertTranslations(db, 'product_attribute', String(insertedAttributes[i].id), 'name', items[i].name)
     await upsertTranslations(db, 'product_attribute', String(insertedAttributes[i].id), 'value', items[i].value)
+  }
+}
+
+const replaceVariantAttributes = async (
+  db: ReturnType<typeof getDb>,
+  variantId: number,
+  items: Array<any>
+) => {
+  await db
+    .delete(productVariantAttributes)
+    .where(eq(productVariantAttributes.variantId, variantId))
+
+  if (items.length === 0) {
+    return
+  }
+
+  const insertedAttributes = await db
+    .insert(productVariantAttributes)
+    .values(
+      items.map((item, index) => ({
+        variantId,
+        name: item.name.vi,
+        value: item.value.vi,
+        unit: item.unit ?? null,
+        position: index
+      }))
+    )
+    .returning()
+
+  for (let index = 0; index < insertedAttributes.length; index += 1) {
+    const attribute = items[index]
+    await upsertTranslations(
+      db,
+      'product_variant_attribute',
+      String(insertedAttributes[index].id),
+      'name',
+      attribute.name
+    )
+    await upsertTranslations(
+      db,
+      'product_variant_attribute',
+      String(insertedAttributes[index].id),
+      'value',
+      attribute.value
+    )
   }
 }
 
@@ -1146,6 +1252,11 @@ const replaceVariants = async (
     allowBackorder?: boolean
     isDefault?: boolean
     optionValueIds?: number[]
+    attributes?: Array<{
+      name: { vi: string; en?: string | null }
+      value: { vi: string; en?: string | null }
+      unit?: string | null
+    }>
     media?: Array<{ assetId: string }>
   }>
 ) => {
@@ -1196,6 +1307,7 @@ const replaceVariants = async (
     inventoryQuantity: item.inventoryQuantity ?? 0,
     allowBackorder: item.allowBackorder ?? false,
     optionValueIds: [...new Set(item.optionValueIds ?? [])].sort((a, b) => a - b),
+    attributes: item.attributes ?? [],
     isDefault: item.isDefault ?? false,
     position: index
   }))
@@ -1284,7 +1396,9 @@ const replaceVariants = async (
     await db
       .delete(productVariantOptionValues)
       .where(inArray(productVariantOptionValues.variantId, existingVariantIds))
-    
+    await db
+      .delete(productVariantAttributes)
+      .where(inArray(productVariantAttributes.variantId, existingVariantIds))
     await db
       .delete(productVariantMedia)
       .where(inArray(productVariantMedia.variantId, existingVariantIds))
@@ -1316,6 +1430,11 @@ const replaceVariants = async (
       String(insertedVariants[index].id),
       'title',
       typeof title === 'string' ? defaultLocalizedText(title) : title
+    )
+    await replaceVariantAttributes(
+      db,
+      insertedVariants[index].id,
+      normalized[index].attributes
     )
   }
 
@@ -1432,6 +1551,11 @@ const defaultProductVariantInput = () => ({
   inventoryQuantity: 0,
   allowBackorder: false,
   isDefault: true,
+  attributes: [] as Array<{
+    name: { vi: string; en?: string | null }
+    value: { vi: string; en?: string | null }
+    unit?: string | null
+  }>,
   optionValues: [
     {
       optionTitle: DEFAULT_PRODUCT_OPTION_TITLE,
@@ -1661,6 +1785,11 @@ export const validatePublishable = (product: NonNullable<Awaited<ReturnType<type
   for (const variant of product.variants) {
     if (variant.priceAmount === null) {
       return 'Every variant must have a price before publish'
+    }
+    for (const attr of variant.attributes ?? []) {
+      if (!isLocComplete(attr.name) || !isLocComplete(attr.value)) {
+        return 'All variant attributes must have translated names and values before publish'
+      }
     }
   }
 
@@ -2024,6 +2153,11 @@ export const productsRoute = new Hono<AppEnv>()
       allowBackorder?: boolean
       isDefault?: boolean
       optionValueIds?: number[]
+      attributes?: Array<{
+        name: { vi: string; en?: string | null }
+        value: { vi: string; en?: string | null }
+        unit?: string | null
+      }>
     }>
 
     for (const variant of normalizedInput.variants) {
@@ -2052,7 +2186,8 @@ export const productsRoute = new Hono<AppEnv>()
         inventoryQuantity: variant.inventoryQuantity ?? 0,
         allowBackorder: variant.allowBackorder ?? false,
         isDefault: variant.isDefault,
-        optionValueIds
+        optionValueIds,
+        attributes: variant.attributes ?? []
       })
     }
 
@@ -2892,6 +3027,12 @@ export const productsRoute = new Hono<AppEnv>()
       )
     }
 
+    await replaceVariantAttributes(
+      db,
+      insertedVariant.id,
+      parsed.output.attributes ?? []
+    )
+
     await updateProductTimestamp(db, product.id)
 
     const nextProduct = await readProduct(db, product.id)
@@ -2975,6 +3116,10 @@ export const productsRoute = new Hono<AppEnv>()
       }
     }
 
+    if (parsed.output.attributes !== undefined) {
+      await replaceVariantAttributes(db, variant.id, parsed.output.attributes)
+    }
+
     await updateProductTimestamp(db, product.id)
 
     const nextProduct = await readProduct(db, product.id)
@@ -3006,6 +3151,9 @@ export const productsRoute = new Hono<AppEnv>()
     await db
       .delete(productVariantOptionValues)
       .where(eq(productVariantOptionValues.variantId, variant.id))
+    await db
+      .delete(productVariantAttributes)
+      .where(eq(productVariantAttributes.variantId, variant.id))
     await db
       .delete(productVariantMedia)
       .where(eq(productVariantMedia.variantId, variant.id))

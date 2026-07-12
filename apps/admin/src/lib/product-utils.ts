@@ -185,6 +185,7 @@ export function reconcileVariantRows(
       price: current?.price ?? 0,
       inventory: current?.inventory ?? normalizedInventory,
       options: blueprint.options,
+      attributes: current?.attributes ?? [],
       allowBackorder: current?.allowBackorder ?? false,
       media: current?.media ?? [],
       shouldCreate: current?.shouldCreate ?? true,
@@ -207,6 +208,7 @@ function getEffectiveVariantRows(
   return buildVariantPreview(values).map((variant) => ({
     ...variant,
     inventory: normalizedInventory,
+    attributes: variant.attributes ?? [],
     allowBackorder: false,
     shouldCreate: true,
   }));
@@ -329,6 +331,7 @@ export function buildVariantPreview(values: CreateProductFormValues) {
         price: Number.isFinite(basePrice) ? basePrice : 0,
         inventory: normalizedInventory,
         options: [],
+        attributes: [],
         allowBackorder: false,
         media: [],
         shouldCreate: true,
@@ -344,6 +347,7 @@ export function buildVariantPreview(values: CreateProductFormValues) {
     price: Number.isFinite(basePrice) ? basePrice : 0,
     inventory: normalizedInventory,
     options: combination,
+    attributes: [],
     allowBackorder: false,
     media: [],
     shouldCreate: true,

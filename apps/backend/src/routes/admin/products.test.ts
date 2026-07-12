@@ -90,6 +90,7 @@ const buildPublishableProduct = (
         createdAt: "2026-07-03T00:00:00.000Z",
         updatedAt: "2026-07-03T00:00:00.000Z",
         media: [],
+        attributes: [],
         optionValueIds: [100],
         optionValues: [
           {
@@ -304,6 +305,7 @@ describe("product full-create helpers", () => {
               contentUrl: "/api/assets/products/asset_red_1/content",
             },
           ],
+          attributes: [],
           optionValueIds: [100],
           optionValues: [
             {
