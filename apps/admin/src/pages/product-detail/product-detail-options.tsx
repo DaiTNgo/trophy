@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Badge, Button, Container, Drawer, IconButton, Heading, Text, DropdownMenu } from "@medusajs/ui";
+import { Badge, Button, Container, Drawer, IconButton, Heading, Text, DropdownMenu, toast } from "@medusajs/ui";
 import { MoreHorizontal, X } from "lucide-react";
 import { InlineError } from "../../components/ui/medusa/inline-error";
 import {
@@ -75,7 +75,7 @@ export function ProductDetailOptions({ product, mutate }: ProductDetailOptionsPr
       await deleteProductOption(product.id, Number(optionId));
       await mutate();
     } catch (error) {
-      alert(error instanceof Error ? error.message : "Failed to delete option.");
+      toast.error(error instanceof Error ? error.message : "Failed to delete option.");
     } finally {
       setIsDeleting((curr) => ({ ...curr, [optionId]: false }));
     }
@@ -113,7 +113,12 @@ export function ProductDetailOptions({ product, mutate }: ProductDetailOptionsPr
         // Creating a new option
         await createProductOption(product.id, {
           title: { vi: trimmedTitleVi, en: trimmedTitleEn },
-          values: finalValues.map((v) => ({ vi: v.valueTranslations.vi.trim(), en: v.valueTranslations.en.trim() })),
+          values: finalValues.map((v) => ({
+            value: {
+              vi: v.valueTranslations.vi.trim(),
+              en: v.valueTranslations.en.trim(),
+            },
+          })),
         });
       } else {
         // Updating an existing option
@@ -164,7 +169,7 @@ export function ProductDetailOptions({ product, mutate }: ProductDetailOptionsPr
       await mutate();
       setModalOpen(false);
     } catch (error) {
-      setErrorMsg(error instanceof Error ? error.message : "Failed to save option.");
+      toast.error(error instanceof Error ? error.message : "Failed to save option.");
     } finally {
       setIsSaving(false);
     }
@@ -404,4 +409,3 @@ export function ProductDetailOptions({ product, mutate }: ProductDetailOptionsPr
     </Container>
   );
 }
-

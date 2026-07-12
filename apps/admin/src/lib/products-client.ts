@@ -27,7 +27,7 @@ type ApiProduct = {
   }>;
   variants: Array<{
     id: number;
-    title: string;
+    title: LocalizedInput;
     sku: string | null;
     priceAmount: number | null;
     inventoryQuantity: number;
@@ -84,7 +84,7 @@ type CreateFullProductPayload = {
   attributes: Array<{ name: LocalizedInput; value: LocalizedInput; unit?: string | null }>;
   options: Array<{ title: LocalizedInput; values: Array<{ value: LocalizedInput }> }>;
   variants: Array<{
-    title: string;
+    title: LocalizedInput;
     sku: string | null;
     priceAmount: number | null;
     inventoryQuantity: number;
@@ -252,7 +252,7 @@ export async function updateProductOptions(id: string, items: Array<{ title: { v
 
 export async function createProductOption(
   id: string,
-  payload: { title: { vi: string; en?: string }; values?: { vi: string; en?: string }[] },
+  payload: { title: { vi: string; en?: string }; values?: Array<{ value: { vi: string; en?: string } }> },
 ) {
   const response = await backendFetch(`/api/admin/products/${id}/options`, {
     method: "POST",
@@ -355,7 +355,7 @@ export async function deleteProductOptionValue(id: string, valueId: number) {
 // the operation-specific variant methods below.
 export async function updateProductVariants(id: string, items: Array<{
   id?: number;
-  title: string;
+  title: LocalizedInput;
   sku: string | null;
   priceAmount: number | null;
   inventoryQuantity?: number;
@@ -381,7 +381,7 @@ export async function updateProductVariants(id: string, items: Array<{
 export async function createProductVariant(
   id: string,
   payload: {
-    title: string;
+    title: LocalizedInput;
     sku: string | null;
     priceAmount: number | null;
     inventoryQuantity: number;
@@ -408,7 +408,7 @@ export async function updateProductVariantDetails(
   id: string,
   variantId: number,
   payload: {
-    title: string;
+    title: LocalizedInput;
     sku: string | null;
     allowBackorder: boolean;
     optionValueIds?: number[];
@@ -553,7 +553,8 @@ export async function archiveProduct(id: string) {
 export function mapApiProductToCatalogProduct(product: Partial<ApiProduct> & Pick<ApiProduct, 'id' | 'title' | 'handle' | 'status' | 'updatedAt'>): CatalogProduct {
   const variants = (product.variants || []).map((variant) => ({
     id: String(variant.id),
-    title: variant.title,
+    title: toLocalized(variant.title).vi,
+    titleTranslations: toLocalized(variant.title),
     sku: variant.sku ?? "",
     price: variant.priceAmount ?? 0,
     inventory: variant.inventoryQuantity,

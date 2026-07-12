@@ -250,7 +250,7 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
           title: products.title,
           subtitle: products.subtitle,
           handle: products.handle,
-          hasVariants: products.hasVariants
+          status: products.status
         })
         .from(products)
         .where(whereClause)
@@ -613,7 +613,7 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
       subtitle: product.subtitle,
       handle: product.handle,
       description: product.description,
-      hasVariants: product.hasVariants,
+      status: product.status,
       categories: resolvedCategories,
       attributes: resolvedAttributes,
       options: resolvedOptions.map((option) => ({

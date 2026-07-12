@@ -158,6 +158,8 @@ export function CreateCollectionModal({
                         vi: "Bo suu tap cup vo dich",
                         en: "Championship trophy collection",
                       }}
+                      helperText="Vietnamese is required. English is optional."
+                      requiredLocales={["vi"]}
                     />
                     <div className="flex flex-col gap-y-2">
                       <Label

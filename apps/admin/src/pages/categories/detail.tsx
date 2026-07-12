@@ -186,7 +186,13 @@ export function CategoryDetailPage() {
       );
 
       if (res.ok) {
-        navigate("/categories");
+        if (isNew) {
+          navigate("/categories");
+        } else {
+          setImageUrl(finalImageUrl || "");
+          setPreviewUrl(finalImageUrl || "");
+          setFile(null);
+        }
       } else {
         console.error("Failed to save category");
       }
@@ -272,6 +278,59 @@ export function CategoryDetailPage() {
                       Handle
                     </Text>
                     <Text size="small">{handle ? `/${handle}` : "-"}</Text>
+                  </div>
+                </div>
+              </div>
+            </Container>
+
+            <Container className="p-0 overflow-hidden w-full lg:w-[320px] h-fit">
+              <div className="flex flex-col">
+                <div className="flex items-center justify-between px-6 py-4">
+                  <Heading level="h2" className="text-xl font-semibold">
+                    Media
+                  </Heading>
+                </div>
+                <div className="flex flex-col gap-y-4 border-t border-ui-border-base px-6 py-4">
+                  {previewUrl ? (
+                    <div className="relative h-48 w-48 overflow-hidden rounded-lg border border-ui-border-base bg-ui-bg-subtle">
+                      <MediaPreview
+                        src={previewUrl}
+                        mimeType={file?.type || (previewUrl.toLowerCase().endsWith(".pdf") ? "application/pdf" : "image/jpeg")}
+                        className="h-full w-full object-cover"
+                        alt="Category Preview"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleRemoveImage}
+                        className="absolute right-2 top-2 rounded-full bg-ui-bg-overlay p-1 text-ui-fg-on-color shadow transition hover:bg-ui-bg-overlay-hover"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="flex h-48 w-48 flex-col items-center justify-center gap-y-2 rounded-lg border border-dashed border-ui-border-base bg-ui-bg-subtle text-ui-fg-muted transition hover:border-ui-border-strong hover:text-ui-fg-base"
+                    >
+                      <Upload className="h-6 w-6" />
+                      <Text size="small">Upload Image</Text>
+                    </button>
+                  )}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*,application/pdf"
+                    className="hidden"
+                    onChange={handleFileSelect}
+                  />
+                  <div className="flex gap-2">
+                    <Button variant="secondary" size="small" onClick={() => fileInputRef.current?.click()}>
+                      {previewUrl ? "Replace" : "Upload"}
+                    </Button>
+                    <Button size="small" onClick={handleSave} isLoading={isSaving}>
+                      Save Media
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -423,6 +482,8 @@ export function CategoryDetailPage() {
                     onLocaleChange={setNameLocale}
                     onChange={setName}
                     placeholder={{ vi: "Tieu de", en: "Title" }}
+                    helperText="Vietnamese is required. English is optional."
+                    requiredLocales={["vi"]}
                   />
                 </div>
 
@@ -462,6 +523,8 @@ export function CategoryDetailPage() {
                     onLocaleChange={setDescriptionLocale}
                     onChange={setDescription}
                     placeholder={{ vi: "Mo ta", en: "Description" }}
+                    helperText="Optional in both Vietnamese and English."
+                    requiredLocales={[]}
                     multiline
                     rows={4}
                   />
@@ -564,6 +627,8 @@ export function CategoryDetailPage() {
                     onLocaleChange={setNameLocale}
                     onChange={setName}
                     placeholder={{ vi: "Tieu de", en: "Title" }}
+                    helperText="Vietnamese is required. English is optional."
+                    requiredLocales={["vi"]}
                   />
                 </div>
 
@@ -627,6 +692,8 @@ export function CategoryDetailPage() {
                     onLocaleChange={setDescriptionLocale}
                     onChange={setDescription}
                     placeholder={{ vi: "Mo ta", en: "Description" }}
+                    helperText="Optional in both Vietnamese and English."
+                    requiredLocales={[]}
                     multiline
                   />
               </div>

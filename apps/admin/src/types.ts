@@ -100,6 +100,7 @@ export type LocalizedTextValue = Record<AdminLocale, string>;
 export type ProductVariant = {
   id: string;
   title: string;
+  titleTranslations?: LocalizedTextValue;
   sku: string;
   price: number;
   inventory: number;

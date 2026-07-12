@@ -1,0 +1,12 @@
+# Progress
+
+- 2026-07-12: Restored optional media upload on the admin create-category modal in `apps/admin/src/pages/categories/components/create-category-modal.tsx`. The `Details` tab now matches the category media spec again by letting operators pick an image/PDF, preview it, upload through the existing product asset pipeline, and persist the returned `imageUrl` when creating a category before the ranking step completes.
+- 2026-07-12: Extended `apps/admin/src/pages/categories/detail.tsx` so existing categories now show their current media on the detail card and expose the same upload/remove controls inside the edit drawer. Operators can now update category media after creation without leaving the detail page.
+- 2026-07-12: Reshaped `apps/admin/src/pages/categories/detail.tsx` again so category media editing now lives on the main detail surface, matching the collection detail interaction. Existing categories now have a dedicated `Media` panel with preview, upload/replace, remove, and `Save Media`; the edit drawer now focuses on text metadata only. Successful existing-category saves now stay on the detail page instead of redirecting to the categories list.
+- 2026-07-12: Updated `apps/backend/src/routes/admin/product-metadata.ts` so category create now accepts and persists optional localized `description`, while collection/category `position` fields and category ranking payloads now require non-negative integers. Added route coverage in `apps/backend/src/routes/admin/product-metadata.test.ts` for category-create description persistence and ranking rejection on negative positions.
+- 2026-07-12: While re-running the repo baseline, `./init.sh` surfaced an unrelated backend type failure around a stale runtime-only `hasVariants` field in `apps/backend/src/routes/admin/products.ts` and `apps/backend/src/routes/admin/products.test.ts`. Removed that field usage and switched the affected validations back to deriving variant mode from the current option/variant graph so the backend matches the schema again.
+- 2026-07-12: Verification passed with `pnpm --filter admin test`, `pnpm --filter admin build`, `pnpm --filter backend test -- src/routes/admin/product-metadata.test.ts`, `pnpm --filter backend check`, and earlier `./init.sh`.
+
+# Next Step
+
+- Run a manual browser pass against the admin categories flow if UI confirmation is needed, especially the create modal path with and without an uploaded media file.

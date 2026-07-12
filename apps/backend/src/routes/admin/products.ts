@@ -251,12 +251,13 @@ const optionValueUpdateSchema = v.object({
 })
 
 const assetIdSchema = v.pipe(v.string(), v.uuid())
+const localizedVariantTitleSchema = v.union([trimmedString(1, 200), localizedString(1, 200)])
 
 const variantsSchema = v.object({
   items: v.array(
     v.object({
       id: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1))),
-      title: trimmedString(1, 200),
+      title: localizedVariantTitleSchema,
       sku: nullableText(120),
       priceAmount: v.optional(
         v.nullable(v.pipe(v.number(), v.integer(), v.minValue(0)))
@@ -279,14 +280,14 @@ const variantsSchema = v.object({
 })
 
 const variantDetailSchema = v.object({
-  title: trimmedString(1, 200),
+  title: localizedVariantTitleSchema,
   sku: nullableText(120),
   allowBackorder: v.optional(v.boolean()),
   optionValueIds: v.optional(v.array(v.pipe(v.number(), v.integer(), v.minValue(1))))
 })
 
 const variantCreateSchema = v.object({
-  title: trimmedString(1, 200),
+  title: localizedVariantTitleSchema,
   sku: nullableText(120),
   priceAmount: v.optional(v.nullable(v.pipe(v.number(), v.integer(), v.minValue(0)))),
   inventoryQuantity: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0))),
@@ -380,7 +381,7 @@ const fullCreateProductSchema = v.object({
   ),
   variants: v.array(
     v.object({
-      title: trimmedString(1, 200),
+      title: localizedVariantTitleSchema,
       sku: nullableText(120),
       priceAmount: v.optional(v.nullable(v.pipe(v.number(), v.integer(), v.minValue(0)))),
       inventoryQuantity: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0))),
@@ -598,6 +599,18 @@ const readProduct = async (db: ReturnType<typeof getDb>, productId: number) => {
     )
   }
 
+  const hydratedVariantRows =
+    variantRows.length > 0
+      ? await hydrateTranslations(
+          db,
+          'product_variant',
+          variantRows,
+          (variant) => String(variant.id),
+          [{ fieldName: 'title', objectKey: 'title' }],
+          [{ fieldName: 'title', objectKey: 'title' }]
+        )
+      : variantRows
+
 
   const optionValuesByOptionId = new Map<number, typeof optionValueRows>()
   const optionValueById = new Map<number, (typeof optionValueRows)[number]>()
@@ -651,15 +664,8 @@ const readProduct = async (db: ReturnType<typeof getDb>, productId: number) => {
     await hydrateCustomization(db, customization)
   }
 
-  const computedHasVariants = 
-    optionRows.length > 1 || 
-    (optionRows.length === 1 && optionRows[0].title !== DEFAULT_PRODUCT_OPTION_TITLE) ||
-    (optionRows.length === 1 && (optionValuesByOptionId.get(optionRows[0].id) ?? []).some(v => v.value !== DEFAULT_PRODUCT_OPTION_VALUE)) ||
-    variantRows.length > 1;
-
   const baseProduct = {
     ...product,
-    hasVariants: computedHasVariants,
     collection,
     categories: categoryRows,
     attributes: attributeRows,
@@ -669,7 +675,7 @@ const readProduct = async (db: ReturnType<typeof getDb>, productId: number) => {
       values: optionValuesByOptionId.get(option.id) ?? []
     })),
     customization,
-    variants: variantRows.map((variant) => {
+    variants: hydratedVariantRows.map((variant) => {
       const optionValueIds = (variantOptionIds.get(variant.id) ?? []).sort((a, b) => a - b)
 
       return {
@@ -1133,7 +1139,7 @@ const replaceVariants = async (
   productId: number,
   items: Array<{
     id?: number
-    title: string
+    title: string | { vi: string; en?: string | null }
     sku?: string | null
     priceAmount?: number | null
     inventoryQuantity?: number
@@ -1171,7 +1177,12 @@ const replaceVariants = async (
     optionValueRows.map((row) => [row.id, row.optionId] as const)
   )
 
-  if (!product.hasVariants && items.length !== 1) {
+  const computedHasVariants = 
+    optionRows.length > 1 || 
+    (optionRows.length === 1 && optionRows[0].title !== DEFAULT_PRODUCT_OPTION_TITLE) ||
+    (optionRows.length === 1 && optionValueRows.some(v => v.value !== DEFAULT_PRODUCT_OPTION_VALUE));
+
+  if (!computedHasVariants && items.length !== 1) {
     return {
       error: 'Products without variant mode can only have one default variant',
       status: 409 as const
@@ -1246,7 +1257,7 @@ const replaceVariants = async (
     seenCombinations.add(combinationKey)
   }
 
-  if (!product.hasVariants) {
+  if (!computedHasVariants) {
     normalized[0].isDefault = true
   } else {
     if (!normalized.some((variant) => variant.isDefault)) {
@@ -1285,7 +1296,7 @@ const replaceVariants = async (
     .values(
       normalized.map((item, index) => ({
         productId,
-        title: item.title,
+        title: localizedInputValue(item.title),
         sku: item.sku,
         priceAmount: item.priceAmount,
         inventoryQuantity: item.inventoryQuantity,
@@ -1296,6 +1307,17 @@ const replaceVariants = async (
       }))
     )
     .returning()
+
+  for (let index = 0; index < insertedVariants.length; index += 1) {
+    const title = normalized[index].title
+    await upsertTranslations(
+      db,
+      'product_variant',
+      String(insertedVariants[index].id),
+      'title',
+      typeof title === 'string' ? defaultLocalizedText(title) : title
+    )
+  }
 
   const variantOptionPayload = insertedVariants.flatMap((variant, index) =>
     normalized[index].optionValueIds.map((optionValueId) => ({
@@ -1421,6 +1443,31 @@ const defaultProductVariantInput = () => ({
 
 const localizedInputValue = (value: string | { vi: string }) =>
   typeof value === 'string' ? value : value.vi
+
+const localizedStoredValue = (value: unknown) => {
+  if (typeof value === 'string') {
+    return value
+  }
+
+  if (value && typeof value === 'object' && 'vi' in value && typeof value.vi === 'string') {
+    return value.vi
+  }
+
+  return ''
+}
+
+const productUsesVariantMode = (product: {
+  options: Array<{ title: unknown; values: Array<{ value: unknown }> }>
+  variants: Array<unknown>
+}) =>
+  product.options.length > 1 ||
+  (product.options.length === 1 &&
+    localizedStoredValue(product.options[0]?.title) !== DEFAULT_PRODUCT_OPTION_TITLE) ||
+  (product.options.length === 1 &&
+    product.options[0]!.values.some(
+      (optionValue) => localizedStoredValue(optionValue.value) !== DEFAULT_PRODUCT_OPTION_VALUE
+    )) ||
+  product.variants.length > 1
 
 const isDefaultOptionInput = (
   options: v.InferOutput<typeof fullCreateProductSchema>['options']
@@ -1613,7 +1660,7 @@ export const validatePublishable = (product: NonNullable<Awaited<ReturnType<type
 
   const expectedOptionCount = product.options.length
 
-  if (!product.hasVariants) {
+  if (!productUsesVariantMode(product)) {
     if (product.variants.length !== 1 || !product.variants[0].isDefault) {
       return 'Products without variants must have exactly one default variant'
     }
@@ -1740,7 +1787,6 @@ export const productsRoute = new Hono<AppEnv>()
           subtitle: products.subtitle,
           handle: products.handle,
           status: products.status,
-          hasVariants: products.hasVariants,
           createdAt: products.createdAt,
           updatedAt: products.updatedAt,
           collection: {
@@ -1965,7 +2011,7 @@ export const productsRoute = new Hono<AppEnv>()
 
     const optionValueLookup = await loadOptionValueLookup(db, insertedProduct.id)
     const variantInput = [] as Array<{
-      title: string
+      title: string | { vi: string; en?: string | null }
       sku?: string | null
       priceAmount?: number | null
       inventoryQuantity?: number
@@ -1986,7 +2032,7 @@ export const productsRoute = new Hono<AppEnv>()
           return jsonError(
             c,
             409,
-            `Variant ${variant.title} references an unknown option value: ${selection.optionTitle} / ${selection.value}`
+            `Variant ${localizedInputValue(variant.title)} references an unknown option value: ${selection.optionTitle} / ${selection.value}`
           )
         }
 
@@ -2767,7 +2813,7 @@ export const productsRoute = new Hono<AppEnv>()
       return jsonError(c, 404, 'Product not found')
     }
 
-    if (!product.hasVariants && product.variants.length >= 1) {
+    if (!productUsesVariantMode(product) && product.variants.length >= 1) {
       return jsonError(c, 409, 'Define product options before creating multiple variants')
     }
 
@@ -2799,7 +2845,7 @@ export const productsRoute = new Hono<AppEnv>()
       .insert(productVariants)
       .values({
         productId: product.id,
-        title: parsed.output.title,
+        title: localizedInputValue(parsed.output.title),
         sku: parsed.output.sku ?? null,
         priceAmount: parsed.output.priceAmount ?? null,
         inventoryQuantity: parsed.output.inventoryQuantity ?? 0,
@@ -2810,6 +2856,16 @@ export const productsRoute = new Hono<AppEnv>()
       })
       .returning()
       .get()
+
+    await upsertTranslations(
+      db,
+      'product_variant',
+      String(insertedVariant.id),
+      'title',
+      typeof parsed.output.title === 'string'
+        ? defaultLocalizedText(parsed.output.title)
+        : parsed.output.title
+    )
 
     if (optionValueIds.length > 0) {
       await db.insert(productVariantOptionValues).values(
@@ -2881,12 +2937,22 @@ export const productsRoute = new Hono<AppEnv>()
     await db
       .update(productVariants)
       .set({
-        title: parsed.output.title,
+        title: localizedInputValue(parsed.output.title),
         sku: parsed.output.sku ?? null,
         allowBackorder: parsed.output.allowBackorder ?? variant.allowBackorder,
         updatedAt: nowIso()
       })
       .where(eq(productVariants.id, variant.id))
+
+    await upsertTranslations(
+      db,
+      'product_variant',
+      String(variant.id),
+      'title',
+      typeof parsed.output.title === 'string'
+        ? defaultLocalizedText(parsed.output.title)
+        : parsed.output.title
+    )
 
     if (parsed.output.optionValueIds !== undefined) {
       await db

@@ -85,7 +85,6 @@ function queueReadProduct(
     handle?: string;
     description?: string | null;
     status?: string;
-    hasVariants?: boolean;
     collectionId?: number | null;
     createdAt?: string;
     updatedAt?: string;
@@ -133,7 +132,7 @@ function queueReadProduct(
     handle: product.handle ?? "champion-cup",
     description: product.description ?? null,
     status: product.status ?? "draft",
-    hasVariants: product.hasVariants ?? true,
+
     collectionId: product.collectionId ?? null,
     createdAt: product.createdAt ?? "2026-07-04T00:00:00.000Z",
     updatedAt: product.updatedAt ?? "2026-07-04T00:00:00.000Z",
@@ -182,14 +181,13 @@ describe("admin products operation-specific routes", () => {
       id: 1,
       title: "Champion Cup",
       status: "draft",
-      hasVariants: true,
-    });
+          });
     db.selectQueue.push([]);
     db.selectQueue.push([{ id: 5 }]);
     db.getQueue.push({ id: 10, productId: 1, title: "Material", position: 1 });
     queueReadProduct(
       db,
-      { id: 1, hasVariants: true, status: "draft" },
+      { id: 1,  status: "draft" },
       {
         optionRows: [{ id: 10, productId: 1, title: "Material", position: 1 }],
         optionValueRows: [
@@ -254,7 +252,7 @@ describe("admin products operation-specific routes", () => {
 
   it("creates a variant with explicit option selections", async () => {
     // getProduct
-    db.getQueue.push({ id: 1, hasVariants: true, status: "draft" });
+    db.getQueue.push({ id: 1,  status: "draft" });
     // categories, attributes, media
     db.selectQueue.push([]);
     db.selectQueue.push([]);
@@ -312,7 +310,7 @@ describe("admin products operation-specific routes", () => {
 
   it("rejects duplicate variant option combinations", async () => {
     // getProduct
-    db.getQueue.push({ id: 1, hasVariants: true, status: "draft" });
+    db.getQueue.push({ id: 1,  status: "draft" });
     // categories, attributes, media
     db.selectQueue.push([]);
     db.selectQueue.push([]);
@@ -367,7 +365,7 @@ describe("admin products operation-specific routes", () => {
   it("updates prices without overwriting unrelated variant fields", async () => {
     queueReadProduct(
       db,
-      { id: 1, hasVariants: true, status: "draft" },
+      { id: 1,  status: "draft" },
       {
         optionRows: [],
         variantRows: [
@@ -390,7 +388,7 @@ describe("admin products operation-specific routes", () => {
     db.selectQueue.push([{ id: 20 }, { id: 21 }]);
     queueReadProduct(
       db,
-      { id: 1, hasVariants: true, status: "draft" },
+      { id: 1,  status: "draft" },
       {
         optionRows: [],
         variantRows: [
@@ -434,12 +432,11 @@ describe("admin products operation-specific routes", () => {
       id: 1,
       title: "Champion Cup",
       status: "draft",
-      hasVariants: true,
-    });
+          });
     db.selectQueue.push([{ id: 20 }]);
     queueReadProduct(
       db,
-      { id: 1, hasVariants: true, status: "draft" },
+      { id: 1,  status: "draft" },
       {
         optionRows: [],
         variantRows: [
@@ -480,9 +477,14 @@ describe("admin products operation-specific routes", () => {
   it("rejects media changes that would break customization publish readiness", async () => {
     queueReadProduct(
       db,
-      { id: 1, hasVariants: true, status: "published" },
+      { id: 1,  status: "published" },
       {
-        optionRows: [],
+        optionRows: [
+          { id: 1, productId: 1, title: "Default option", position: 0 }
+        ],
+        optionValueRows: [
+          { id: 1, optionId: 1, value: "Default option value", position: 0 }
+        ],
         variantRows: [
           {
             id: 20,
@@ -497,6 +499,9 @@ describe("admin products operation-specific routes", () => {
             createdAt: "2026-07-04T00:00:00.000Z",
             updatedAt: "2026-07-04T00:00:00.000Z",
           },
+        ],
+        variantOptionRows: [
+          { variantId: 20, optionValueId: 1 }
         ],
         variantMediaRows: [
           {

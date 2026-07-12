@@ -83,7 +83,7 @@ export const storefrontCollectionsRoute = new Hono<AppEnv>()
           title: products.title,
           subtitle: products.subtitle,
           handle: products.handle,
-          hasVariants: products.hasVariants
+          status: products.status
         })
         .from(products)
         .where(whereClause)

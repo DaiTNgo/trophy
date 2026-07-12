@@ -8,12 +8,16 @@ import {
   Select,
   ProgressTabs,
 } from "@medusajs/ui";
+import { Upload, X } from "lucide-react";
 import { LocalizedTextField, createEmptyLocalizedText, type AdminLocale, type LocalizedTextValue } from "../../../components/ui/medusa";
 import { backendFetch } from "../../../lib/fetch";
 import { useNavigate } from "react-router";
 import { reorderWithEdge, autoScrollForElements } from "./sortable-list";
 import type { Edge } from "./sortable-list";
 import { RankingList } from "./ranking-list";
+import { uploadProductVariantMedia } from "../../../lib/product-assets-client";
+import { MediaPreview } from "../../../components/ui/media-preview";
+import { convertPdfToImageFile } from "../../../lib/pdf-preview";
 
 type CategoryItem = {
   id: string;
@@ -35,9 +39,13 @@ export function CreateCategoryModal({ open, onOpenChange, categories, onSuccess 
   const [handle, setHandle] = useState("");
   const [description, setDescription] = useState<LocalizedTextValue>(() => createEmptyLocalizedText());
   const [descriptionLocale, setDescriptionLocale] = useState<AdminLocale>("vi");
+  const [imageUrl, setImageUrl] = useState("");
+  const [previewUrl, setPreviewUrl] = useState("");
+  const [file, setFile] = useState<File | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [orderedItems, setOrderedItems] = useState<CategoryItem[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -48,9 +56,20 @@ export function CreateCategoryModal({ open, onOpenChange, categories, onSuccess 
       setHandle("");
       setDescription(createEmptyLocalizedText());
       setDescriptionLocale("vi");
+      setImageUrl("");
+      setPreviewUrl("");
+      setFile(null);
       setOrderedItems([...categories]);
     }
   }, [open, categories]);
+
+  useEffect(() => {
+    return () => {
+      if (previewUrl && previewUrl.startsWith("blob:")) {
+        URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [previewUrl]);
 
   useEffect(() => {
     if (step === 2 && scrollRef.current) {
@@ -94,17 +113,58 @@ export function CreateCategoryModal({ open, onOpenChange, categories, onSuccess 
     });
   }
 
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0];
+    if (!selectedFile) return;
+
+    try {
+      let fileToProcess = selectedFile;
+      if (selectedFile.type === "application/pdf") {
+        fileToProcess = await convertPdfToImageFile(selectedFile);
+      }
+
+      if (previewUrl && previewUrl.startsWith("blob:")) {
+        URL.revokeObjectURL(previewUrl);
+      }
+
+      setFile(fileToProcess);
+      setPreviewUrl(URL.createObjectURL(fileToProcess));
+      setImageUrl("");
+    } catch (err) {
+      console.error("Failed to load file preview", err);
+    } finally {
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const handleRemoveImage = () => {
+    if (previewUrl && previewUrl.startsWith("blob:")) {
+      URL.revokeObjectURL(previewUrl);
+    }
+    setFile(null);
+    setPreviewUrl("");
+    setImageUrl("");
+  };
+
   const handleSave = async () => {
     if (!title.vi.trim()) return;
     setIsSaving(true);
     try {
+      let finalImageUrl = imageUrl;
+
+      if (file) {
+        const media = await uploadProductVariantMedia(file);
+        finalImageUrl = media.contentUrl;
+      }
+
       const res = await backendFetch("/api/admin/product-metadata/categories", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
           name: { vi: title.vi, en: title.en || undefined }, 
           handle: handle || undefined,
-          description: description.vi ? { vi: description.vi, en: description.en || undefined } : undefined
+          description: description.vi ? { vi: description.vi, en: description.en || undefined } : undefined,
+          imageUrl: finalImageUrl || undefined,
         })
       });
       if (!res.ok) throw new Error("Failed to create category");
@@ -177,6 +237,8 @@ export function CreateCategoryModal({ open, onOpenChange, categories, onSuccess 
                       onLocaleChange={setTitleLocale}
                       onChange={setTitle}
                       placeholder={{ vi: "Tieu de", en: "Title" }}
+                      helperText="Vietnamese is required. English is optional."
+                      requiredLocales={["vi"]}
                     />
                   </div>
                   <div className="flex flex-col gap-y-2">
@@ -206,8 +268,49 @@ export function CreateCategoryModal({ open, onOpenChange, categories, onSuccess 
                     onLocaleChange={setDescriptionLocale}
                     onChange={setDescription}
                     placeholder={{ vi: "Mo ta", en: "Description" }}
+                    helperText="Optional in both Vietnamese and English."
+                    requiredLocales={[]}
                     multiline
                     rows={4}
+                  />
+                </div>
+
+                <div className="flex flex-col gap-y-2">
+                  <Label className="flex items-center gap-x-1" weight="plus">
+                    Category Image <span className="text-ui-fg-muted font-normal">(Optional)</span>
+                  </Label>
+                  {previewUrl ? (
+                    <div className="relative h-48 w-48 overflow-hidden rounded-lg border border-ui-border-base bg-ui-bg-subtle">
+                      <MediaPreview
+                        src={previewUrl}
+                        mimeType={file?.type || (previewUrl.toLowerCase().endsWith(".pdf") ? "application/pdf" : "image/jpeg")}
+                        className="h-full w-full object-cover"
+                        alt="Category Preview"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleRemoveImage}
+                        className="absolute right-2 top-2 rounded-full bg-ui-bg-overlay p-1 text-ui-fg-on-color shadow transition hover:bg-ui-bg-overlay-hover"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="flex h-48 w-48 flex-col items-center justify-center gap-y-2 rounded-lg border border-dashed border-ui-border-base bg-ui-bg-subtle text-ui-fg-muted transition hover:border-ui-border-strong hover:text-ui-fg-base"
+                    >
+                      <Upload className="h-6 w-6" />
+                      <Text size="small">Upload Image</Text>
+                    </button>
+                  )}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*,application/pdf"
+                    className="hidden"
+                    onChange={handleFileSelect}
                   />
                 </div>
 

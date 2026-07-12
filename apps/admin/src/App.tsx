@@ -116,12 +116,15 @@ const router = createBrowserRouter([
   { path: "*", Component: () => <Navigate to="/orders" replace /> },
 ]);
 
+import { Toaster } from "@medusajs/ui";
+
 function App() {
   return (
     <AuthProvider>
       <CatalogProvider>
         <BreadcrumbProvider>
           <RouterProvider router={router} />
+          <Toaster />
         </BreadcrumbProvider>
       </CatalogProvider>
     </AuthProvider>

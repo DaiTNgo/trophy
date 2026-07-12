@@ -185,7 +185,6 @@ describe("product full-create helpers", () => {
       subtitle: null,
       description: null,
       status: "draft",
-      hasVariants: false,
       collectionId: null,
       createdAt: "2026-07-03T00:00:00.000Z",
       updatedAt: "2026-07-03T00:00:00.000Z",
