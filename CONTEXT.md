@@ -57,7 +57,7 @@ Shopper-facing catalog text that can have Vietnamese and English values, such as
 _Avoid_: translated product record, language-specific product
 
 **Catalog Translation Completeness**:
-The readiness state describing whether all required localized catalog content exists for both Vietnamese and English. It affects admin warnings and publish readiness, but it does not create separate products, variants, or prices.
+The readiness state describing whether localized catalog content satisfies the field-specific publish rules. Product title requires Vietnamese (`vi`) only; English (`en`) product title is optional. Product subtitle and description are optional in both locales and do not block draft or publish. Other shopper-facing localized fields may require both Vietnamese and English when their active feature spec says so. Completeness affects admin warnings and publish readiness, but it does not create separate products, variants, or prices.
 _Avoid_: market readiness, currency readiness
 
 **Canonical Catalog Identity**:

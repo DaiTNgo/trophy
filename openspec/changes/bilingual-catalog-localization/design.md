@@ -57,11 +57,11 @@ Storefront APIs accept `locale=vi|en`, default to `vi` when omitted, and reject 
 
 Alternative considered: infer locale only from browser headers. This was rejected because operators and tests need deterministic URLs and route behavior.
 
-### Publish completeness is required for both Vietnamese and English
+### Publish completeness is field-specific
 
-Draft saves can contain missing translations, but publish attempts must fail if required localized catalog content is missing in either `vi` or `en`. Admin UI should surface missing fields near the localized controls and in product publish readiness.
+Draft saves can contain missing translations. Product title requires Vietnamese (`vi`) only; English (`en`) product title is optional. Product subtitle and product description are optional in both locales and do not block draft or publish. Other localized fields keep their own publish rules; for example, option and option value labels may still require both locales when they are shopper-facing selection labels. Admin UI should surface missing required fields near the localized controls and in product publish readiness.
 
-Alternative considered: publish with fallback to Vietnamese for missing English. This was rejected because the product direction is to translate all shopper-facing content.
+Alternative considered: require English product title before publish. This was rejected because the current product authoring contract treats Vietnamese as the canonical required catalog locale and English as optional supporting content.
 
 ### Variant identity stays language-neutral
 
@@ -92,4 +92,4 @@ Rollback is straightforward while canonical Vietnamese columns remain: stop read
 
 ## Open Questions
 
-None for this proposal. The working assumptions are: locales are exactly `vi` and `en`; Vietnamese is the default catalog locale; prices remain VND-only; publish requires both locales; handles are shared across locales.
+None for this proposal. The working assumptions are: locales are exactly `vi` and `en`; Vietnamese is the default catalog locale; prices remain VND-only; product title requires `vi` only; product subtitle, product description, and product title `en` are optional; handles are shared across locales.

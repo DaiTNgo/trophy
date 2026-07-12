@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Container, Heading, Text, Drawer, Button, Select, Badge, Label, DropdownMenu, IconButton } from "@medusajs/ui";
+import { Container, Heading, Text, Drawer, Button, Select, Badge, Label, DropdownMenu, IconButton, toast } from "@medusajs/ui";
 import { MoreHorizontal } from "lucide-react";
 import { CategoryMultiSelect } from "../../components/ui/medusa/category-multiselect";
 import type { CatalogProduct } from "../../types";
@@ -62,7 +62,9 @@ export function ProductDetailOrganize({ product, mutate }: ProductDetailOrganize
       await mutate();
       setOpen(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save organization");
+      const message = err instanceof Error ? err.message : "Failed to save organization";
+      setError(message);
+      toast.error(message);
     } finally {
       setIsSubmitting(false);
     }
@@ -173,14 +175,6 @@ export function ProductDetailOrganize({ product, mutate }: ProductDetailOrganize
 
         {/* Read-only display */}
         <div className="flex flex-col">
-          <div className="grid grid-cols-2 px-6 py-4 border-t border-ui-border-base">
-            <Text size="small" className="text-ui-fg-subtle font-medium">Tags</Text>
-            <Text size="small" className="text-ui-fg-base">—</Text>
-          </div>
-          <div className="grid grid-cols-2 px-6 py-4 border-t border-ui-border-base">
-            <Text size="small" className="text-ui-fg-subtle font-medium">Type</Text>
-            <Text size="small" className="text-ui-fg-base">—</Text>
-          </div>
           <div className="grid grid-cols-2 px-6 py-4 border-t border-ui-border-base">
             <Text size="small" className="text-ui-fg-subtle font-medium">Collection</Text>
             <Text size="small" className="text-ui-fg-base">

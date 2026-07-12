@@ -1,5 +1,5 @@
 import { useState, useRef, useMemo, useEffect } from "react";
-import { Button, Container, Heading, Text, clx, IconButton, FocusModal, Checkbox } from "@medusajs/ui";
+import { Button, Container, Heading, Text, clx, IconButton, FocusModal, Checkbox, toast } from "@medusajs/ui";
 import { Upload, MoreHorizontal, Image, ChevronLeft, ChevronRight, X } from "lucide-react";
 import type { CatalogProduct } from "../../types";
 import { updateProductMedia } from "../../lib/products-client";
@@ -170,17 +170,38 @@ export function ProductDetailThumbnail({ product, mutate }: ProductDetailThumbna
     return Array.from(map.values());
   }, [product.variants]);
 
+  const displayMedia = useMemo(
+    () => {
+      const byUrl = new Map<string, { url: string; mimeType: string }>();
+
+      for (const url of productMedia) {
+        const variantMedia = allVariantMedia.find((vm) => vm.url === url);
+        byUrl.set(url, {
+          url,
+          mimeType:
+            variantMedia?.mimeType ||
+            (url.toLowerCase().endsWith(".pdf") ? "application/pdf" : "image/jpeg"),
+        });
+      }
+
+      for (const media of allVariantMedia) {
+        if (!byUrl.has(media.url)) {
+          byUrl.set(media.url, media);
+        }
+      }
+
+      return Array.from(byUrl.values());
+    },
+    [allVariantMedia, productMedia],
+  );
+
   const handleOpen = (isOpen: boolean) => {
     if (isOpen) {
-      // Map current product media URLs to items
       setThumbnails(
-        productMedia.slice(0, MAX_THUMBNAIL_COUNT).map((url) => {
-          const variantMedia = allVariantMedia.find((vm) => vm.url === url);
-          return {
-            url,
-            mimeType: variantMedia?.mimeType || (url.toLowerCase().endsWith(".pdf") ? "application/pdf" : "image/jpeg"),
-          };
-        })
+        displayMedia.slice(0, MAX_THUMBNAIL_COUNT).map((media) => ({
+          url: media.url,
+          mimeType: media.mimeType,
+        }))
       );
       setError(null);
     } else {
@@ -198,29 +219,31 @@ export function ProductDetailThumbnail({ product, mutate }: ProductDetailThumbna
   const isUploading = thumbnails.some((t) => t.isUploading);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(e.target.files ?? []);
+    if (files.length === 0) return;
     if (thumbnails.length >= MAX_THUMBNAIL_COUNT) return;
 
     setError(null);
 
     try {
-      let fileToProcess = file;
-      if (file.type === "application/pdf") {
-        fileToProcess = await convertPdfToImageFile(file);
-      }
+      const availableSlots = MAX_THUMBNAIL_COUNT - thumbnails.length;
+      const nextThumbnails = await Promise.all(
+        files.slice(0, availableSlots).map(async (file) => {
+          let fileToProcess = file;
+          if (file.type === "application/pdf") {
+            fileToProcess = await convertPdfToImageFile(file);
+          }
 
-      const objectUrl = URL.createObjectURL(fileToProcess);
+          return {
+            url: URL.createObjectURL(fileToProcess),
+            mimeType: fileToProcess.type,
+            isUploading: false,
+            file: fileToProcess,
+          };
+        }),
+      );
 
-      setThumbnails((prev) => [
-        ...prev,
-        {
-          url: objectUrl,
-          mimeType: fileToProcess.type,
-          isUploading: false,
-          file: fileToProcess,
-        },
-      ]);
+      setThumbnails((prev) => [...prev, ...nextThumbnails]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load file preview");
     } finally {
@@ -293,7 +316,9 @@ export function ProductDetailThumbnail({ product, mutate }: ProductDetailThumbna
       await mutate();
       setOpen(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save thumbnails");
+      const message = err instanceof Error ? err.message : "Failed to save thumbnails";
+      setError(message);
+      toast.error(message);
     } finally {
       setIsSubmitting(false);
     }
@@ -457,26 +482,22 @@ export function ProductDetailThumbnail({ product, mutate }: ProductDetailThumbna
 
         {/* Read-only display */}
         <div className="border-t border-ui-border-base px-6 py-4">
-          {productMedia.length > 0 ? (
+          {displayMedia.length > 0 ? (
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
-              {productMedia.slice(0, MAX_THUMBNAIL_COUNT).map((url, idx) => {
-                const variantMedia = allVariantMedia.find((vm) => vm.url === url);
-                const mimeType = variantMedia?.mimeType || (url.toLowerCase().endsWith(".pdf") ? "application/pdf" : "image/jpeg");
-                return (
-                  <div
-                    key={idx}
-                    className="overflow-hidden rounded-lg border border-ui-border-base bg-ui-bg-subtle"
-                    style={{ aspectRatio: "1 / 1" }}
-                  >
-                    <MediaPreview
-                      src={url}
-                      mimeType={mimeType}
-                      className="h-full w-full object-contain"
-                      alt={`Thumbnail ${idx + 1}`}
-                    />
-                  </div>
-                );
-              })}
+              {displayMedia.slice(0, MAX_THUMBNAIL_COUNT).map((media, idx) => (
+                <div
+                  key={`${media.url}-${idx}`}
+                  className="overflow-hidden rounded-lg border border-ui-border-base bg-ui-bg-subtle"
+                  style={{ aspectRatio: "1 / 1" }}
+                >
+                  <MediaPreview
+                    src={media.url}
+                    mimeType={media.mimeType}
+                    className="h-full w-full object-contain"
+                    alt={`Thumbnail ${idx + 1}`}
+                  />
+                </div>
+              ))}
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center py-12">

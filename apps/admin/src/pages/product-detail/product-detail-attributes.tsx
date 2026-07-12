@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button, Container, Heading, Text, Drawer, Input, DropdownMenu, IconButton } from "@medusajs/ui";
+import { Button, Container, Heading, Text, Drawer, Input, DropdownMenu, IconButton, toast } from "@medusajs/ui";
 import { Plus, Trash2, MoreHorizontal } from "lucide-react";
 import { updateProductAttributes } from "../../lib/products-client";
 import type { CatalogProduct, ProductAttribute } from "../../types";
@@ -49,7 +49,9 @@ export function ProductDetailAttributes({ product, mutate }: ProductDetailAttrib
       await mutate();
       setOpen(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save attributes");
+      const message = err instanceof Error ? err.message : "Failed to save attributes";
+      setError(message);
+      toast.error(message);
     } finally {
       setIsSubmitting(false);
     }

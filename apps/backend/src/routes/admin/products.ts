@@ -1621,14 +1621,20 @@ export const validateCustomizationPublishReadiness = ({
 }
 
 
+const hasVietnameseCatalogText = (val: any) => {
+  if (typeof val === 'string') return val.trim().length > 0;
+  if (!val) return false;
+  return (val.vi || '').trim().length > 0;
+}
+
 const isLocComplete = (val: any) => {
   if (typeof val === 'string') return val.trim().length > 0;
   if (!val) return false;
   return (val.vi || '').trim().length > 0 && (val.en || '').trim().length > 0;
 }
 export const validatePublishable = (product: NonNullable<Awaited<ReturnType<typeof readProduct>>>) => {
-  if (!isLocComplete(product.title)) {
-    return 'Product title is missing required translations for publish (requires both Vietnamese and English)'
+  if (!hasVietnameseCatalogText(product.title)) {
+    return 'Product title requires Vietnamese text before publish'
   }
 
   for (const attr of product.attributes) {

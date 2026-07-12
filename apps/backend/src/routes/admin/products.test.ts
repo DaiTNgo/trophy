@@ -42,6 +42,67 @@ const baseCustomization = {
   formFields: DEFAULT_TEMPLATE.formFields,
 };
 
+const buildPublishableProduct = (
+  title: string | { vi?: string; en?: string },
+): Parameters<typeof validatePublishable>[0] =>
+  ({
+    id: 7,
+    title,
+    handle: "champion-cup",
+    subtitle: null,
+    description: null,
+    status: "draft",
+    collectionId: null,
+    createdAt: "2026-07-03T00:00:00.000Z",
+    updatedAt: "2026-07-03T00:00:00.000Z",
+    collection: null,
+    categories: [],
+    attributes: [],
+    media: [],
+    options: [
+      {
+        id: 10,
+        productId: 7,
+        title: "Default option",
+        position: 0,
+        values: [
+          {
+            id: 100,
+            optionId: 10,
+            value: "Default option value",
+            position: 0,
+          },
+        ],
+      },
+    ],
+    customization: null,
+    variants: [
+      {
+        id: 1,
+        productId: 7,
+        title: "Default",
+        sku: "SKU-1",
+        priceAmount: 1000,
+        inventoryQuantity: 0,
+        allowBackorder: false,
+        isDefault: true,
+        position: 0,
+        createdAt: "2026-07-03T00:00:00.000Z",
+        updatedAt: "2026-07-03T00:00:00.000Z",
+        media: [],
+        optionValueIds: [100],
+        optionValues: [
+          {
+            id: 100,
+            value: "Default option value",
+            optionId: 10,
+            optionTitle: "Default option",
+          },
+        ],
+      },
+    ],
+  }) as Parameters<typeof validatePublishable>[0];
+
 describe("product full-create helpers", () => {
   it("persists draft customization even when media is incomplete", () => {
     const row = buildProductCustomizationInsert({
@@ -257,6 +318,16 @@ describe("product full-create helpers", () => {
     });
 
     expect(publishable).toBeNull();
+  });
+
+  it("allows publish when product title has Vietnamese but no English translation", () => {
+    expect(validatePublishable(buildPublishableProduct({ vi: "Cúp vô địch", en: "" }))).toBeNull();
+  });
+
+  it("rejects publish when product title is missing Vietnamese text", () => {
+    expect(validatePublishable(buildPublishableProduct({ vi: "", en: "Champion Cup" }))).toBe(
+      "Product title requires Vietnamese text before publish",
+    );
   });
 
   it("preserves stable media ordering per variant", () => {

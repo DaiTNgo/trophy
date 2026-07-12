@@ -88,7 +88,9 @@ export function ProductDetailOptions({ product, mutate }: ProductDetailOptionsPr
     const trimmedTitleVi = optionTitleTranslations.vi.trim();
     const trimmedTitleEn = optionTitleTranslations.en.trim();
     if (!trimmedTitleVi) {
-      setErrorMsg("Vietnamese option title is required.");
+      const message = "Vietnamese option title is required.";
+      setErrorMsg(message);
+      toast.error(message);
       setIsSaving(false);
       return;
     }
@@ -103,7 +105,9 @@ export function ProductDetailOptions({ product, mutate }: ProductDetailOptionsPr
     }
 
     if (finalValues.length === 0) {
-      setErrorMsg("At least one variation value is required.");
+      const message = "At least one variation value is required.";
+      setErrorMsg(message);
+      toast.error(message);
       setIsSaving(false);
       return;
     }

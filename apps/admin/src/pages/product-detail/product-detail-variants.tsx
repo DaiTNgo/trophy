@@ -101,28 +101,21 @@ export function ProductDetailVariants({ product, mutate }: ProductDetailVariants
   const [priceOpen, setPriceOpen] = useState(false);
   const [stockOpen, setStockOpen] = useState(false);
   const [variantOpen, setVariantOpen] = useState(false);
-  const [mediaOpen, setMediaOpen] = useState(false);
 
   const [priceRows, setPriceRows] = useState<Array<{ id: number; title: string; priceAmount: string }>>([]);
   const [stockRows, setStockRows] = useState<Array<{ id: number; title: string; inventoryQuantity: string }>>([]);
   const [variantForm, setVariantForm] = useState<VariantFormState>(() => buildVariantForm(product));
   const [variantTitleLocale, setVariantTitleLocale] = useState<AdminLocale>("vi");
-  const [mediaVariantId, setMediaVariantId] = useState<number | null>(null);
-  const [mediaDrafts, setMediaDrafts] = useState<MediaDraft[]>([]);
 
   const [priceError, setPriceError] = useState<string | null>(null);
   const [stockError, setStockError] = useState<string | null>(null);
   const [variantError, setVariantError] = useState<string | null>(null);
-  const [mediaError, setMediaError] = useState<string | null>(null);
 
   const [isSavingPrices, setIsSavingPrices] = useState(false);
   const [isSavingStock, setIsSavingStock] = useState(false);
   const [isSavingVariant, setIsSavingVariant] = useState(false);
-  const [isSavingMedia, setIsSavingMedia] = useState(false);
-  const [isUploadingMedia, setIsUploadingMedia] = useState(false);
   const [isUploadingVariantMedia, setIsUploadingVariantMedia] = useState(false);
 
-  const mediaInputRef = useRef<HTMLInputElement | null>(null);
   const variantMediaInputRef = useRef<HTMLInputElement | null>(null);
 
   function openPrices() {
@@ -156,14 +149,6 @@ export function ProductDetailVariants({ product, mutate }: ProductDetailVariants
     setVariantOpen(true);
   }
 
-  function openMediaEditor(variant: CatalogProduct["variants"][number]) {
-    setMediaVariantId(Number(variant.id));
-    setMediaDrafts(buildMediaDraft(variant));
-    setMediaError(null);
-    setMediaOpen(true);
-  }
-
-
   async function savePrices() {
     setIsSavingPrices(true);
     setPriceError(null);
@@ -179,7 +164,9 @@ export function ProductDetailVariants({ product, mutate }: ProductDetailVariants
       await mutate();
       setPriceOpen(false);
     } catch (error) {
-      setPriceError(error instanceof Error ? error.message : "Failed to save price changes.");
+      const message = error instanceof Error ? error.message : "Failed to save price changes.";
+      setPriceError(message);
+      toast.error(message);
     } finally {
       setIsSavingPrices(false);
     }
@@ -200,7 +187,9 @@ export function ProductDetailVariants({ product, mutate }: ProductDetailVariants
       await mutate();
       setStockOpen(false);
     } catch (error) {
-      setStockError(error instanceof Error ? error.message : "Failed to save stock changes.");
+      const message = error instanceof Error ? error.message : "Failed to save stock changes.";
+      setStockError(message);
+      toast.error(message);
     } finally {
       setIsSavingStock(false);
     }
@@ -322,65 +311,9 @@ export function ProductDetailVariants({ product, mutate }: ProductDetailVariants
       await deleteProductVariant(product.id, variantId);
       await mutate();
     } catch (error) {
-      setVariantError(error instanceof Error ? error.message : "Failed to delete variant.");
-    }
-  }
-
-  async function handleMediaUpload(fileList: FileList | null) {
-    if (!fileList || fileList.length === 0) {
-      return;
-    }
-
-    setIsUploadingMedia(true);
-    setMediaError(null);
-
-    try {
-      const uploadedAssets = await Promise.all(
-        Array.from(fileList).map(async (file) => {
-          let fileToUpload = file;
-          if (file.type === "application/pdf") {
-            fileToUpload = await convertPdfToImageFile(file);
-          }
-          return uploadProductVariantMedia(fileToUpload);
-        }),
-      );
-
-      setMediaDrafts((current) => [
-        ...current,
-        ...uploadedAssets.map((asset) => ({
-          assetId: asset.id,
-          url: asset.contentUrl,
-          mimeType: asset.mimeType,
-          fileName: asset.fileName,
-        })),
-      ]);
-    } catch (error) {
-      setMediaError(error instanceof Error ? error.message : "Failed to upload media.");
-    } finally {
-      setIsUploadingMedia(false);
-    }
-  }
-
-  async function saveMedia() {
-    if (!mediaVariantId) {
-      return;
-    }
-
-    setIsSavingMedia(true);
-    setMediaError(null);
-
-    try {
-      await updateProductVariantMedia(
-        product.id,
-        mediaVariantId,
-        mediaDrafts.map((asset) => ({ assetId: asset.assetId })),
-      );
-      await mutate();
-      setMediaOpen(false);
-    } catch (error) {
-      setMediaError(error instanceof Error ? error.message : "Failed to save variant media.");
-    } finally {
-      setIsSavingMedia(false);
+      const message = error instanceof Error ? error.message : "Failed to delete variant.";
+      setVariantError(message);
+      toast.error(message);
     }
   }
 
@@ -866,80 +799,6 @@ export function ProductDetailVariants({ product, mutate }: ProductDetailVariants
         </FocusModal.Content>
       </FocusModal>
 
-      <Drawer open={mediaOpen} onOpenChange={setMediaOpen}>
-        <Drawer.Content>
-          <Drawer.Header>
-            <Drawer.Title>Manage variant media</Drawer.Title>
-          </Drawer.Header>
-          <Drawer.Body className="flex flex-col gap-y-6 overflow-y-auto">
-            {mediaError ? <InlineError message={mediaError} /> : null}
-            <input
-              ref={mediaInputRef}
-              type="file"
-              accept="image/png,image/jpeg,application/pdf"
-              multiple
-              className="hidden"
-              onChange={(event) => {
-                void handleMediaUpload(event.target.files);
-                event.target.value = "";
-              }}
-            />
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => mediaInputRef.current?.click()}
-              isLoading={isUploadingMedia}
-            >
-              <ImagePlus className="h-4 w-4" />
-              Upload media
-            </Button>
-            {mediaDrafts.length === 0 ? (
-              <Text size="small" className="text-ui-fg-subtle">
-                No variant media selected.
-              </Text>
-            ) : (
-              <div className="grid gap-3 sm:grid-cols-2">
-                {mediaDrafts.map((asset, index) => (
-                  <div key={`${asset.assetId}-${index}`} className="overflow-hidden rounded-lg border border-ui-border-base">
-                    <MediaPreview
-                      src={asset.url}
-                      mimeType={asset.mimeType}
-                      alt={asset.fileName}
-                      className="h-32 w-full object-contain"
-                    />
-                    <div className="flex items-center justify-between px-3 py-3">
-                      <Text size="small" weight="plus" className="line-clamp-1">
-                        {asset.fileName}
-                      </Text>
-                      <IconButton
-                        type="button"
-                        variant="transparent"
-                        onClick={() =>
-                          setMediaDrafts((current) =>
-                            current.filter((_, currentIndex) => currentIndex !== index),
-                          )
-                        }
-                      >
-                        <Trash className="h-4 w-4 text-ui-fg-error" />
-                      </IconButton>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </Drawer.Body>
-          <Drawer.Footer>
-            <Drawer.Close asChild>
-              <Button variant="secondary" disabled={isSavingMedia}>
-                Cancel
-              </Button>
-            </Drawer.Close>
-            <Button onClick={() => void saveMedia()} isLoading={isSavingMedia}>
-              Save media
-            </Button>
-          </Drawer.Footer>
-        </Drawer.Content>
-      </Drawer>
     </Container>
   );
 }

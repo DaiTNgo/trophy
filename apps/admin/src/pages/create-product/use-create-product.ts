@@ -1,4 +1,5 @@
 import { startTransition, useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "@medusajs/ui";
 import { useNavigate } from "react-router";
 
 import { useCatalog } from "../../hooks/use-catalog";
@@ -69,6 +70,10 @@ export function buildVariantSignature(options: { option: string; value: string }
 
 function hasLocalizedTextValue(value: LocalizedTextValue) {
   return Object.values(value).some((localeValue) => localeValue.trim() !== "");
+}
+
+function getFirstErrorMessage(errors: CreateProductErrors) {
+  return Object.values(errors).find((message): message is string => Boolean(message)) ?? "Unable to save product.";
 }
 
 export function useCreateProduct() {
@@ -403,6 +408,7 @@ export function useCreateProduct() {
 
     if (Object.keys(nextErrors).length > 0) {
       setErrors(nextErrors);
+      toast.error(getFirstErrorMessage(nextErrors));
       return;
     }
 
@@ -520,11 +526,11 @@ export function useCreateProduct() {
         });
       });
     } catch (error) {
-      setVariantMediaError(
-        error instanceof Error
-          ? error.message
-          : "Unable to upload variant media during save.",
-      );
+      const message = error instanceof Error
+        ? error.message
+        : "Unable to upload variant media during save.";
+      setVariantMediaError(message);
+      toast.error(message);
     } finally {
       setIsSubmittingMedia(false);
     }
