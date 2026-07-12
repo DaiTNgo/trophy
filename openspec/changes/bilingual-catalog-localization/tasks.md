@@ -16,8 +16,8 @@
 
 ## 3. Publish Completeness
 
-- [x] 3.1 Define required localized fields for products, options, option values, categories, collections, storefront-visible attributes, and customization labels.
-- [x] 3.2 Add backend completeness checks that allow draft saves but block publish when required `vi` or `en` content is missing.
+- [x] 3.1 Define required localized fields for products, options, option values, categories, collections, storefront-visible attributes, and customization labels. Product title requires `vi` only; product title `en`, subtitle, and description are optional.
+- [x] 3.2 Add backend completeness checks that allow draft saves but block publish when field-specific required localized content is missing.
 - [x] 3.3 Return typed publish validation errors that identify localized catalog content as incomplete.
 - [x] 3.4 Surface translation completeness in admin product publish readiness/checklist UI.
 
@@ -49,7 +49,7 @@
 - [x] 7.1 Add admin route-surface tests for localized product create/read/update behavior.
 - [x] 7.2 Add admin route-surface tests for localized option and option value edits preserving variant identity.
 - [x] 7.3 Add admin route-surface tests for category, collection, attribute, and customization localized writes.
-- [x] 7.4 Add publish route tests for missing Vietnamese and missing English localized content.
+- [x] 7.4 Add publish route tests for localized publish readiness. Product title requires `vi` only; missing product title `en` must not block publish.
 - [x] 7.5 Add storefront route tests for `locale=vi`, `locale=en`, unsupported locale rejection, localized response shape, and VND price invariance.
 - [x] 7.6 Add admin UI tests for localized create-product option title/value editing where feasible.
 

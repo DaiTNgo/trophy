@@ -163,7 +163,6 @@ export const products = sqliteTable(
     handle: text("handle").notNull(),
     description: text("description"),
     status: text("status").notNull().default("draft"),
-    hasVariants: integer("has_variants", { mode: "boolean" }).notNull().default(false),
     collectionId: integer("collection_id"),
     createdAt: text("created_at")
       .notNull()
@@ -262,6 +261,15 @@ export const productVariantOptionValues = sqliteTable(
   },
   (table) => [primaryKey({ columns: [table.variantId, table.optionValueId] })],
 );
+
+export const productVariantAttributes = sqliteTable("product_variant_attributes", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  variantId: integer("variant_id").notNull(),
+  name: text("name").notNull(),
+  value: text("value").notNull(),
+  unit: text("unit"),
+  position: integer("position").notNull(),
+});
 
 export const productAttributes = sqliteTable("product_attributes", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -386,13 +394,26 @@ export const customizationAssets = sqliteTable("customization_assets", {
     .default(sql`CURRENT_TIMESTAMP`),
 });
 
-export const customizationIconAssets = sqliteTable("customization_icon_assets", {
+export const customizationClipartCategories = sqliteTable("customization_clipart_categories", {
   id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  active: integer("active", { mode: "boolean" }).notNull().default(true),
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: integer("created_at", { mode: "timestamp_ms" })
+    .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+    .notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+    .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+    .$onUpdate(() => new Date())
+    .notNull(),
+});
+
+export const customizationClipartAssets = sqliteTable("customization_clipart_assets", {
+  id: text("id").primaryKey(),
+  categoryId: text("category_id").notNull(),
   sourceAssetId: text("source_asset_id").notNull(),
   name: text("name").notNull(),
-  categoryId: text("category_id"),
-  categoryLabel: text("category_label"),
-  tagsJson: text("tags_json").notNull().default("[]"),
+  fileName: text("file_name"),
   previewUrl: text("preview_url").notNull(),
   mimeType: text("mime_type").notNull(),
   sourceWidthPx: integer("source_width_px"),

@@ -6,6 +6,7 @@ import {
 import { desc, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { getDb } from "../../../db/client";
+import { makeCustomizationUrlsAbsolute } from "../../../lib/url";
 import {
   customizationDesignRevisions,
   customizationDesigns,
@@ -96,14 +97,14 @@ export const customizationsRoute = new Hono<AppEnv>()
 
     return c.json(
       {
-        template: buildTemplate({
+        template: makeCustomizationUrlsAbsolute(c, buildTemplate({
           id: templateId,
           productId: product.id,
           name: parsed.output.name,
           revision,
           status: "draft",
           stored,
-        }),
+        })),
       },
       201,
     );
@@ -123,14 +124,14 @@ export const customizationsRoute = new Hono<AppEnv>()
     const latest = await readTemplateRevision(db, templateRow.id);
     if (!latest) return jsonError(c, 404, "Customization template revision not found");
 
-    const template = buildTemplate({
+    const template = makeCustomizationUrlsAbsolute(c, buildTemplate({
       id: templateRow.id,
       productId: templateRow.productId,
       name: templateRow.name,
       revision: latest.revision.revision,
       status: "draft",
       stored: latest.stored,
-    });
+    }));
     const validation = validateTemplateForPublish(template);
     if (!validation.valid) return c.json(validation, 422);
 
@@ -162,14 +163,14 @@ export const customizationsRoute = new Hono<AppEnv>()
     if (!result) return jsonError(c, 404, "Customization template revision not found");
 
     return c.json({
-      template: buildTemplate({
+      template: makeCustomizationUrlsAbsolute(c, buildTemplate({
         id: templateRow.id,
         productId: templateRow.productId,
         name: templateRow.name,
         revision: result.revision.revision,
         status: result.revision.status === "published" ? "published" : "draft",
         stored: result.stored,
-      }),
+      })),
     }, 200);
   })
   .get("/templates", async (c) => {
@@ -229,14 +230,14 @@ export const customizationsRoute = new Hono<AppEnv>()
     if (!result) return jsonError(c, 404, "Customization template revision not found");
 
     return c.json({
-      template: buildTemplate({
+      template: makeCustomizationUrlsAbsolute(c, buildTemplate({
         id: templateRow.id,
         productId: templateRow.productId,
         name: templateRow.name,
         revision: result.revision.revision,
         status: "published",
         stored: result.stored,
-      }),
+      })),
     }, 200);
   })
   .post("/designs", async (c) => {

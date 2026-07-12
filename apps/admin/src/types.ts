@@ -100,10 +100,12 @@ export type LocalizedTextValue = Record<AdminLocale, string>;
 export type ProductVariant = {
   id: string;
   title: string;
+  titleTranslations?: LocalizedTextValue;
   sku: string;
   price: number;
   inventory: number;
   options: VariantOptionValue[];
+  attributes: ProductAttribute[];
   allowBackorder: boolean;
   media: ProductVariantMedia[];
   shouldCreate: boolean;

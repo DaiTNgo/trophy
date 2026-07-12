@@ -2,6 +2,7 @@ import { Link } from "react-router";
 import type { StorefrontCategory } from "../../lib/api";
 import { backendAssetUrl } from "../../lib/api";
 import { ArrowRight } from "lucide-react";
+import { getLocalized } from "../../lib/translation";
 
 // Fallback images for categories that have no image set in the backend
 const FALLBACK_IMAGES = [
@@ -27,9 +28,10 @@ function getDescription(handle: string, description: string | null) {
 
 interface ShopByProductSectionProps {
   categories: StorefrontCategory[];
+  locale?: string;
 }
 
-export function CategoriesSection({ categories }: ShopByProductSectionProps) {
+export function CategoriesSection({ categories, locale = "vi" }: ShopByProductSectionProps) {
   if (categories.length === 0) return null;
 
   const displayCats = categories.slice(0, 6);
@@ -39,7 +41,7 @@ export function CategoriesSection({ categories }: ShopByProductSectionProps) {
       <div className="max-w-container-max mx-auto">
         {/* Heading */}
         <div className="mb-14 reveal active">
-          <p className="font-label-md text-label-md uppercase tracking-[0.35em] text-[#875200] mb-3">
+          <p className="mb-3 font-label-md text-label-md uppercase tracking-[0.35em] text-brand-accent">
             Danh mục sản phẩm
           </p>
           <h2 className="font-heading text-[36px] md:text-[44px] uppercase leading-none text-on-surface">
@@ -56,10 +58,11 @@ export function CategoriesSection({ categories }: ShopByProductSectionProps) {
           }`}
         >
           {displayCats.map((cat, index) => {
+            const name = getLocalized(cat.name, locale);
             const imageUrl = cat.imageUrl
               ? backendAssetUrl(cat.imageUrl)
               : FALLBACK_IMAGES[index % FALLBACK_IMAGES.length];
-            const desc = getDescription(cat.handle, cat.description);
+            const desc = getDescription(cat.handle, getLocalized(cat.description, locale) || null);
 
             return (
               <Link
@@ -72,21 +75,21 @@ export function CategoriesSection({ categories }: ShopByProductSectionProps) {
                 <img
                   className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                   src={imageUrl}
-                  alt={cat.name}
+                  alt={name}
                   loading="lazy"
                 />
                 {/* Gradient overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-[#1c1b1b]/80 via-[#1c1b1b]/20 to-transparent transition-opacity duration-300 group-hover:from-[#1c1b1b]/90" />
+                <div className="absolute inset-0 bg-gradient-to-t from-[color:color-mix(in_srgb,var(--surface-dark)_80%,transparent)] via-[color:color-mix(in_srgb,var(--surface-dark)_20%,transparent)] to-transparent transition-opacity duration-300 group-hover:from-[color:color-mix(in_srgb,var(--surface-dark)_90%,transparent)]" />
 
                 {/* Text */}
                 <div className="absolute bottom-0 left-0 right-0 p-5 z-10">
                   <h3 className="font-heading text-[22px] md:text-[26px] uppercase leading-tight text-white mb-1">
-                    {cat.name}
+                    {name}
                   </h3>
                   <p className="font-body-md text-body-md text-white/70 text-sm leading-snug opacity-0 group-hover:opacity-100 transition-opacity duration-300 mb-3 line-clamp-2">
                     {desc}
                   </p>
-                  <span className="inline-flex items-center gap-1.5 font-label-md text-label-md text-[13px] uppercase tracking-widest text-[#fea00c] group-hover:gap-3 transition-all duration-300">
+                  <span className="inline-flex items-center gap-1.5 font-label-md text-label-md text-[13px] uppercase tracking-widest text-brand-support transition-all duration-300 group-hover:gap-3">
                     Xem tất cả
                     <ArrowRight className="text-[16px]" />
                   </span>

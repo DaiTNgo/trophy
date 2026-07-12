@@ -5,6 +5,7 @@ export const clamp = (value: number, min: number, max: number) =>
 
 export const normalizeCropScale = (value?: number) => Math.max(0.02, Number.isFinite(value) ? value! : 1);
 export const normalizeCropPan = (value?: number) => Number.isFinite(value) ? value! : 0;
+export const normalizeCropRotation = (value?: number) => Number.isFinite(value) ? value! : 0;
 
 export const layerGeometryToPixels = ({
   geometry,

@@ -1,7 +1,12 @@
 import { useState } from "react";
-import { Badge, Button, Container, Drawer, IconButton, Input, Label, Heading, Text, DropdownMenu } from "@medusajs/ui";
-import { MoreHorizontal, Plus, Trash } from "lucide-react";
+import { Badge, Button, Container, Drawer, IconButton, Heading, Text, DropdownMenu, toast } from "@medusajs/ui";
+import { MoreHorizontal, X } from "lucide-react";
 import { InlineError } from "../../components/ui/medusa/inline-error";
+import {
+  LocalizedTextField,
+  createLocalizedText,
+  getMissingLocalizedTextLocales,
+} from "../../components/ui/medusa";
 import {
   createProductOption,
   createProductOptionValue,
@@ -10,7 +15,7 @@ import {
   updateProductOption,
   updateProductOptionValue,
 } from "../../lib/products-client";
-import type { CatalogProduct } from "../../types";
+import type { CatalogProduct, AdminLocale, LocalizedTextValue } from "../../types";
 
 type ProductDetailOptionsProps = {
   product: CatalogProduct;
@@ -19,103 +24,158 @@ type ProductDetailOptionsProps = {
 
 type OptionDraft = {
   id: number | null;
-  title: string;
-  values: Array<{ id: number | null; value: string }>;
+  titleTranslations: LocalizedTextValue;
+  values: Array<{ id: number | null; valueTranslations: LocalizedTextValue }>;
 };
 
-function buildOptionDrafts(product: CatalogProduct): OptionDraft[] {
-  return product.optionDefinitions.map((option) => ({
-    id: Number(option.id),
-    title: option.title,
-    values: option.values.map((value) => ({
-      id: Number(value.id),
-      value: value.value,
-    })),
-  }));
-}
-
 export function ProductDetailOptions({ product, mutate }: ProductDetailOptionsProps) {
-  const [optionsOpen, setOptionsOpen] = useState(false);
-  const [optionsDrafts, setOptionsDrafts] = useState<OptionDraft[]>([]);
-  const [optionsError, setOptionsError] = useState<string | null>(null);
-  const [isSavingOptions, setIsSavingOptions] = useState(false);
+  const [activeOption, setActiveOption] = useState<OptionDraft | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [optionTitleTranslations, setOptionTitleTranslations] = useState<LocalizedTextValue>(createLocalizedText(""));
+  const [optionTitleLocale, setOptionTitleLocale] = useState<AdminLocale>("vi");
+  const [optionValues, setOptionValues] = useState<Array<{ id: number | null; valueTranslations: LocalizedTextValue }>>([]);
+  const [valueDraft, setValueDraft] = useState("");
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState<Record<string, boolean>>({});
 
-  function openOptions() {
-    setOptionsDrafts(buildOptionDrafts(product));
-    setOptionsError(null);
-    setOptionsOpen(true);
+  function openEditOption(option: CatalogProduct["optionDefinitions"][number]) {
+    const titleTranslations = option.titleTranslations ?? createLocalizedText(option.title);
+    setActiveOption({
+      id: Number(option.id),
+      titleTranslations,
+      values: option.values.map((v) => ({ id: Number(v.id), valueTranslations: v.valueTranslations ?? createLocalizedText(v.value) })),
+    });
+    setOptionTitleTranslations(titleTranslations);
+    setOptionValues(option.values.map((v) => ({ id: Number(v.id), valueTranslations: v.valueTranslations ?? createLocalizedText(v.value) })));
+    setValueDraft("");
+    setErrorMsg(null);
+    setModalOpen(true);
   }
 
-  async function saveOptions() {
-    setIsSavingOptions(true);
-    setOptionsError(null);
+  function openAddOption() {
+    setActiveOption(null);
+    setOptionTitleTranslations(createLocalizedText(""));
+    setOptionValues([]);
+    setValueDraft("");
+    setErrorMsg(null);
+    setModalOpen(true);
+  }
+
+  async function handleDeleteOption(optionId: string) {
+    if (
+      !confirm(
+        "Are you sure you want to delete this option? This will delete all of its values and may affect variants."
+      )
+    ) {
+      return;
+    }
+    setIsDeleting((curr) => ({ ...curr, [optionId]: true }));
+    try {
+      await deleteProductOption(product.id, Number(optionId));
+      await mutate();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to delete option.");
+    } finally {
+      setIsDeleting((curr) => ({ ...curr, [optionId]: false }));
+    }
+  }
+
+  async function handleSaveOption() {
+    setIsSaving(true);
+    setErrorMsg(null);
+
+    const trimmedTitleVi = optionTitleTranslations.vi.trim();
+    const trimmedTitleEn = optionTitleTranslations.en.trim();
+    if (!trimmedTitleVi) {
+      const message = "Vietnamese option title is required.";
+      setErrorMsg(message);
+      toast.error(message);
+      setIsSaving(false);
+      return;
+    }
+
+    // append any draft value left in the input
+    let finalValues = [...optionValues];
+    const trimmedDraft = valueDraft.trim();
+    if (trimmedDraft) {
+      if (!finalValues.some((v) => v.valueTranslations.vi.toLowerCase() === trimmedDraft.toLowerCase())) {
+        finalValues.push({ id: null, valueTranslations: createLocalizedText(trimmedDraft) });
+      }
+    }
+
+    if (finalValues.length === 0) {
+      const message = "At least one variation value is required.";
+      setErrorMsg(message);
+      toast.error(message);
+      setIsSaving(false);
+      return;
+    }
 
     try {
-      const snapshot = buildOptionDrafts(product);
-      const nextDrafts = optionsDrafts
-        .map((option) => ({
-          ...option,
-          title: option.title.trim(),
-          values: option.values
-            .map((value) => ({ ...value, value: value.value.trim() }))
-            .filter((value) => value.value !== ""),
-        }))
-        .filter((option) => option.title !== "");
+      if (activeOption === null) {
+        // Creating a new option
+        await createProductOption(product.id, {
+          title: { vi: trimmedTitleVi, en: trimmedTitleEn },
+          values: finalValues.map((v) => ({
+            value: {
+              vi: v.valueTranslations.vi.trim(),
+              en: v.valueTranslations.en.trim(),
+            },
+          })),
+        });
+      } else {
+        // Updating an existing option
+        const optionId = activeOption.id!;
 
-      const removedOptionIds = snapshot
-        .filter((option) => !nextDrafts.some((draft) => draft.id === option.id))
-        .map((option) => option.id!)
-        .filter(Boolean);
-
-      for (const optionId of removedOptionIds) {
-        await deleteProductOption(product.id, optionId);
-      }
-
-      const existingDrafts = nextDrafts.filter((option) => option.id !== null);
-      for (const draft of existingDrafts) {
-        const original = snapshot.find((option) => option.id === draft.id);
-        if (!original) {
-          continue;
+        // 1. Update title if changed
+        if (
+          activeOption.titleTranslations.vi !== trimmedTitleVi ||
+          activeOption.titleTranslations.en !== trimmedTitleEn
+        ) {
+          await updateProductOption(product.id, optionId, {
+            title: { vi: trimmedTitleVi, en: trimmedTitleEn },
+          });
         }
 
-        if (original.title !== draft.title) {
-          await updateProductOption(product.id, draft.id!, { title: { vi: draft.title, en: "" } });
+        // 2. Delete removed values
+        const removedValues = activeOption.values.filter(
+          (orig) => !finalValues.some((curr) => curr.id === orig.id)
+        );
+        for (const val of removedValues) {
+          await deleteProductOptionValue(product.id, val.id!);
         }
 
-        const removedValueIds = original.values
-          .filter((value) => !draft.values.some((draftValue) => draftValue.id === value.id))
-          .map((value) => value.id!)
-          .filter(Boolean);
-
-        for (const valueId of removedValueIds) {
-          await deleteProductOptionValue(product.id, valueId);
-        }
-
-        for (const valueDraft of draft.values.filter((value) => value.id !== null)) {
-          const originalValue = original.values.find((value) => value.id === valueDraft.id);
-          if (originalValue && originalValue.value !== valueDraft.value) {
-            await updateProductOptionValue(product.id, valueDraft.id!, { value: { vi: valueDraft.value, en: "" } });
+        // 3. Update existing values if changed
+        const existingValues = finalValues.filter((v) => v.id !== null);
+        for (const val of existingValues) {
+          const origVal = activeOption.values.find((orig) => orig.id === val.id);
+          if (
+            origVal && 
+            (origVal.valueTranslations.vi !== val.valueTranslations.vi.trim() ||
+             origVal.valueTranslations.en !== val.valueTranslations.en.trim())
+          ) {
+            await updateProductOptionValue(product.id, val.id!, {
+              value: { vi: val.valueTranslations.vi.trim(), en: val.valueTranslations.en.trim() },
+            });
           }
         }
 
-        for (const valueDraft of draft.values.filter((value) => value.id === null)) {
-          await createProductOptionValue(product.id, draft.id!, { value: { vi: valueDraft.value, en: "" } });
+        // 4. Create new values
+        const newValues = finalValues.filter((v) => v.id === null);
+        for (const val of newValues) {
+          await createProductOptionValue(product.id, optionId, {
+            value: { vi: val.valueTranslations.vi.trim(), en: val.valueTranslations.en.trim() },
+          });
         }
       }
 
-      for (const draft of nextDrafts.filter((option) => option.id === null)) {
-        await createProductOption(product.id, {
-          title: { vi: draft.title, en: "" },
-          values: draft.values.map((value) => ({ vi: value.value, en: "" })),
-        });
-      }
-
       await mutate();
-      setOptionsOpen(false);
+      setModalOpen(false);
     } catch (error) {
-      setOptionsError(error instanceof Error ? error.message : "Failed to save option changes.");
+      toast.error(error instanceof Error ? error.message : "Failed to save option.");
     } finally {
-      setIsSavingOptions(false);
+      setIsSaving(false);
     }
   }
 
@@ -123,7 +183,9 @@ export function ProductDetailOptions({ product, mutate }: ProductDetailOptionsPr
     <Container className="p-0 overflow-hidden">
       <div className="flex flex-col">
         <div className="flex items-center justify-between px-6 py-4">
-          <Heading level="h2" className="text-xl font-semibold">Options</Heading>
+          <Heading level="h2" className="text-xl font-semibold">
+            Options
+          </Heading>
           <DropdownMenu>
             <DropdownMenu.Trigger asChild>
               <IconButton variant="transparent" size="small">
@@ -131,22 +193,27 @@ export function ProductDetailOptions({ product, mutate }: ProductDetailOptionsPr
               </IconButton>
             </DropdownMenu.Trigger>
             <DropdownMenu.Content align="end">
-              <DropdownMenu.Item onClick={openOptions}>
-                Edit Options
-              </DropdownMenu.Item>
+              <DropdownMenu.Item onClick={openAddOption}>Add Option</DropdownMenu.Item>
             </DropdownMenu.Content>
           </DropdownMenu>
         </div>
 
         {product.optionDefinitions.length === 0 ? (
           <div className="border-t border-ui-border-base px-6 py-4 flex items-center justify-center">
-            <Text size="small" className="text-ui-fg-subtle">No options defined</Text>
+            <Text size="small" className="text-ui-fg-subtle">
+              No options defined
+            </Text>
           </div>
         ) : (
           <div className="flex flex-col">
             {product.optionDefinitions.map((option) => (
-              <div key={option.id} className="flex items-center justify-between border-t border-ui-border-base px-6 py-4">
-                <Text size="small" className="text-ui-fg-base">{option.title}</Text>
+              <div
+                key={option.id}
+                className="flex items-center justify-between border-t border-ui-border-base px-6 py-4"
+              >
+                <Text size="small" className="text-ui-fg-base">
+                  {option.title}
+                </Text>
                 <div className="flex items-center gap-x-2">
                   <div className="flex flex-wrap gap-1">
                     {option.values.map((val) => (
@@ -157,13 +224,23 @@ export function ProductDetailOptions({ product, mutate }: ProductDetailOptionsPr
                   </div>
                   <DropdownMenu>
                     <DropdownMenu.Trigger asChild>
-                      <IconButton variant="transparent" size="small">
+                      <IconButton
+                        variant="transparent"
+                        size="small"
+                        disabled={isDeleting[option.id]}
+                      >
                         <MoreHorizontal className="h-4 w-4 text-ui-fg-muted" />
                       </IconButton>
                     </DropdownMenu.Trigger>
                     <DropdownMenu.Content align="end">
-                      <DropdownMenu.Item onClick={openOptions}>
-                        Edit Options
+                      <DropdownMenu.Item onClick={() => openEditOption(option)}>
+                        Edit Option
+                      </DropdownMenu.Item>
+                      <DropdownMenu.Item
+                        onClick={() => void handleDeleteOption(option.id)}
+                        className="text-ui-fg-error"
+                      >
+                        Delete Option
                       </DropdownMenu.Item>
                     </DropdownMenu.Content>
                   </DropdownMenu>
@@ -174,126 +251,162 @@ export function ProductDetailOptions({ product, mutate }: ProductDetailOptionsPr
         )}
       </div>
 
-      <Drawer open={optionsOpen} onOpenChange={setOptionsOpen}>
+      <Drawer open={modalOpen} onOpenChange={setModalOpen}>
         <Drawer.Content>
           <Drawer.Header>
-            <Drawer.Title>Manage options</Drawer.Title>
+            <Drawer.Title>
+              {activeOption === null ? "Add Option" : "Edit Option"}
+            </Drawer.Title>
           </Drawer.Header>
-          <Drawer.Body className="flex flex-col gap-y-6 overflow-y-auto">
-            {optionsError && <InlineError message={optionsError} />}
-            {optionsDrafts.map((option, optionIndex) => (
-              <div key={`${option.id ?? "new"}-${optionIndex}`} className="rounded-lg border border-ui-border-base p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex-1 space-y-3">
-                    <div className="space-y-1.5">
-                      <Label size="small">Option title</Label>
-                      <Input
-                        value={option.title}
-                        onChange={(event) =>
-                          setOptionsDrafts((current) =>
-                            current.map((item, currentIndex) =>
-                              currentIndex === optionIndex ? { ...item, title: event.target.value } : item,
-                            ),
-                          )
-                        }
-                        placeholder="Color"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label size="small">Values</Label>
-                      {option.values.map((value, valueIndex) => (
-                        <div key={`${value.id ?? "new"}-${valueIndex}`} className="flex gap-2">
-                          <Input
-                            value={value.value}
-                            onChange={(event) =>
-                              setOptionsDrafts((current) =>
-                                current.map((item, currentIndex) =>
-                                  currentIndex === optionIndex
-                                    ? {
-                                        ...item,
-                                        values: item.values.map((innerValue, innerIndex) =>
-                                          innerIndex === valueIndex
-                                            ? { ...innerValue, value: event.target.value }
-                                            : innerValue,
-                                        ),
-                                      }
-                                    : item,
-                                ),
-                              )
-                            }
-                            placeholder="Red"
-                          />
-                          <IconButton
-                            type="button"
-                            variant="transparent"
-                            onClick={() =>
-                              setOptionsDrafts((current) =>
-                                current.map((item, currentIndex) =>
-                                  currentIndex === optionIndex
-                                    ? {
-                                        ...item,
-                                        values: item.values.filter((_, innerIndex) => innerIndex !== valueIndex),
-                                      }
-                                    : item,
-                                ),
-                              )
-                            }
-                          >
-                            <Trash className="h-4 w-4 text-ui-fg-error" />
-                          </IconButton>
-                        </div>
-                      ))}
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="small"
-                        onClick={() =>
-                          setOptionsDrafts((current) =>
-                            current.map((item, currentIndex) =>
-                              currentIndex === optionIndex
-                                ? { ...item, values: [...item.values, { id: null, value: "" }] }
-                                : item,
-                            ),
-                          )
-                        }
-                      >
-                        <Plus className="h-4 w-4" />
-                        Add value
-                      </Button>
-                    </div>
+          <Drawer.Body className="p-4 overflow-y-auto">
+            <div className="flex flex-col gap-y-4">
+              {errorMsg && <InlineError message={errorMsg} />}
+
+              <div className="rounded-xl border border-ui-border-base p-4">
+                <div className="grid gap-4 grid-cols-[84px_minmax(0,1fr)]">
+                  <div className="space-y-6 pt-2">
+                    <Text weight="plus" size="small">
+                      Title
+                    </Text>
+                    <Text weight="plus" size="small">
+                      Values
+                    </Text>
                   </div>
-                  <IconButton
-                    type="button"
-                    variant="transparent"
-                    onClick={() =>
-                      setOptionsDrafts((current) => current.filter((_, currentIndex) => currentIndex !== optionIndex))
-                    }
-                  >
-                    <Trash className="h-4 w-4 text-ui-fg-error" />
-                  </IconButton>
+                  <div className="space-y-3">
+                    <LocalizedTextField
+                      id="option-title"
+                      value={optionTitleTranslations}
+                      locale={optionTitleLocale}
+                      onLocaleChange={setOptionTitleLocale}
+                      onChange={setOptionTitleTranslations}
+                      placeholder={{
+                        vi: "Màu sắc",
+                        en: "Color",
+                      }}
+                      requiredLocales={["vi"]}
+                    />
+                    <div
+                      className="rounded-md border border-ui-border-base bg-ui-bg-field px-3 py-2 shadow-buttons-neutral"
+                    >
+                  <div className="flex flex-wrap gap-2 items-center">
+                    {optionValues.map((v, index) => {
+                      const missingLocales = getMissingLocalizedTextLocales(v.valueTranslations);
+                      return (
+                      <Badge
+                        key={v.id ?? index}
+                        size="xsmall"
+                        color={missingLocales.length > 0 ? "orange" : "blue"}
+                        className="gap-x-1.5 py-1"
+                      >
+                        <input
+                          value={v.valueTranslations.vi}
+                          onChange={(event) => {
+                            setOptionValues((curr) => {
+                              const next = [...curr];
+                              next[index].valueTranslations = {
+                                ...next[index].valueTranslations,
+                                vi: event.target.value,
+                              };
+                              return next;
+                            });
+                          }}
+                          className="min-w-[2ch] max-w-[16ch] bg-transparent text-xs outline-none placeholder:text-ui-fg-muted"
+                          style={{ width: `${Math.max(v.valueTranslations.vi.length, 2)}ch` }}
+                          placeholder="__"
+                          aria-label="Vietnamese option value"
+                          disabled={isSaving}
+                        />
+                        <span className="text-ui-fg-muted">/</span>
+                        <input
+                          value={v.valueTranslations.en}
+                          onChange={(event) => {
+                            setOptionValues((curr) => {
+                              const next = [...curr];
+                              next[index].valueTranslations = {
+                                ...next[index].valueTranslations,
+                                en: event.target.value,
+                              };
+                              return next;
+                            });
+                          }}
+                          className="min-w-[2ch] max-w-[16ch] bg-transparent text-xs outline-none placeholder:text-ui-fg-muted"
+                          style={{ width: `${Math.max(v.valueTranslations.en.length, 2)}ch` }}
+                          placeholder="__"
+                          aria-label="English option value"
+                          disabled={isSaving}
+                        />
+                        <button
+                          type="button"
+                          className="inline-flex hover:text-ui-fg-base text-ui-fg-muted focus:outline-none disabled:opacity-50"
+                          disabled={isSaving}
+                          onClick={() => {
+                            setOptionValues((curr) => curr.filter((_, i) => i !== index));
+                          }}
+                          aria-label="Remove option value"
+                        >
+                          <X className="size-3" />
+                        </button>
+                      </Badge>
+                      );
+                    })}
+                    <input
+                      value={valueDraft}
+                      disabled={isSaving}
+                      onChange={(event) => setValueDraft(event.target.value)}
+                      onBlur={() => {
+                        const trimmed = valueDraft.trim();
+                        if (trimmed) {
+                          if (!optionValues.some((v) => v.valueTranslations.vi.toLowerCase() === trimmed.toLowerCase())) {
+                            setOptionValues((curr) => [...curr, { id: null, valueTranslations: createLocalizedText(trimmed) }]);
+                          }
+                          setValueDraft("");
+                        }
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === ",") {
+                          event.preventDefault();
+                          const trimmed = valueDraft.trim();
+                          if (trimmed) {
+                            if (!optionValues.some((v) => v.valueTranslations.vi.toLowerCase() === trimmed.toLowerCase())) {
+                              setOptionValues((curr) => [...curr, { id: null, valueTranslations: createLocalizedText(trimmed) }]);
+                            }
+                            setValueDraft("");
+                          }
+                        } else if (
+                          event.key === "Backspace" &&
+                          !valueDraft &&
+                          optionValues.length > 0
+                        ) {
+                          setOptionValues((curr) => curr.slice(0, -1));
+                        }
+                      }}
+                      className="min-w-[120px] flex-1 border-0 bg-transparent text-sm outline-none placeholder:text-ui-fg-muted focus:ring-0 disabled:opacity-50"
+                      placeholder={
+                        optionValues.length > 0
+                          ? "Add another value..."
+                          : "e.g. Red, Blue, Green"
+                      }
+                    />
+                  </div>
                 </div>
               </div>
-            ))}
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() =>
-                setOptionsDrafts((current) => [...current, { id: null, title: "", values: [] }])
-              }
-            >
-              <Plus className="h-4 w-4" />
-              Add option
-            </Button>
+            </div>
+          </div>
+        </div>
           </Drawer.Body>
           <Drawer.Footer>
-            <Drawer.Close asChild>
-              <Button variant="secondary" disabled={isSavingOptions}>
-                Cancel
+            <div className="flex items-center justify-end gap-2">
+              <Drawer.Close asChild>
+                <Button variant="secondary" disabled={isSaving}>Cancel</Button>
+              </Drawer.Close>
+              <Button
+                onClick={() => void handleSaveOption()}
+                isLoading={isSaving}
+                disabled={isSaving}
+              >
+                Save
               </Button>
-            </Drawer.Close>
-            <Button onClick={() => void saveOptions()} isLoading={isSavingOptions}>
-              Save option changes
-            </Button>
+            </div>
           </Drawer.Footer>
         </Drawer.Content>
       </Drawer>

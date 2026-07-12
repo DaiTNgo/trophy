@@ -12,6 +12,9 @@ import type {
 } from "../types";
 import { createDraftId, slugify, splitCommaValues, buildSku } from "./utils";
 
+export const DEFAULT_PRODUCT_OPTION_TITLE = "Default option";
+export const DEFAULT_PRODUCT_OPTION_VALUE = "Default option value";
+
 function createLocalizedText(value = "") {
   return {
     vi: value,
@@ -128,7 +131,12 @@ export function buildVariantBlueprints(
     return [
       {
         title: "Default variant",
-        options: [] as VariantOptionValue[],
+        options: [
+          {
+            option: DEFAULT_PRODUCT_OPTION_TITLE,
+            value: DEFAULT_PRODUCT_OPTION_VALUE,
+          },
+        ] as VariantOptionValue[],
       },
     ];
   }
@@ -177,6 +185,7 @@ export function reconcileVariantRows(
       price: current?.price ?? 0,
       inventory: current?.inventory ?? normalizedInventory,
       options: blueprint.options,
+      attributes: current?.attributes ?? [],
       allowBackorder: current?.allowBackorder ?? false,
       media: current?.media ?? [],
       shouldCreate: current?.shouldCreate ?? true,
@@ -199,6 +208,7 @@ function getEffectiveVariantRows(
   return buildVariantPreview(values).map((variant) => ({
     ...variant,
     inventory: normalizedInventory,
+    attributes: variant.attributes ?? [],
     allowBackorder: false,
     shouldCreate: true,
   }));
@@ -321,6 +331,7 @@ export function buildVariantPreview(values: CreateProductFormValues) {
         price: Number.isFinite(basePrice) ? basePrice : 0,
         inventory: normalizedInventory,
         options: [],
+        attributes: [],
         allowBackorder: false,
         media: [],
         shouldCreate: true,
@@ -336,6 +347,7 @@ export function buildVariantPreview(values: CreateProductFormValues) {
     price: Number.isFinite(basePrice) ? basePrice : 0,
     inventory: normalizedInventory,
     options: combination,
+    attributes: [],
     allowBackorder: false,
     media: [],
     shouldCreate: true,

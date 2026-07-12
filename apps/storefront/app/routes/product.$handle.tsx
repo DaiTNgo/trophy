@@ -1,15 +1,20 @@
-import type { DynamicFontFamily, ProductCustomization } from "@trophy/customization";
-import { useEffect, useMemo, useState } from "react";
-import { useLoaderData } from "react-router";
-import { PenSquare } from "lucide-react";
-import { validateCustomizationValues } from "@trophy/customization";
-import { ProductBreadcrumbs } from "../components/product/ProductBreadcrumbs";
+import type {
+  CustomizationFormField,
+  DynamicFontFamily,
+  ImageShapeFieldValue,
+  ProductCustomization,
+} from "@trophy/customization";
 import {
   ProductCustomizationForm,
   ProductCustomizationPreview,
-} from "../components/product/ProductCustomization";
+} from "@trophy/customization-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useLoaderData } from "react-router";
+import { Minus, Plus } from "lucide-react";
+import { validateCustomizationValues } from "@trophy/customization";
+import { ProductBreadcrumbs } from "../components/product/ProductBreadcrumbs";
 import { ProductGallery } from "../components/product/ProductGallery";
-import { ProductInfo } from "../components/product/ProductInfo";
+import { ProductDetailSections, ProductInfo } from "../components/product/ProductInfo";
 import { ProductMobileActionBar } from "../components/product/ProductMobileActionBar";
 import {
   buildProductCustomizationTemplate,
@@ -25,6 +30,10 @@ import {
 } from "../lib/api";
 import type { Route } from "./+types/product.$handle";
 import { getLocaleFromRequest } from "../lib/locale";
+
+const BACKEND_URL =
+  (import.meta.env.VITE_BACKEND_URL as string | undefined)?.replace(/\/$/, "") ??
+  "http://localhost:8787";
 
 export async function loader({ params, request }: Route.LoaderArgs) {
   const locale = getLocaleFromRequest(request);
@@ -44,6 +53,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
 export default function ProductDetail() {
   const { product, dynamicFonts, locale } = useLoaderData<typeof loader>();
   const { addLine } = useCart();
+  const previewSectionRef = useRef<HTMLElement | null>(null);
   const defaultVariantId =
     product.variants.find((variant) => variant.isDefault && variant.priceAmount !== null)?.id ??
     product.variants.find((variant) => variant.priceAmount !== null)?.id ??
@@ -55,12 +65,36 @@ export default function ProductDetail() {
   const [cartMessage, setCartMessage] = useState("");
   const [uploadingFieldId, setUploadingFieldId] = useState("");
   const [quantity, setQuantity] = useState(1);
+  const [selectedMediaId, setSelectedMediaId] = useState<string | null>(null);
 
   const selectedVariant =
     product.variants.find((variant) => variant.id === selectedVariantId) ??
     product.variants.find((variant) => variant.id === defaultVariantId) ??
     null;
+  const selectedCustomizationVariant = useMemo(
+    () =>
+      selectedVariant
+        ? {
+            ...selectedVariant,
+            title: getLocalized(selectedVariant.title, locale),
+          }
+        : null,
+    [selectedVariant, locale],
+  );
+  const selectedVariantMedia = useMemo(
+    () =>
+      [...(selectedVariant?.media ?? [])]
+        .filter((media) => Boolean(media.contentUrl))
+        .sort((a, b) => a.position - b.position),
+    [selectedVariant],
+  );
+  const selectedMedia =
+    selectedVariantMedia.find((media) => media.id === selectedMediaId) ?? selectedVariantMedia[0] ?? null;
   const displayPrice = formatCurrency(selectedVariant?.priceAmount ?? null);
+
+  useEffect(() => {
+    setSelectedMediaId(selectedVariantMedia[0]?.id ?? null);
+  }, [selectedVariant?.id, selectedVariantMedia]);
 
   const customization = useMemo<ProductCustomization | null>(() => {
     if (!product.customization?.enabled) return null;
@@ -81,10 +115,11 @@ export default function ProductDetail() {
             productId: product.id,
             productTitle: getLocalized(product.title, locale),
             customization,
-            selectedVariant,
+            selectedVariant: selectedCustomizationVariant,
+            selectedMedia,
           })
         : null,
-    [customization, product.id, getLocalized(product.title, locale), selectedVariant],
+    [customization, product.id, product.title, locale, selectedCustomizationVariant, selectedMedia],
   );
 
   const [customizationValues, setCustomizationValues] = useState(() =>
@@ -105,48 +140,96 @@ export default function ProductDetail() {
     () =>
       product.attributes.reduce(
         (acc, attribute) => {
-          acc[attribute.name] = attribute.unit ? `${attribute.value} ${attribute.unit}` : attribute.value;
+          const name = getLocalized(attribute.name, locale);
+          const value = getLocalized(attribute.value, locale);
+          acc[name] = attribute.unit ? `${value} ${attribute.unit}` : value;
           return acc;
         },
         {} as Record<string, string>,
       ),
-    [product.attributes],
+    [product.attributes, locale],
   );
 
-  const variantButtons = product.variants.map((variant) => {
-    const optionSummary = variant.optionValues
-      .map((optionValue) => optionValue.optionTitle ? `${optionValue.optionTitle}: ${optionValue.value}` : optionValue.value)
-      .join(" / ");
+  const selectedOptionValueIds = new Map(
+    selectedVariant?.optionValues.map((optionValue) => [optionValue.optionId, optionValue.id]) ?? [],
+  );
+  const visibleOptions = product.options
+    .map((option) => ({
+      ...option,
+      values: [...option.values].sort((a, b) => a.position - b.position),
+    }))
+    .sort((a, b) => a.position - b.position)
+    .filter((option) => option.values.length > 1);
 
-    return (
-      <button
-        key={variant.id}
-        type="button"
-        data-variant-id={variant.id}
-        data-selected={variant.id === selectedVariant?.id}
-        onClick={() => setSelectedVariantId(variant.id)}
-        className={`rounded-lg border px-4 py-3 text-left transition ${
-          variant.id === selectedVariant?.id
-            ? "border-primary bg-primary text-white"
-            : "border-outline hover:border-primary"
-        }`}
-      >
-        <div className="font-label-md uppercase">{getLocalized(variant.title, locale)}</div>
-        {optionSummary ? <div className="mt-1 text-xs opacity-80">{optionSummary}</div> : null}
-      </button>
+  function variantMatchesSelection(
+    variant: StorefrontProductDetail["variants"][number],
+    selectedValues: Map<number, number>,
+  ) {
+    return Array.from(selectedValues.entries()).every(([optionId, valueId]) =>
+      variant.optionValues.some((optionValue) => optionValue.optionId === optionId && optionValue.id === valueId),
     );
-  });
+  }
 
-  const mainMedia = selectedVariant?.media[0] ?? null;
-  const galleryThumbnails = product.variants
-    .filter((variant) => variant.media[0]?.contentUrl)
-    .map((variant) => ({
-      id: String(variant.id),
-      src: variant.media[0]!.contentUrl,
-      alt: `${getLocalized(product.title, locale)} - ${getLocalized(variant.title, locale)}`,
-      active: variant.id === selectedVariant?.id,
-      onClick: () => setSelectedVariantId(variant.id),
-    }));
+  function findVariantForOptionValue(optionId: number, valueId: number) {
+    const nextSelection = new Map(selectedOptionValueIds);
+    nextSelection.set(optionId, valueId);
+    return (
+      product.variants.find((variant) => variantMatchesSelection(variant, nextSelection)) ??
+      product.variants.find((variant) =>
+        variant.optionValues.some((optionValue) => optionValue.optionId === optionId && optionValue.id === valueId),
+      ) ??
+      null
+    );
+  }
+
+  const optionGroups = visibleOptions.map((option) => (
+    <div key={option.id} className="space-y-2">
+      <div className="flex items-center justify-between gap-3">
+        <p className="font-heading text-[22px] uppercase leading-none tracking-[0.02em] text-brand-strong">
+          {getLocalized(option.title, locale)}
+        </p>
+        <span className="text-xs font-semibold uppercase tracking-[0.08em] text-on-surface-variant">
+          {getLocalized(option.values.find((value) => selectedOptionValueIds.get(option.id) === value.id)?.value, locale) || "Select"}
+        </span>
+      </div>
+      <div className="grid gap-1.5 sm:grid-cols-2">
+        {option.values.map((value) => {
+          const nextVariant = findVariantForOptionValue(option.id, value.id);
+          const selected = selectedOptionValueIds.get(option.id) === value.id;
+          const disabled = !nextVariant;
+          return (
+            <button
+              key={value.id}
+              type="button"
+              disabled={disabled}
+              data-option-id={option.id}
+              data-option-value-id={value.id}
+              data-selected={selected}
+              onClick={() => {
+                if (nextVariant) setSelectedVariantId(nextVariant.id);
+              }}
+              className={`h-10 rounded border px-3 text-left text-sm font-medium transition ${
+                selected
+                  ? "border-brand-strong bg-white text-text-base ring-2 ring-brand-strong/15"
+                  : "border-border-subtle bg-white text-text-base hover:border-brand-support"
+              } disabled:cursor-not-allowed disabled:opacity-40`}
+            >
+              {getLocalized(value.value, locale)}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  ));
+
+  const mainMedia = selectedMedia;
+  const galleryThumbnails = selectedVariantMedia.map((media, index) => ({
+    id: media.id,
+    src: media.contentUrl,
+    alt: `${getLocalized(product.title, locale)} - image ${index + 1}`,
+    active: media.id === selectedMedia?.id,
+    onClick: () => setSelectedMediaId(media.id),
+  }));
   const contactHref = `/contact?product=${encodeURIComponent(getLocalized(product.title, locale))}${
     selectedVariant ? `&variant=${encodeURIComponent(getLocalized(selectedVariant.title, locale))}` : ""
   }${selectedVariant?.sku ? `&sku=${encodeURIComponent(selectedVariant.sku)}` : ""}`;
@@ -192,8 +275,8 @@ export default function ProductDetail() {
               return { fieldId: field.id, label: field.label, valueSummary: "Uploaded image" };
             }
 
-            if (typeof value === "object" && value && "source" in value && value.source === "icon") {
-              return { fieldId: field.id, label: field.label, valueSummary: value.iconName };
+            if (typeof value === "object" && value && "source" in value && value.source === "clipart") {
+              return { fieldId: field.id, label: field.label, valueSummary: value.clipartAssetName };
             }
 
             return { fieldId: field.id, label: field.label, valueSummary: "Custom value" };
@@ -222,35 +305,84 @@ export default function ProductDetail() {
     setCartMessage("Added to cart. You can keep browsing or open the cart.");
   }
 
+  async function uploadCustomizationImage(
+    field: CustomizationFormField,
+    file: File,
+  ): Promise<ImageShapeFieldValue> {
+    setUploadingFieldId(field.id);
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/storefront/customizations/assets`, {
+        method: "POST",
+        headers: { "Content-Type": file.type, "X-Upload-Token": getUploadToken() },
+        body: file,
+      });
+      const payload = (await response.json()) as {
+        asset?: { id: string; widthPx: number; heightPx: number; contentUrl: string };
+        error?: string;
+      };
+      if (!response.ok || !payload.asset) {
+        throw new Error(payload.error ?? "Upload failed.");
+      }
+
+      return {
+        assetId: payload.asset.id,
+        previewUrl: payload.asset.contentUrl,
+        sourceWidthPx: payload.asset.widthPx,
+        sourceHeightPx: payload.asset.heightPx,
+        cropScale: 1,
+        cropXRatio: 0,
+        cropYRatio: 0,
+        cropRotationDeg: 0,
+      };
+    } finally {
+      setUploadingFieldId("");
+    }
+  }
+
+  const shortDescription = useMemo(() => {
+    const full = getLocalized(product.description, locale) || "";
+    if (full.length <= 220) return full;
+    const cut = full.slice(0, 220);
+    const lastPeriod = cut.lastIndexOf(".");
+    return lastPeriod > 120 ? cut.slice(0, lastPeriod + 1) : cut + "…";
+  }, [product.description, locale]);
+
   return (
-    <div className="bg-background text-on-surface font-body-md selection:bg-primary-fixed selection:text-on-primary-fixed">
-      <main className="max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop py-12 md:py-20">
+    <div className="bg-white font-body-md text-on-surface selection:bg-secondary-container selection:text-brand-strong">
+      <main className="mx-auto max-w-[1480px] px-4 pb-28 pt-6 sm:px-6 md:px-8 md:pb-16 lg:px-10">
         <ProductBreadcrumbs title={getLocalized(product.title, locale)} />
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-16">
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_440px] lg:items-start xl:grid-cols-[minmax(0,1fr)_480px]">
           <ProductGallery
+            customizable={Boolean(customizationTemplate)}
             mainContent={
               customizationTemplate ? (
-                <div
-                  className="aspect-[4/5] flex items-center justify-center p-4"
+                <section
+                  ref={(el) => { previewSectionRef.current = el; }}
+                  className="min-h-[560px]"
                   data-selected-variant-id={selectedVariant?.id ?? ""}
                 >
                   <ProductCustomizationPreview
                     template={customizationTemplate}
                     values={customizationValues}
                     dynamicFonts={dynamicFonts as DynamicFontFamily[]}
+                    resolveFontUrl={(assetId) => `${BACKEND_URL}/api/storefront/brand-assets/fonts/file/${assetId}`}
+                    resolveStaticFontUrl={(fileName) => `${BACKEND_URL}/fonts/${fileName}`}
                     selectedVariantId={selectedVariant?.id ?? null}
+                    onImageValueChange={(fieldId, value) => {
+                      setCustomizationValues((current) => ({ ...current, [fieldId]: value }));
+                    }}
                   />
-                </div>
+                </section>
               ) : mainMedia?.contentUrl ? (
-                <div className="aspect-[4/5] group">
+                <div className="group flex min-h-[480px] items-center justify-center p-6">
                   <img
-                    className="w-full h-full object-contain transition-transform duration-700 group-hover:scale-105"
+                    className="max-h-[600px] w-full object-contain transition-transform duration-700 group-hover:scale-105"
                     src={mainMedia.contentUrl}
                     alt={getLocalized(product.title, locale)}
                   />
                 </div>
               ) : (
-                <div className="aspect-[4/5] flex items-center justify-center text-on-surface-variant">
+                <div className="flex min-h-[480px] items-center justify-center text-on-surface-variant">
                   Product image unavailable
                 </div>
               )
@@ -262,76 +394,102 @@ export default function ProductDetail() {
             price={displayPrice}
             rating={5}
             reviewsCount={0}
-            description={getLocalized(product.description, locale) || ""}
-            specs={specs}
+            description={shortDescription}
             variantSelector={
-              product.variants.length > 0 ? (
+              optionGroups.length > 0 ? (
                 <div className="space-y-4">
-                  <label className="font-label-md text-on-surface uppercase">Variant</label>
-                  <div className="grid gap-3 sm:grid-cols-2">{variantButtons}</div>
-                  <div className="space-y-2">
-                    <label className="font-label-md text-on-surface uppercase">Quantity</label>
-                    <div className="inline-flex items-center overflow-hidden rounded-lg border border-outline">
+                  {optionGroups}
+                </div>
+              ) : null
+            }
+            customizationSection={
+              customizationTemplate ? (
+                <div>
+                  <ProductCustomizationForm
+                    template={customizationTemplate}
+                    values={customizationValues}
+                    dynamicFonts={dynamicFonts as DynamicFontFamily[]}
+                    message={message}
+                    onMessageChange={setMessage}
+                    onUploadImage={uploadCustomizationImage}
+                    onValueChange={(fieldId, value) => {
+                      setCustomizationValues((current) => ({ ...current, [fieldId]: value }));
+                    }}
+                  />
+                  <div className="mt-4 border-t border-border-subtle pt-4">
+                    <label className="mb-2 block text-xs font-bold uppercase tracking-[0.12em] text-text-muted">Quantity</label>
+                    <div className="inline-flex h-10 items-center overflow-hidden rounded border border-border-subtle bg-white">
                       <button
                         type="button"
-                        className="px-4 py-3 text-on-surface transition hover:bg-surface-container"
-                        onClick={() => setQuantity((current) => Math.max(1, current - 1))}
+                        aria-label="Decrease quantity"
+                        className="flex h-full w-10 items-center justify-center text-text-muted transition hover:bg-surface-subtle"
+                        onClick={() => setQuantity((c) => Math.max(1, c - 1))}
                       >
-                        -
+                        <Minus className="size-3.5" />
                       </button>
                       <input
                         type="number"
                         min={1}
                         value={quantity}
                         onChange={(event) => {
-                          const nextValue = Number(event.target.value);
-                          setQuantity(Number.isFinite(nextValue) && nextValue > 0 ? Math.min(99, nextValue) : 1);
+                          const v = Number(event.target.value);
+                          setQuantity(Number.isFinite(v) && v > 0 ? Math.min(99, v) : 1);
                         }}
-                        className="w-16 border-x border-outline bg-white px-3 py-3 text-center"
+                        className="h-full w-14 border-x border-border-subtle bg-white px-2 text-center text-sm outline-none"
                       />
                       <button
                         type="button"
-                        className="px-4 py-3 text-on-surface transition hover:bg-surface-container"
-                        onClick={() => setQuantity((current) => Math.min(99, current + 1))}
+                        aria-label="Increase quantity"
+                        className="flex h-full w-10 items-center justify-center text-text-muted transition hover:bg-surface-subtle"
+                        onClick={() => setQuantity((c) => Math.min(99, c + 1))}
                       >
-                        +
+                        <Plus className="size-3.5" />
                       </button>
                     </div>
                   </div>
                 </div>
-              ) : null
-            }
-            customizationSection={
-              customizationTemplate ? (
-                <div className="space-y-4 p-6 bg-surface-container-low rounded-lg">
-                  <h3 className="font-headline-md text-[20px] uppercase text-on-surface tracking-wide flex items-center gap-2">
-                    <PenSquare className="text-primary" />
-                    Customization
-                  </h3>
-                  <p className="text-sm text-on-surface-variant">
-                    Preview uses the first image from the currently selected variant. There is no separate background picker.
-                  </p>
-                  <ProductCustomizationForm
-                    template={customizationTemplate}
-                    values={customizationValues}
-                    dynamicFonts={dynamicFonts as DynamicFontFamily[]}
-                    message={message}
-                    uploadingFieldId={uploadingFieldId}
-                    onUploadingFieldIdChange={setUploadingFieldId}
-                    onMessageChange={setMessage}
-                    onValueChange={(fieldId, value) => {
-                      setCustomizationValues((current) => ({ ...current, [fieldId]: value }));
-                    }}
-                  />
+              ) : (
+                <div className="space-y-2">
+                  <label className="block text-xs font-bold uppercase tracking-[0.12em] text-text-muted">Quantity</label>
+                  <div className="inline-flex h-10 items-center overflow-hidden rounded border border-border-subtle bg-white">
+                    <button
+                      type="button"
+                      aria-label="Decrease quantity"
+                      className="flex h-full w-10 items-center justify-center text-text-muted transition hover:bg-surface-subtle"
+                      onClick={() => setQuantity((c) => Math.max(1, c - 1))}
+                    >
+                      <Minus className="size-3.5" />
+                    </button>
+                    <input
+                      type="number"
+                      min={1}
+                      value={quantity}
+                      onChange={(event) => {
+                        const v = Number(event.target.value);
+                        setQuantity(Number.isFinite(v) && v > 0 ? Math.min(99, v) : 1);
+                      }}
+                      className="h-full w-14 border-x border-border-subtle bg-white px-2 text-center text-sm outline-none"
+                    />
+                    <button
+                      type="button"
+                      aria-label="Increase quantity"
+                      className="flex h-full w-10 items-center justify-center text-text-muted transition hover:bg-surface-subtle"
+                      onClick={() => setQuantity((c) => Math.min(99, c + 1))}
+                    >
+                      <Plus className="size-3.5" />
+                    </button>
+                  </div>
                 </div>
-              ) : null
+              )
             }
             isContactPrice={selectedVariant?.priceAmount === null}
             contactHref={contactHref}
             primaryActionLabel="Add to Cart"
             primaryActionDisabled={addToCartDisabled}
             primaryActionMessage={addToCartMessage}
+            previewRef={previewSectionRef}
             onPrimaryAction={handleAddToCart}
+            flatCustomization={Boolean(customizationTemplate)}
           />
         </div>
         <ProductMobileActionBar
@@ -341,9 +499,22 @@ export default function ProductDetail() {
           onClick={handleAddToCart}
           contactHref={selectedVariant?.priceAmount === null ? contactHref : undefined}
         />
+        <ProductDetailSections
+          description={getLocalized(product.description, locale) || ""}
+          specs={specs}
+        />
       </main>
     </div>
   );
+}
+
+function getUploadToken() {
+  const storageKey = "trophy-customization-upload-token";
+  const existing = window.sessionStorage.getItem(storageKey);
+  if (existing) return existing;
+  const token = crypto.randomUUID();
+  window.sessionStorage.setItem(storageKey, token);
+  return token;
 }
 
 export type StorefrontProductDetail = StorefrontDetailResponse["item"];

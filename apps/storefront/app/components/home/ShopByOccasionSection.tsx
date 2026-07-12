@@ -46,7 +46,7 @@ export function ShopByOccasionSection() {
       <div className="max-w-container-max mx-auto">
         {/* Heading */}
         <div className="mb-14 reveal active">
-          <p className="font-label-md text-label-md uppercase tracking-[0.35em] text-[#875200] mb-3">
+          <p className="mb-3 font-label-md text-label-md uppercase tracking-[0.35em] text-brand-accent">
             Mua theo dịp
           </p>
           <h2 className="font-heading text-[36px] md:text-[44px] uppercase leading-none text-on-surface">
@@ -60,16 +60,16 @@ export function ShopByOccasionSection() {
             <Link
               key={icon}
               to={href}
-              className="group flex flex-col gap-4 p-6 bg-surface-container-low border border-outline-variant rounded-xl hover:border-[#875200] hover:shadow-md transition-all duration-300 reveal active"
+              className="reveal active group flex flex-col gap-4 rounded-xl border border-outline-variant bg-surface-container-low p-6 transition-all duration-300 hover:border-brand-strong hover:shadow-md"
               style={{ animationDelay: `${i * 50}ms` }}
             >
-              <div className="w-12 h-12 rounded-xl bg-[#875200]/10 flex items-center justify-center group-hover:bg-[#875200] transition-colors duration-300">
-                {icon === "Building2" && <Building2 className="text-[24px] text-[#875200] group-hover:text-white transition-colors duration-300" />}
-                {icon === "Trophy" && <Trophy className="text-[24px] text-[#875200] group-hover:text-white transition-colors duration-300" />}
-                {icon === "GraduationCap" && <GraduationCap className="text-[24px] text-[#875200] group-hover:text-white transition-colors duration-300" />}
-                {icon === "PartyPopper" && <PartyPopper className="text-[24px] text-[#875200] group-hover:text-white transition-colors duration-300" />}
-                {icon === "Heart" && <Heart className="text-[24px] text-[#875200] group-hover:text-white transition-colors duration-300" />}
-                {icon === "UserCheck" && <UserCheck className="text-[24px] text-[#875200] group-hover:text-white transition-colors duration-300" />}
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand-strong/10 transition-colors duration-300 group-hover:bg-brand-strong">
+                {icon === "Building2" && <Building2 className="text-[24px] text-brand-strong transition-colors duration-300 group-hover:text-white" />}
+                {icon === "Trophy" && <Trophy className="text-[24px] text-brand-strong transition-colors duration-300 group-hover:text-white" />}
+                {icon === "GraduationCap" && <GraduationCap className="text-[24px] text-brand-strong transition-colors duration-300 group-hover:text-white" />}
+                {icon === "PartyPopper" && <PartyPopper className="text-[24px] text-brand-strong transition-colors duration-300 group-hover:text-white" />}
+                {icon === "Heart" && <Heart className="text-[24px] text-brand-strong transition-colors duration-300 group-hover:text-white" />}
+                {icon === "UserCheck" && <UserCheck className="text-[24px] text-brand-strong transition-colors duration-300 group-hover:text-white" />}
               </div>
               <div>
                 <h3 className="font-label-md text-label-md uppercase tracking-wide text-on-surface mb-1.5">
@@ -79,7 +79,7 @@ export function ShopByOccasionSection() {
                   {desc}
                 </p>
               </div>
-              <span className="flex items-center gap-1 font-label-md text-label-md text-[12px] uppercase tracking-widest text-[#875200] mt-auto group-hover:gap-2 transition-all duration-300">
+              <span className="mt-auto flex items-center gap-1 font-label-md text-label-md text-[12px] uppercase tracking-widest text-brand-support transition-all duration-300 group-hover:gap-2">
                 Xem sản phẩm
                 <ArrowRight className="text-[14px]" />
               </span>

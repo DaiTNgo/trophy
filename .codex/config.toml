@@ -1,6 +1,6 @@
 approvals_reviewer = "user"
 
-approval_policy = "on-request"
+approval_policy = "never"
 sandbox_mode = "read-only"
 model = "gpt-5.5"
 model_reasoning_effort = "medium"

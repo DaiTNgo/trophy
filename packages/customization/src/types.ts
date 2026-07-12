@@ -40,29 +40,29 @@ export type LayerGeometry = {
   rotationDeg: number;
 };
 
-export type IconAssetMimeType = "image/svg+xml" | "image/png" | "image/webp";
+export type ClipartAssetMimeType = "image/svg+xml" | "image/png" | "image/webp";
 
-export type CustomizationIconAsset = {
+export type CustomizationClipartAsset = {
   id: string;
   sourceAssetId: string;
   name: string;
-  categoryId?: string | null;
-  categoryLabel?: string | null;
-  tags: string[];
+  fileName?: string | null;
+  categoryId: string;
   previewUrl: string;
-  mimeType: IconAssetMimeType;
+  mimeType: ClipartAssetMimeType;
   sourceWidthPx: number | null;
   sourceHeightPx: number | null;
   active: boolean;
 };
 
-export type FixedClipartCategory = {
+export type ClipartCategory = {
   id: string;
-  label: string;
+  name: string;
 };
 
-export type ImageIconSourcePolicy =
-  | "fixed_clipart"
+export type ClipartCategoryMode = "fixed" | "allow_list";
+
+export type ImageClipartSourcePolicy =
   | "upload_only"
   | "clipart_category_only"
   | "upload_or_clipart_category";
@@ -85,8 +85,8 @@ export type TextFontPolicy =
   | { mode: "shopper_selectable"; defaultFontId: string; options: ChoiceOption[] };
 
 export type TextFormatPolicy =
-  | { mode: "fixed"; isBold: boolean; isItalic: boolean; isUnderline: boolean }
-  | { mode: "shopper_selectable"; defaultBold: boolean; defaultItalic: boolean; defaultUnderline: boolean };
+  | { mode: "fixed"; isBold: boolean; isItalic: boolean }
+  | { mode: "shopper_selectable"; defaultBold: boolean; defaultItalic: boolean };
 
 export type TextAlignPolicy =
   | { mode: "fixed"; align: TextAlign }
@@ -156,11 +156,12 @@ export type ImageShapeEditorLayer = LayerBase & {
     fit: "cover";
     defaultCrop?: ImageCrop;
   };
-  sourcePolicy?: ImageIconSourcePolicy;
+  sourcePolicy?: ImageClipartSourcePolicy;
   presentation?: UploadClipartPresentation;
-  fixedIcon?: CustomizationIconAsset | null;
-  fixedCategory?: FixedClipartCategory | null;
-  allowedIcons?: CustomizationIconAsset[];
+  clipartCategoryMode?: ClipartCategoryMode;
+  clipartCategory?: ClipartCategory | null;
+  allowedClipartCategories?: ClipartCategory[];
+  clipartAssets?: CustomizationClipartAsset[];
 };
 
 export type CustomizationLayer = TextEditorLayer | ImageShapeEditorLayer;
@@ -201,7 +202,6 @@ export type TextFieldValue = {
   fontId?: string;
   isBold?: boolean;
   isItalic?: boolean;
-  isUnderline?: boolean;
   align?: TextAlign;
 };
 
@@ -214,38 +214,38 @@ export type ImageShapeFieldValue = {
   cropScale?: number;
   cropXRatio?: number;
   cropYRatio?: number;
+  cropRotationDeg?: number;
 };
 
-export type IconFieldValue = {
-  source: "icon";
-  iconAssetId: string;
-  iconName: string;
+export type ClipartFieldValue = {
+  source: "clipart";
+  clipartAssetId: string;
+  clipartAssetName: string;
   sourceAssetId: string;
   previewUrl: string;
-  mimeType: IconAssetMimeType;
+  mimeType: ClipartAssetMimeType;
   sourceWidthPx: number | null;
   sourceHeightPx: number | null;
-  categoryId?: string | null;
-  categoryLabel?: string | null;
-  tags?: string[];
+  categoryId: string;
 };
 
-export type CustomizationFieldValue = TextFieldValue | ImageShapeFieldValue | IconFieldValue | null;
+export type CustomizationFieldValue = TextFieldValue | ImageShapeFieldValue | ClipartFieldValue | null;
 export type CustomizationFormValues = Record<string, CustomizationFieldValue>;
 
-export type RuntimeImageIconLayer = {
+export type RuntimeImageClipartLayer = {
   id: string;
   layerId: string;
-  type: "image_icon_runtime";
+  type: "image_clipart_runtime";
   fieldId?: string;
   required: boolean;
   geometry: Required<LayerGeometry>;
   shape: ImageShapeEditorLayer["shape"];
-  sourcePolicy: ImageIconSourcePolicy;
+  sourcePolicy: ImageClipartSourcePolicy;
   presentation?: UploadClipartPresentation;
-  fixedIcon?: CustomizationIconAsset;
-  fixedCategory?: FixedClipartCategory;
-  allowedIcons: CustomizationIconAsset[];
+  clipartCategoryMode?: ClipartCategoryMode;
+  clipartCategory?: ClipartCategory;
+  allowedClipartCategories: ClipartCategory[];
+  clipartAssets: CustomizationClipartAsset[];
   upload: {
     enabled: boolean;
     fit: "cover" | "contain";
@@ -264,7 +264,6 @@ export type RuntimeTextLayer = {
   color: string;
   isBold: boolean;
   isItalic: boolean;
-  isUnderline: boolean;
   align: TextAlign;
   path: TextPath;
   geometry: LayerGeometry;
@@ -285,11 +284,13 @@ export type RuntimeImageShapeLayer = {
   cropScale: number;
   cropXRatio: number;
   cropYRatio: number;
+  cropRotationDeg: number;
   zIndex: number;
-  contentSource?: "upload" | "icon";
-  iconAssetId?: string;
-  iconName?: string;
-  mimeType?: IconAssetMimeType;
+  contentSource?: "upload" | "clipart";
+  clipartAssetId?: string;
+  clipartAssetName?: string;
+  categoryId?: string;
+  mimeType?: ClipartAssetMimeType;
 };
 
 export type RuntimeLayer = RuntimeTextLayer | RuntimeImageShapeLayer;
@@ -321,7 +322,7 @@ export type ValidationIssue = {
     | "FONT_SIZE_RANGE_INVALID"
     | "TEXT_PATH_REQUIRES_SINGLE_LINE"
     | "STYLE_POLICY_INVALID"
-    | "ICON_POLICY_INVALID"
+    | "CLIPART_POLICY_INVALID"
     | "REQUIRED_VALUE_MISSING"
     | "LOCALIZATION_INCOMPLETE"
     | "OPTION_NOT_ALLOWED"

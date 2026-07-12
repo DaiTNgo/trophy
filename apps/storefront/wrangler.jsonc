@@ -13,6 +13,7 @@
 	"observability": {
 		"enabled": true
 	},
+	"preview_urls": true,
 	"upload_source_maps": true,
 	"compatibility_flags": [
 		"nodejs_compat"

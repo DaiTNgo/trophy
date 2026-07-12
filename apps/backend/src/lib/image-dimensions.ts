@@ -61,29 +61,42 @@ const readWebpDimensions = (bytes: Uint8Array) => {
 
   let offset = 12;
   while (offset + 8 <= bytes.length) {
-    const chunkId = String.fromCharCode(bytes[offset], bytes[offset + 1], bytes[offset + 2], bytes[offset + 3]);
+    const chunkId =
+      String.fromCharCode(bytes[offset] ?? 0) +
+      String.fromCharCode(bytes[offset + 1] ?? 0) +
+      String.fromCharCode(bytes[offset + 2] ?? 0) +
+      String.fromCharCode(bytes[offset + 3] ?? 0);
     const chunkSize = view.getUint32(offset + 4, true);
 
     if (chunkId === "VP8X" && offset + 8 + 10 <= bytes.length) {
-      const width = (bytes[offset + 8 + 4] | (bytes[offset + 8 + 5] << 8) | (bytes[offset + 8 + 6] << 16)) + 1;
-      const height = (bytes[offset + 8 + 7] | (bytes[offset + 8 + 8] << 8) | (bytes[offset + 8 + 9] << 16)) + 1;
+      const width = ((bytes[offset + 12] ?? 0) | ((bytes[offset + 13] ?? 0) << 8) | ((bytes[offset + 14] ?? 0) << 16)) + 1;
+      const height = ((bytes[offset + 15] ?? 0) | ((bytes[offset + 16] ?? 0) << 8) | ((bytes[offset + 17] ?? 0) << 16)) + 1;
       return { width, height };
     }
 
     if (chunkId === "VP8 " && offset + 8 + 10 <= bytes.length) {
-      if (bytes[offset + 8 + 3] !== 0x9d || bytes[offset + 8 + 4] !== 0x01 || bytes[offset + 8 + 5] !== 0x2a) return null;
-      const width = view.getUint16(offset + 8 + 6, true) & 0x3fff;
-      const height = view.getUint16(offset + 8 + 8, true) & 0x3fff;
+      // Must have the VP8 lossy start code at byte 3..5 of chunk data
+      if (bytes[offset + 11] !== 0x9d || bytes[offset + 12] !== 0x01 || bytes[offset + 13] !== 0x2a) {
+        // Not a valid VP8 frame start — skip this chunk and keep looking
+        offset += 8 + chunkSize + (chunkSize % 2 === 1 ? 1 : 0);
+        continue;
+      }
+      const width = view.getUint16(offset + 14, true) & 0x3fff;
+      const height = view.getUint16(offset + 16, true) & 0x3fff;
       return { width, height };
     }
 
     if (chunkId === "VP8L" && offset + 8 + 5 <= bytes.length) {
-      if (bytes[offset + 8] !== 0x2f) return null;
-      const b1 = bytes[offset + 8 + 1]!;
-      const b2 = bytes[offset + 8 + 2]!;
-      const b3 = bytes[offset + 8 + 3]!;
-      const b4 = bytes[offset + 8 + 4]!;
-      
+      if (bytes[offset + 8] !== 0x2f) {
+        // Not a valid VP8L signature — skip this chunk
+        offset += 8 + chunkSize + (chunkSize % 2 === 1 ? 1 : 0);
+        continue;
+      }
+      const b1 = bytes[offset + 9] ?? 0;
+      const b2 = bytes[offset + 10] ?? 0;
+      const b3 = bytes[offset + 11] ?? 0;
+      const b4 = bytes[offset + 12] ?? 0;
+
       const width = ((b1 | (b2 << 8)) & 0x3fff) + 1;
       const height = (((b2 >> 6) | (b3 << 2) | (b4 << 10)) & 0x3fff) + 1;
       return { width, height };

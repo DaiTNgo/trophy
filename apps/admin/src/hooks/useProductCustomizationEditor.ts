@@ -6,7 +6,7 @@ import {
   type CustomizationFormValues,
   type CustomizationLayer,
   type CustomizationTemplate,
-  type IconFieldValue,
+  type ClipartFieldValue,
   type ImageShapeFieldValue,
   type ShapeType,
   type TextFieldValue,
@@ -107,7 +107,7 @@ export function useProductCustomizationEditor(
         alignPolicy: { mode: "fixed", align: "left" },
         colorPolicy: { mode: "fixed", color: "#000000" },
         fontPolicy: { mode: "fixed", fontId: "inter" },
-        formatPolicy: { mode: "fixed", isBold: false, isItalic: false, isUnderline: false },
+        formatPolicy: { mode: "fixed", isBold: false, isItalic: false },
         path: { type: "straight" },
       }
     };
@@ -347,7 +347,7 @@ export function useProductCustomizationEditor(
     }));
   }
 
-  function handlePreviewChange(fieldId: string, value: TextFieldValue | ImageShapeFieldValue | IconFieldValue | null) {
+  function handlePreviewChange(fieldId: string, value: TextFieldValue | ImageShapeFieldValue | ClipartFieldValue | null) {
     setPreviewValues((prev) => ({ ...prev, [fieldId]: value }));
   }
 

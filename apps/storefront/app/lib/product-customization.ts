@@ -20,11 +20,13 @@ export function buildProductCustomizationTemplate({
   productTitle,
   customization,
   selectedVariant,
+  selectedMedia,
 }: {
   productId: number;
   productTitle: string;
   customization: ProductCustomization;
   selectedVariant: StorefrontProductVariant | null;
+  selectedMedia?: StorefrontVariantMedia | null;
 }): CustomizationTemplate {
   return {
     id: `product_${productId}`,
@@ -32,7 +34,7 @@ export function buildProductCustomizationTemplate({
     name: `${productTitle} customization`,
     revision: 1,
     status: "published",
-    background: getVariantBackground(selectedVariant),
+    background: getVariantBackground(customization, selectedVariant, selectedMedia),
     layers: customization.layers,
     formFields: customization.formFields,
   };
@@ -52,8 +54,12 @@ export function mergeCustomizationValues(
   return nextValues;
 }
 
-function getVariantBackground(selectedVariant: StorefrontProductVariant | null): BackgroundAsset | null {
-  const media = selectedVariant?.media[0];
+function getVariantBackground(
+  customization: ProductCustomization,
+  selectedVariant: StorefrontProductVariant | null,
+  selectedMedia?: StorefrontVariantMedia | null,
+): BackgroundAsset | null {
+  const media = selectedMedia ?? selectedVariant?.media[0];
   if (!media?.contentUrl || media.widthPx == null || media.heightPx == null) {
     return null;
   }
@@ -63,7 +69,7 @@ function getVariantBackground(selectedVariant: StorefrontProductVariant | null):
     previewUrl: media.contentUrl,
     filename: media.fileName,
     mimeType: media.mimeType,
-    widthPx: media.widthPx,
-    heightPx: media.heightPx,
+    widthPx: customization.canvasWidthPx ?? media.widthPx,
+    heightPx: customization.canvasHeightPx ?? media.heightPx,
   };
 }

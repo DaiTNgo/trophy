@@ -10,7 +10,7 @@ import {
   type CustomizationFormValues,
   type CustomizationLayer,
   type CustomizationTemplate,
-  type IconFieldValue,
+  type ClipartFieldValue,
   type ImageShapeFieldValue,
   type ShapeType,
   type TextFieldValue,
@@ -116,7 +116,7 @@ export function useTemplateEditor(editParam: string | null) {
           alignPolicy: { mode: "fixed", align: "center" },
           colorPolicy: { mode: "fixed", color: "#111111" },
           fontPolicy: { mode: "fixed", fontId: "sans" },
-          formatPolicy: { mode: "fixed", isBold: false, isItalic: false, isUnderline: false },
+          formatPolicy: { mode: "fixed", isBold: false, isItalic: false },
           path: { type: "straight" },
         },
       },
@@ -151,11 +151,11 @@ export function useTemplateEditor(editParam: string | null) {
           alignPolicy: { mode: "fixed", align: "center" },
           colorPolicy: { mode: "fixed", color: "#111111" },
           fontPolicy: { mode: "fixed", fontId: "sans" },
-          formatPolicy: { mode: "fixed", isBold: false, isItalic: false, isUnderline: false },
+          formatPolicy: { mode: "fixed", isBold: false, isItalic: false },
           path: {
             type: "closed_ellipse",
             bounds: { xRatio: 0.5, yRatio: 0.5, widthRatio: 1, heightRatio: 1 },
-            startAngleDeg: 180,
+            startAngleDeg: 270,
             direction: "clockwise",
             placement: "over_path",
           },
@@ -482,7 +482,7 @@ export function useTemplateEditor(editParam: string | null) {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [deleted, pathEditingLayerId, selectedLayer, template.background]);
 
-  function handlePreviewChange(fieldId: string, value: TextFieldValue | ImageShapeFieldValue | IconFieldValue | null) {
+  function handlePreviewChange(fieldId: string, value: TextFieldValue | ImageShapeFieldValue | ClipartFieldValue | null) {
     setPreviewValues((current) => ({ ...current, [fieldId]: value }));
   }
 

@@ -2,7 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import type { Route } from "./+types/checkout";
 import { ShoppingCart, ChevronUp, ChevronDown } from "lucide-react";
-import { createStorefrontOrder, resolveStorefrontCartLines } from "../lib/api";
+import {
+  createStorefrontOrder,
+  resolveStorefrontCartLines,
+  type StorefrontResolvedCartLine,
+} from "../lib/api";
 import { useCart } from "../hooks/use-cart";
 import { formatCurrency } from "../lib/utils";
 import { getLocalized } from "../lib/translation";
@@ -31,18 +35,7 @@ export default function Checkout() {
   const [searchParams] = useSearchParams();
   const locale = (searchParams.get('locale') === 'en' ? 'en' : 'vi') as 'vi' | 'en';
   const navigate = useNavigate();
-  const [resolved, setResolved] = useState<
-    Array<{
-      valid: boolean;
-      reason: string | null;
-      product?: {
-        priceAmount: number | null;
-        title: string;
-        variantTitle: string;
-        thumbnail: string | null;
-      };
-    }>
-  >([]);
+  const [resolved, setResolved] = useState<StorefrontResolvedCartLine[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [vatChecked, setVatChecked] = useState(false);
@@ -80,7 +73,7 @@ export default function Checkout() {
     return () => {
       cancelled = true;
     };
-  }, [isReady, lines]);
+  }, [isReady, lines, locale]);
 
   const checkoutItems = useMemo(
     () =>
@@ -93,11 +86,11 @@ export default function Checkout() {
             resolvedLine?.product?.priceAmount ?? line.display.priceAmount,
           title: getLocalized(resolvedLine?.product?.title, locale) ?? getLocalized(line.display.productTitle, locale),
           variantTitle:
-            resolvedLine?.product?.variantTitle ?? line.display.variantTitle,
+            getLocalized(resolvedLine?.product?.variantTitle, locale) || line.display.variantTitle,
           thumbnail: resolvedLine?.product?.thumbnail ?? line.display.thumbnail,
         };
       }),
-    [lines, resolved],
+    [lines, resolved, locale],
   );
 
   const subtotal = checkoutItems.reduce(
@@ -202,7 +195,7 @@ export default function Checkout() {
         </header>
         <main className="mx-auto flex-grow w-full max-w-container-max px-margin-mobile py-12 md:px-margin-desktop">
           <div className="rounded-2xl border border-outline bg-white px-8 py-16 text-center">
-            <h1 className="font-headline-md text-3xl text-on-surface">
+            <h1 className="font-heading text-[34px] uppercase leading-none tracking-[0.03em] text-brand-strong">
               Không có sản phẩm để thanh toán
             </h1>
             <p className="mt-3 text-on-surface-variant">
@@ -210,7 +203,7 @@ export default function Checkout() {
             </p>
             <Button
               asChild
-              className="mt-6 rounded-full px-6 py-6 font-semibold uppercase tracking-wide"
+              className="mt-6 rounded-full bg-action-support px-6 py-6 font-semibold uppercase tracking-[0.12em] hover:bg-action-support-hover"
             >
               <Link to="/products">Xem sản phẩm</Link>
             </Button>
@@ -284,7 +277,7 @@ export default function Checkout() {
                     <ChevronDown className="text-xl" />
                   )}
                 </span>
-                <span className="font-semibold text-on-surface">
+                <span className="font-heading text-[24px] uppercase leading-none tracking-[0.02em] text-text-base">
                   {formatCurrency(subtotal)}
                 </span>
               </button>
@@ -303,22 +296,22 @@ export default function Checkout() {
                           className="w-full h-full object-contain rounded-lg p-1"
                         />
                       ) : null}
-                      <span className="absolute -top-2 -right-2 bg-[#323232] text-white text-[11px] font-medium w-5 h-5 rounded-full flex items-center justify-center z-10">
+                      <span className="absolute -top-2 -right-2 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-text-base text-[11px] font-medium text-white">
                         {item.line.quantity}
                       </span>
                     </div>
 
                     <div className="flex-grow min-w-0 pt-0.5">
                       <div className="flex justify-between items-start gap-4">
-                        <h4 className="text-[14px] font-medium text-[#323232] leading-tight">
+                        <h4 className="text-[14px] font-semibold uppercase tracking-[0.06em] text-brand-strong leading-tight">
                           {getLocalized(item.title, locale)}
                         </h4>
-                        <p className="text-[14px] text-[#323232] whitespace-nowrap">
+                        <p className="font-heading text-[20px] uppercase leading-none text-text-base whitespace-nowrap">
                           {formatCurrency(item.priceAmount)}
                         </p>
                       </div>
 
-                      <div className="mt-1 text-[13px] text-[#717171] flex flex-col gap-0.5">
+                      <div className="mt-1 flex flex-col gap-0.5 text-[13px] text-text-muted">
                         {item.variantTitle &&
                           item.variantTitle !== "Default Title" && (
                             <p>{item.variantTitle}</p>
@@ -339,7 +332,7 @@ export default function Checkout() {
                   <Button
                     type="button"
                     variant="secondary"
-                    className="bg-[#f0f0f0] text-[#323232] hover:bg-[#e3e3e3] border border-outline-variant font-medium h-11 px-6"
+                    className="h-11 border border-outline-variant bg-surface-subtle px-6 font-medium text-text-base hover:bg-surface-container-high"
                   >
                     Apply
                   </Button>
@@ -347,23 +340,23 @@ export default function Checkout() {
 
                 <div className="space-y-3 pt-2">
                   <div className="flex justify-between items-center text-[14px]">
-                    <span className="text-[#323232]">
+                    <span className="text-text-base">
                       Subtotal · {checkoutItems.length} items
                     </span>
-                    <span className="text-[#323232] font-medium">
+                    <span className="font-medium text-text-base">
                       {formatCurrency(subtotal)}
                     </span>
                   </div>
                   <div className="flex justify-between items-center text-[14px]">
-                    <span className="text-[#323232]">Shipping</span>
-                    <span className="text-[#717171]">Miễn phí</span>
+                    <span className="text-text-base">Shipping</span>
+                    <span className="text-text-muted">Miễn phí</span>
                   </div>
                   <div className="flex justify-between items-center pt-2">
-                    <span className="text-xl font-semibold text-[#323232]">
+                    <span className="font-heading text-[28px] uppercase leading-none tracking-[0.03em] text-brand-strong">
                       Total
                     </span>
-                    <span className="text-xl font-semibold text-[#323232]">
-                      <span className="text-sm font-normal text-[#717171] mr-2">
+                    <span className="font-heading text-[28px] uppercase leading-none tracking-[0.03em] text-text-base">
+                      <span className="mr-2 text-sm font-normal text-text-muted">
                         VND
                       </span>
                       {formatCurrency(subtotal)}
@@ -377,7 +370,7 @@ export default function Checkout() {
             <div className="space-y-12 pb-12 lg:pr-8">
               {/* Billing Details */}
               <section>
-                <h2 className="font-headline-md text-headline-md text-on-surface mb-6 lg:mb-8">
+                <h2 className="mb-6 font-heading text-[30px] uppercase leading-none tracking-[0.03em] text-brand-strong lg:mb-8">
                   Thông tin khách hàng
                 </h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-6">
@@ -456,7 +449,7 @@ export default function Checkout() {
 
               {/* Shipping Methods */}
               <section>
-                <h2 className="font-headline-md text-headline-md text-on-surface mb-6 lg:mb-8">
+                <h2 className="mb-6 font-heading text-[30px] uppercase leading-none tracking-[0.03em] text-brand-strong lg:mb-8">
                   Hình thức thanh toán
                 </h2>
 
@@ -468,7 +461,7 @@ export default function Checkout() {
                 >
                   <Label
                     htmlFor="bank_transfer"
-                    className="group relative flex flex-col p-4 lg:p-6 bg-white border-2 border-surface-variant hover:border-primary transition-all cursor-pointer rounded-lg shadow-sm [&:has([data-state=checked])]:border-primary"
+                    className="group relative flex flex-col rounded-lg border-2 border-surface-variant bg-white p-4 shadow-sm transition-all hover:border-action-positive [&:has([data-state=checked])]:border-action-positive lg:p-6"
                   >
                     <div className="flex items-center gap-4 mb-4">
                       <RadioGroupItem
@@ -477,7 +470,7 @@ export default function Checkout() {
                         className="sr-only"
                       />
                       <div
-                        className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${paymentMethod === "bank_transfer" ? "border-primary bg-primary" : "border-outline-variant group-hover:border-primary"}`}
+                        className={`flex h-5 w-5 items-center justify-center rounded-full border-2 transition-all ${paymentMethod === "bank_transfer" ? "border-action-positive bg-action-positive" : "border-outline-variant group-hover:border-action-positive"}`}
                       >
                         <div
                           className={`w-2 h-2 rounded-full bg-white transition-opacity ${paymentMethod === "bank_transfer" ? "opacity-100" : "opacity-0"}`}
@@ -506,11 +499,11 @@ export default function Checkout() {
 
                   <Label
                     htmlFor="cod"
-                    className="group relative flex items-center gap-4 p-4 lg:p-6 bg-white border-2 border-surface-variant hover:border-primary transition-all cursor-pointer rounded-lg shadow-sm [&:has([data-state=checked])]:border-primary"
+                    className="group relative flex items-center gap-4 rounded-lg border-2 border-surface-variant bg-white p-4 shadow-sm transition-all hover:border-action-positive [&:has([data-state=checked])]:border-action-positive lg:p-6"
                   >
                     <RadioGroupItem value="cod" id="cod" className="sr-only" />
                     <div
-                      className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${paymentMethod === "cod" ? "border-primary bg-primary" : "border-outline-variant group-hover:border-primary"}`}
+                      className={`flex h-5 w-5 items-center justify-center rounded-full border-2 transition-all ${paymentMethod === "cod" ? "border-action-positive bg-action-positive" : "border-outline-variant group-hover:border-action-positive"}`}
                     >
                       <div
                         className={`w-2 h-2 rounded-full bg-white transition-opacity ${paymentMethod === "cod" ? "opacity-100" : "opacity-0"}`}
@@ -525,7 +518,7 @@ export default function Checkout() {
 
               {/* Additional requirements */}
               <section className="mt-12">
-                <h2 className="font-headline-md text-headline-md text-on-surface mb-6 lg:mb-8">
+                <h2 className="mb-6 font-heading text-[30px] uppercase leading-none tracking-[0.03em] text-brand-strong lg:mb-8">
                   Yêu cầu bổ sung
                 </h2>
                 <div className="space-y-6">
@@ -615,7 +608,7 @@ export default function Checkout() {
                 <Button
                   type="submit"
                   disabled={submitting || hasInvalidLines}
-                  className="w-full py-8 text-white rounded-md font-label-md text-label-md uppercase tracking-widest transition-all shadow-xl hover:shadow-2xl active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+                  className="w-full rounded-md bg-action-positive py-8 font-label-md text-label-md uppercase tracking-widest text-white transition-all shadow-xl hover:bg-action-positive-hover hover:shadow-2xl active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {submitting ? "Đang gửi đơn..." : "Đặt hàng ngay"}
                 </Button>
@@ -652,22 +645,22 @@ export default function Checkout() {
                               className="w-full h-full object-contain rounded-lg p-1"
                             />
                           ) : null}
-                          <span className="absolute -top-2 -right-2 bg-[#323232] text-white text-[11px] font-medium w-5 h-5 rounded-full flex items-center justify-center z-10">
+                          <span className="absolute -top-2 -right-2 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-text-base text-[11px] font-medium text-white">
                             {item.line.quantity}
                           </span>
                         </div>
 
                         <div className="flex-grow min-w-0 pt-0.5">
                           <div className="flex justify-between items-start gap-4">
-                            <h4 className="text-[14px] font-medium text-[#323232] leading-tight">
+                            <h4 className="text-[14px] font-semibold uppercase tracking-[0.06em] text-brand-strong leading-tight">
                               {getLocalized(item.title, locale)}
                             </h4>
-                            <p className="text-[14px] text-[#323232] whitespace-nowrap">
+                            <p className="font-heading text-[20px] uppercase leading-none text-text-base whitespace-nowrap">
                               {formatCurrency(item.priceAmount)}
                             </p>
                           </div>
 
-                          <div className="mt-1 text-[13px] text-[#717171] flex flex-col gap-0.5">
+                          <div className="mt-1 flex flex-col gap-0.5 text-[13px] text-text-muted">
                             {item.variantTitle &&
                               item.variantTitle !== "Default Title" && (
                                 <p>{item.variantTitle}</p>
@@ -693,7 +686,7 @@ export default function Checkout() {
                     <Button
                       type="button"
                       variant="secondary"
-                      className="bg-[#f0f0f0] text-[#323232] hover:bg-[#e3e3e3] border border-outline-variant font-medium h-11 px-6"
+                      className="h-11 border border-outline-variant bg-surface-subtle px-6 font-medium text-text-base hover:bg-surface-container-high"
                     >
                       Apply
                     </Button>
@@ -701,23 +694,23 @@ export default function Checkout() {
 
                   <div className="space-y-3">
                     <div className="flex justify-between items-center text-[14px]">
-                      <span className="text-[#323232]">
+                      <span className="text-text-base">
                         Subtotal · {checkoutItems.length} items
                       </span>
-                      <span className="text-[#323232] font-medium">
+                      <span className="font-medium text-text-base">
                         {formatCurrency(subtotal)}
                       </span>
                     </div>
                     <div className="flex justify-between items-center text-[14px]">
-                      <span className="text-[#323232]">Shipping</span>
-                      <span className="text-[#717171]">Miễn phí</span>
+                      <span className="text-text-base">Shipping</span>
+                      <span className="text-text-muted">Miễn phí</span>
                     </div>
                     <div className="flex justify-between items-center pt-2">
-                      <span className="text-xl font-semibold text-[#323232]">
+                      <span className="font-heading text-[28px] uppercase leading-none tracking-[0.03em] text-brand-strong">
                         Total
                       </span>
-                      <span className="text-xl font-semibold text-[#323232]">
-                        <span className="text-sm font-normal text-[#717171] mr-2">
+                      <span className="font-heading text-[28px] uppercase leading-none tracking-[0.03em] text-text-base">
+                        <span className="mr-2 text-sm font-normal text-text-muted">
                           VND
                         </span>
                         {formatCurrency(subtotal)}

@@ -1,10 +1,8 @@
 import { useSearchParams } from "react-router";
-import { ProductCard } from "../components/shared/ProductCard";
-import { Pagination } from "../components/shared/Pagination";
-import { fetchStorefrontCollectionProducts } from "../lib/api";
+import { ProductListingShell } from "../components/products/ProductListingShell";
+import { fetchStorefrontCollectionProducts, fetchStorefrontCollections } from "../lib/api";
 import { getLocaleFromRequest } from "../lib/locale";
 import { getLocalized } from "../lib/translation";
-import { Package } from "lucide-react";
 import type { Route } from "./+types/collections.$handle";
 
 export async function loader({ params, request }: Route.LoaderArgs) {
@@ -12,23 +10,33 @@ export async function loader({ params, request }: Route.LoaderArgs) {
   const url = new URL(request.url);
   const currentPage = Number(url.searchParams.get("page")) || 1;
 
-  const data = await fetchStorefrontCollectionProducts(params.handle, {
-    page: currentPage,
-    limit: 12,
-  });
+  const [data, collections] = await Promise.all([
+    fetchStorefrontCollectionProducts(params.handle, {
+      page: currentPage,
+      limit: 12,
+      locale,
+    }),
+    fetchStorefrontCollections(locale).catch(() => []),
+  ]);
+  const collection = collections.find((item) => item.handle === params.handle) ?? null;
 
   return {
     collectionHandle: params.handle,
+    collection,
     products: data.items,
     currentPage: data.page,
     totalPages: Math.max(1, Math.ceil(data.total / data.limit)),
+    totalItems: data.total,
     locale,
   };
 }
 
 export default function CollectionPage({ loaderData }: Route.ComponentProps) {
-  const { collectionHandle, products, currentPage, totalPages, locale } = loaderData;
+  const { collectionHandle, collection, products, currentPage, totalPages, totalItems, locale } = loaderData;
   const [, setSearchParams] = useSearchParams();
+  const fallbackTitle = collectionHandle.replace(/-/g, " ");
+  const collectionTitle = getLocalized(collection?.title, locale) || fallbackTitle;
+  const collectionDescription = getLocalized(collection?.description, locale);
 
   const handlePageChange = (page: number) => {
     setSearchParams((prev) => {
@@ -38,50 +46,32 @@ export default function CollectionPage({ loaderData }: Route.ComponentProps) {
   };
 
   return (
-    <div className="bg-background min-h-screen font-body-md text-on-background">
-      <main className="max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop py-12">
-        <div className="mb-12">
-          <div className="flex items-center gap-2 text-sm text-on-surface-variant mb-4">
-            <a href="/" className="hover:text-primary transition-colors">Trang chủ</a>
-            <span>/</span>
-            <a href="/products" className="hover:text-primary transition-colors">Sản phẩm</a>
-            <span>/</span>
-            <span className="text-on-surface capitalize">{collectionHandle.replace(/-/g, " ")}</span>
-          </div>
-          <h1 className="font-display-lg-mobile md:font-display-lg text-display-lg-mobile md:text-display-lg text-on-background mb-8 uppercase">
-            {collectionHandle.replace(/-/g, " ")}
-          </h1>
-        </div>
-
-        {products.length === 0 ? (
-          <div className="text-center py-20">
-            <Package className="text-[64px] text-on-surface-variant/30" />
-            <p className="mt-4 text-lg text-on-surface-variant">
-              Không có sản phẩm nào trong bộ sưu tập này.
-            </p>
-            <a
-              href="/products"
-              className="inline-block mt-6 border-2 border-primary text-primary font-label-md text-label-md uppercase px-10 py-4 rounded-full tracking-widest hover:bg-primary-fixed transition-all duration-300"
-            >
-              Xem tất cả sản phẩm
-            </a>
-          </div>
-        ) : (
-          <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-gutter gap-y-16">
-              {products.map((product, index) => (
-                <ProductCard key={index} {...product} title={getLocalized(product.title, locale)} />
-              ))}
-            </div>
-
-            <Pagination
-              currentPage={currentPage}
-              totalPages={totalPages}
-              onPageChange={handlePageChange}
-            />
-          </>
-        )}
-      </main>
-    </div>
+    <ProductListingShell
+      breadcrumbs={[
+        { label: "Trang chủ", href: "/" },
+        { label: "Sản phẩm", href: "/products" },
+        { label: collectionTitle },
+      ]}
+      eyebrow="Bộ sưu tập"
+      title={collectionTitle}
+      description={
+        collectionDescription ||
+        "Trang bộ sưu tập dùng cùng listing UI với danh mục sản phẩm, nhưng tập trung vào nhóm sản phẩm theo chủ đề hoặc chiến dịch merch cụ thể."
+      }
+      featuredImageSrc={collection?.imageUrl ?? products[0]?.thumbnail}
+      featuredImageAlt={collectionTitle}
+      products={products}
+      locale={locale}
+      totalItems={totalItems}
+      currentPage={currentPage}
+      totalPages={totalPages}
+      onPageChange={handlePageChange}
+      emptyState={{
+        title: "Bộ sưu tập đang trống",
+        description: "Chưa có sản phẩm khả dụng trong bộ sưu tập này. Hãy quay lại trang sản phẩm để xem toàn bộ catalog đang mở bán.",
+        ctaLabel: "Xem tất cả sản phẩm",
+        ctaHref: "/products",
+      }}
+    />
   );
 }

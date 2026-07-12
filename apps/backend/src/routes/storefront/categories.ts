@@ -1,5 +1,6 @@
 import { asc, isNull } from 'drizzle-orm'
-import { Hono } from 'hono'
+import { Hono, type Context } from 'hono'
+import { toAbsoluteAssetUrl } from '../../lib/url'
 import { getDb } from '../../db/client'
 import { hydrateAndResolveTranslations } from '../../lib/catalog-translation'
 import { localeSchema, DEFAULT_LOCALE } from '../../lib/locale'
@@ -30,5 +31,5 @@ export const storefrontCategoriesRoute = new Hono<AppEnv>()
       .orderBy(asc(productCategories.position), asc(productCategories.id))
 
     const resolvedItems = await hydrateAndResolveTranslations(db, 'product_category', items, i => String(i.id), [{fieldName: 'name', objectKey: 'name'}, {fieldName: 'description', objectKey: 'description'}], [{fieldName: 'name', objectKey: 'name'}, {fieldName: 'description', objectKey: 'description'}], locale)
-    return c.json({ items: resolvedItems }, 200)
+    return c.json({ items: resolvedItems.map(item => ({ ...item, imageUrl: item.imageUrl ? toAbsoluteAssetUrl(c, item.imageUrl) as string : null })) }, 200)
   })

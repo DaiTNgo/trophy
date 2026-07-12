@@ -1,15 +1,3 @@
-/**
- * Straight text rendering for vector PDF export.
- *
- * Uses pdf-lib's native drawText() so text is stored as real glyphs in the PDF
- * (selectable, searchable, font embedded via fontkit subsetting).
- *
- * Handles:
- *   - Multiline (\n split)
- *   - Alignment: left, center, right, justified
- *   - Line height matching preview: fontSizePt * 1.35
- */
-
 import type { PDFPage } from "pdf-lib";
 import { rgb, type PDFFont } from "pdf-lib";
 import type { TextAlign } from "@trophy/customization";
@@ -17,21 +5,17 @@ import type { TextAlign } from "@trophy/customization";
 export interface DrawStraightTextOptions {
   page: PDFPage;
   embeddedFont: PDFFont;
-  text: string;            // may contain \n
+  text: string;
   fontSizePt: number;
-  color: string;           // hex color
+  color: string;
   align: TextAlign;
-  isUnderline: boolean;
-  /** Frame left edge in PDF coords (x) */
   frameX: number;
-  /** Frame top edge in PDF coords (y, bottom-up) — top of first line */
   frameTopY: number;
-  /** Frame width in design px (used for alignment) */
   frameW: number;
 }
 
 export function drawStraightText(opts: DrawStraightTextOptions) {
-  const { page, embeddedFont, text, fontSizePt, color: colorHex, align, isUnderline, frameX, frameTopY, frameW } = opts;
+  const { page, embeddedFont, text, fontSizePt, color: colorHex, align, frameX, frameTopY, frameW } = opts;
 
   const lines = text.split("\n");
   const lineHeight = fontSizePt * 1.35;
@@ -47,9 +31,6 @@ export function drawStraightText(opts: DrawStraightTextOptions) {
     const line = lines[i]!;
     if (!line) continue;
 
-    // In PDF bottom-up coords: line 0 = top, so y decreases per line.
-    // frameTopY is the top of the text block in PDF coords.
-    // For line 0: y = frameTopY - fontSizePt (pdf-lib draws from baseline)
     const baselineY = frameTopY - fontSizePt - i * lineHeight;
 
     let x = frameX;
@@ -60,24 +41,10 @@ export function drawStraightText(opts: DrawStraightTextOptions) {
       const textW = embeddedFont.widthOfTextAtSize(line, fontSizePt);
       x = frameX + frameW - textW;
     } else if (align === "justified" && lines.length > 1 && i < lines.length - 1) {
-      // Justified: distribute word spacing to fill the frame width.
-      // pdf-lib drawText does not support word-spacing natively,
-      // so we draw word-by-word with computed gaps.
-      drawJustifiedLine(page, embeddedFont, line, fontSizePt, color, frameX, baselineY, frameW, isUnderline);
+      drawJustifiedLine(page, embeddedFont, line, fontSizePt, color, frameX, baselineY, frameW);
       continue;
     }
-    // left / last-line justified / single-line justified
     page.drawText(line, { x, y: baselineY, size: fontSizePt, font: embeddedFont, color });
-    
-    if (isUnderline) {
-      const textW = embeddedFont.widthOfTextAtSize(line, fontSizePt);
-      page.drawLine({
-        start: { x, y: baselineY - fontSizePt * 0.1 },
-        end: { x: x + textW, y: baselineY - fontSizePt * 0.1 },
-        thickness: Math.max(1, fontSizePt * 0.05),
-        color,
-      });
-    }
   }
 }
 
@@ -90,20 +57,10 @@ function drawJustifiedLine(
   frameX: number,
   baselineY: number,
   frameW: number,
-  isUnderline: boolean,
 ) {
   const words = line.split(" ").filter(Boolean);
   if (words.length <= 1) {
     page.drawText(line, { x: frameX, y: baselineY, size: fontSizePt, font: embeddedFont, color });
-    if (isUnderline) {
-      const textW = embeddedFont.widthOfTextAtSize(line, fontSizePt);
-      page.drawLine({
-        start: { x: frameX, y: baselineY - fontSizePt * 0.1 },
-        end: { x: frameX + textW, y: baselineY - fontSizePt * 0.1 },
-        thickness: Math.max(1, fontSizePt * 0.05),
-        color,
-      });
-    }
     return;
   }
   const totalWordW = words.reduce((sum, w) => sum + embeddedFont.widthOfTextAtSize(w, fontSizePt), 0);
@@ -112,13 +69,5 @@ function drawJustifiedLine(
   for (const word of words) {
     page.drawText(word, { x, y: baselineY, size: fontSizePt, font: embeddedFont, color });
     x += embeddedFont.widthOfTextAtSize(word, fontSizePt) + gap;
-  }
-  if (isUnderline) {
-    page.drawLine({
-      start: { x: frameX, y: baselineY - fontSizePt * 0.1 },
-      end: { x: frameX + frameW, y: baselineY - fontSizePt * 0.1 },
-      thickness: Math.max(1, fontSizePt * 0.05),
-      color,
-    });
   }
 }

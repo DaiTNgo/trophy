@@ -20,7 +20,10 @@ import { CategoriesListPage } from "./pages/categories/index";
 import { CategoryDetailPage } from "./pages/categories/detail";
 import { PlaceholderIndexPage } from "./pages/placeholder-index";
 import { CustomizationTemplatesRouter } from "./pages/customization-templates";
-import { BrandAssetsPage } from "./pages/brand-assets";
+import { BrandColorsPage } from "./pages/brand-colors";
+import { BrandFontsPage } from "./pages/brand-fonts";
+import { ClipartPage } from "./pages/clipart";
+import { ClipartDetailPage } from "./pages/clipart-detail";
 
 function ProtectedRoute() {
   const auth = useAuth();
@@ -100,8 +103,12 @@ const router = createBrowserRouter([
           { path: "team", Component: TeamPage },
           { path: "settings", Component: () => <Navigate to="/settings/security" replace /> },
           { path: "settings/security", Component: SecurityPage },
-          { path: "customization-templates/*", Component: CustomizationTemplatesRouter },
-          { path: "brand-assets", Component: BrandAssetsPage },
+          { path: "customization/templates/*", Component: CustomizationTemplatesRouter },
+          { path: "customization/clipart", Component: ClipartPage },
+          { path: "customization/clipart/:categoryId", Component: ClipartDetailPage },
+          { path: "customization/colors", Component: BrandColorsPage },
+          { path: "customization/fonts", Component: BrandFontsPage },
+          { path: "customization/brand-assets", Component: () => <Navigate to="/customization/colors" replace /> },
         ],
       },
     ],
@@ -109,12 +116,15 @@ const router = createBrowserRouter([
   { path: "*", Component: () => <Navigate to="/orders" replace /> },
 ]);
 
+import { Toaster } from "@medusajs/ui";
+
 function App() {
   return (
     <AuthProvider>
       <CatalogProvider>
         <BreadcrumbProvider>
           <RouterProvider router={router} />
+          <Toaster />
         </BreadcrumbProvider>
       </CatalogProvider>
     </AuthProvider>

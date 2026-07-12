@@ -866,7 +866,6 @@ export const exportVectorPdfClientSide = async (
           fontSizePt: layer.fontSizePt,
           color: layer.color,
           align: layer.align,
-          isUnderline: layer.isUnderline,
           frameX,
           frameTopY,
           frameW,

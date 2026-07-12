@@ -16,7 +16,7 @@ import { backendFetch } from "../../lib/fetch";
 import { fetchProducts, assignProductsToCollection } from "../../lib/products-client";
 import { ProductSelectorDrawer } from "../../components/product-selector-drawer";
 import { uploadProductVariantMedia } from "../../lib/product-assets-client";
-import { AdminMedia } from "../../components/ui/admin-media";
+import { MediaPreview } from "../../components/ui/media-preview";
 import { convertPdfToImageFile } from "../../lib/pdf-preview";
 import { LocalizedTextField, createEmptyLocalizedText, type AdminLocale, type LocalizedTextValue } from "../../components/ui/medusa";
 import { Upload, X, MoreHorizontal, Pencil, Trash, AlertCircle, Plus } from "lucide-react";
@@ -187,7 +187,13 @@ export function CollectionDetailPage() {
       );
 
       if (res.ok) {
-        navigate("/collections");
+        if (isNew) {
+          navigate("/collections");
+        } else {
+          setImageUrl(finalImageUrl || "");
+          setPreviewUrl(finalImageUrl || "");
+          setFile(null);
+        }
       } else {
         console.error("Failed to save collection");
       }
@@ -231,41 +237,96 @@ export function CollectionDetailPage() {
     <div className="flex flex-col gap-y-6">
       {!isNew ? (
         <>
-          <Container className="p-0 overflow-hidden">
-            <div className="flex flex-col">
-              <div className="flex items-center justify-between px-6 py-4">
-                <Heading level="h2" className="text-xl font-semibold">
-                  {title.vi || title.en}
-                </Heading>
-                <DropdownMenu>
-                  <DropdownMenu.Trigger asChild>
-                    <Button variant="secondary" size="small" className="px-2 flex items-center justify-center h-[28px]">
-                      <span className="sr-only">More</span>
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenu.Trigger>
-                  <DropdownMenu.Content align="end">
-                    <DropdownMenu.Item onClick={() => setIsEditDrawerOpen(true)}>
-                      <Pencil className="mr-2 h-4 w-4" />
-                      Edit Collection
-                    </DropdownMenu.Item>
-                    <DropdownMenu.Item onClick={handleDelete} className="text-ui-fg-danger">
-                      <Trash className="mr-2 h-4 w-4" />
-                      Delete Collection
-                    </DropdownMenu.Item>
-                  </DropdownMenu.Content>
-                </DropdownMenu>
-              </div>
-              <div className="flex flex-col border-t border-ui-border-base">
+          <div className="flex flex-col gap-4 lg:flex-row">
+            <Container className="p-0 overflow-hidden flex-1">
+              <div className="flex flex-col">
                 <div className="flex items-center justify-between px-6 py-4">
-                  <Text size="small" className="text-ui-fg-subtle">
-                    Handle
-                  </Text>
-                  <Text size="small">{handle || "-"}</Text>
+                  <Heading level="h2" className="text-xl font-semibold">
+                    {title.vi || title.en}
+                  </Heading>
+                  <DropdownMenu>
+                    <DropdownMenu.Trigger asChild>
+                      <Button variant="secondary" size="small" className="px-2 flex items-center justify-center h-[28px]">
+                        <span className="sr-only">More</span>
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenu.Trigger>
+                    <DropdownMenu.Content align="end">
+                      <DropdownMenu.Item onClick={() => setIsEditDrawerOpen(true)}>
+                        <Pencil className="mr-2 h-4 w-4" />
+                        Edit Collection
+                      </DropdownMenu.Item>
+                      <DropdownMenu.Item onClick={handleDelete} className="text-ui-fg-danger">
+                        <Trash className="mr-2 h-4 w-4" />
+                        Delete Collection
+                      </DropdownMenu.Item>
+                    </DropdownMenu.Content>
+                  </DropdownMenu>
+                </div>
+                <div className="flex flex-col border-t border-ui-border-base">
+                  <div className="flex items-center justify-between px-6 py-4">
+                    <Text size="small" className="text-ui-fg-subtle">
+                      Handle
+                    </Text>
+                    <Text size="small">{handle || "-"}</Text>
+                  </div>
                 </div>
               </div>
-            </div>
-          </Container>
+            </Container>
+
+            <Container className="p-0 overflow-hidden w-full lg:w-[320px] h-fit">
+              <div className="flex flex-col">
+                <div className="flex items-center justify-between px-6 py-4">
+                  <Heading level="h2" className="text-xl font-semibold">
+                    Media
+                  </Heading>
+                </div>
+                <div className="flex flex-col gap-y-4 border-t border-ui-border-base px-6 py-4">
+                  {previewUrl ? (
+                    <div className="relative h-48 w-48 overflow-hidden rounded-lg border border-ui-border-base bg-ui-bg-subtle">
+                      <MediaPreview
+                        src={previewUrl}
+                        mimeType={file?.type || (previewUrl.toLowerCase().endsWith(".pdf") ? "application/pdf" : "image/jpeg")}
+                        className="h-full w-full object-cover"
+                        alt="Collection Preview"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleRemoveImage}
+                        className="absolute right-2 top-2 rounded-full bg-ui-bg-overlay p-1 text-ui-fg-on-color shadow transition hover:bg-ui-bg-overlay-hover"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="flex h-48 w-48 flex-col items-center justify-center gap-y-2 rounded-lg border border-dashed border-ui-border-base bg-ui-bg-subtle text-ui-fg-muted transition hover:border-ui-border-strong hover:text-ui-fg-base"
+                    >
+                      <Upload className="h-6 w-6" />
+                      <Text size="small">Upload Image</Text>
+                    </button>
+                  )}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*,application/pdf"
+                    className="hidden"
+                    onChange={handleFileSelect}
+                  />
+                  <div className="flex gap-2">
+                    <Button variant="secondary" size="small" onClick={() => fileInputRef.current?.click()}>
+                      {previewUrl ? "Replace" : "Upload"}
+                    </Button>
+                    <Button size="small" onClick={handleSave} isLoading={isSaving}>
+                      Save Media
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </Container>
+          </div>
 
           <Container className="p-0 overflow-hidden">
             <div className="flex flex-col">
@@ -349,6 +410,8 @@ export function CollectionDetailPage() {
                     onLocaleChange={setTitleLocale}
                     onChange={setTitle}
                     placeholder={{ vi: "Tieu de", en: "Title" }}
+                    helperText="Vietnamese is required. English is optional."
+                    requiredLocales={["vi"]}
                   />
                 </div>
 
@@ -361,43 +424,6 @@ export function CollectionDetailPage() {
                     value={handle}
                     onChange={(e) => setHandle(e.target.value)}
                     placeholder="e.g. summer-release"
-                  />
-                </div>
-
-                <div className="flex flex-col gap-y-2">
-                  <Label className="text-ui-fg-base">Collection Image (optional)</Label>
-                  {previewUrl ? (
-                    <div className="relative overflow-hidden rounded-lg border border-ui-border-base bg-ui-bg-subtle w-48 h-48">
-                      <AdminMedia
-                        src={previewUrl}
-                        mimeType={file?.type || (previewUrl.toLowerCase().endsWith(".pdf") ? "application/pdf" : "image/jpeg")}
-                        className="h-full w-full object-cover"
-                        alt="Collection Preview"
-                      />
-                      <button
-                        type="button"
-                        onClick={handleRemoveImage}
-                        className="absolute right-2 top-2 rounded-full bg-ui-bg-overlay p-1 text-ui-fg-on-color shadow transition hover:bg-ui-bg-overlay-hover"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="flex flex-col items-center justify-center gap-y-2 rounded-lg border border-dashed border-ui-border-base bg-ui-bg-subtle text-ui-fg-muted transition hover:border-ui-border-strong hover:text-ui-fg-base w-48 h-48"
-                    >
-                      <Upload className="h-6 w-6" />
-                      <Text size="small">Upload Image</Text>
-                    </button>
-                  )}
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*,application/pdf"
-                    className="hidden"
-                    onChange={handleFileSelect}
                   />
                 </div>
               </Drawer.Body>
@@ -460,6 +486,8 @@ export function CollectionDetailPage() {
                     onLocaleChange={setTitleLocale}
                     onChange={setTitle}
                     placeholder={{ vi: "Tieu de", en: "Title" }}
+                    helperText="Vietnamese is required. English is optional."
+                    requiredLocales={["vi"]}
                   />
                 </div>
 
@@ -479,7 +507,7 @@ export function CollectionDetailPage() {
                 <Label className="text-ui-fg-base">Collection Image (optional)</Label>
                 {previewUrl ? (
                   <div className="relative overflow-hidden rounded-lg border border-ui-border-base bg-ui-bg-subtle w-48 h-48">
-                    <AdminMedia
+                    <MediaPreview
                       src={previewUrl}
                       mimeType={file?.type || (previewUrl.toLowerCase().endsWith(".pdf") ? "application/pdf" : "image/jpeg")}
                       className="h-full w-full object-cover"
