@@ -366,6 +366,7 @@ export default function ProductDetail() {
                     values={customizationValues}
                     dynamicFonts={dynamicFonts as DynamicFontFamily[]}
                     resolveFontUrl={(assetId) => `${BACKEND_URL}/api/storefront/brand-assets/fonts/file/${assetId}`}
+                    resolveStaticFontUrl={(fileName) => `${BACKEND_URL}/fonts/${fileName}`}
                     selectedVariantId={selectedVariant?.id ?? null}
                     onImageValueChange={(fieldId, value) => {
                       setCustomizationValues((current) => ({ ...current, [fieldId]: value }));

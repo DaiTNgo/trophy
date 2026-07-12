@@ -34,7 +34,7 @@ export function buildProductCustomizationTemplate({
     name: `${productTitle} customization`,
     revision: 1,
     status: "published",
-    background: getVariantBackground(selectedVariant, selectedMedia),
+    background: getVariantBackground(customization, selectedVariant, selectedMedia),
     layers: customization.layers,
     formFields: customization.formFields,
   };
@@ -55,6 +55,7 @@ export function mergeCustomizationValues(
 }
 
 function getVariantBackground(
+  customization: ProductCustomization,
   selectedVariant: StorefrontProductVariant | null,
   selectedMedia?: StorefrontVariantMedia | null,
 ): BackgroundAsset | null {
@@ -68,7 +69,7 @@ function getVariantBackground(
     previewUrl: media.contentUrl,
     filename: media.fileName,
     mimeType: media.mimeType,
-    widthPx: media.widthPx,
-    heightPx: media.heightPx,
+    widthPx: customization.canvasWidthPx ?? media.widthPx,
+    heightPx: customization.canvasHeightPx ?? media.heightPx,
   };
 }

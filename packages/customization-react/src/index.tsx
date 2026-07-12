@@ -394,8 +394,12 @@ export function ProductCustomizationPreview({
         }}
       >
         <div
-          className="absolute left-1/2 top-1/2 bg-white shadow-[0_18px_70px_rgba(28,27,27,0.16)]"
           style={{
+            position: "absolute",
+            left: "50%",
+            top: "50%",
+            backgroundColor: "white",
+            boxShadow: "0 18px 70px rgba(28,27,27,0.16)",
             width: width * scale,
             height: height * scale,
             transform: `translate(calc(-50% + ${pan.x}px), calc(-50% + ${pan.y}px))`,
@@ -410,10 +414,18 @@ export function ProductCustomizationPreview({
               alt=""
               data-preview-background-image=""
               draggable={false}
-              className="pointer-events-none absolute inset-0 h-full w-full select-none object-fill"
+              style={{
+                position: "absolute",
+                inset: 0,
+                height: "100%",
+                width: "100%",
+                pointerEvents: "none",
+                userSelect: "none",
+                objectFit: "fill",
+              }}
             />
           ) : (
-            <div className="absolute inset-0 flex items-center justify-center bg-surface-container text-sm text-on-surface-variant">
+            <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "#f5f5f5", fontSize: "14px", color: "#717171" }}>
               Variant image unavailable
             </div>
           )}
@@ -745,6 +757,7 @@ function PreviewText({
           width: layerWidthPx * scale,
           height: layerHeightPx * scale,
           transform: `rotate(${layer.geometry.rotationDeg}deg)`,
+          transformOrigin: "center",
         }}
         viewBox={`0 0 ${layerWidthPx} ${layerHeightPx}`}
       >
@@ -754,7 +767,7 @@ function PreviewText({
         <text
           fontSize={layer.fontSizePt}
           fontFamily={layer.fontId}
-          fontWeight={layer.isBold ? "bold" : "normal"}
+          fontWeight={layer.isBold ? 700 : 400}
           fontStyle={layer.isItalic ? "italic" : "normal"}
           fill={layer.color}
           textAnchor={pathAttrs.textAnchor}
@@ -773,14 +786,19 @@ function PreviewText({
 
   return (
     <div
-      className="absolute -translate-x-1/2 -translate-y-1/2 overflow-hidden whitespace-pre-line text-center font-semibold"
       style={{
+        position: "absolute",
+        overflow: "hidden",
+        whiteSpace: "pre-line",
         left: layer.geometry.xRatio * width * scale,
         top: layer.geometry.yRatio * height * scale,
         width: layerWidthPx * scale,
         color: layer.color,
         fontSize: layer.fontSizePt * scale,
+        lineHeight: 1.35,
         fontFamily: layer.fontId,
+        fontWeight: layer.isBold ? 700 : 400,
+        fontStyle: layer.isItalic ? "italic" : "normal",
         textAlign: layer.align === "justified" ? "justify" : layer.align,
         transform: `translate(-50%, -50%) rotate(${layer.geometry.rotationDeg}deg)`,
       }}
@@ -883,8 +901,8 @@ function PreviewImageShape({
 
   return (
     <div
-      className="absolute"
       style={{
+        position: "absolute",
         left: rect.xPx * scale,
         top: rect.yPx * scale,
         width: rect.widthPx * scale,
@@ -911,8 +929,13 @@ function PreviewImageShape({
       }}
     >
       <div
-        className={`absolute inset-0 overflow-hidden ${editable && mode === "edit" ? "cursor-move" : ""}`}
-        style={{ clipPath }}
+        style={{
+          position: "absolute",
+          inset: 0,
+          overflow: "hidden",
+          cursor: editable && mode === "edit" ? "move" : "default",
+          clipPath 
+        }}
       onPointerDown={(event) => {
           if (mode !== "edit" || !value || !onChange) return;
         onSelect?.();
@@ -950,8 +973,11 @@ function PreviewImageShape({
           src={resolveAssetUrl?.(value?.previewUrl ?? layer.previewUrl) ?? value?.previewUrl ?? layer.previewUrl}
           alt=""
           draggable={false}
-          className="pointer-events-none absolute max-w-none select-none"
           style={{
+            position: "absolute",
+            pointerEvents: "none",
+            maxWidth: "none",
+            userSelect: "none",
             left: imageRect.xPx * scale,
             top: imageRect.yPx * scale,
             width: imageRect.widthPx * scale,
