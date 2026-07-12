@@ -9,12 +9,45 @@ import { PreviewDialog } from "../components/customization/customization-templat
 import { useBrandAssets } from "../hooks/use-brand-assets";
 import { useProductDetail } from "./product-detail/use-product-detail";
 import { updateProductCustomization } from "../lib/products-client";
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { getPreviewBackgrounds, resolveSelectedPreviewBackground } from "./create-product-helpers";
+import type { CatalogProduct } from "../types";
 
 export function ProductCustomizationEditor() {
   const { productId } = useParams();
   const navigate = useNavigate();
   const { product, isLoading, error, mutate } = useProductDetail();
+
+  if (isLoading) {
+    return (
+      <FocusModal open={true}>
+        <FocusModal.Content>
+          <div className="flex h-full items-center justify-center">Loading editor...</div>
+        </FocusModal.Content>
+      </FocusModal>
+    );
+  }
+
+  if (error || !product || !productId) {
+    return (
+      <FocusModal open={true}>
+        <FocusModal.Content>
+          <FocusModal.Header>
+            <Button variant="secondary" onClick={() => navigate(-1)}>Close</Button>
+          </FocusModal.Header>
+          <FocusModal.Body className="flex flex-col items-center justify-center">
+            <p>Error: {error || "Product not found"}</p>
+          </FocusModal.Body>
+        </FocusModal.Content>
+      </FocusModal>
+    );
+  }
+
+  return <EditorContent product={product} productId={productId} mutate={mutate} />;
+}
+
+function EditorContent({ product, productId, mutate }: { product: CatalogProduct; productId: string; mutate: () => Promise<void> }) {
+  const navigate = useNavigate();
   const { fonts } = useBrandAssets();
   const [isSaving, setIsSaving] = useState(false);
 
@@ -38,11 +71,48 @@ export function ProductCustomizationEditor() {
     }
   };
 
+  const previewBackgrounds = useMemo(
+    () => (product ? getPreviewBackgrounds(product.variants) : []),
+    [product]
+  );
+
+  const [selectedPreviewAssetId, setSelectedPreviewAssetId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (previewBackgrounds.length === 0) {
+      if (selectedPreviewAssetId !== null) {
+        setSelectedPreviewAssetId(null);
+      }
+      return;
+    }
+
+    if (!selectedPreviewAssetId || !previewBackgrounds.some((asset) => asset.assetId === selectedPreviewAssetId)) {
+      setSelectedPreviewAssetId(previewBackgrounds[0].assetId);
+    }
+  }, [previewBackgrounds, selectedPreviewAssetId]);
+
+  const selectedPreviewBackground = useMemo(
+    () => resolveSelectedPreviewBackground({
+      backgrounds: previewBackgrounds,
+      selectedAssetId: selectedPreviewAssetId,
+    }),
+    [previewBackgrounds, selectedPreviewAssetId]
+  );
+
   const editor = useProductCustomizationEditor(
-    productId || "",
-    product?.customization,
+    productId,
+    product.customization,
     saveCustomization
   );
+
+  // Initialize the template background with the selected preview background if none exists
+  useEffect(() => {
+    if (selectedPreviewBackground && !editor.template.background) {
+      editor.updateBackground(selectedPreviewBackground);
+    }
+    // We only want to set it once when editor initializes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const {
     template,
@@ -77,31 +147,6 @@ export function ProductCustomizationEditor() {
     handlePreviewChange,
     resetPreviewValues,
   } = editor;
-
-  if (isLoading) {
-    return (
-      <FocusModal open={true}>
-        <FocusModal.Content>
-          <div className="flex h-full items-center justify-center">Loading editor...</div>
-        </FocusModal.Content>
-      </FocusModal>
-    );
-  }
-
-  if (error || !product) {
-    return (
-      <FocusModal open={true}>
-        <FocusModal.Content>
-          <FocusModal.Header>
-            <Button variant="secondary" onClick={() => navigate(-1)}>Close</Button>
-          </FocusModal.Header>
-          <FocusModal.Body className="flex flex-col items-center justify-center">
-            <p>Error: {error || "Product not found"}</p>
-          </FocusModal.Body>
-        </FocusModal.Content>
-      </FocusModal>
-    );
-  }
 
   return (
     <FocusModal open={true} onOpenChange={(open) => { if (!open) navigate(`/products/${product.id}`); }}>
@@ -144,6 +189,17 @@ export function ProductCustomizationEditor() {
               onUpdateField={updateField}
               onDelete={deleteSelectedLayer}
               onUploadBackground={updateBackground}
+              embeddedBackgrounds={{
+                items: previewBackgrounds,
+                selectedAssetId: selectedPreviewAssetId,
+                onSelectAssetId: (assetId) => {
+                  setSelectedPreviewAssetId(assetId);
+                  const selected = previewBackgrounds.find((bg) => bg.assetId === assetId);
+                  if (selected) {
+                    updateBackground(selected);
+                  }
+                },
+              }}
             />
             <EditorCanvas
               template={template}
@@ -184,3 +240,4 @@ export function ProductCustomizationEditor() {
     </FocusModal>
   );
 }
+

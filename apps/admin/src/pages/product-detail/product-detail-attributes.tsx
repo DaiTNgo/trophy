@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { Button, Container, Heading, Text, Drawer, Input, DropdownMenu, IconButton, toast } from "@medusajs/ui";
+import { Button, Container, Heading, Text, Drawer, DropdownMenu, IconButton, toast } from "@medusajs/ui";
 import { Plus, Trash2, MoreHorizontal } from "lucide-react";
 import { updateProductAttributes } from "../../lib/products-client";
-import type { CatalogProduct, ProductAttribute } from "../../types";
+import type { CatalogProduct, ProductAttribute, AdminLocale, LocalizedTextValue } from "../../types";
 import { InlineError } from "../../components/ui/medusa/inline-error";
+import { LocalizedTextField } from "../../components/ui/medusa";
 
 type ProductDetailAttributesProps = {
   product: CatalogProduct;
@@ -18,17 +19,20 @@ export function ProductDetailAttributes({ product, mutate }: ProductDetailAttrib
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [attributeLocale, setAttributeLocale] = useState<AdminLocale>("vi");
+
   const handleOpen = (isOpen: boolean) => {
     if (isOpen) {
-      setAttributes(product.attributes.map((a) => ({ key: a.key, value: a.value })));
+      setAttributes(product.attributes.map((a) => ({ key: { ...a.key }, value: { ...a.value } })));
       setError(null);
+      setAttributeLocale("vi");
     }
     setOpen(isOpen);
   };
 
-  const updateAttribute = (index: number, field: "key" | "value", value: string) => {
+  const updateAttributeField = (index: number, field: "key" | "value", value: LocalizedTextValue) => {
     const newAttrs = [...attributes];
-    newAttrs[index][field] = { ...newAttrs[index][field], vi: value };
+    newAttrs[index][field] = value;
     setAttributes(newAttrs);
   };
 
@@ -96,28 +100,37 @@ export function ProductDetailAttributes({ product, mutate }: ProductDetailAttrib
                 {attributes.map((attribute, index) => (
                   <div
                     key={index}
-                    className="grid gap-3 md:grid-cols-[1fr_1fr_auto]"
+                    className="flex gap-3 items-center"
                   >
-                    <Input
-                      value={attribute.key.vi}
-                      onChange={(e) => updateAttribute(index, "key", e.target.value)}
-                      placeholder="Attribute name"
-                    />
-                    <Input
-                      value={attribute.value.vi}
-                      onChange={(e) => updateAttribute(index, "value", e.target.value)}
-                      placeholder="Attribute value"
-                    />
-                    <div className="flex items-end">
-                      <Button
+                    <div className="flex-1 min-w-0">
+                      <LocalizedTextField
+                        id={`attribute-key-${index}`}
+                      value={attribute.key}
+                      locale={attributeLocale}
+                      onLocaleChange={setAttributeLocale}
+                      onChange={(val) => updateAttributeField(index, "key", val)}
+                      placeholder={{ vi: "Attribute name", en: "Attribute name" }}
+                        requiredLocales={["vi"]}
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <LocalizedTextField
+                        id={`attribute-value-${index}`}
+                      value={attribute.value}
+                      locale={attributeLocale}
+                      onLocaleChange={setAttributeLocale}
+                      onChange={(val) => updateAttributeField(index, "value", val)}
+                      placeholder={{ vi: "Attribute value", en: "Attribute value" }}
+                        requiredLocales={["vi"]}
+                      />
+                    </div>
+                    <IconButton
                         type="button"
-                        variant="secondary"
-                        size="small"
+                        variant="transparent"
                         onClick={() => removeAttributeRow(index)}
                       >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
+                        <Trash2 className="h-4 w-4 text-ui-fg-error" />
+                      </IconButton>
                   </div>
                 ))}
               </div>

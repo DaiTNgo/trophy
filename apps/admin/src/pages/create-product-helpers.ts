@@ -1,5 +1,6 @@
 import type { BackgroundAsset, ProductCustomization } from "@trophy/customization";
 import type { ProductVariant, ProductVariantMedia } from "../types";
+import { BACKEND_URL } from "../lib/fetch";
 
 export type EmbeddedCustomizationDraft = Pick<
   ProductCustomization,
@@ -22,7 +23,9 @@ export const hasEmbeddedCustomizationDraft = (draft: EmbeddedCustomizationDraft)
 
 export const toPreviewBackgroundAsset = (asset: ProductVariantMedia): BackgroundAsset => ({
   assetId: asset.id,
-  previewUrl: asset.contentUrl,
+  previewUrl: asset.contentUrl.startsWith("/") 
+    ? `${BACKEND_URL.replace(/\/$/, "")}${asset.contentUrl}` 
+    : asset.contentUrl,
   filename: asset.fileName,
   mimeType: asset.mimeType,
   widthPx: asset.widthPx,

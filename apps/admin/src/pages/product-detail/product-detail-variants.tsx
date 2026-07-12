@@ -404,8 +404,6 @@ export function ProductDetailVariants({ product, mutate }: ProductDetailVariants
         </div>
 
         <div className="flex flex-col">
-          {variantError ? <div className="px-6 pt-4"><InlineError message={variantError} /></div> : null}
-
           <div className="overflow-x-auto">
             <Table>
             <Table.Header>
