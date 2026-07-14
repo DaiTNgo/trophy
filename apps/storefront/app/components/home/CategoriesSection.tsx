@@ -3,6 +3,7 @@ import type { StorefrontCategory } from "../../lib/api";
 import { backendAssetUrl } from "../../lib/api";
 import { ArrowRight } from "lucide-react";
 import { getLocalized } from "../../lib/translation";
+import Container from "../container";
 
 // Fallback images for categories that have no image set in the backend
 const FALLBACK_IMAGES = [
@@ -34,71 +35,60 @@ interface ShopByProductSectionProps {
 export function CategoriesSection({ categories, locale = "vi" }: ShopByProductSectionProps) {
   if (categories.length === 0) return null;
 
-  const displayCats = categories.slice(0, 6);
+  const displayCats = categories.slice(0, 4);
 
   return (
-    <section className="py-24 px-4 md:px-margin-desktop bg-surface">
-      <div className="max-w-container-max mx-auto">
-        {/* Heading */}
-        <div className="mb-14 reveal active">
-          <p className="mb-3 font-label-md text-label-md uppercase tracking-[0.35em] text-brand-accent">
-            Danh mục sản phẩm
-          </p>
-          <h2 className="font-heading text-[36px] md:text-[44px] uppercase leading-none text-on-surface">
-            Chọn theo loại sản phẩm
-          </h2>
-        </div>
+    <Container className="py-24">
+      {/* Grid */}
+      <div className="grid gap-8 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+        {displayCats.map((cat, index) => {
+          const name = getLocalized(cat.name, locale);
+          const imageUrl = cat.imageUrl
+            ? backendAssetUrl(cat.imageUrl)
+            : FALLBACK_IMAGES[index % FALLBACK_IMAGES.length];
+          const desc = getDescription(cat.handle, getLocalized(cat.description, locale) || null);
 
-        {/* Grid */}
-        <div
-          className={`grid gap-4 grid-cols-2 ${
-            displayCats.length <= 3
-              ? "md:grid-cols-3"
-              : "md:grid-cols-3"
-          }`}
-        >
-          {displayCats.map((cat, index) => {
-            const name = getLocalized(cat.name, locale);
-            const imageUrl = cat.imageUrl
-              ? backendAssetUrl(cat.imageUrl)
-              : FALLBACK_IMAGES[index % FALLBACK_IMAGES.length];
-            const desc = getDescription(cat.handle, getLocalized(cat.description, locale) || null);
-
-            return (
+          return (
+            <div
+              key={cat.id}
+              className="flex flex-col items-center text-center group reveal active"
+              style={{ animationDelay: `${index * 60}ms` }}
+            >
               <Link
-                key={cat.id}
                 to={`/products?category=${encodeURIComponent(cat.handle)}`}
-                className="group relative overflow-hidden rounded-xl aspect-[4/5] block reveal active"
-                style={{ animationDelay: `${index * 60}ms` }}
+                className="block w-full group relative flex flex-col h-full"
               >
                 {/* Image */}
-                <img
-                  className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                  src={imageUrl}
-                  alt={name}
-                  loading="lazy"
-                />
-                {/* Gradient overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-[color:color-mix(in_srgb,var(--surface-dark)_80%,transparent)] via-[color:color-mix(in_srgb,var(--surface-dark)_20%,transparent)] to-transparent transition-opacity duration-300 group-hover:from-[color:color-mix(in_srgb,var(--surface-dark)_90%,transparent)]" />
+                <div className="relative aspect-square w-full mb-6 flex items-center justify-center">
+                  <img
+                    className="max-w-full max-h-full object-contain transition-transform duration-700 group-hover:scale-105"
+                    src={imageUrl}
+                    alt={name}
+                    loading="lazy"
+                  />
+                </div>
 
-                {/* Text */}
-                <div className="absolute bottom-0 left-0 right-0 p-5 z-10">
-                  <h3 className="font-heading text-[22px] md:text-[26px] uppercase leading-tight text-white mb-1">
+                {/* Text Area */}
+                <div className="text-center flex-1 flex flex-col">
+                  <h3 className="font-heading text-[20px] md:text-[24px] font-bold uppercase leading-tight text-[#111111] mb-4">
                     {name}
                   </h3>
-                  <p className="font-body-md text-body-md text-white/70 text-sm leading-snug opacity-0 group-hover:opacity-100 transition-opacity duration-300 mb-3 line-clamp-2">
+                  <p className="font-body text-[#444444] text-[15px] leading-relaxed mb-6">
                     {desc}
                   </p>
-                  <span className="inline-flex items-center gap-1.5 font-label-md text-label-md text-[13px] uppercase tracking-widest text-brand-support transition-all duration-300 group-hover:gap-3">
-                    Xem tất cả
-                    <ArrowRight className="text-[16px]" />
-                  </span>
+                  
+                  {/* Button Wrapper (takes up space or positioned absolute based on preference, here we make it fade in and slide up) */}
+                  <div className="mt-auto opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300 pointer-events-none group-hover:pointer-events-auto pb-4">
+                    <span className="inline-block px-8 py-3.5 bg-[#2582a1] hover:bg-[#1d6b87] text-white font-bold text-[14px] uppercase tracking-wider rounded-sm transition-colors">
+                      Shop {name}
+                    </span>
+                  </div>
                 </div>
               </Link>
-            );
-          })}
-        </div>
+            </div>
+          );
+        })}
       </div>
-    </section>
+    </Container>
   );
 }

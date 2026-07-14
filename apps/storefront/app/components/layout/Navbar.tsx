@@ -192,9 +192,9 @@ export function Navbar({ categories, collections, locale = "vi" }: NavbarProps) 
             <Carousel
               opts={{
                 align: "start",
-                loop: false,
+                loop: true,
                 dragFree: true,
-                duration: 5,
+                duration: 20,
 
               }}
               className="px-8 sm:px-8"
@@ -231,15 +231,13 @@ export function Navbar({ categories, collections, locale = "vi" }: NavbarProps) 
               </CarouselContent>
               <CarouselPrevious
                 size={"icon"}
-                variant={"default"}
+                variant={"outline"}
                 className="absolute -left-2 top-1/2 -translate-y-1/2 z-10"
-                classNameIfDisabled="hidden"
               />
               <CarouselNext
                 size={"icon"}
-                variant={"default"}
+                variant={"outline"}
                 className="absolute -right-2 top-1/2 -translate-y-1/2 z-10"
-                classNameIfDisabled="hidden"
               />
             </Carousel>
           </Container>

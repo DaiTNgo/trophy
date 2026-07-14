@@ -1,4 +1,11 @@
 import { Palette, PenSquare, Truck, ShieldCheck } from "lucide-react";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselPrevious,
+  CarouselNext,
+} from "@/components/ui/carousel";
 
 const CLAIMS = [
   { icon: "Palette", label: "Miễn phí tư vấn thiết kế" },
@@ -9,41 +16,54 @@ const CLAIMS = [
 
 export function TrustBar() {
   return (
-    <div className="bg-surface-dark text-white">
+    <div className="bg-brand-support text-white">
       {/* Desktop: four evenly-spaced claims */}
-      <div className="hidden md:flex items-center justify-center divide-x divide-white/10 max-w-container-max mx-auto">
+      <div className="hidden lg:flex items-center justify-center divide-x divide-white/10 max-w-container-max mx-auto">
         {CLAIMS.map(({ icon, label }) => (
           <div
             key={icon}
-            className="flex items-center gap-2.5 px-8 py-3 flex-1 justify-center"
+            className="flex items-center gap-2.5 px-8 py-2 flex-1 justify-center"
           >
-            {icon === "Palette" && <Palette className="text-[18px] text-brand-accent" />}
-            {icon === "PenSquare" && <PenSquare className="text-[18px] text-brand-accent" />}
-            {icon === "Truck" && <Truck className="text-[18px] text-brand-support" />}
-            {icon === "ShieldCheck" && <ShieldCheck className="text-[18px] text-brand-support" />}
-            <span className="text-[13px] font-semibold tracking-wide uppercase text-white/90">
+            {icon === "Palette" && <Palette size={14} />}
+            {icon === "PenSquare" && <PenSquare size={14} />}
+            {icon === "Truck" && <Truck size={14} />}
+            {icon === "ShieldCheck" && <ShieldCheck size={14} />}
+            <span className="text-[11px] font-semibold tracking-wide uppercase text-white/90">
               {label}
             </span>
           </div>
         ))}
       </div>
 
-      {/* Mobile: scrollable compact row */}
-      <div className="md:hidden flex items-center overflow-x-auto gap-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-        {CLAIMS.map(({ icon, label }) => (
-          <div
-            key={icon}
-            className="flex items-center gap-2 px-5 py-2.5 flex-shrink-0 border-r border-white/10 last:border-r-0"
-          >
-            {icon === "Palette" && <Palette className="text-[16px] text-brand-accent" />}
-            {icon === "PenSquare" && <PenSquare className="text-[16px] text-brand-accent" />}
-            {icon === "Truck" && <Truck className="text-[16px] text-brand-support" />}
-            {icon === "ShieldCheck" && <ShieldCheck className="text-[16px] text-brand-support" />}
-            <span className="text-[12px] font-semibold tracking-wide uppercase text-white/90 whitespace-nowrap">
-              {label}
-            </span>
-          </div>
-        ))}
+      {/* Tablet + Mobile: carousel */}
+      <div className="lg:hidden relative">
+        <Carousel
+          opts={{ loop: true, align: "center" }}
+          orientation="horizontal"
+
+          className="w-full"
+        >
+          <CarouselContent className="ml-0">
+            {CLAIMS.map(({ icon, label }) => (
+              <CarouselItem
+                key={icon}
+              // className="basis-full pl-0 border-r border-white/10 last:border-r-0"
+              >
+                <div className="flex items-center justify-center gap-2 px-5 py-2.5">
+                  {icon === "Palette" && <Palette size={13} />}
+                  {icon === "PenSquare" && <PenSquare size={13} />}
+                  {icon === "Truck" && <Truck size={13} />}
+                  {icon === "ShieldCheck" && <ShieldCheck size={13} />}
+                  <span className="text-[10px] font-semibold tracking-wide uppercase whitespace-nowrap">
+                    {label}
+                  </span>
+                </div>
+              </CarouselItem>
+            ))}
+          </CarouselContent>
+          <CarouselPrevious variant={"ghost"} size='icon' className="z-10 -left-0.5 top-1/2 -translate-y-1/2" />
+          <CarouselNext variant={"ghost"} size='icon' className="z-10 -right-0.5 top-1/2 -translate-y-1/2" />
+        </Carousel>
       </div>
     </div>
   );
