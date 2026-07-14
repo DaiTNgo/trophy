@@ -3,6 +3,7 @@ import { Package, X } from "lucide-react";
 import { backendAssetUrl } from "@/lib/api";
 import type { StorefrontCategory, StorefrontCollection } from "@/lib/api";
 import { getLocalized } from "@/lib/translation";
+import { LanguageSwitcher } from "@/components/layout/language-switcher";
 
 interface NavbarMobileMenuProps {
   isOpen: boolean;
@@ -45,7 +46,7 @@ export function NavbarMobileMenu({ isOpen, onClose, categories, collections, loc
         </button>
       </div>
       <div className="flex-1 overflow-y-auto px-6 py-6 flex flex-col gap-6 pb-20">
-        
+
         {/* SẢN PHẨM */}
         <details className="group [&_summary::-webkit-details-marker]:hidden border-b border-gray-100 pb-4">
           <summary className="flex cursor-pointer items-center justify-between text-[18px] font-medium uppercase tracking-wide text-brand-strong">
@@ -144,6 +145,13 @@ export function NavbarMobileMenu({ isOpen, onClose, categories, collections, loc
           <Link to="/order-lookup" onClick={onClose} className="text-[18px] font-medium uppercase tracking-wide text-brand-strong">
             Tra cứu đơn hàng
           </Link>
+        </div>
+
+        <div className="pt-2 border-t border-gray-100 flex items-center justify-between">
+          <span className="text-[18px] font-medium uppercase tracking-wide text-brand-strong">
+            Đổi ngôn ngữ
+          </span>
+          <LanguageSwitcher />
         </div>
       </div>
     </div>
