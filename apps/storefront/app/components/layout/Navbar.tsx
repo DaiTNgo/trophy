@@ -13,6 +13,7 @@ import {
 import { Container } from "@/components/container";
 import { MegaMenuGrid } from "./navbar/mega-menu-grid";
 import { NavbarMobileMenu } from "./navbar/mobile-menu";
+import { DesktopSearch } from "./navbar/DesktopSearch";
 import { NavbarSearchDialog } from "./navbar/search-dialog";
 import { NavbarMoreDropdown } from "./navbar/more-dropdown";
 import {
@@ -34,9 +35,8 @@ interface NavbarProps {
 
 export function Navbar({ categories, collections, locale = "vi" }: NavbarProps) {
   const { itemCount } = useCart();
-  useNavbarScroll();
+  const { isSticky, slideIn } = useNavbarScroll();
 
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<
     "products" | "themes" | null
@@ -61,14 +61,24 @@ export function Navbar({ categories, collections, locale = "vi" }: NavbarProps) 
   }));
 
   return (
-    <div className="shadow-sm">
+    <>
+    {isSticky && <div className="h-20" />}
+    <div
+      id="navbar-container"
+      className={`
+        left-0 right-0 z-50 shadow-sm
+        transition-all duration-500 ease-in-out
+        ${isSticky ? "fixed top-0" : "relative"}
+        ${slideIn ? "translate-y-0" : isSticky ? "-translate-y-full" : ""}
+      `}
+    >
       <header
         className="w-full bg-white flex flex-col relative transition-all duration-300"
         id="main-nav"
       >
         <div ref={dropdownRef}>
           <Container className="flex items-center justify-between xl:justify-start gap-4 h-20 lg:gap-8 bg-white relative z-20">
-            <div className="flex xl:hidden shrink-0 w-10">
+            <div className="flex xl:hidden shrink-0 items-center gap-0">
               <button
                 onClick={() => setIsMobileMenuOpen(true)}
                 className="p-2 -ml-2 text-brand-strong"
@@ -76,6 +86,7 @@ export function Navbar({ categories, collections, locale = "vi" }: NavbarProps) 
               >
                 <Menu className="w-6 h-6" />
               </button>
+              <NavbarSearchDialog />
             </div>
 
             <Link
@@ -110,7 +121,7 @@ export function Navbar({ categories, collections, locale = "vi" }: NavbarProps) 
                   SẢN PHẨM
                 </button>
               </div>
-
+              <div></div>
               {collections.length > 0 && (
                 <div className="h-10 flex items-center relative">
                   <button
@@ -135,11 +146,7 @@ export function Navbar({ categories, collections, locale = "vi" }: NavbarProps) 
               )}
             </div>
 
-            <NavbarSearchDialog
-              isOpen={isSearchOpen}
-              onOpenChange={setIsSearchOpen}
-              className="hidden"
-            />
+            <DesktopSearch />
 
             <div className="flex w-10 shrink-0 items-center justify-end gap-4 text-brand-strong xl:w-auto">
               <LanguageSwitcher />
@@ -169,14 +176,6 @@ export function Navbar({ categories, collections, locale = "vi" }: NavbarProps) 
             </div>
           )}
         </div>
-
-        <Container className="xl:hidden mb-4">
-          <NavbarSearchDialog
-            isOpen={isSearchOpen}
-            onOpenChange={setIsSearchOpen}
-            className="w-full max-w-none"
-          />
-        </Container>
 
         <NavbarMobileMenu
           isOpen={isMobileMenuOpen}
@@ -247,5 +246,6 @@ export function Navbar({ categories, collections, locale = "vi" }: NavbarProps) 
         </div>
       )}
     </div>
+    </>
   );
 }

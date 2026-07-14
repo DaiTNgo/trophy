@@ -75,19 +75,19 @@ export default {
           "background": "#ffffff"
       },
       "borderRadius": {
-          "sm": "0.25rem",
+          "sm":      "0.25rem",
           "DEFAULT": "0.5rem",
-          "md": "0.75rem",
-          "lg": "1rem",
-          "xl": "1.5rem",
-          "full": "9999px"
+          "md":      "0.75rem",
+          "lg":      "1rem",
+          "xl":      "1.5rem",
+          "full":    "9999px"
       },
       "spacing": {
-          "gutter": "24px",
-          "base": "8px",
-          "container-max": "1280px",
-          "margin-mobile": "16px",
-          "margin-desktop": "64px"
+          "gutter":           "24px",
+          "base":             "8px",
+          "container-max":    "1280px",
+          "margin-mobile":    "16px",
+          "margin-desktop":   "64px"
       },
       "fontFamily": {
           "headline-lg": ["Koulen"],
@@ -99,13 +99,13 @@ export default {
           "body-lg": ["Open Sans"]
       },
       "fontSize": {
-          "headline-lg": ["40px", {"lineHeight": "44px", "letterSpacing": "0.02em", "fontWeight": "400"}],
-          "label-md": ["14px", {"lineHeight": "20px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+          "headline-lg":       ["40px", {"lineHeight": "44px", "letterSpacing": "0.02em", "fontWeight": "400"}],
+          "label-md":          ["14px", {"lineHeight": "20px", "letterSpacing": "0.05em", "fontWeight": "600"}],
           "display-lg-mobile": ["48px", {"lineHeight": "48px", "letterSpacing": "0.04em", "fontWeight": "400"}],
-          "headline-md": ["32px", {"lineHeight": "36px", "letterSpacing": "0.02em", "fontWeight": "400"}],
-          "display-lg": ["72px", {"lineHeight": "72px", "letterSpacing": "0.04em", "fontWeight": "400"}],
-          "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
-          "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}]
+          "headline-md":       ["32px", {"lineHeight": "36px", "letterSpacing": "0.02em", "fontWeight": "400"}],
+          "display-lg":        ["72px", {"lineHeight": "72px", "letterSpacing": "0.04em", "fontWeight": "400"}],
+          "body-md":           ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+          "body-lg":           ["18px", {"lineHeight": "28px", "fontWeight": "400"}]
       }
     }
   }

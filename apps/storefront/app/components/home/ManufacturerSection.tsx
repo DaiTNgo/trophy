@@ -16,7 +16,7 @@ export function CustomizationFeatureSection() {
   return (
     <section className="py-24 px-4 md:px-margin-desktop bg-surface-container-low">
       <div className="max-w-container-max mx-auto">
-        <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-12 2xl:gap-8 items-center">
           {/* Image — left on desktop, first on mobile */}
           <div className="reveal active">
             <div className="relative aspect-[4/3] overflow-hidden rounded-xl">
@@ -41,7 +41,7 @@ export function CustomizationFeatureSection() {
             <p className="mb-4 font-label-md text-label-md uppercase tracking-[0.35em] text-brand-accent">
               Tùy chỉnh
             </p>
-            <h2 className="font-heading text-[32px] md:text-[40px] uppercase leading-none text-on-surface mb-4">
+            <h2 className="font-heading text-[32px] md:text-[40px] uppercase leading-10 text-on-surface mb-4">
               Thiết kế riêng cho từng khoảnh khắc
             </h2>
             <div className="mb-6 h-[3px] w-16 bg-brand-support" />

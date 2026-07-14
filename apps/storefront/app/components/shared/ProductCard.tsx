@@ -48,43 +48,30 @@ export function ProductCard({
   const hasHalfStar = rating % 1 !== 0;
 
   return (
-    <div className="group product-card flex h-full flex-col rounded-sm border border-border-subtle bg-surface-base p-3 text-center transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_12px_30px_rgba(23,23,64,0.08)] md:p-4">
-      <Link
-        to={`/product/${displayHandle}`}
-        className="relative mb-4 flex aspect-[1/1.02] w-full items-center justify-center rounded-sm bg-surface-panel p-4"
-      >
+    <div className="group flex flex-col items-center text-center">
+      <Link to={`/product/${displayHandle}`} className="w-full relative aspect-[4/5] sm:aspect-square mb-6 flex items-center justify-center p-4">
         {imgSrc ? (
           <img
-            className="h-full w-full object-contain transition-transform duration-500 group-hover:scale-105"
+            className="w-full h-full object-contain transition-transform duration-500"
             data-alt={imageAlt}
             src={imgSrc}
             alt={imageAlt}
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center rounded-sm bg-surface-container-low">
+          <div className="w-full h-full bg-surface-container-low flex items-center justify-center">
             <Image className="text-4xl text-on-surface-variant" />
           </div>
         )}
       </Link>
 
-      <div className="flex flex-grow flex-col items-center">
-        {metaLine ? (
-          <p className="mb-2 line-clamp-1 min-h-4 font-label-md text-[10px] uppercase tracking-[0.14em] text-brand-support">
-            {metaLine}
-          </p>
-        ) : (
-          <div className="mb-2 min-h-4" />
-        )}
-
-        <Link to={`/product/${displayHandle}`} className="mb-2 w-full px-1">
-          <h3 className="line-clamp-2 min-h-10 text-[14px] font-bold uppercase leading-5 text-brand-strong transition-colors hover:text-action-commerce md:text-[15px]">
-            {title}
-          </h3>
+      <div className="flex flex-col items-center flex-grow">
+        <Link to={`/product/${displayHandle}`} className="mb-2 w-full px-2">
+          <h3 className="font-bold text-on-surface text-sm sm:text-base hover:text-primary transition-colors line-clamp-2">{title}</h3>
         </Link>
 
         {(rating > 0 || reviewsCount > 0) && (
-          <div className="mb-2 flex items-center justify-center gap-2">
-            <div className="flex text-indicator-rating">
+          <div className="flex items-center justify-center gap-2 mb-2">
+            <div className="flex text-[#FFC107]">
               {Array.from({ length: fullStars }).map((_, i) => (
                 <Star key={`full-${i}`} className="!text-[16px]" fill="currentColor" />
               ))}
@@ -96,27 +83,15 @@ export function ProductCard({
           </div>
         )}
 
-        <div className="mt-auto flex min-h-10 flex-col items-center justify-end">
-          {!isContactPrice ? (
-            <span className="font-label-md text-[10px] uppercase tracking-[0.12em] text-on-surface-variant">
-              {priceFrom ? "Giá từ" : "Giá bán"}
-            </span>
-          ) : null}
-          <span
-            className={cn(
-              "mt-1 font-heading text-[22px] uppercase leading-none",
-              isContactPrice ? "text-brand-strong" : "text-indicator-price",
-            )}
-          >
+        <span className="font-bold text-on-surface mt-auto">
           {isContactPrice ? (
-            <span>
+            <span className="text-primary">
               <Headset className="!text-[14px] inline align-text-bottom" /> Liên Hệ
             </span>
           ) : (
-            <>{displayPrice}</>
+            <>{priceFrom ? "Từ " : ""}{displayPrice}</>
           )}
           </span>
-        </div>
       </div>
     </div>
   );

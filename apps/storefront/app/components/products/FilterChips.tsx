@@ -1,3 +1,5 @@
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
+
 export interface CategoryOption {
   name: string;
   handle: string;
@@ -11,23 +13,44 @@ export interface FilterChipsProps {
 
 export function FilterChips({ categories, activeCategory, onSelect }: FilterChipsProps) {
   return (
-    <div className="flex gap-2 overflow-x-auto pb-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-      {categories.map((cat) => {
-        const isActive = cat.handle === activeCategory || (!activeCategory && cat.handle === "");
-        return (
-          <button
-            key={cat.handle}
-            onClick={() => onSelect?.(cat.handle)}
-            className={`whitespace-nowrap rounded-sm border px-4 py-2.5 font-label-md text-[11px] uppercase tracking-[0.14em] transition-colors ${
-              isActive
-                ? "border-brand-strong bg-brand-strong text-white"
-                : "border-border-subtle bg-surface-base text-on-surface-variant hover:border-brand-support hover:text-brand-support"
-            }`}
-          >
-            {cat.name}
-          </button>
-        );
-      })}
-    </div>
+    <Carousel
+      opts={{
+        align: "start",
+        loop: false,
+        dragFree: true,
+        duration: 5,
+      }}
+      className="px-8"
+    >
+      <CarouselContent className="gap-3 ml-0">
+        {categories.map((cat) => {
+          const isActive = cat.name === activeCategory || (!activeCategory && cat.handle === "");
+          return (
+            <CarouselItem key={cat.handle} className="pl-0 basis-auto">
+              <button
+                onClick={() => onSelect?.(cat.name)}
+                className={`whitespace-nowrap px-6 py-2 rounded-full font-label-md text-label-md border transition-all duration-300 ${
+                  isActive
+                    ? "bg-primary text-on-primary border-primary"
+                    : "bg-surface-container-low hover:bg-surface-variant border-outline-variant text-on-surface-variant"
+                }`}
+              >
+                {cat.name}
+              </button>
+            </CarouselItem>
+          );
+        })}
+      </CarouselContent>
+      <CarouselPrevious
+        variant="outline"
+        size="icon"
+        className="hidden md:inline-flex absolute left-0 md:-left-2 top-1/2 -translate-y-1/2 z-10"
+      />
+      <CarouselNext
+        variant="outline"
+        size="icon"
+        className="hidden md:inline-flex absolute right-0 md:-right-2 top-1/2 -translate-y-1/2 z-10"
+      />
+    </Carousel>
   );
 }

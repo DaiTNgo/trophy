@@ -24,7 +24,7 @@ export default function StorefrontLayout() {
   const { categories, collections, locale } = useLoaderData<typeof loader>();
 
   return (
-    <div className="flex min-h-screen flex-col overflow-x-hidden">
+    <div className="flex min-h-screen flex-col">
       <TrustBar />
       <Navbar categories={categories} collections={collections} locale={locale} />
       <div className="flex-1">
