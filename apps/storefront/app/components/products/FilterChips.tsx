@@ -24,11 +24,11 @@ export function FilterChips({ categories, activeCategory, onSelect }: FilterChip
     >
       <CarouselContent className="gap-3 ml-0">
         {categories.map((cat) => {
-          const isActive = cat.name === activeCategory || (!activeCategory && cat.handle === "");
+          const isActive = cat.handle === activeCategory || (!activeCategory && cat.handle === "");
           return (
             <CarouselItem key={cat.handle} className="pl-0 basis-auto">
               <button
-                onClick={() => onSelect?.(cat.name)}
+                onClick={() => onSelect?.(cat.handle)}
                 className={`whitespace-nowrap px-6 py-2 rounded-full font-label-md text-label-md border transition-all duration-300 ${
                   isActive
                     ? "bg-primary text-on-primary border-primary"

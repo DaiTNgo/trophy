@@ -23,7 +23,7 @@ export async function loader({ request }: Route.LoaderArgs) {
   });
 
   const allCategories = [
-    { name: "Tất cả", handle: "" },
+    { name: "TẤT CẢ", handle: "" },
     ...apiCategories.map((c) => ({
       name: getLocalized(c.name, locale),
       handle: c.handle,

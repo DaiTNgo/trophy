@@ -19,9 +19,9 @@ export function Footer() {
             </h4>
             <ul className="space-y-4 font-body-md text-body-md text-white/72">
               <li>
-                <a className="transition-colors hover:text-brand-accent" href="#">
+                <Link className="transition-colors hover:text-brand-accent" to="/about">
                   Về Phùng Thị
-                </a>
+                </Link>
               </li>
               <li>
                 <Link className="transition-colors hover:text-brand-accent" to="/products">

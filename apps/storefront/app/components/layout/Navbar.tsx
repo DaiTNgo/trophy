@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router";
 import { ChevronDown, Menu, Search, ShoppingCart, Package } from "lucide-react";
 import { useNavbarScroll } from "@/hooks/useNavbarScroll";
@@ -22,6 +22,7 @@ import {
   CarouselItem,
   CarouselPrevious,
   CarouselNext,
+  type CarouselApi,
 } from "@/components/ui/carousel";
 import { LanguageSwitcher } from "./language-switcher";
 import type { StorefrontCategory, StorefrontCollection } from "@/lib/api";
@@ -47,6 +48,25 @@ export function Navbar({ categories, collections, locale = "vi" }: NavbarProps) 
   );
 
   useLockBody(isMobileMenuOpen);
+
+  const [catApi, setCatApi] = useState<CarouselApi>();
+  const [catCanScrollPrev, setCatCanScrollPrev] = useState(false);
+  const [catCanScrollNext, setCatCanScrollNext] = useState(false);
+
+  useEffect(() => {
+    if (!catApi) return;
+    const check = () => {
+      setCatCanScrollPrev(catApi.canScrollPrev());
+      setCatCanScrollNext(catApi.canScrollNext());
+    };
+    check();
+    catApi.on("reInit", check);
+    catApi.on("select", check);
+    return () => {
+      catApi.off("reInit", check);
+      catApi.off("select", check);
+    };
+  }, [catApi]);
 
   const productMenuItems = categories.map((cat) => ({
     title: getLocalized(cat.name, locale),
@@ -195,15 +215,15 @@ export function Navbar({ categories, collections, locale = "vi" }: NavbarProps) 
                 loop: false,
                 dragFree: true,
                 duration: 5,
-
               }}
+              setApi={setCatApi}
               className="px-8 sm:px-8"
             >
-              <CarouselContent className="gap-4 md:gap-8 ml-0">
+              <CarouselContent className={`gap-4 md:gap-8 ml-0 ${!catCanScrollPrev && !catCanScrollNext ? "justify-center" : ""}`}>
                 {categories.map((cat) => (
                   <CarouselItem
                     key={cat.id}
-                    className="pl-0 basis-1/4 md:basis-1/5 lg:basis-auto"
+                    className="pl-0 basis-auto"
                   >
                     <Link
                       to={`/products?category=${encodeURIComponent(cat.handle)}`}
@@ -232,14 +252,12 @@ export function Navbar({ categories, collections, locale = "vi" }: NavbarProps) 
               <CarouselPrevious
                 size={"icon"}
                 variant={"default"}
-                className="absolute -left-2 top-1/2 -translate-y-1/2 z-10"
-                classNameIfDisabled="hidden"
+                className={`absolute -left-2 top-1/2 -translate-y-1/2 z-10 ${!catCanScrollPrev ? "hidden" : ""}`}
               />
               <CarouselNext
                 size={"icon"}
                 variant={"default"}
-                className="absolute -right-2 top-1/2 -translate-y-1/2 z-10"
-                classNameIfDisabled="hidden"
+                className={`absolute -right-2 top-1/2 -translate-y-1/2 z-10 ${!catCanScrollNext ? "hidden" : ""}`}
               />
             </Carousel>
           </Container>
