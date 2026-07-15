@@ -4,10 +4,8 @@ import { useScrollReveal } from "../hooks/useScrollReveal";
 import {
   Trophy,
   Gem,
-  Eye,
-  Factory,
-  ShieldCheck,
   Clock,
+  Factory,
   ArrowRight,
   Building2,
   Pickaxe,
@@ -19,6 +17,9 @@ import {
   FileCheck,
   Hammer,
   PackageCheck,
+  Handshake,
+  PartyPopper,
+  Rocket,
 } from "lucide-react";
 
 export function meta({}: Route.MetaArgs) {
@@ -121,34 +122,45 @@ const MATERIALS = [
   },
 ];
 
-const GUARANTEES = [
+const CORE_VALUES = [
   {
-    icon: ShieldCheck,
-    quote:
-      "Nếu sản phẩm không đúng với bản thiết kế đã duyệt, chúng tôi sẽ làm lại miễn phí.",
-    title: "Cam kết chất lượng",
+    icon: Gem,
+    title: "CHẾ TÁC THỦ CÔNG",
+    body: "Từng sản phẩm được làm bởi nghệ nhân giàu kinh nghiệm — không dây chuyền vô hồn, không hàng loạt thiếu cá tính.",
   },
   {
-    icon: Eye,
-    quote:
-      "Bạn nhận file thiết kế để duyệt trước khi sản xuất. Không có bất ngờ.",
-    title: "Minh bạch tuyệt đối",
+    icon: PenLine,
+    title: "SÁNG TẠO KHÔNG GIỚI HẠN",
+    body: "Logo, chữ ký, hình ảnh thương hiệu — bất kỳ ý tưởng nào cũng có thể khắc lên pha lê, hợp kim hoặc kim loại.",
   },
   {
-    icon: Clock,
-    quote:
-      "Tư vấn thời gian thực tế ngay từ đầu. Cam kết tiến độ với mọi đơn hàng.",
-    title: "Cam kết tiến độ",
+    icon: Handshake,
+    title: "ĐỒNG HÀNH TRỌN VẸN",
+    body: "Từ phác thảo đầu tiên đến lúc sản phẩm về tay khách hàng — đội ngũ Phùng Thị luôn sẵn sàng hỗ trợ.",
   },
 ];
 
-const EVENTS = [
-  "Giải đấu thể thao",
-  "Lễ kỷ niệm doanh nghiệp",
-  "Hội nghị khách hàng",
-  "Sự kiện văn hóa",
-  "Ngày kỷ niệm thành lập",
-  "Hội thảo & hội nghị",
+const CLIENTS = [
+  {
+    icon: Building2,
+    title: "DOANH NGHIỆP & TẬP ĐOÀN",
+    body: "Kỷ niệm thành lập, hội nghị khách hàng, tri ân nhân viên. Giải pháp vinh danh trọn gói cho mọi quy mô.",
+  },
+  {
+    icon: Trophy,
+    title: "THỂ THAO & GIẢI ĐẤU",
+    body: "Từ giải phong trào đến đấu trường chuyên nghiệp — cúp, huy chương và kỷ niệm chương cho mọi bộ môn.",
+  },
+  {
+    icon: PartyPopper,
+    title: "SỰ KIỆN & GIÁO DỤC",
+    body: "Hội thảo chuyên ngành, lễ tốt nghiệp, cuộc thi học thuật, sự kiện văn hóa — vinh danh mọi thành tựu.",
+  },
+  {
+    icon: Rocket,
+    title: "START-UP & SME",
+    body: "Quà tặng thương hiệu, vinh danh nội bộ. Cá nhân hóa sản phẩm với ngân sách linh hoạt.",
+  },
 ];
 
 export default function AboutRoute() {
@@ -371,85 +383,98 @@ export default function AboutRoute() {
         </div>
       </section>
 
-      {/* ── E. Scale & Guarantees ────────────────────────────── */}
+      {/* ── E. Core Values ──────────────────────────────────── */}
       <section className="relative overflow-hidden bg-gradient-to-b from-surface-container-low to-surface-base px-margin-mobile py-24 md:px-margin-desktop">
         <div className="pointer-events-none absolute -right-24 top-[20%] h-48 w-48 rounded-full border border-brand-accent/8" />
         <div className="pointer-events-none absolute left-[10%] top-[60%] h-6 w-6 rotate-45 bg-brand-strong/10" />
-        <div className="mx-auto max-w-container-max">
-          <div className="mb-16 grid grid-cols-2 gap-8 md:grid-cols-4 reveal">
-            {[
-              { number: "600k+", label: "Sản phẩm đã trao" },
-              { number: "15+", label: "Năm kinh nghiệm" },
-              { number: "2", label: "Xưởng sản xuất" },
-              { number: "Toàn quốc", label: "Giao hàng" },
-            ].map((stat, i) => (
-              <div
-                key={stat.label}
-                className="reveal flex flex-col items-center text-center"
-                style={{ animationDelay: `${i * 80}ms` }}
-              >
-                <span className="font-heading text-[40px] uppercase leading-none text-brand-strong md:text-[52px]">
-                  {stat.number}
-                </span>
-                <span className="mt-2 font-label-md text-label-md uppercase tracking-wider text-on-surface-variant">
-                  {stat.label}
-                </span>
-              </div>
-            ))}
-          </div>
+        <div className="mx-auto max-w-container-max reveal">
+          <p className="mb-3 text-center font-label-md text-label-md uppercase tracking-[0.35em] text-brand-accent">
+            Giá trị cốt lõi
+          </p>
+          <h2 className="mb-4 text-center font-heading text-[36px] uppercase leading-10 text-on-surface md:text-[44px]">
+            Cách chúng tôi làm việc
+          </h2>
+          <div className="mx-auto mb-6 h-[3px] w-16 bg-brand-support" />
+          <p className="mx-auto mb-14 max-w-2xl text-center font-body-lg text-body-lg leading-relaxed text-on-surface-variant">
+            Không chỉ là sản phẩm — mỗi đơn hàng là một sự hợp tác, được xây
+            dựng trên sự tận tâm, sáng tạo và trách nhiệm.
+          </p>
 
           <div className="grid grid-cols-1 gap-6 md:grid-cols-3 reveal">
-            {GUARANTEES.map((g, i) => (
+            {CORE_VALUES.map((v, i) => (
               <div
-                key={g.title}
+                key={v.title}
                 className="reveal flex flex-col justify-between rounded-xl border border-outline-variant bg-white p-8 luxury-shadow"
                 style={{ animationDelay: `${i * 80}ms` }}
               >
-                <div className="mb-6 flex h-10 w-10 items-center justify-center rounded-lg bg-brand-strong/10">
-                  <g.icon className="text-[22px] text-brand-accent" />
+                <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-brand-strong to-brand-support shadow-lg shadow-brand-strong/20">
+                  <v.icon className="text-[22px] text-white" />
                 </div>
-                <p className="mb-6 font-body-lg text-body-lg leading-relaxed italic text-on-surface-variant">
-                  "{g.quote}"
+                <h3 className="mb-3 font-heading text-[22px] uppercase text-on-surface">
+                  {v.title}
+                </h3>
+                <p className="font-body-lg text-body-lg leading-relaxed text-on-surface-variant">
+                  {v.body}
                 </p>
-                <div className="border-t border-outline-variant pt-4">
-                  <p className="font-label-md text-label-md uppercase tracking-wide text-on-surface">
-                    {g.title}
-                  </p>
-                  <p className="font-body-md text-body-md text-[13px] text-brand-accent">
-                    Phùng Thị
-                  </p>
-                </div>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ── F. Who We've Served ──────────────────────────────── */}
-      <section className="relative overflow-hidden border-t border-brand-accent/10 bg-white px-margin-mobile py-24 md:px-margin-desktop">
+      {/* ── F. Who We Serve ──────────────────────────────────── */}
+      <section className="relative overflow-hidden bg-surface-base px-margin-mobile py-24 md:px-margin-desktop">
         <div className="mx-auto max-w-container-max reveal">
           <p className="mb-3 text-center font-label-md text-label-md uppercase tracking-[0.35em] text-brand-accent">
-            Đối tượng
+            Đối tác
           </p>
           <h2 className="mb-4 text-center font-heading text-[36px] uppercase leading-10 text-on-surface md:text-[44px]">
-            Chúng tôi phục vụ ai?
+            Đối tác của chúng tôi
           </h2>
           <div className="mx-auto mb-6 h-[3px] w-16 bg-brand-support" />
           <p className="mx-auto mb-14 max-w-2xl text-center font-body-lg text-body-lg leading-relaxed text-on-surface-variant">
-            Từ giải đấu thể thao đến lễ kỷ niệm doanh nghiệp — sản phẩm của
-            chúng tôi góp mặt trong nhiều sự kiện quan trọng trên khắp cả nước.
+            Từ doanh nghiệp lớn đến start-up nhỏ — sản phẩm của Phùng Thị đồng
+            hành cùng mọi tổ chức trong những cột mốc đáng nhớ.
           </p>
 
-          <div className="mx-auto flex max-w-3xl flex-wrap justify-center gap-3">
-            {EVENTS.map((event, i) => (
-              <span
-                key={event}
-                className="reveal rounded-full border border-outline-variant bg-surface-container-low px-6 py-3 font-body-md text-body-md text-on-surface transition-all duration-300 hover:border-brand-accent hover:bg-brand-accent/5"
-                style={{ animationDelay: `${i * 60}ms` }}
-              >
-                {event}
+          <div className="space-y-0">
+            {CLIENTS.map((client, i) => {
+              const isLeft = i % 2 === 0;
+              return (
+                <div
+                  key={client.title}
+                  className={`reveal flex flex-col items-center gap-8 px-6 py-12 md:flex-row md:gap-16 md:px-16 ${isLeft ? "bg-gradient-to-r from-brand-support/[0.07] to-white" : "bg-gradient-to-l from-brand-support/[0.07] to-white md:flex-row-reverse"}`}
+                  style={{ animationDelay: `${i * 100}ms` }}
+                >
+                  <div className="flex-shrink-0">
+                    <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-strong to-brand-support shadow-lg shadow-brand-strong/20 md:h-24 md:w-24">
+                      <client.icon className="text-[32px] text-white md:text-[36px]" />
+                    </div>
+                  </div>
+                  <div className={isLeft ? "md:text-left" : "md:text-right"}>
+                    <h3 className="mb-3 font-heading text-[24px] uppercase tracking-wide text-on-surface md:text-[28px]">
+                      {client.title}
+                    </h3>
+                    <p className="max-w-xl font-body-lg text-body-lg leading-relaxed text-on-surface-variant">
+                      {client.body}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="mx-auto mt-16 max-w-2xl text-center reveal">
+            <div className="mx-auto mb-6 h-[3px] w-16 bg-brand-accent" />
+            <p className="font-heading text-[26px] uppercase leading-tight text-on-surface md:text-[32px]">
+              Vinh danh không có giới hạn.
+              <br />
+              <span className="text-brand-accent">
+                Mọi tổ chức, mọi sứ mệnh
               </span>
-            ))}
+              <br />
+              Phùng Thị đồng hành cùng bạn.
+            </p>
           </div>
         </div>
       </section>

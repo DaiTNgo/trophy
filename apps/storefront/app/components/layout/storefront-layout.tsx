@@ -1,6 +1,7 @@
 import { Outlet, useLoaderData } from "react-router";
 import { Navbar } from "./Navbar";
 import { Footer } from "./Footer";
+import { ContactButtons } from "./contact-buttons";
 import {
   fetchStorefrontCategories,
   fetchStorefrontCollections,
@@ -31,6 +32,7 @@ export default function StorefrontLayout() {
         <Outlet />
       </div>
       <Footer />
+      <ContactButtons />
     </div>
   );
 }
