@@ -46,35 +46,35 @@ export function BestSellersSection({ products, locale = "vi" }: BestSellersSecti
   const displayProducts = products.slice(0, 8);
 
   return (
-    <Container className="py-16 md:py-24 overflow-hidden">
-      <div className="max-w-container-max mx-auto">
+    <section className="overflow-hidden bg-surface-base py-9 md:pb-3 md:pt-22">
+      <Container>
         {/* Header row */}
-        <div className="relative flex justify-center items-center mb-10 md:mb-14 reveal active">
-          <h2 className="font-heading text-xl md:text-2xl font-bold uppercase tracking-wide text-on-surface text-center">
+        <div className="relative mb-8 flex items-center justify-center md:mb-10 reveal active">
+          <h2 className="font-heading text-[30px] leading-none md:text-[40px] font-bold uppercase text-brand-strong text-center">
             {locale === "en" ? "Best Selling Products" : "Sản phẩm bán chạy nhất"}
           </h2>
-          <div className="hidden md:flex absolute right-0 items-center gap-4 text-on-surface-variant">
-            <button 
-              aria-label="Previous" 
-              className={`transition-colors ${canScrollPrev ? "hover:text-on-surface text-on-surface-variant" : "text-gray-300 cursor-not-allowed"}`}
+          <div className="hidden md:flex absolute right-0 items-center gap-3 text-text-muted">
+            <button
+              aria-label="Previous"
+              className={`flex h-10 w-10 items-center justify-center transition-colors ${canScrollPrev ? "hover:text-brand-strong text-text-muted" : "text-border-subtle cursor-not-allowed"}`}
               onClick={scrollPrev}
               disabled={!canScrollPrev}
             >
-              <ChevronLeft className="w-6 h-6 stroke-[1.5]" />
+              <ChevronLeft className="w-7 h-7 stroke-[1.5]" />
             </button>
-            <button 
-              aria-label="Next" 
-              className={`transition-colors ${canScrollNext ? "hover:text-on-surface text-on-surface-variant" : "text-gray-300 cursor-not-allowed"}`}
+            <button
+              aria-label="Next"
+              className={`flex h-10 w-10 items-center justify-center transition-colors ${canScrollNext ? "hover:text-brand-strong text-text-muted" : "text-border-subtle cursor-not-allowed"}`}
               onClick={scrollNext}
               disabled={!canScrollNext}
             >
-              <ChevronRight className="w-6 h-6 stroke-[1.5]" />
+              <ChevronRight className="w-7 h-7 stroke-[1.5]" />
             </button>
           </div>
         </div>
 
         {/* Product Carousel */}
-        <div className="relative group">
+        <div className="relative">
           <Carousel setApi={setApi} opts={{ align: "start", dragFree: true }} className="w-full">
             <CarouselContent className="-ml-4">
               {displayProducts.map((product, index) => {
@@ -84,7 +84,7 @@ export function BestSellersSection({ products, locale = "vi" }: BestSellersSecti
                 // Mock reviews count based on UI examples: 266, 290, 393, 89
                 const mockReviews = [266, 290, 393, 89, 120, 85, 420, 150];
                 return (
-                  <CarouselItem key={product.id} className="pl-4 basis-1/2 md:basis-1/4">
+                  <CarouselItem key={product.id} className="basis-1/2 pl-4 md:basis-1/4">
                     <ProductCard
                       {...product}
                       thumbnail={imgSrc}
@@ -95,31 +95,32 @@ export function BestSellersSection({ products, locale = "vi" }: BestSellersSecti
                       rating={5}
                       reviewsCount={mockReviews[index % mockReviews.length]}
                       priceFrom={true}
+                      variant="featured"
                     />
                   </CarouselItem>
                 );
               })}
             </CarouselContent>
           </Carousel>
-          
+
           {/* Mobile navigation arrows overlaid on the carousel */}
           <div className="md:hidden absolute inset-y-0 left-0 flex items-center">
-             <button 
-                aria-label="Previous" 
-                className={`w-8 h-8 flex items-center justify-center rounded-full bg-surface shadow-sm border border-outline-variant -ml-4 z-10 transition-opacity ${canScrollPrev ? "opacity-100" : "opacity-0 pointer-events-none"}`}
-                onClick={scrollPrev}
-              >
-                <ChevronLeft className="w-4 h-4 text-on-surface" />
-              </button>
+            <button
+              aria-label="Previous"
+              className={`w-8 h-8 flex items-center justify-center rounded-full bg-surface-base shadow-sm border border-border-subtle -ml-3 z-10 transition-opacity ${canScrollPrev ? "opacity-100" : "opacity-0 pointer-events-none"}`}
+              onClick={scrollPrev}
+            >
+              <ChevronLeft className="w-4 h-4 text-brand-strong" />
+            </button>
           </div>
           <div className="md:hidden absolute inset-y-0 right-0 flex items-center">
-             <button 
-                aria-label="Next" 
-                className={`w-8 h-8 flex items-center justify-center rounded-full bg-surface shadow-sm border border-outline-variant -mr-4 z-10 transition-opacity ${canScrollNext ? "opacity-100" : "opacity-0 pointer-events-none"}`}
-                onClick={scrollNext}
-              >
-                <ChevronRight className="w-4 h-4 text-on-surface" />
-              </button>
+            <button
+              aria-label="Next"
+              className={`w-8 h-8 flex items-center justify-center rounded-full bg-surface-base shadow-sm border border-border-subtle -mr-3 z-10 transition-opacity ${canScrollNext ? "opacity-100" : "opacity-0 pointer-events-none"}`}
+              onClick={scrollNext}
+            >
+              <ChevronRight className="w-4 h-4 text-brand-strong" />
+            </button>
           </div>
         </div>
 
@@ -132,7 +133,7 @@ export function BestSellersSection({ products, locale = "vi" }: BestSellersSecti
             Xem tất cả sản phẩm
           </Link>
         </div>
-      </div>
-    </Container>
+      </Container>
+    </section>
   );
 }

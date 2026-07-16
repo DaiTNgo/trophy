@@ -68,21 +68,41 @@ export function CategoriesSection({ categories, locale = "vi" }: ShopByProductSe
                   />
                 </div>
 
-                {/* Text Area */}
-                <div className="text-center flex-1 flex flex-col">
-                  <h3 className="font-heading text-[20px] md:text-[24px] font-bold uppercase leading-tight text-[#111111] mb-4">
+                <div className="absolute -left-5 -right-5 bottom-8  bg-white/75 opacity-0 group-hover:opacity-100 z-10 flex flex-col items-center pt-5 pb-6 px-5 pointer-events-none group-hover:pointer-events-auto rounded-xl">
+                  <h3 className="font-heading text-[24px] font-bold uppercase leading-tight text-[#232323] mb-4 text-center">
                     {name}
                   </h3>
-                  <p className="font-body text-[#444444] text-[15px] leading-relaxed mb-6">
+                  <p className="font-body text-[#4a4a4a] text-[14px] leading-relaxed mb-6 text-center line-clamp-3">
                     {desc}
                   </p>
-                  
-                  {/* Button Wrapper (takes up space or positioned absolute based on preference, here we make it fade in and slide up) */}
-                  <div className="mt-auto opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300 pointer-events-none group-hover:pointer-events-auto pb-4">
-                    <span className="inline-block px-8 py-3.5 bg-[#2582a1] hover:bg-[#1d6b87] text-white font-bold text-[14px] uppercase tracking-wider rounded-sm transition-colors">
+                  <div className="mt-auto">
+                    <span className="inline-block px-8 py-3 bg-[#288ab6] hover:bg-[#244159] text-white font-bold text-[14px] uppercase tracking-wider rounded-sm transition-colors">
                       Shop {name}
                     </span>
                   </div>
+                </div>
+
+                {/* Text Area Container (Relative to contain the absolute hover card) */}
+                <div className=" flex-1 mt-4">
+
+                  {/* Fake UI: Luôn giữ kích thước cố định, có chứa button nhưng bị ẩn đi, khi hover thì opacity 0 (không animation theo yêu cầu) */}
+                  <div className="text-center flex flex-col h-full opacity-100 group-hover:opacity-0">
+                    <h3 className="font-heading text-[24px] font-bold uppercase leading-tight text-[#232323] mb-4">
+                      {name}
+                    </h3>
+                    <p className="font-body text-[#4a4a4a] text-[14px] leading-relaxed mb-6">
+                      {desc}
+                    </p>
+                    <div className="mt-auto pb-4 opacity-0">
+                      <span className="inline-block px-8 py-3 bg-[#288ab6] text-white font-bold text-[14px] uppercase tracking-wider rounded-sm">
+                        Shop {name}
+                      </span>
+                    </div>
+                  </div>
+
+
+
+
                 </div>
               </Link>
             </div>
