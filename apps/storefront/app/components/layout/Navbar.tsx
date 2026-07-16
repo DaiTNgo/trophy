@@ -1,8 +1,7 @@
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
-import { ChevronDown, Menu, Search, ShoppingCart, Package } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, Menu, Search, ShoppingCart, Package } from "lucide-react";
 import { useNavbarScroll } from "@/hooks/useNavbarScroll";
-import { useLockBody } from "@/hooks/useLockBody";
 import { useClickOutside } from "@/hooks/useClickOutside";
 import { useCart } from "@/hooks/use-cart";
 import {
@@ -16,13 +15,6 @@ import { NavbarMobileMenu } from "./navbar/mobile-menu";
 import { DesktopSearch } from "./navbar/DesktopSearch";
 import { NavbarSearchDialog } from "./navbar/search-dialog";
 import { NavbarMoreDropdown } from "./navbar/more-dropdown";
-import {
-  Carousel,
-  CarouselContent,
-  CarouselItem,
-  CarouselPrevious,
-  CarouselNext,
-} from "@/components/ui/carousel";
 import { LanguageSwitcher } from "./language-switcher";
 import type { StorefrontCategory, StorefrontCollection } from "@/lib/api";
 import { getLocalized } from "@/lib/translation";
@@ -41,12 +33,13 @@ export function Navbar({ categories, collections, locale = "vi" }: NavbarProps) 
   const [activeDropdown, setActiveDropdown] = useState<
     "products" | "themes" | null
   >(null);
+  const categoryStripRef = useRef<HTMLDivElement | null>(null);
+  const [canScrollCategoriesLeft, setCanScrollCategoriesLeft] = useState(false);
+  const [canScrollCategoriesRight, setCanScrollCategoriesRight] = useState(false);
 
   const dropdownRef = useClickOutside<HTMLDivElement>(() =>
     setActiveDropdown(null),
   );
-
-  useLockBody(isMobileMenuOpen);
 
   const productMenuItems = categories.map((cat) => ({
     title: getLocalized(cat.name, locale),
@@ -59,6 +52,60 @@ export function Navbar({ categories, collections, locale = "vi" }: NavbarProps) 
     imageUrl: col.imageUrl,
     href: `/collections/${encodeURIComponent(col.handle)}`,
   }));
+
+  const updateCategoryStripScrollState = useCallback(() => {
+    const node = categoryStripRef.current;
+
+    if (!node) {
+      setCanScrollCategoriesLeft(false);
+      setCanScrollCategoriesRight(false);
+      return;
+    }
+
+    const maxScrollLeft = node.scrollWidth - node.clientWidth;
+    const hasOverflow = maxScrollLeft > 1;
+
+    setCanScrollCategoriesLeft(hasOverflow && node.scrollLeft > 1);
+    setCanScrollCategoriesRight(hasOverflow && node.scrollLeft < maxScrollLeft - 1);
+  }, []);
+
+  useEffect(() => {
+    const node = categoryStripRef.current;
+
+    if (!node) {
+      return;
+    }
+
+    updateCategoryStripScrollState();
+    node.addEventListener("scroll", updateCategoryStripScrollState, { passive: true });
+    window.addEventListener("resize", updateCategoryStripScrollState);
+
+    const resizeObserver =
+      typeof ResizeObserver !== "undefined"
+        ? new ResizeObserver(updateCategoryStripScrollState)
+        : null;
+
+    resizeObserver?.observe(node);
+
+    return () => {
+      node.removeEventListener("scroll", updateCategoryStripScrollState);
+      window.removeEventListener("resize", updateCategoryStripScrollState);
+      resizeObserver?.disconnect();
+    };
+  }, [categories.length, updateCategoryStripScrollState]);
+
+  const scrollCategories = useCallback((direction: "left" | "right") => {
+    const node = categoryStripRef.current;
+
+    if (!node) return;
+
+    node.scrollBy({
+      left: direction === "left" ? -node.clientWidth * 0.75 : node.clientWidth * 0.75,
+      behavior: "smooth",
+    });
+  }, []);
+
+  const hasCategoryStripControls = canScrollCategoriesLeft || canScrollCategoriesRight;
 
   return (
     <>
@@ -179,7 +226,7 @@ export function Navbar({ categories, collections, locale = "vi" }: NavbarProps) 
 
         <NavbarMobileMenu
           isOpen={isMobileMenuOpen}
-          onClose={() => setIsMobileMenuOpen(false)}
+          onOpenChange={setIsMobileMenuOpen}
           categories={categories}
           collections={collections}
           locale={locale}
@@ -189,57 +236,65 @@ export function Navbar({ categories, collections, locale = "vi" }: NavbarProps) 
       {categories.length > 0 && (
         <div className="relative z-10 hidden w-full border-y border-gray-100 bg-white sm:block">
           <Container className="relative py-3">
-            <Carousel
-              opts={{
-                align: "start",
-                loop: true,
-                dragFree: true,
-                duration: 20,
-
-              }}
-              className="px-8 sm:px-8"
-            >
-              <CarouselContent className="gap-4 md:gap-8 ml-0">
-                {categories.map((cat) => (
-                  <CarouselItem
-                    key={cat.id}
-                    className="pl-0 basis-1/4 md:basis-1/5 lg:basis-auto"
+            <div className="relative">
+              {hasCategoryStripControls ? (
+                <div className="pointer-events-none absolute inset-y-0 -left-4 -right-4 z-10 flex items-center justify-between">
+                  <button
+                    type="button"
+                    aria-label="Scroll categories left"
+                    className={`pointer-events-auto flex h-9 w-9 items-center justify-center rounded-full border border-border-subtle bg-white shadow-sm transition-opacity ${
+                      canScrollCategoriesLeft ? "opacity-100" : "opacity-0"
+                    }`}
+                    disabled={!canScrollCategoriesLeft}
+                    onClick={() => scrollCategories("left")}
                   >
-                    <Link
-                      to={`/products?category=${encodeURIComponent(cat.handle)}`}
-                      className="block"
-                    >
-                      <div className="lg:hidden w-[65px] h-[65px] mx-auto rounded-lg overflow-hidden bg-gray-100 mb-1">
-                        {cat.imageUrl ? (
-                          <img
-                            src={cat.imageUrl}
-                            alt={getLocalized(cat.name, locale)}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-gray-300">
-                            <Package className="w-5 h-5" />
-                          </div>
-                        )}
-                      </div>
-                      <span className="block text-center text-[11px] font-bold uppercase leading-tight tracking-wide text-brand-strong transition-colors hover:text-brand-support lg:text-left lg:text-[13px] lg:whitespace-nowrap">
-                        {getLocalized(cat.name, locale)}
-                      </span>
-                    </Link>
-                  </CarouselItem>
+                    <ChevronLeft className="h-5 w-5 stroke-[1.5]" />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Scroll categories right"
+                    className={`pointer-events-auto flex h-9 w-9 items-center justify-center rounded-full border border-border-subtle bg-white shadow-sm transition-opacity ${
+                      canScrollCategoriesRight ? "opacity-100" : "opacity-0"
+                    }`}
+                    disabled={!canScrollCategoriesRight}
+                    onClick={() => scrollCategories("right")}
+                  >
+                    <ChevronRight className="h-5 w-5 stroke-[1.5]" />
+                  </button>
+                </div>
+              ) : null}
+
+              <div
+                ref={categoryStripRef}
+                className="flex gap-4 overflow-x-auto scroll-smooth md:gap-8"
+                style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+              >
+                {categories.map((cat) => (
+                  <Link
+                    key={cat.id}
+                    to={`/products?category=${encodeURIComponent(cat.handle)}`}
+                    className="block shrink-0 basis-1/4 md:basis-1/5 lg:basis-auto"
+                  >
+                    <div className="lg:hidden w-[65px] h-[65px] mx-auto rounded-lg overflow-hidden bg-gray-100 mb-1">
+                      {cat.imageUrl ? (
+                        <img
+                          src={cat.imageUrl}
+                          alt={getLocalized(cat.name, locale)}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-gray-300">
+                          <Package className="w-5 h-5" />
+                        </div>
+                      )}
+                    </div>
+                    <span className="block text-center text-[11px] font-bold uppercase leading-tight tracking-wide text-brand-strong transition-colors hover:text-brand-support lg:text-left lg:text-[13px] lg:whitespace-nowrap">
+                      {getLocalized(cat.name, locale)}
+                    </span>
+                  </Link>
                 ))}
-              </CarouselContent>
-              <CarouselPrevious
-                size={"icon"}
-                variant={"outline"}
-                className="absolute -left-2 top-1/2 -translate-y-1/2 z-10"
-              />
-              <CarouselNext
-                size={"icon"}
-                variant={"outline"}
-                className="absolute -right-2 top-1/2 -translate-y-1/2 z-10"
-              />
-            </Carousel>
+              </div>
+            </div>
           </Container>
         </div>
       )}

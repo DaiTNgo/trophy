@@ -13,7 +13,7 @@ export async function loader({ params, request }: Route.LoaderArgs) {
   const [data, collections] = await Promise.all([
     fetchStorefrontCollectionProducts(params.handle, {
       page: currentPage,
-      limit: 12,
+      limit: 24,
       locale,
     }),
     fetchStorefrontCollections(locale).catch(() => []),

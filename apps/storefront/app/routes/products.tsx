@@ -1,7 +1,5 @@
-import { FilterChips } from "@/components/products/FilterChips";
-import { Pagination } from "@/components/shared/Pagination";
-import { ProductCard } from "@/components/shared/ProductCard";
 import { useSearchParams } from "react-router";
+import { ProductListingShell } from "@/components/products/ProductListingShell";
 import { fetchStorefrontCategories, fetchStorefrontProducts } from "../lib/api";
 import { getLocaleFromRequest } from "../lib/locale";
 import { getLocalized } from "../lib/translation";
@@ -18,20 +16,23 @@ export async function loader({ request }: Route.LoaderArgs) {
   const data = await fetchStorefrontProducts({
     category: activeCategory || undefined,
     page: currentPage,
-    limit: 12,
+    limit: 24,
     locale,
   });
 
   const allCategories = [
-    { name: "Tất cả", handle: "" },
-    ...apiCategories.map((c) => ({
-      name: getLocalized(c.name, locale),
-      handle: c.handle,
+    { name: locale === "en" ? "All" : "Tất cả", handle: "" },
+    ...apiCategories.map((category) => ({
+      name: getLocalized(category.name, locale),
+      handle: category.handle,
     })),
   ];
+  const selectedCategory =
+    apiCategories.find((category) => category.handle === activeCategory) ?? null;
 
   return {
     categories: allCategories,
+    selectedCategory,
     products: data.items,
     activeCategory,
     currentPage: data.page,
@@ -44,6 +45,7 @@ export async function loader({ request }: Route.LoaderArgs) {
 export default function Products({ loaderData }: Route.ComponentProps) {
   const {
     categories,
+    selectedCategory,
     products,
     activeCategory,
     currentPage,
@@ -51,12 +53,20 @@ export default function Products({ loaderData }: Route.ComponentProps) {
     totalItems,
     locale,
   } = loaderData;
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [, setSearchParams] = useSearchParams();
+  const listingTitle =
+    getLocalized(selectedCategory?.name, locale) ||
+    (locale === "en" ? "Product Catalog" : "Danh mục sản phẩm");
+  const listingDescription =
+    getLocalized(selectedCategory?.description, locale) ||
+    (locale === "en"
+      ? "Browse trophies, plaques, medals, and custom awards by product type. Compare shapes, finishes, and starting prices before opening the product details."
+      : "Khám phá cúp, bảng vinh danh, huy chương và quà tặng tùy chỉnh theo từng nhóm sản phẩm. So sánh kiểu dáng, hoàn thiện và giá khởi điểm trước khi xem chi tiết.");
 
-  const handleCategorySelect = (category: string) => {
+  const handleCategorySelect = (categoryHandle: string) => {
     setSearchParams((prev) => {
-      if (category) {
-        prev.set("category", category);
+      if (categoryHandle) {
+        prev.set("category", categoryHandle);
       } else {
         prev.delete("category");
       }
@@ -73,42 +83,36 @@ export default function Products({ loaderData }: Route.ComponentProps) {
   };
 
   return (
-    <div className="bg-background min-h-screen font-body-md text-on-background">
-      <main className="max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop py-12">
-        <div className="mb-12">
-          <h1 className="font-display-lg-mobile md:font-display-lg text-display-lg-mobile md:text-display-lg text-on-background mb-8">
-            DANH MỤC SẢN PHẨM
-          </h1>
-          <div className="sticky top-[125px] z-30 bg-background/95 backdrop-blur-sm py-2 -mx-margin-mobile px-margin-mobile md:mx-0 md:px-0">
-            <FilterChips
-              categories={categories}
-              activeCategory={activeCategory}
-              onSelect={handleCategorySelect}
-            />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-gutter gap-y-16">
-          {products.map((product, index) => (
-            <ProductCard
-              key={index}
-              {...product}
-              title={getLocalized(product.title, locale)}
-              subtitle={getLocalized(product.subtitle, locale) || null}
-              categorySummary={
-                getLocalized(product.categorySummary, locale) || null
-              }
-              imageAlt={getLocalized(product.title, locale)}
-            />
-          ))}
-        </div>
-
-        <Pagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPageChange={handlePageChange}
-        />
-      </main>
-    </div>
+    <ProductListingShell
+      breadcrumbs={[
+        { label: locale === "en" ? "Home" : "Trang chủ", href: "/" },
+        { label: locale === "en" ? "Products" : "Sản phẩm" },
+      ]}
+      eyebrow={locale === "en" ? "Shop by product" : "Mua theo danh mục"}
+      title={listingTitle}
+      description={listingDescription}
+      featuredImageSrc={selectedCategory?.imageUrl ?? products[0]?.thumbnail}
+      featuredImageAlt={listingTitle}
+      products={products}
+      locale={locale}
+      totalItems={totalItems}
+      currentPage={currentPage}
+      totalPages={totalPages}
+      onPageChange={handlePageChange}
+      filters={{
+        categories,
+        activeCategory,
+        onSelect: handleCategorySelect,
+      }}
+      emptyState={{
+        title: locale === "en" ? "No products found" : "Chưa có sản phẩm phù hợp",
+        description:
+          locale === "en"
+            ? "Try another product category or return to the full catalog."
+            : "Hãy thử danh mục khác hoặc quay lại toàn bộ catalog sản phẩm.",
+        ctaLabel: locale === "en" ? "View all products" : "Xem tất cả sản phẩm",
+        ctaHref: "/products",
+      }}
+    />
   );
 }

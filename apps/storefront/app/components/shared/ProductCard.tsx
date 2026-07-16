@@ -17,7 +17,7 @@ interface ProductCardProps {
   rating?: number;
   reviewsCount?: number;
   priceFrom?: boolean;
-  variant?: "default" | "featured";
+  variant?: "default" | "featured" | "listing";
 }
 
 export function ProductCard({
@@ -49,6 +49,64 @@ export function ProductCard({
   const fullStars = Math.floor(rating);
   const hasHalfStar = rating % 1 !== 0;
   const productHref = `/product/${displayHandle}`;
+
+  if (variant === "listing") {
+    return (
+      <div className="group flex h-full flex-col items-center text-center">
+        <Link
+          to={productHref}
+          className="mb-4 flex aspect-square w-full items-center justify-center bg-surface-base px-3"
+        >
+          {imgSrc ? (
+            <img
+              className="h-full w-full object-contain transition-transform duration-500 group-hover:scale-[1.035]"
+              data-alt={imageAlt}
+              src={imgSrc}
+              alt={imageAlt}
+              loading="lazy"
+              sizes="(min-width: 1280px) 300px, (min-width: 768px) calc((100vw - 160px) / 3), calc((100vw - 48px) / 2)"
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center bg-surface-subtle">
+              <Image className="h-10 w-10 text-text-muted" />
+            </div>
+          )}
+        </Link>
+
+        <div className="flex flex-1 flex-col items-center px-1">
+          <Link to={productHref} className="mb-2 w-full">
+            <h3 className="mx-auto min-h-[38px] max-w-[260px] font-body-md text-[12px] font-bold leading-[19px] text-text-base transition-colors line-clamp-2 group-hover:text-brand-support md:text-[13px]">
+              {title}
+            </h3>
+          </Link>
+
+          {(rating > 0 || reviewsCount > 0) && (
+            <div className="mb-2 flex items-center justify-center gap-1.5">
+              <div className="flex text-indicator-rating">
+                {Array.from({ length: fullStars }).map((_, i) => (
+                  <Star key={`full-${i}`} className="h-3.5 w-3.5" fill="currentColor" />
+                ))}
+                {hasHalfStar && <StarHalf className="h-3.5 w-3.5" fill="currentColor" />}
+              </div>
+              {reviewsCount > 0 && (
+                <span className="text-[10px] leading-none text-text-muted">({reviewsCount})</span>
+              )}
+            </div>
+          )}
+
+          <span className="font-body-md text-[12px] font-bold leading-5 text-text-base">
+            {isContactPrice ? (
+              <span className="text-action-support">
+                <Headset className="inline h-3.5 w-3.5 align-text-bottom" /> Liên Hệ
+              </span>
+            ) : (
+              <>{priceFrom ? "Từ " : ""}{displayPrice}</>
+            )}
+          </span>
+        </div>
+      </div>
+    );
+  }
 
   if (variant === "featured") {
     return (

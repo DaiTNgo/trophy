@@ -1,7 +1,8 @@
 import { Link } from "react-router";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { StorefrontCategory } from "../../lib/api";
 import { backendAssetUrl } from "../../lib/api";
-import { ArrowRight } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { getLocalized } from "../../lib/translation";
 import Container from "../container";
 
@@ -33,81 +34,192 @@ interface ShopByProductSectionProps {
 }
 
 export function CategoriesSection({ categories, locale = "vi" }: ShopByProductSectionProps) {
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  const updateScrollState = useCallback(() => {
+    const node = scrollRef.current;
+
+    if (!node) {
+      setCanScrollLeft(false);
+      setCanScrollRight(false);
+      return;
+    }
+
+    const maxScrollLeft = node.scrollWidth - node.clientWidth;
+    const hasOverflow = maxScrollLeft > 1;
+
+    setCanScrollLeft(hasOverflow && node.scrollLeft > 1);
+    setCanScrollRight(hasOverflow && node.scrollLeft < maxScrollLeft - 1);
+  }, []);
+
+  useEffect(() => {
+    const node = scrollRef.current;
+
+    if (!node) {
+      return;
+    }
+
+    updateScrollState();
+    node.addEventListener("scroll", updateScrollState, { passive: true });
+    window.addEventListener("resize", updateScrollState);
+
+    const resizeObserver =
+      typeof ResizeObserver !== "undefined"
+        ? new ResizeObserver(updateScrollState)
+        : null;
+
+    resizeObserver?.observe(node);
+
+    return () => {
+      node.removeEventListener("scroll", updateScrollState);
+      window.removeEventListener("resize", updateScrollState);
+      resizeObserver?.disconnect();
+    };
+  }, [categories.length, updateScrollState]);
+
+  const scrollByDirection = useCallback((direction: "left" | "right") => {
+    const node = scrollRef.current;
+
+    if (!node) return;
+
+    const scrollAmount = Math.max(node.clientWidth * 0.85, 280);
+
+    node.scrollBy({
+      left: direction === "left" ? -scrollAmount : scrollAmount,
+      behavior: "smooth",
+    });
+  }, []);
+
   if (categories.length === 0) return null;
 
-  const displayCats = categories.slice(0, 4);
+  const hasScrollableControls = canScrollLeft || canScrollRight;
 
   return (
     <Container className="py-24">
-      {/* Grid */}
-      <div className="grid gap-8 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-        {displayCats.map((cat, index) => {
-          const name = getLocalized(cat.name, locale);
-          const imageUrl = cat.imageUrl
-            ? backendAssetUrl(cat.imageUrl)
-            : FALLBACK_IMAGES[index % FALLBACK_IMAGES.length];
-          const desc = getDescription(cat.handle, getLocalized(cat.description, locale) || null);
-
-          return (
-            <div
-              key={cat.id}
-              className="flex flex-col items-center text-center group reveal active"
-              style={{ animationDelay: `${index * 60}ms` }}
+      <div className="relative">
+        {hasScrollableControls ? (
+          <div className="pointer-events-none absolute inset-y-0 left-0 right-0 z-20 hidden items-center justify-between md:flex">
+            <button
+              type="button"
+              aria-label="Scroll categories left"
+              className={`pointer-events-auto -ml-5 flex h-11 w-11 items-center justify-center rounded-full border border-border-subtle bg-surface-base shadow-sm transition-opacity ${
+                canScrollLeft ? "opacity-100 hover:text-brand-strong" : "opacity-0"
+              }`}
+              disabled={!canScrollLeft}
+              onClick={() => scrollByDirection("left")}
             >
-              <Link
-                to={`/products?category=${encodeURIComponent(cat.handle)}`}
-                className="block w-full group relative flex flex-col h-full"
+              <ChevronLeft className="h-6 w-6 stroke-[1.5]" />
+            </button>
+            <button
+              type="button"
+              aria-label="Scroll categories right"
+              className={`pointer-events-auto -mr-5 flex h-11 w-11 items-center justify-center rounded-full border border-border-subtle bg-surface-base shadow-sm transition-opacity ${
+                canScrollRight ? "opacity-100 hover:text-brand-strong" : "opacity-0"
+              }`}
+              disabled={!canScrollRight}
+              onClick={() => scrollByDirection("right")}
+            >
+              <ChevronRight className="h-6 w-6 stroke-[1.5]" />
+            </button>
+          </div>
+        ) : null}
+
+        <div
+          ref={scrollRef}
+          className="flex snap-x snap-mandatory gap-8 overflow-x-auto scroll-smooth pb-2"
+        >
+          {categories.map((cat, index) => {
+            const name = getLocalized(cat.name, locale);
+            const imageUrl = cat.imageUrl
+              ? backendAssetUrl(cat.imageUrl)
+              : FALLBACK_IMAGES[index % FALLBACK_IMAGES.length];
+            const desc = getDescription(cat.handle, getLocalized(cat.description, locale) || null);
+
+            return (
+              <div
+                key={cat.id}
+                className="group reveal active flex shrink-0 grow-0 basis-[78vw] snap-start flex-col items-center text-center sm:basis-[calc((100%_-_2rem)/2)] lg:basis-[calc((100%_-_6rem)/4)]"
+                style={{ animationDelay: `${index * 60}ms` }}
               >
-                {/* Image */}
-                <div className="relative aspect-square w-full mb-6 flex items-center justify-center">
-                  <img
-                    className="max-w-full max-h-full object-contain transition-transform duration-700 group-hover:scale-105"
-                    src={imageUrl}
-                    alt={name}
-                    loading="lazy"
-                  />
-                </div>
-
-                <div className="absolute -left-5 -right-5 bottom-8  bg-white/75 opacity-0 group-hover:opacity-100 z-10 flex flex-col items-center pt-5 pb-6 px-5 pointer-events-none group-hover:pointer-events-auto rounded-xl">
-                  <h3 className="font-heading text-[24px] font-bold uppercase leading-tight text-[#232323] mb-4 text-center">
-                    {name}
-                  </h3>
-                  <p className="font-body text-[#4a4a4a] text-[14px] leading-relaxed mb-6 text-center line-clamp-3">
-                    {desc}
-                  </p>
-                  <div className="mt-auto">
-                    <span className="inline-block px-8 py-3 bg-[#288ab6] hover:bg-[#244159] text-white font-bold text-[14px] uppercase tracking-wider rounded-sm transition-colors">
-                      Shop {name}
-                    </span>
+                <Link
+                  to={`/products?category=${encodeURIComponent(cat.handle)}`}
+                  className="block w-full group relative flex flex-col h-full"
+                >
+                  {/* Image */}
+                  <div className="relative aspect-square w-full mb-6 flex items-center justify-center">
+                    <img
+                      className="max-w-full max-h-full object-contain transition-transform duration-700 group-hover:scale-105"
+                      src={imageUrl}
+                      alt={name}
+                      loading="lazy"
+                    />
                   </div>
-                </div>
 
-                {/* Text Area Container (Relative to contain the absolute hover card) */}
-                <div className=" flex-1 mt-4">
-
-                  {/* Fake UI: Luôn giữ kích thước cố định, có chứa button nhưng bị ẩn đi, khi hover thì opacity 0 (không animation theo yêu cầu) */}
-                  <div className="text-center flex flex-col h-full opacity-100 group-hover:opacity-0">
-                    <h3 className="font-heading text-[24px] font-bold uppercase leading-tight text-[#232323] mb-4">
+                  <div className="absolute -left-5 -right-5 bottom-8  bg-white/75 opacity-0 group-hover:opacity-100 z-10 flex flex-col items-center pt-5 pb-6 px-5 pointer-events-none group-hover:pointer-events-auto rounded-xl">
+                    <h3 className="font-heading text-[24px] font-bold uppercase leading-tight text-[#232323] mb-4 text-center">
                       {name}
                     </h3>
-                    <p className="font-body text-[#4a4a4a] text-[14px] leading-relaxed mb-6">
+                    <p className="font-body text-[#4a4a4a] text-[14px] leading-relaxed mb-6 text-center line-clamp-3">
                       {desc}
                     </p>
-                    <div className="mt-auto pb-4 opacity-0">
-                      <span className="inline-block px-8 py-3 bg-[#288ab6] text-white font-bold text-[14px] uppercase tracking-wider rounded-sm">
+                    <div className="mt-auto">
+                      <span className="inline-block px-8 py-3 bg-[#288ab6] hover:bg-[#244159] text-white font-bold text-[14px] uppercase tracking-wider rounded-sm transition-colors">
                         Shop {name}
                       </span>
                     </div>
                   </div>
 
+                  {/* Text Area Container (Relative to contain the absolute hover card) */}
+                  <div className=" flex-1 mt-4">
+                    {/* Fake UI: Luôn giữ kích thước cố định, có chứa button nhưng bị ẩn đi, khi hover thì opacity 0 (không animation theo yêu cầu) */}
+                    <div className="text-center flex flex-col h-full opacity-100 group-hover:opacity-0">
+                      <h3 className="font-heading text-[24px] font-bold uppercase leading-tight text-[#232323] mb-4">
+                        {name}
+                      </h3>
+                      <p className="font-body text-[#4a4a4a] text-[14px] leading-relaxed mb-6">
+                        {desc}
+                      </p>
+                      <div className="mt-auto pb-4 opacity-0">
+                        <span className="inline-block px-8 py-3 bg-[#288ab6] text-white font-bold text-[14px] uppercase tracking-wider rounded-sm">
+                          Shop {name}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </Link>
+              </div>
+            );
+          })}
+        </div>
 
-
-
-                </div>
-              </Link>
-            </div>
-          );
-        })}
+        {hasScrollableControls ? (
+          <div className="mt-6 flex items-center justify-center gap-4 md:hidden">
+            <button
+              type="button"
+              aria-label="Scroll categories left"
+              className={`flex h-10 w-10 items-center justify-center rounded-full border border-border-subtle bg-surface-base shadow-sm transition-opacity ${
+                canScrollLeft ? "opacity-100" : "opacity-40"
+              }`}
+              disabled={!canScrollLeft}
+              onClick={() => scrollByDirection("left")}
+            >
+              <ChevronLeft className="h-5 w-5 stroke-[1.5]" />
+            </button>
+            <button
+              type="button"
+              aria-label="Scroll categories right"
+              className={`flex h-10 w-10 items-center justify-center rounded-full border border-border-subtle bg-surface-base shadow-sm transition-opacity ${
+                canScrollRight ? "opacity-100" : "opacity-40"
+              }`}
+              disabled={!canScrollRight}
+              onClick={() => scrollByDirection("right")}
+            >
+              <ChevronRight className="h-5 w-5 stroke-[1.5]" />
+            </button>
+          </div>
+        ) : null}
       </div>
     </Container>
   );
