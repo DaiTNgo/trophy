@@ -89,15 +89,6 @@ export default {
           "margin-mobile":    "16px",
           "margin-desktop":   "64px"
       },
-      "fontFamily": {
-          "headline-lg": ["Koulen"],
-          "label-md": ["Open Sans"],
-          "display-lg-mobile": ["Koulen"],
-          "headline-md": ["Koulen"],
-          "display-lg": ["Koulen"],
-          "body-md": ["Open Sans"],
-          "body-lg": ["Open Sans"]
-      },
       "fontSize": {
           "headline-lg":       ["40px", {"lineHeight": "44px", "letterSpacing": "0.02em", "fontWeight": "400"}],
           "label-md":          ["14px", {"lineHeight": "20px", "letterSpacing": "0.05em", "fontWeight": "600"}],

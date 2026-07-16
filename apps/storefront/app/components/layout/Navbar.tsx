@@ -212,9 +212,10 @@ export function Navbar({ categories, collections, locale = "vi" }: NavbarProps) 
             <Carousel
               opts={{
                 align: "start",
-                loop: false,
+                loop: true,
                 dragFree: true,
-                duration: 5,
+                duration: 20,
+
               }}
               setApi={setCatApi}
               className="px-8 sm:px-8"
@@ -251,13 +252,13 @@ export function Navbar({ categories, collections, locale = "vi" }: NavbarProps) 
               </CarouselContent>
               <CarouselPrevious
                 size={"icon"}
-                variant={"default"}
-                className={`absolute -left-2 top-1/2 -translate-y-1/2 z-10 ${!catCanScrollPrev ? "hidden" : ""}`}
+                variant={"outline"}
+                className="absolute -left-2 top-1/2 -translate-y-1/2 z-10"
               />
               <CarouselNext
                 size={"icon"}
-                variant={"default"}
-                className={`absolute -right-2 top-1/2 -translate-y-1/2 z-10 ${!catCanScrollNext ? "hidden" : ""}`}
+                variant={"outline"}
+                className="absolute -right-2 top-1/2 -translate-y-1/2 z-10"
               />
             </Carousel>
           </Container>

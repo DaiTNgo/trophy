@@ -1,21 +1,20 @@
-import type { Route } from "./+types/home";
-import { getLocaleFromRequest } from "../lib/locale";
-import { useScrollReveal } from "../hooks/useScrollReveal";
-import { TrustBar } from "../components/home/TrustBar";
-import { HeroSection } from "../components/home/HeroSection";
-import { ProofRow } from "../components/home/ProofRow";
-import { CategoriesSection } from "../components/home/CategoriesSection";
 import { BestSellersSection } from "../components/home/BestSellersSection";
+import { CategoriesSection } from "../components/home/CategoriesSection";
+import { HeroSection } from "../components/home/HeroSection";
 import { CustomizationFeatureSection } from "../components/home/ManufacturerSection";
-import { ShopByOccasionSection } from "../components/home/ShopByOccasionSection";
+import { NewsletterSection } from "../components/home/NewsletterSection";
+import { ProofRow } from "../components/home/ProofRow";
 import { ReviewsSection } from "../components/home/ReviewsSection";
 import { SeoIntroSection } from "../components/home/SeoIntroSection";
-import { NewsletterSection } from "../components/home/NewsletterSection";
+import { ShopByOccasionSection } from "../components/home/ShopByOccasionSection";
+import { useScrollReveal } from "../hooks/useScrollReveal";
 import {
-  fetchStorefrontCategories,
-  fetchStorefrontCollectionProducts,
-  fetchStorefrontProducts,
+    fetchStorefrontCategories,
+    fetchStorefrontCollectionProducts,
+    fetchStorefrontProducts,
 } from "../lib/api";
+import { getLocaleFromRequest } from "../lib/locale";
+import type { Route } from "./+types/home";
 
 export function meta({}: Route.MetaArgs) {
   return [
