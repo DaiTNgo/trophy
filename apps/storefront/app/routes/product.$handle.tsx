@@ -1,5 +1,7 @@
 import type {
+  CustomizationFormValues,
   CustomizationFormField,
+  CustomizationTemplate,
   DynamicFontFamily,
   ImageShapeFieldValue,
   ProductCustomization,
@@ -8,12 +10,16 @@ import {
   ProductCustomizationForm,
   ProductCustomizationPreview,
 } from "@trophy/customization-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { useLoaderData } from "react-router";
-import { Minus, Plus } from "lucide-react";
+import { ChevronDown, ChevronUp, Minus, Plus } from "lucide-react";
 import { validateCustomizationValues } from "@trophy/customization";
 import { ProductBreadcrumbs } from "../components/product/ProductBreadcrumbs";
-import { ProductGallery } from "../components/product/ProductGallery";
+import {
+  ProductGallery,
+  ProductGalleryThumbnails,
+  type ProductGalleryThumbnail,
+} from "../components/product/ProductGallery";
 import { ProductDetailSections, ProductInfo } from "../components/product/ProductInfo";
 import { ProductMobileActionBar } from "../components/product/ProductMobileActionBar";
 import {
@@ -55,6 +61,7 @@ export default function ProductDetail() {
   const { product, dynamicFonts, locale } = useLoaderData<typeof loader>();
   const { addLine } = useCart();
   const previewSectionRef = useRef<HTMLElement | null>(null);
+  const mobilePreviewSentinelRef = useRef<HTMLDivElement | null>(null);
   const recordedRecentlyViewedProductId = useRef<number | null>(null);
   const defaultVariantId =
     product.variants.find((variant) => variant.isDefault && variant.priceAmount !== null)?.id ??
@@ -68,6 +75,9 @@ export default function ProductDetail() {
   const [uploadingFieldId, setUploadingFieldId] = useState("");
   const [quantity, setQuantity] = useState(1);
   const [selectedMediaId, setSelectedMediaId] = useState<string | null>(null);
+  const [isMobilePreviewHidden, setIsMobilePreviewHidden] = useState(false);
+  const [isMobilePreviewSticky, setIsMobilePreviewSticky] = useState(false);
+  const [mobilePreviewTopOffset, setMobilePreviewTopOffset] = useState(80);
 
   const selectedVariant =
     product.variants.find((variant) => variant.id === selectedVariantId) ??
@@ -97,6 +107,47 @@ export default function ProductDetail() {
   useEffect(() => {
     setSelectedMediaId(selectedVariantMedia[0]?.id ?? null);
   }, [selectedVariant?.id, selectedVariantMedia]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const navbar = document.getElementById("navbar-container");
+    if (!navbar) return;
+
+    const updateOffset = () => {
+      setMobilePreviewTopOffset(Math.ceil(navbar.getBoundingClientRect().height));
+    };
+
+    updateOffset();
+    window.addEventListener("resize", updateOffset);
+
+    const resizeObserver =
+      typeof ResizeObserver !== "undefined" ? new ResizeObserver(updateOffset) : null;
+    resizeObserver?.observe(navbar);
+
+    return () => {
+      window.removeEventListener("resize", updateOffset);
+      resizeObserver?.disconnect();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const sentinel = mobilePreviewSentinelRef.current;
+    if (!sentinel || !product.customization?.enabled) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsMobilePreviewSticky(!entry.isIntersecting);
+      },
+      {
+        threshold: 0,
+        rootMargin: `-${mobilePreviewTopOffset}px 0px 0px 0px`,
+      },
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [mobilePreviewTopOffset, product.customization?.enabled]);
 
   useEffect(() => {
     if (recordedRecentlyViewedProductId.current === product.id) {
@@ -250,6 +301,7 @@ export default function ProductDetail() {
     active: media.id === selectedMedia?.id,
     onClick: () => setSelectedMediaId(media.id),
   }));
+  const mobileGalleryThumbnails = galleryThumbnails as ProductGalleryThumbnail[];
   const contactHref = `/contact?product=${encodeURIComponent(getLocalized(product.title, locale))}${
     selectedVariant ? `&variant=${encodeURIComponent(getLocalized(selectedVariant.title, locale))}` : ""
   }${selectedVariant?.sku ? `&sku=${encodeURIComponent(selectedVariant.sku)}` : ""}`;
@@ -367,151 +419,215 @@ export default function ProductDetail() {
     return lastPeriod > 120 ? cut.slice(0, lastPeriod + 1) : cut + "…";
   }, [product.description, locale]);
 
+  const previewNode = customizationTemplate ? (
+    <ProductCustomizationPreview
+      template={customizationTemplate}
+      values={customizationValues}
+      dynamicFonts={dynamicFonts as DynamicFontFamily[]}
+      className="border-0 rounded-none h-[min(50vh,460px)] min-h-[320px] lg:h-[min(72vh,740px)] lg:min-h-[520px]"
+      resolveFontUrl={(assetId) => `${BACKEND_URL}/api/storefront/brand-assets/fonts/file/${assetId}`}
+      resolveStaticFontUrl={(fileName) => `${BACKEND_URL}/fonts/${fileName}`}
+      selectedVariantId={selectedVariant?.id ?? null}
+      onImageValueChange={(fieldId, value) => {
+        setCustomizationValues((current) => ({ ...current, [fieldId]: value }));
+      }}
+    />
+  ) : null;
+
   return (
     <div className="bg-white font-body-md text-on-surface selection:bg-secondary-container selection:text-brand-strong">
       <main className="mx-auto max-w-[1480px] px-4 pb-28 pt-6 sm:px-6 md:px-8 md:pb-16 lg:px-10">
         <ProductBreadcrumbs title={getLocalized(product.title, locale)} />
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_440px] lg:items-start xl:grid-cols-[minmax(0,1fr)_480px]">
-          <ProductGallery
-            customizable={Boolean(customizationTemplate)}
-            mainContent={
-              customizationTemplate ? (
-                <section
-                  ref={(el) => { previewSectionRef.current = el; }}
-                  className="min-h-[560px]"
-                  data-selected-variant-id={selectedVariant?.id ?? ""}
-                >
-                  <ProductCustomizationPreview
-                    template={customizationTemplate}
-                    values={customizationValues}
-                    dynamicFonts={dynamicFonts as DynamicFontFamily[]}
-                    resolveFontUrl={(assetId) => `${BACKEND_URL}/api/storefront/brand-assets/fonts/file/${assetId}`}
-                    resolveStaticFontUrl={(fileName) => `${BACKEND_URL}/fonts/${fileName}`}
-                    selectedVariantId={selectedVariant?.id ?? null}
-                    onImageValueChange={(fieldId, value) => {
-                      setCustomizationValues((current) => ({ ...current, [fieldId]: value }));
-                    }}
-                  />
-                </section>
-              ) : mainMedia?.contentUrl ? (
-                <div className="group flex min-h-[480px] items-center justify-center p-6">
-                  <img
-                    className="max-h-[600px] w-full object-contain transition-transform duration-700 group-hover:scale-105"
-                    src={mainMedia.contentUrl}
-                    alt={getLocalized(product.title, locale)}
-                  />
-                </div>
-              ) : (
-                <div className="flex min-h-[480px] items-center justify-center text-on-surface-variant">
-                  Product image unavailable
-                </div>
-              )
-            }
-            thumbnails={galleryThumbnails}
-          />
-          <ProductInfo
-            title={getLocalized(product.title, locale)}
-            price={displayPrice}
-            rating={5}
-            reviewsCount={0}
-            description={shortDescription}
-            variantSelector={
-              optionGroups.length > 0 ? (
-                <div className="space-y-4">
-                  {optionGroups}
-                </div>
-              ) : null
-            }
-            customizationSection={
-              customizationTemplate ? (
-                <div>
-                  <ProductCustomizationForm
+        <div ref={previewSectionRef} className="h-0" aria-hidden />
+        {customizationTemplate ? (
+          <>
+            <div className="lg:hidden">
+              <div ref={mobilePreviewSentinelRef} className="h-px" aria-hidden />
+              <div className="sticky z-30" style={{ top: mobilePreviewTopOffset }}>
+                {isMobilePreviewHidden ? (
+                  <div
+                    className={`rounded-2xl border border-border-subtle bg-white/96 px-4 py-3 shadow-[0_18px_48px_rgba(24,22,26,0.08)] backdrop-blur-md ${
+                      isMobilePreviewSticky ? "shadow-[0_20px_48px_rgba(24,22,26,0.12)]" : ""
+                    }`}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setIsMobilePreviewHidden(false)}
+                      className="flex w-full items-center justify-center gap-2 text-sm font-bold uppercase tracking-[0.1em] text-brand-strong"
+                    >
+                      <ChevronDown className="size-4" />
+                      Show preview
+                    </button>
+                  </div>
+                ) : (
+                  <section
+                    className={`overflow-hidden rounded-2xl border border-border-subtle bg-white shadow-[0_18px_48px_rgba(24,22,26,0.08)] ${
+                      isMobilePreviewSticky ? "shadow-[0_22px_56px_rgba(24,22,26,0.12)]" : ""
+                    }`}
+                    data-selected-variant-id={selectedVariant?.id ?? ""}
+                  >
+                    {previewNode}
+                    <ProductGalleryThumbnails thumbnails={mobileGalleryThumbnails} />
+                    <button
+                      type="button"
+                      onClick={() => setIsMobilePreviewHidden(true)}
+                      className="flex w-full items-center justify-center gap-2 border-t border-border-subtle bg-white px-4 py-3 text-sm font-bold uppercase tracking-[0.1em] text-brand-strong"
+                    >
+                      Hide preview
+                      <ChevronUp className="size-4" />
+                    </button>
+                  </section>
+                )}
+              </div>
+              <div className="mt-6">
+                <ProductInfo
+                  title={getLocalized(product.title, locale)}
+                  price={displayPrice}
+                  rating={5}
+                  reviewsCount={0}
+                  description={shortDescription}
+                  variantSelector={
+                    optionGroups.length > 0 ? (
+                      <div className="space-y-4">
+                        {optionGroups}
+                      </div>
+                    ) : null
+                  }
+                  customizationSection={
+                    <CustomizationPurchaseSection
+                      template={customizationTemplate}
+                      values={customizationValues}
+                      dynamicFonts={dynamicFonts as DynamicFontFamily[]}
+                      message={message}
+                      quantity={quantity}
+                      setQuantity={setQuantity}
+                      onMessageChange={setMessage}
+                      onUploadImage={uploadCustomizationImage}
+                      onValueChange={(fieldId, value) => {
+                        setCustomizationValues((current) => ({ ...current, [fieldId]: value }));
+                      }}
+                    />
+                  }
+                  isContactPrice={selectedVariant?.priceAmount === null}
+                  contactHref={contactHref}
+                  primaryActionLabel="Add to Cart"
+                  primaryActionDisabled={addToCartDisabled}
+                  primaryActionMessage={addToCartMessage}
+                  previewRef={previewSectionRef}
+                  onPrimaryAction={handleAddToCart}
+                  flatCustomization
+                />
+              </div>
+            </div>
+
+            <div className="hidden grid-cols-1 gap-8 lg:grid lg:grid-cols-[minmax(0,1fr)_440px] lg:items-start xl:grid-cols-[minmax(0,1fr)_480px]">
+              <ProductGallery
+                customizable
+                mainContent={
+                  <section
+                    className="min-h-[560px]"
+                    data-selected-variant-id={selectedVariant?.id ?? ""}
+                  >
+                    <ProductCustomizationPreview
+                      template={customizationTemplate}
+                      values={customizationValues}
+                      dynamicFonts={dynamicFonts as DynamicFontFamily[]}
+                      resolveFontUrl={(assetId) => `${BACKEND_URL}/api/storefront/brand-assets/fonts/file/${assetId}`}
+                      resolveStaticFontUrl={(fileName) => `${BACKEND_URL}/fonts/${fileName}`}
+                      selectedVariantId={selectedVariant?.id ?? null}
+                      onImageValueChange={(fieldId, value) => {
+                        setCustomizationValues((current) => ({ ...current, [fieldId]: value }));
+                      }}
+                    />
+                  </section>
+                }
+                thumbnails={galleryThumbnails}
+              />
+              <ProductInfo
+                title={getLocalized(product.title, locale)}
+                price={displayPrice}
+                rating={5}
+                reviewsCount={0}
+                description={shortDescription}
+                variantSelector={
+                  optionGroups.length > 0 ? (
+                    <div className="space-y-4">
+                      {optionGroups}
+                    </div>
+                  ) : null
+                }
+                customizationSection={
+                  <CustomizationPurchaseSection
                     template={customizationTemplate}
                     values={customizationValues}
                     dynamicFonts={dynamicFonts as DynamicFontFamily[]}
                     message={message}
+                    quantity={quantity}
+                    setQuantity={setQuantity}
                     onMessageChange={setMessage}
                     onUploadImage={uploadCustomizationImage}
                     onValueChange={(fieldId, value) => {
                       setCustomizationValues((current) => ({ ...current, [fieldId]: value }));
                     }}
                   />
-                  <div className="mt-4 border-t border-border-subtle pt-4">
-                    <label className="mb-2 block text-xs font-bold uppercase tracking-[0.12em] text-text-muted">Quantity</label>
-                    <div className="inline-flex h-10 items-center overflow-hidden rounded border border-border-subtle bg-white">
-                      <button
-                        type="button"
-                        aria-label="Decrease quantity"
-                        className="flex h-full w-10 items-center justify-center text-text-muted transition hover:bg-surface-subtle"
-                        onClick={() => setQuantity((c) => Math.max(1, c - 1))}
-                      >
-                        <Minus className="size-3.5" />
-                      </button>
-                      <input
-                        type="number"
-                        min={1}
-                        value={quantity}
-                        onChange={(event) => {
-                          const v = Number(event.target.value);
-                          setQuantity(Number.isFinite(v) && v > 0 ? Math.min(99, v) : 1);
-                        }}
-                        className="h-full w-14 border-x border-border-subtle bg-white px-2 text-center text-sm outline-none"
-                      />
-                      <button
-                        type="button"
-                        aria-label="Increase quantity"
-                        className="flex h-full w-10 items-center justify-center text-text-muted transition hover:bg-surface-subtle"
-                        onClick={() => setQuantity((c) => Math.min(99, c + 1))}
-                      >
-                        <Plus className="size-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <label className="block text-xs font-bold uppercase tracking-[0.12em] text-text-muted">Quantity</label>
-                  <div className="inline-flex h-10 items-center overflow-hidden rounded border border-border-subtle bg-white">
-                    <button
-                      type="button"
-                      aria-label="Decrease quantity"
-                      className="flex h-full w-10 items-center justify-center text-text-muted transition hover:bg-surface-subtle"
-                      onClick={() => setQuantity((c) => Math.max(1, c - 1))}
-                    >
-                      <Minus className="size-3.5" />
-                    </button>
-                    <input
-                      type="number"
-                      min={1}
-                      value={quantity}
-                      onChange={(event) => {
-                        const v = Number(event.target.value);
-                        setQuantity(Number.isFinite(v) && v > 0 ? Math.min(99, v) : 1);
-                      }}
-                      className="h-full w-14 border-x border-border-subtle bg-white px-2 text-center text-sm outline-none"
+                }
+                isContactPrice={selectedVariant?.priceAmount === null}
+                contactHref={contactHref}
+                primaryActionLabel="Add to Cart"
+                primaryActionDisabled={addToCartDisabled}
+                primaryActionMessage={addToCartMessage}
+                previewRef={previewSectionRef}
+                onPrimaryAction={handleAddToCart}
+                flatCustomization
+              />
+            </div>
+          </>
+        ) : (
+          <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_440px] lg:items-start xl:grid-cols-[minmax(0,1fr)_480px]">
+            <ProductGallery
+              mainContent={
+                mainMedia?.contentUrl ? (
+                  <div className="group flex min-h-[480px] items-center justify-center p-6">
+                    <img
+                      className="max-h-[600px] w-full object-contain transition-transform duration-700 group-hover:scale-105"
+                      src={mainMedia.contentUrl}
+                      alt={getLocalized(product.title, locale)}
                     />
-                    <button
-                      type="button"
-                      aria-label="Increase quantity"
-                      className="flex h-full w-10 items-center justify-center text-text-muted transition hover:bg-surface-subtle"
-                      onClick={() => setQuantity((c) => Math.min(99, c + 1))}
-                    >
-                      <Plus className="size-3.5" />
-                    </button>
                   </div>
-                </div>
-              )
-            }
-            isContactPrice={selectedVariant?.priceAmount === null}
-            contactHref={contactHref}
-            primaryActionLabel="Add to Cart"
-            primaryActionDisabled={addToCartDisabled}
-            primaryActionMessage={addToCartMessage}
-            previewRef={previewSectionRef}
-            onPrimaryAction={handleAddToCart}
-            flatCustomization={Boolean(customizationTemplate)}
-          />
-        </div>
+                ) : (
+                  <div className="flex min-h-[480px] items-center justify-center text-on-surface-variant">
+                    Product image unavailable
+                  </div>
+                )
+              }
+              thumbnails={galleryThumbnails}
+            />
+            <ProductInfo
+              title={getLocalized(product.title, locale)}
+              price={displayPrice}
+              rating={5}
+              reviewsCount={0}
+              description={shortDescription}
+              variantSelector={
+                optionGroups.length > 0 ? (
+                  <div className="space-y-4">
+                    {optionGroups}
+                  </div>
+                ) : null
+              }
+              customizationSection={
+                <QuantityOnlySection quantity={quantity} setQuantity={setQuantity} />
+              }
+              isContactPrice={selectedVariant?.priceAmount === null}
+              contactHref={contactHref}
+              primaryActionLabel="Add to Cart"
+              primaryActionDisabled={addToCartDisabled}
+              primaryActionMessage={addToCartMessage}
+              previewRef={previewSectionRef}
+              onPrimaryAction={handleAddToCart}
+            />
+          </div>
+        )}
         <ProductMobileActionBar
           price={displayPrice}
           label="Add to Cart"
@@ -538,3 +654,84 @@ function getUploadToken() {
 }
 
 export type StorefrontProductDetail = StorefrontDetailResponse["item"];
+
+function QuantityOnlySection({
+  quantity,
+  setQuantity,
+}: {
+  quantity: number;
+  setQuantity: React.Dispatch<React.SetStateAction<number>>;
+}) {
+  return (
+    <div className="space-y-2">
+      <label className="block text-xs font-bold uppercase tracking-[0.12em] text-text-muted">Quantity</label>
+      <div className="inline-flex h-10 items-center overflow-hidden rounded border border-border-subtle bg-white">
+        <button
+          type="button"
+          aria-label="Decrease quantity"
+          className="flex h-full w-10 items-center justify-center text-text-muted transition hover:bg-surface-subtle"
+          onClick={() => setQuantity((c) => Math.max(1, c - 1))}
+        >
+          <Minus className="size-3.5" />
+        </button>
+        <input
+          type="number"
+          min={1}
+          value={quantity}
+          onChange={(event) => {
+            const v = Number(event.target.value);
+            setQuantity(Number.isFinite(v) && v > 0 ? Math.min(99, v) : 1);
+          }}
+          className="h-full w-14 border-x border-border-subtle bg-white px-2 text-center text-sm outline-none"
+        />
+        <button
+          type="button"
+          aria-label="Increase quantity"
+          className="flex h-full w-10 items-center justify-center text-text-muted transition hover:bg-surface-subtle"
+          onClick={() => setQuantity((c) => Math.min(99, c + 1))}
+        >
+          <Plus className="size-3.5" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function CustomizationPurchaseSection({
+  template,
+  values,
+  dynamicFonts,
+  message,
+  quantity,
+  setQuantity,
+  onMessageChange,
+  onUploadImage,
+  onValueChange,
+}: {
+  template: CustomizationTemplate;
+  values: CustomizationFormValues;
+  dynamicFonts: DynamicFontFamily[];
+  message: string;
+  quantity: number;
+  setQuantity: Dispatch<SetStateAction<number>>;
+  onMessageChange: (message: string) => void;
+  onUploadImage: (field: CustomizationFormField, file: File) => Promise<ImageShapeFieldValue>;
+  onValueChange: (fieldId: string, value: CustomizationFormValues[string]) => void;
+}) {
+  return (
+    <div>
+      <ProductCustomizationForm
+        template={template}
+        values={values}
+        dynamicFonts={dynamicFonts}
+        message={message}
+        onMessageChange={onMessageChange}
+        onUploadImage={onUploadImage}
+        onValueChange={onValueChange}
+      />
+      <div className="mt-4 border-t border-border-subtle pt-4">
+        <QuantityOnlySection quantity={quantity} setQuantity={setQuantity} />
+      </div>
+    </div>
+  );
+}

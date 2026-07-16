@@ -158,6 +158,7 @@ export function ProductCustomizationPreview({
   dynamicFonts = [],
   selectedVariantId,
   readOnly = false,
+  className,
   resolveAssetUrl,
   resolveFontUrl,
   resolveStaticFontUrl,
@@ -168,6 +169,7 @@ export function ProductCustomizationPreview({
   dynamicFonts?: DynamicFontFamily[];
   selectedVariantId?: number | null;
   readOnly?: boolean;
+  className?: string;
   resolveAssetUrl?: ResolveCustomizationAssetUrl;
   resolveFontUrl?: ResolveCustomizationFontUrl;
   resolveStaticFontUrl?: ResolveCustomizationStaticFontUrl;
@@ -183,6 +185,7 @@ export function ProductCustomizationPreview({
   const height = background?.heightPx ?? 900;
   const [zoom, setZoom] = useState(0.72);
   const [pan, setPan] = useState<PanState>({ x: 0, y: 0 });
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const viewportDrag = useRef<{ x: number; y: number; pan: PanState } | null>(null);
   const activePointers = useRef<Map<number, { x: number; y: number }>>(new Map());
@@ -235,6 +238,15 @@ export function ProductCustomizationPreview({
     if (readOnly && selectedImageFieldId) setSelectedImageFieldId("");
   }, [readOnly, selectedImageFieldId]);
 
+  useEffect(() => {
+    if (!isFullscreen || typeof document === "undefined") return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isFullscreen]);
+
   function updateImageValue(fieldId: string, value: ImageShapeFieldValue) {
     onImageValueChange?.(fieldId, value);
   }
@@ -246,9 +258,13 @@ export function ProductCustomizationPreview({
     updateImageValue(selectedImageField.field.id, { ...selectedImageField.value, ...patch });
   }
 
-  return (
+  const previewFrame = (
     <div
-      className="relative mx-auto flex h-[min(72vh,740px)] min-h-[520px] w-full flex-col overflow-hidden rounded-lg border border-outline-variant bg-surface-container-low"
+      className={cn(
+        "relative mx-auto flex h-[min(72vh,740px)] min-h-[520px] w-full flex-col overflow-hidden rounded-lg border border-outline-variant bg-surface-container-low",
+        isFullscreen && "h-full min-h-0 max-h-full max-w-[1600px] rounded-xl",
+        className,
+      )}
       data-selected-variant-id={selectedVariantId ?? ""}
       data-preview-background-url={background?.previewUrl ?? ""}
     >
@@ -450,6 +466,12 @@ export function ProductCustomizationPreview({
               </CanvasAction>
             </div>
             <div className="pointer-events-auto flex items-center gap-1.5 rounded-md border border-outline-variant bg-white/95 p-1 shadow-lg backdrop-blur">
+              <CanvasAction
+                label="Open fullscreen preview"
+                onClick={() => setIsFullscreen(true)}
+              >
+                <Maximize2 className="size-3.5" />
+              </CanvasAction>
               <CanvasAction label="Zoom out" onClick={() => setCommittedZoom(zoom - PREVIEW_ZOOM_STEP)}>
                 <Minus className="size-3.5" />
               </CanvasAction>
@@ -464,6 +486,12 @@ export function ProductCustomizationPreview({
         ) : (
           <div className="pointer-events-none absolute inset-x-3 bottom-3 z-20 flex justify-end sm:inset-x-4 sm:bottom-4">
             <div className="pointer-events-auto flex items-center gap-1.5 rounded-md border border-outline-variant bg-white/95 p-1 shadow-lg backdrop-blur">
+              <CanvasAction
+                label="Open fullscreen preview"
+                onClick={() => setIsFullscreen(true)}
+              >
+                <Maximize2 className="size-3.5" />
+              </CanvasAction>
               <CanvasAction label="Zoom out" onClick={() => setCommittedZoom(zoom - PREVIEW_ZOOM_STEP)}>
                 <Minus className="size-3.5" />
               </CanvasAction>
@@ -476,6 +504,30 @@ export function ProductCustomizationPreview({
             </div>
           </div>
         )}
+      </div>
+    </div>
+  );
+
+  if (!isFullscreen) {
+    return previewFrame;
+  }
+
+  return (
+    <div className="fixed inset-0 z-[120] bg-black/70 p-3 backdrop-blur-sm sm:p-5">
+      <div className="absolute right-4 top-4 z-[121]">
+        <Button
+          variant="outline"
+          size="icon"
+          className="border-white/20 bg-white/95 text-on-surface shadow-lg"
+          aria-label="Close fullscreen preview"
+          title="Close fullscreen preview"
+          onClick={() => setIsFullscreen(false)}
+        >
+          <X className="size-4" />
+        </Button>
+      </div>
+      <div className="flex h-full items-center justify-center">
+        {previewFrame}
       </div>
     </div>
   );

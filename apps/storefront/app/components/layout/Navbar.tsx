@@ -23,9 +23,15 @@ interface NavbarProps {
   categories: StorefrontCategory[];
   collections: StorefrontCollection[];
   locale?: string;
+  hideCategoryStripOnMobile?: boolean;
 }
 
-export function Navbar({ categories, collections, locale = "vi" }: NavbarProps) {
+export function Navbar({
+  categories,
+  collections,
+  locale = "vi",
+  hideCategoryStripOnMobile = false,
+}: NavbarProps) {
   const { itemCount } = useCart();
   const { isSticky, slideIn } = useNavbarScroll();
 
@@ -234,7 +240,11 @@ export function Navbar({ categories, collections, locale = "vi" }: NavbarProps) 
       </header>
 
       {categories.length > 0 && (
-        <div className="relative z-10 hidden w-full border-y border-gray-100 bg-white sm:block">
+        <div
+          className={`relative z-10 w-full border-y border-gray-100 bg-white ${
+            hideCategoryStripOnMobile ? "hidden lg:block" : "hidden sm:block"
+          }`}
+        >
           <Container className="relative py-3">
             <div className="relative">
               {hasCategoryStripControls ? (
