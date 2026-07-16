@@ -28,6 +28,7 @@ import {
   fetchStorefrontProduct,
   type StorefrontDetailResponse,
 } from "../lib/api";
+import { recordRecentlyViewedProduct } from "../lib/recently-viewed";
 import type { Route } from "./+types/product.$handle";
 import { getLocaleFromRequest } from "../lib/locale";
 
@@ -54,6 +55,7 @@ export default function ProductDetail() {
   const { product, dynamicFonts, locale } = useLoaderData<typeof loader>();
   const { addLine } = useCart();
   const previewSectionRef = useRef<HTMLElement | null>(null);
+  const recordedRecentlyViewedProductId = useRef<number | null>(null);
   const defaultVariantId =
     product.variants.find((variant) => variant.isDefault && variant.priceAmount !== null)?.id ??
     product.variants.find((variant) => variant.priceAmount !== null)?.id ??
@@ -95,6 +97,24 @@ export default function ProductDetail() {
   useEffect(() => {
     setSelectedMediaId(selectedVariantMedia[0]?.id ?? null);
   }, [selectedVariant?.id, selectedVariantMedia]);
+
+  useEffect(() => {
+    if (recordedRecentlyViewedProductId.current === product.id) {
+      return;
+    }
+
+    recordRecentlyViewedProduct({
+      productId: product.id,
+      handle: product.handle,
+      title: getLocalized(product.title, locale),
+      thumbnail: selectedVariantMedia[0]?.contentUrl ?? null,
+      priceAmount:
+        product.variants.find((variant) => variant.priceAmount !== null)?.priceAmount ??
+        product.variants[0]?.priceAmount ??
+        null,
+    });
+    recordedRecentlyViewedProductId.current = product.id;
+  }, [locale, product.handle, product.id, product.title, product.variants, selectedVariantMedia]);
 
   const customization = useMemo<ProductCustomization | null>(() => {
     if (!product.customization?.enabled) return null;

@@ -1,15 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import {
-  Flame,
   Image,
   ShieldCheck,
   CheckCircle,
-  ChevronRight,
-  Mail,
-  X,
-  DeleteIcon,
-  TrashIcon,
   Trash2Icon,
 } from "lucide-react";
 import type { Route } from "./+types/cart";
@@ -21,9 +15,13 @@ import { useCart } from "../hooks/use-cart";
 import { getLocalized } from "../lib/translation";
 import { formatCurrency } from "../lib/utils";
 import { Button } from "../components/ui/button";
-import { Input } from "../components/ui/input";
 import { Card, CardContent } from "../components/ui/card";
 import { QuantityInput } from "../components/ui/quantity-input";
+import {
+  getRecentlyViewedProducts,
+  type RecentlyViewedProduct,
+} from "../lib/recently-viewed";
+import { RecentlyViewedProducts } from "../components/cart/RecentlyViewedProducts";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -53,6 +51,7 @@ export default function Cart() {
   const locale = (searchParams.get('locale') === 'en' ? 'en' : 'vi') as 'vi' | 'en';
   const [resolved, setResolved] = useState<StorefrontResolvedCartLine[]>([]);
   const [error, setError] = useState("");
+  const [recentlyViewed, setRecentlyViewed] = useState<RecentlyViewedProduct[]>([]);
 
   useEffect(() => {
     if (!isReady || lines.length === 0) {
@@ -84,6 +83,10 @@ export default function Cart() {
       cancelled = true;
     };
   }, [isReady, lines]);
+
+  useEffect(() => {
+    setRecentlyViewed(getRecentlyViewedProducts());
+  }, []);
 
   const rows = useMemo(
     () =>
@@ -122,6 +125,12 @@ export default function Cart() {
 
   const subtotal = rows.reduce((sum, row) => sum + (row.lineTotal ?? 0), 0);
   const hasInvalidLines = rows.some((row) => !row.valid);
+  const recentlyViewedForCart = useMemo(() => {
+    const productIdsInCart = new Set(lines.map((line) => line.productId));
+    return recentlyViewed
+      .filter((item) => !productIdsInCart.has(item.productId))
+      .slice(0, 4);
+  }, [lines, recentlyViewed]);
 
   return (
     <div className="min-h-screen bg-white pb-0 font-sans text-text-base">
@@ -271,58 +280,9 @@ export default function Cart() {
             </div>
           </div>
         )}
-      </main>
 
-      {/* Recently Viewed Mock */}
-      <section className="max-w-7xl mx-auto px-4 py-20 border-t border-gray-100 mt-10">
-        <h2 className="mb-12 text-center font-heading text-[32px] uppercase leading-none tracking-[0.03em] text-brand-strong">Recently Viewed</h2>
-        <div className="flex overflow-x-auto gap-6 pb-4 md:grid md:grid-cols-5 md:overflow-visible relative items-center">
-          {[
-            {
-              title: "Square Base League Plate - Silver",
-              price: "$15",
-              image: null,
-            },
-            {
-              title: "Ultimate 6lb Custom Championship Belt",
-              price: "$199",
-              image: null,
-            },
-            {
-              title: "Magic: The Gathering - Ultimate 6lb Championship Belt",
-              price: "$199",
-              image: null,
-            },
-            {
-              title: "Customizable Chromatic Chain",
-              price: "$59",
-              image: null,
-            },
-            {
-              title:
-                '26"-56" Perpetual Fantasy Football Trophy - Black Football',
-              price: "$170",
-              image: null,
-            },
-          ].map((item, idx) => (
-            <div
-              key={idx}
-              className="flex flex-col items-center text-center shrink-0 w-[200px] md:w-auto"
-            >
-              <div className="w-full aspect-square bg-gray-50 flex items-center justify-center p-4 mb-4">
-                <Image className="text-gray-300 text-6xl" />
-              </div>
-              <h4 className="mb-1 text-xs font-semibold uppercase tracking-[0.08em] text-brand-strong sm:text-sm">
-                {getLocalized(item.title, locale)}
-              </h4>
-              <p className="font-heading text-[18px] uppercase leading-none text-indicator-price sm:text-[20px]">{item.price}</p>
-            </div>
-          ))}
-          <button className="hidden md:flex absolute -right-6 w-10 h-10 bg-white border border-gray-200 shadow-sm items-center justify-center hover:bg-gray-50">
-            <ChevronRight />
-          </button>
-        </div>
-      </section>
+        <RecentlyViewedProducts items={recentlyViewedForCart} />
+      </main>
     </div>
   );
 }
