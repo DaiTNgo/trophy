@@ -14,6 +14,6 @@
 
 ## 3. Verification
 
-- [ ] 3.1 Verify mobile PDP behavior manually: category strip hidden, preview shell sticky below navbar, preview shell height constrained, and `Hide preview` / `Show preview` behavior works.
+- [ ] 3.1 Verify mobile PDP behavior manually: category strip hidden, preview shell sticky above navbar, preview shell height constrained, and `Hide preview` / `Show preview` only appear once the preview region is sticky.
 - [x] 3.2 Run `pnpm --filter router-cf typecheck` and `pnpm --filter router-cf build`.
 - [x] 3.3 Run `pnpm --filter @trophy/customization-react check` and `pnpm --filter admin build` to confirm the shared fullscreen action does not break other preview consumers.

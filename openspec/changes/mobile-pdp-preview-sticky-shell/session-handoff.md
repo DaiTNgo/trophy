@@ -6,7 +6,9 @@ Date: 2026-07-16
 ## What Was Implemented
 
 - Route-aware mobile category-strip suppression for PDP in storefront layout/navbar.
+- Mobile PDP navbar sticky disabled on small-device layouts while desktop navbar behavior stays unchanged.
 - Mobile-only customizable PDP branch with sticky preview shell, constrained preview height, and `Hide preview` / `Show preview` behavior.
+- Desktop preview gallery sticky offset increased so the sticky navbar/category strip do not cover the preview while long customization forms scroll.
 - Shared fullscreen preview action in `@trophy/customization-react`.
 - Reusable thumbnail strip export from `ProductGallery` to support the mobile preview shell.
 
@@ -29,7 +31,7 @@ Date: 2026-07-16
 
 ## Remaining Task
 
-- `3.1 Verify mobile PDP behavior manually: category strip hidden, preview shell sticky below navbar, preview shell height constrained, and Hide preview / Show preview behavior works.`
+- `3.1 Verify mobile PDP behavior manually: category strip hidden, preview shell sticky above navbar, preview shell height constrained, and Hide preview / Show preview only appear once the preview region is sticky.`
 
 ## Why It Stopped
 
@@ -45,8 +47,11 @@ Manual visual verification could not be completed in this run because local prev
 2. Open a customizable PDP on a small-device viewport.
 3. Verify:
    - category strip hidden below navbar,
-   - preview shell sticks below navbar while scrolling the form,
+   - mobile navbar does not stay sticky on PDP,
+   - preview shell sticks above navbar while scrolling the form,
    - visible preview height is about half-screen,
-   - `Hide preview` swaps to sticky `Show preview`,
+   - `Hide preview` swaps to sticky `Show preview` only after the preview region becomes sticky,
+   - `Hide preview` does not jump the viewport upward,
+   - upward scrolling keeps the preview hidden until page top,
    - shared fullscreen action opens and closes without losing preview state.
 4. If verification passes, mark task `3.1` complete and move the change toward archive.

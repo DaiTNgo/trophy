@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { StorefrontCategory } from "../../lib/api";
 import { backendAssetUrl } from "../../lib/api";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { getCategoryPath } from "../../lib/storefront-paths";
 import { getLocalized } from "../../lib/translation";
 import Container from "../container";
 
@@ -144,7 +145,7 @@ export function CategoriesSection({ categories, locale = "vi" }: ShopByProductSe
                 style={{ animationDelay: `${index * 60}ms` }}
               >
                 <Link
-                  to={`/products?category=${encodeURIComponent(cat.handle)}`}
+                  to={getCategoryPath(cat.handle)}
                   className="block w-full group relative flex flex-col h-full"
                 >
                   {/* Image */}

@@ -36,6 +36,7 @@ type ProductListingShellProps = {
   currentPage: number;
   totalPages: number;
   onPageChange: (page: number) => void;
+  categoryHandle?: string | null;
   filters?: {
     categories: CategoryOption[];
     activeCategory?: string;
@@ -165,6 +166,7 @@ export function ProductListingShell({
   currentPage,
   totalPages,
   onPageChange,
+  categoryHandle,
   filters,
   emptyState,
 }: ProductListingShellProps) {
@@ -238,7 +240,7 @@ export function ProductListingShell({
           </div>
         </section>
 
-        <section className="border-b border-border-subtle bg-surface-base py-4">
+        {/*<section className="border-b border-border-subtle bg-surface-base py-4">
           <div className="mx-auto w-full max-w-[1180px] px-4">
             <div className="mb-3 flex items-center justify-center gap-3">
               <span className="h-px w-10 bg-border-subtle" />
@@ -260,7 +262,7 @@ export function ProductListingShell({
               {resultLabel}
             </p>
           </div>
-        </section>
+        </section>*/}
 
         <section className="bg-surface-base px-4 py-8 md:px-8 md:py-10">
           <div className="mx-auto w-full max-w-[1040px]">
@@ -289,6 +291,7 @@ export function ProductListingShell({
                     <ProductCard
                       key={product.id}
                       {...product}
+                      categoryHandle={categoryHandle}
                       title={getLocalized(product.title, locale)}
                       subtitle={getLocalized(product.subtitle, locale) || null}
                       categorySummary={getLocalized(product.categorySummary, locale) || null}
@@ -300,11 +303,13 @@ export function ProductListingShell({
                   ))}
                 </div>
 
-                <Pagination
-                  currentPage={currentPage}
-                  totalPages={totalPages}
-                  onPageChange={onPageChange}
-                />
+                {totalPages > 1 ? (
+                  <Pagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    onPageChange={onPageChange}
+                  />
+                ) : null}
               </>
             )}
           </div>

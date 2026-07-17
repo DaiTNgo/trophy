@@ -6,13 +6,13 @@ const OCCASIONS = [
     icon: "Building2",
     label: "Doanh nghiệp",
     desc: "Lễ kỷ niệm, gala nội bộ, khen thưởng nhân viên",
-    href: "/products?category=cup-vinh-danh",
+    href: "/categories/cup-vinh-danh",
   },
   {
     icon: "Trophy",
     label: "Giải đấu thể thao",
     desc: "Cúp, huy chương và bảng xếp hạng cho mọi môn thể thao",
-    href: "/products?category=cup-the-thao",
+    href: "/categories/cup-the-thao",
   },
   {
     icon: "GraduationCap",
@@ -24,13 +24,13 @@ const OCCASIONS = [
     icon: "PartyPopper",
     label: "Sự kiện vinh danh",
     desc: "Gala, lễ trao giải, hội nghị tri ân và sự kiện thành tích",
-    href: "/products?category=bang-vinh-danh",
+    href: "/categories/bang-vinh-danh",
   },
   {
     icon: "Heart",
     label: "Quà tri ân",
     desc: "Kỷ niệm chương, quà lưu niệm và cúp trao cho đối tác, khách hàng",
-    href: "/products?category=ky-niem-chuong",
+    href: "/categories/ky-niem-chuong",
   },
   {
     icon: "UserCheck",

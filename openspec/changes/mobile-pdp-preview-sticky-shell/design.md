@@ -98,8 +98,8 @@ Alternative considered:
 
 ## Risks / Trade-offs
 
-- **Sticky offset drift** → The mobile preview shell could slide under the navbar if the top offset is wrong.  
-  Mitigation: derive the sticky offset from the actual mobile navbar shell and verify across mobile breakpoints.
+- **Sticky stacking conflicts** → The mobile preview shell could fight with the navbar if top positioning and layering are wrong.  
+  Mitigation: pin the shell at `top: 0` with a higher z-index than the navbar and verify the sticky handoff on mobile breakpoints.
 
 - **Scroll jump when hiding/showing preview** → Toggling preview visibility may move surrounding content abruptly.  
   Mitigation: keep a stable sticky bar when hidden and preserve shell space transitions intentionally.
@@ -132,4 +132,4 @@ Rollback strategy:
 ## Open Questions
 
 - The final mobile preview shell height still needs implementation tuning, but the design target is around half of the viewport height.
-- The exact visual treatment of the sticky hidden bar (`Show preview`) can be finalized during implementation as long as it remains slim and persistent.
+- The exact visual treatment of the sticky hidden bar (`Show preview`) can be finalized during implementation as long as it remains slim, persistent, and only appears after the preview region has entered the sticky state.

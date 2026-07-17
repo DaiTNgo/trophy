@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import type { Route } from "./+types/order-lookup";
 import { lookupStorefrontOrder } from "../lib/api";
+import { getGenericProductPath } from "../lib/storefront-paths";
 import { formatCurrency } from "../lib/utils";
 
 export function meta({}: Route.MetaArgs) {
@@ -124,7 +125,11 @@ export default function OrderLookupRoute() {
                       <div className="flex items-start justify-between gap-4">
                         <div>
                           <Link
-                            to={item.productHandle ? `/product/${item.productHandle}` : "#"}
+                            to={
+                              item.productHandle
+                                ? getGenericProductPath(item.productHandle)
+                                : "#"
+                            }
                             className="font-semibold text-on-surface hover:text-primary"
                           >
                             {item.productTitle}

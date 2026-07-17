@@ -22,6 +22,7 @@ import {
   type RecentlyViewedProduct,
 } from "../lib/recently-viewed";
 import { RecentlyViewedProducts } from "../components/cart/RecentlyViewedProducts";
+import { getGenericProductPath } from "../lib/storefront-paths";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -180,7 +181,9 @@ export default function Cart() {
                   <div className="flex-1 min-w-0">
                     <h3 className="font-bold text-sm sm:text-base mb-1 pr-6 uppercase">
                       <Link
-                        to={`/product/${display.handle ?? line.display.productHandle}`}
+                        to={getGenericProductPath(
+                          display.handle ?? line.display.productHandle,
+                        )}
                         className="hover:text-primary transition-colors"
                       >
                         {getLocalized(display.title, locale) ?? getLocalized(line.display.productTitle, locale)}
@@ -219,6 +222,7 @@ export default function Cart() {
                       value={line.quantity}
                       min={1}
                       max={99}
+                      commitOnBlur
                       onValueChange={(next) => updateQuantity(line.id, next)}
                     />
                   </div>

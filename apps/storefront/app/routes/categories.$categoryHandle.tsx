@@ -1,29 +1,20 @@
-import { redirect, useSearchParams } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import { ProductListingShell } from "@/components/products/ProductListingShell";
 import { fetchStorefrontCategories, fetchStorefrontProducts } from "../lib/api";
 import { getLocaleFromRequest } from "../lib/locale";
 import { getCategoryPath } from "../lib/storefront-paths";
 import { getLocalized } from "../lib/translation";
-import type { Route } from "./+types/products";
+import type { Route } from "./+types/categories.$categoryHandle";
 
-export async function loader({ request }: Route.LoaderArgs) {
+export async function loader({ params, request }: Route.LoaderArgs) {
   const locale = getLocaleFromRequest(request);
   const url = new URL(request.url);
-  const activeCategory = url.searchParams.get("category") || "";
   const currentPage = Number(url.searchParams.get("page")) || 1;
-
-  if (activeCategory) {
-    const redirectUrl = new URL(getCategoryPath(activeCategory), url.origin);
-    if (currentPage > 1) {
-      redirectUrl.searchParams.set("page", String(currentPage));
-    }
-    throw redirect(`${redirectUrl.pathname}${redirectUrl.search}`);
-  }
+  const activeCategory = params.categoryHandle;
 
   const apiCategories = await fetchStorefrontCategories(locale).catch(() => []);
-
   const data = await fetchStorefrontProducts({
-    category: activeCategory || undefined,
+    category: activeCategory,
     page: currentPage,
     limit: 24,
     locale,
@@ -39,9 +30,16 @@ export async function loader({ request }: Route.LoaderArgs) {
   const selectedCategory =
     apiCategories.find((category) => category.handle === activeCategory) ?? null;
 
+  if (!selectedCategory) {
+    throw new Response("Not Found", { status: 404 });
+  }
+
+  const categoryTitle = getLocalized(selectedCategory.name, locale) || activeCategory;
+
   return {
     categories: allCategories,
     selectedCategory,
+    categoryTitle,
     products: data.items,
     activeCategory,
     currentPage: data.page,
@@ -51,10 +49,13 @@ export async function loader({ request }: Route.LoaderArgs) {
   };
 }
 
-export default function Products({ loaderData }: Route.ComponentProps) {
+export default function CategoryProductsPage({
+  loaderData,
+}: Route.ComponentProps) {
   const {
     categories,
     selectedCategory,
+    categoryTitle,
     products,
     activeCategory,
     currentPage,
@@ -62,53 +63,48 @@ export default function Products({ loaderData }: Route.ComponentProps) {
     totalItems,
     locale,
   } = loaderData;
-  const [, setSearchParams] = useSearchParams();
-  const listingTitle =
-    getLocalized(selectedCategory?.name, locale) ||
-    (locale === "en" ? "Product Catalog" : "Danh mục sản phẩm");
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const listingDescription =
-    getLocalized(selectedCategory?.description, locale) ||
+    getLocalized(selectedCategory.description, locale) ||
     (locale === "en"
-      ? "Browse trophies, plaques, medals, and custom awards by product type. Compare shapes, finishes, and starting prices before opening the product details."
-      : "Khám phá cúp, bảng vinh danh, huy chương và quà tặng tùy chỉnh theo từng nhóm sản phẩm. So sánh kiểu dáng, hoàn thiện và giá khởi điểm trước khi xem chi tiết.");
+      ? "Browse products in this category, compare finishes and price points, then open the product detail that matches your event needs."
+      : "Xem các sản phẩm trong danh mục này, so sánh hoàn thiện và mức giá, rồi mở chi tiết sản phẩm phù hợp với nhu cầu sự kiện của bạn.");
 
   const handleCategorySelect = (categoryHandle: string) => {
-    setSearchParams((prev) => {
-      if (categoryHandle) {
-        prev.set("category", categoryHandle);
-      } else {
-        prev.delete("category");
-      }
-      prev.set("page", "1");
-      return prev;
-    });
+    if (!categoryHandle) {
+      navigate("/products");
+      return;
+    }
+
+    navigate(getCategoryPath(categoryHandle));
   };
 
   const handlePageChange = (page: number) => {
-    setSearchParams((prev) => {
-      prev.set("page", page.toString());
-      return prev;
-    });
+    const nextSearchParams = new URLSearchParams(searchParams);
+    nextSearchParams.set("page", page.toString());
+    navigate(`${getCategoryPath(activeCategory)}?${nextSearchParams.toString()}`);
   };
 
   return (
     <ProductListingShell
       breadcrumbs={[
         { label: locale === "en" ? "Home" : "Trang chủ", href: "/" },
-        { label: locale === "en" ? "Products" : "Sản phẩm" },
+        { label: locale === "en" ? "Categories" : "Danh mục" },
+        { label: categoryTitle },
       ]}
-      eyebrow={locale === "en" ? "Shop by product" : "Mua theo danh mục"}
-      title={listingTitle}
+      eyebrow={locale === "en" ? "Shop by category" : "Mua theo danh mục"}
+      title={categoryTitle}
       description={listingDescription}
-      featuredImageSrc={selectedCategory?.imageUrl ?? products[0]?.thumbnail}
-      featuredImageAlt={listingTitle}
+      featuredImageSrc={selectedCategory.imageUrl ?? products[0]?.thumbnail}
+      featuredImageAlt={categoryTitle}
       products={products}
       locale={locale}
       totalItems={totalItems}
       currentPage={currentPage}
       totalPages={totalPages}
       onPageChange={handlePageChange}
-      categoryHandle={null}
+      categoryHandle={activeCategory}
       filters={{
         categories,
         activeCategory,
@@ -118,7 +114,7 @@ export default function Products({ loaderData }: Route.ComponentProps) {
         title: locale === "en" ? "No products found" : "Chưa có sản phẩm phù hợp",
         description:
           locale === "en"
-            ? "Try another product category or return to the full catalog."
+            ? "Try another category or return to the full catalog."
             : "Hãy thử danh mục khác hoặc quay lại toàn bộ catalog sản phẩm.",
         ctaLabel: locale === "en" ? "View all products" : "Xem tất cả sản phẩm",
         ctaHref: "/products",

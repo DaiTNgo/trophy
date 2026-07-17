@@ -1,7 +1,8 @@
-import { Link } from "react-router";
+import { Link, useLocation } from "react-router";
 import { Package, X } from "lucide-react";
 import { backendAssetUrl } from "@/lib/api";
 import type { StorefrontCategory, StorefrontCollection } from "@/lib/api";
+import { getActiveCategoryHandle, getCategoryPath } from "@/lib/storefront-paths";
 import { getLocalized } from "@/lib/translation";
 import { LanguageSwitcher } from "@/components/layout/language-switcher";
 import {
@@ -26,10 +27,13 @@ export function NavbarMobileMenu({
   collections,
   locale = "vi",
 }: NavbarMobileMenuProps) {
+  const { pathname } = useLocation();
+  const activeCategoryHandle = getActiveCategoryHandle(pathname);
   const productMenuItems = categories.map((cat) => ({
     title: getLocalized(cat.name, locale),
     imageUrl: cat.imageUrl,
-    href: `/products?category=${encodeURIComponent(cat.handle)}`,
+    handle: cat.handle,
+    href: getCategoryPath(cat.handle),
   }));
 
   const themeMenuItems = collections.map((col) => ({
@@ -61,7 +65,10 @@ export function NavbarMobileMenu({
         <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto overscroll-contain px-6 py-6 pb-20">
 
           {/* SẢN PHẨM */}
-          <details className="group border-b border-gray-100 pb-4 [&_summary::-webkit-details-marker]:hidden">
+          <details
+            open={Boolean(activeCategoryHandle)}
+            className="group border-b border-gray-100 pb-4 [&_summary::-webkit-details-marker]:hidden"
+          >
             <summary className="flex cursor-pointer items-center justify-between text-[18px] font-medium uppercase tracking-wide text-brand-strong">
               Sản phẩm
               <span className="transition duration-300 group-open:-rotate-180">
@@ -91,7 +98,13 @@ export function NavbarMobileMenu({
                           </div>
                         )}
                       </div>
-                      <span className="px-1 text-[13px] font-medium leading-tight text-brand-strong">
+                      <span
+                        className={`px-1 text-[13px] font-medium leading-tight text-brand-strong ${
+                          activeCategoryHandle === item.handle
+                            ? "underline decoration-2 underline-offset-4"
+                            : ""
+                        }`}
+                      >
                         {item.title}
                       </span>
                     </Link>

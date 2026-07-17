@@ -18,7 +18,7 @@ export function ProductGallery({
   thumbnails: ProductGalleryThumbnail[];
 }) {
   return (
-    <section className="lg:sticky lg:top-4 lg:self-start">
+    <section className="lg:sticky lg:top-36 lg:self-start">
       <div className="overflow-hidden rounded-lg border border-border-subtle bg-white">
         <div className="bg-surface-panel">
           {mainContent}

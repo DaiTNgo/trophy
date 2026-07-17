@@ -1,9 +1,11 @@
 import { Link } from "react-router";
 import { Image, Star, StarHalf, Headset } from "lucide-react";
-import { cn, formatCurrency } from "@/lib/utils";
+import { getProductPath } from "@/lib/storefront-paths";
+import { formatCurrency } from "@/lib/utils";
 
 interface ProductCardProps {
   handle?: string;
+  categoryHandle?: string | null;
   series?: string;
   category?: string;
   categorySummary?: string | null;
@@ -22,6 +24,7 @@ interface ProductCardProps {
 
 export function ProductCard({
   handle,
+  categoryHandle,
   category,
   categorySummary,
   subtitle,
@@ -48,7 +51,10 @@ export function ProductCard({
 
   const fullStars = Math.floor(rating);
   const hasHalfStar = rating % 1 !== 0;
-  const productHref = `/product/${displayHandle}`;
+  const productHref = getProductPath({
+    productHandle: displayHandle,
+    categoryHandle,
+  });
 
   if (variant === "listing") {
     return (

@@ -23,7 +23,10 @@ export async function loader({ request }: { request: Request }) {
 export default function StorefrontLayout() {
   const { categories, collections, locale } = useLoaderData<typeof loader>();
   const location = useLocation();
-  const hideCategoryStripOnMobile = location.pathname.startsWith("/product/");
+  const isProductDetailRoute =
+    location.pathname.startsWith("/product/") ||
+    /^\/categories\/[^/]+\/products\/[^/]+\/?$/.test(location.pathname);
+  const hideCategoryStripOnMobile = isProductDetailRoute;
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -33,6 +36,7 @@ export default function StorefrontLayout() {
         collections={collections}
         locale={locale}
         hideCategoryStripOnMobile={hideCategoryStripOnMobile}
+        disableStickyOnMobile={isProductDetailRoute}
       />
       <div className="flex-1">
         <Outlet />

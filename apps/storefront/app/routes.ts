@@ -4,6 +4,11 @@ export default [
   layout("components/layout/storefront-layout.tsx", [
     index("routes/home.tsx"),
     route("products", "routes/products.tsx"),
+    route("categories/:categoryHandle", "routes/categories.$categoryHandle.tsx"),
+    route(
+      "categories/:categoryHandle/products/:productHandle",
+      "routes/categories.$categoryHandle.products.$productHandle.tsx",
+    ),
     route("product/:handle", "routes/product.$handle.tsx"),
     route("contact", "routes/contact.tsx"),
     route("cart", "routes/cart.tsx"),

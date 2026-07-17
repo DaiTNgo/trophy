@@ -4,7 +4,7 @@ The mobile product detail page currently spends too much vertical space on store
 
 ## What Changes
 
-- Add a mobile-only sticky preview shell on the storefront product detail page so the preview remains accessible while shoppers scroll through customization controls.
+- Add a mobile-only sticky preview shell on the storefront product detail page so the preview remains accessible while shoppers scroll through customization controls and can pin above the mobile navbar once it becomes sticky.
 - Add storefront-managed `Show preview` / `Hide preview` behavior on mobile instead of keeping the preview permanently inline.
 - Remove the mobile category strip from the storefront navbar on the product detail page so the PDP reserves more space for the product and customization flow.
 - Add a fullscreen preview action to `@trophy/customization-react` so shoppers can inspect the preview in an overlay without making the storefront mobile shell itself full-screen.
@@ -12,7 +12,7 @@ The mobile product detail page currently spends too much vertical space on store
 ## Capabilities
 
 ### New Capabilities
-- `storefront-mobile-pdp-preview`: Mobile storefront product detail layout that can hide the category strip, pin the preview below the navbar, and toggle preview visibility with a sticky show/hide bar.
+- `storefront-mobile-pdp-preview`: Mobile storefront product detail layout that can hide the category strip, pin the preview above the navbar, and toggle preview visibility with a sticky show/hide bar that only appears in the sticky region.
 - `customization-preview-fullscreen`: Shared customization preview fullscreen overlay behavior for storefront and other preview consumers that support viewing the design larger than its inline container.
 
 ### Modified Capabilities

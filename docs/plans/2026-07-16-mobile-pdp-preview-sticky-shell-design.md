@@ -85,6 +85,7 @@ When `hidden`:
 - the full preview shell is removed from the sticky area
 - a slim sticky bar remains visible
 - the bar exposes a `Show preview` action
+- upward scrolling keeps the shell hidden until the shopper returns to page top
 
 There is no storefront-managed "expand to full" or "collapse to partial" mode beyond this.
 
@@ -180,8 +181,9 @@ Manual checks should cover:
 
 - mobile PDP no longer renders category strip below navbar
 - preview shell appears at approximately half-screen height
-- preview sticks below navbar while scrolling through form content
+- preview sticks above navbar while scrolling through form content
 - `Hide preview` swaps the visible shell for a slim sticky `Show preview` bar
+- upward scrolling keeps the preview hidden until page top
 - `Show preview` restores the preview shell
 - fullscreen action opens the shared preview in a full-screen overlay
 
