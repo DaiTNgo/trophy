@@ -13,6 +13,7 @@ import {
     fetchStorefrontCollectionProducts,
 } from "../lib/api";
 import { getLocaleFromRequest } from "../lib/locale";
+import { withStorefrontLoaderLog } from "../lib/observability";
 import type { Route } from "./+types/home";
 
 export function meta({}: Route.MetaArgs) {
@@ -27,31 +28,33 @@ export function meta({}: Route.MetaArgs) {
 }
 
 export async function loader({ request }: Route.LoaderArgs) {
-  const locale = getLocaleFromRequest(request);
-  const [categories, customizableBestSellersData, standardBestSellersData] = await Promise.all([
-    fetchStorefrontCategories(locale).catch(() => []),
-    fetchStorefrontCollectionProducts("best-sellers", {
-      limit: 8,
-      locale,
-      customizable: "true",
-    }).catch(
-      () => ({ items: [], page: 1, limit: 8, total: 0 })
-    ),
-    fetchStorefrontCollectionProducts("best-sellers", {
-      limit: 8,
-      locale,
-      customizable: "false",
-    }).catch(
-      () => ({ items: [], page: 1, limit: 8, total: 0 })
-    ),
-  ]);
+  return withStorefrontLoaderLog("home", request, async () => {
+    const locale = getLocaleFromRequest(request);
+    const [categories, customizableBestSellersData, standardBestSellersData] = await Promise.all([
+      fetchStorefrontCategories(locale).catch(() => []),
+      fetchStorefrontCollectionProducts("best-sellers", {
+        limit: 8,
+        locale,
+        customizable: "true",
+      }).catch(
+        () => ({ items: [], page: 1, limit: 8, total: 0 })
+      ),
+      fetchStorefrontCollectionProducts("best-sellers", {
+        limit: 8,
+        locale,
+        customizable: "false",
+      }).catch(
+        () => ({ items: [], page: 1, limit: 8, total: 0 })
+      ),
+    ]);
 
-  return {
-    categories: categories.slice(0, 4),
-    customizableBestSellers: customizableBestSellersData.items,
-    standardBestSellers: standardBestSellersData.items,
-    locale,
-  };
+    return {
+      categories: categories.slice(0, 4),
+      customizableBestSellers: customizableBestSellersData.items,
+      standardBestSellers: standardBestSellersData.items,
+      locale,
+    };
+  });
 }
 
 export default function Home({ loaderData }: Route.ComponentProps) {

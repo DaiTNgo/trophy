@@ -8,16 +8,19 @@ import {
   type StorefrontCollection,
 } from "../../lib/api";
 import { getLocaleFromRequest } from "../../lib/locale";
+import { withStorefrontLoaderLog } from "../../lib/observability";
 import { TrustBar } from "../home/TrustBar";
 
 export async function loader({ request }: { request: Request }) {
-  const locale = getLocaleFromRequest(request);
-  const [categories, collections] = await Promise.all([
-    fetchStorefrontCategories(locale).catch(() => [] as StorefrontCategory[]),
-    fetchStorefrontCollections(locale).catch(() => [] as StorefrontCollection[]),
-  ]);
+  return withStorefrontLoaderLog("storefront-layout", request, async () => {
+    const locale = getLocaleFromRequest(request);
+    const [categories, collections] = await Promise.all([
+      fetchStorefrontCategories(locale).catch(() => [] as StorefrontCategory[]),
+      fetchStorefrontCollections(locale).catch(() => [] as StorefrontCollection[]),
+    ]);
 
-  return { categories, collections, locale };
+    return { categories, collections, locale };
+  });
 }
 
 export default function StorefrontLayout() {

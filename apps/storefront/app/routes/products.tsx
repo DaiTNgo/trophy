@@ -2,53 +2,56 @@ import { redirect, useSearchParams } from "react-router";
 import { ProductListingShell } from "@/components/products/ProductListingShell";
 import { fetchStorefrontCategories, fetchStorefrontProducts } from "../lib/api";
 import { getLocaleFromRequest } from "../lib/locale";
+import { withStorefrontLoaderLog } from "../lib/observability";
 import { getCategoryPath } from "../lib/storefront-paths";
 import { getLocalized } from "../lib/translation";
 import type { Route } from "./+types/products";
 
 export async function loader({ request }: Route.LoaderArgs) {
-  const locale = getLocaleFromRequest(request);
-  const url = new URL(request.url);
-  const activeCategory = url.searchParams.get("category") || "";
-  const currentPage = Number(url.searchParams.get("page")) || 1;
+  return withStorefrontLoaderLog("products", request, async () => {
+    const locale = getLocaleFromRequest(request);
+    const url = new URL(request.url);
+    const activeCategory = url.searchParams.get("category") || "";
+    const currentPage = Number(url.searchParams.get("page")) || 1;
 
-  if (activeCategory) {
-    const redirectUrl = new URL(getCategoryPath(activeCategory), url.origin);
-    if (currentPage > 1) {
-      redirectUrl.searchParams.set("page", String(currentPage));
+    if (activeCategory) {
+      const redirectUrl = new URL(getCategoryPath(activeCategory), url.origin);
+      if (currentPage > 1) {
+        redirectUrl.searchParams.set("page", String(currentPage));
+      }
+      throw redirect(`${redirectUrl.pathname}${redirectUrl.search}`);
     }
-    throw redirect(`${redirectUrl.pathname}${redirectUrl.search}`);
-  }
 
-  const apiCategories = await fetchStorefrontCategories(locale).catch(() => []);
+    const apiCategories = await fetchStorefrontCategories(locale).catch(() => []);
 
-  const data = await fetchStorefrontProducts({
-    category: activeCategory || undefined,
-    page: currentPage,
-    limit: 24,
-    locale,
+    const data = await fetchStorefrontProducts({
+      category: activeCategory || undefined,
+      page: currentPage,
+      limit: 24,
+      locale,
+    });
+
+    const allCategories = [
+      { name: locale === "en" ? "All" : "Tất cả", handle: "" },
+      ...apiCategories.map((category) => ({
+        name: getLocalized(category.name, locale),
+        handle: category.handle,
+      })),
+    ];
+    const selectedCategory =
+      apiCategories.find((category) => category.handle === activeCategory) ?? null;
+
+    return {
+      categories: allCategories,
+      selectedCategory,
+      products: data.items,
+      activeCategory,
+      currentPage: data.page,
+      totalPages: Math.max(1, Math.ceil(data.total / data.limit)),
+      totalItems: data.total,
+      locale,
+    };
   });
-
-  const allCategories = [
-    { name: locale === "en" ? "All" : "Tất cả", handle: "" },
-    ...apiCategories.map((category) => ({
-      name: getLocalized(category.name, locale),
-      handle: category.handle,
-    })),
-  ];
-  const selectedCategory =
-    apiCategories.find((category) => category.handle === activeCategory) ?? null;
-
-  return {
-    categories: allCategories,
-    selectedCategory,
-    products: data.items,
-    activeCategory,
-    currentPage: data.page,
-    totalPages: Math.max(1, Math.ceil(data.total / data.limit)),
-    totalItems: data.total,
-    locale,
-  };
 }
 
 export default function Products({ loaderData }: Route.ComponentProps) {
