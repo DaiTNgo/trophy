@@ -11,6 +11,40 @@ import { storefrontRoute } from "./routes/storefront";
 
 const app = new Hono<AppEnv>();
 
+app.use("/api/storefront/*", async (c, next) => {
+  const startedAt = Date.now();
+  const url = new URL(c.req.url);
+
+  console.log(
+    "[backend]",
+    JSON.stringify({
+      event: "storefront.request",
+      timestamp: new Date().toISOString(),
+      method: c.req.method,
+      path: url.pathname,
+      search: url.search || null,
+      origin: c.req.header("origin") ?? null,
+      cfRay: c.req.header("cf-ray") ?? null,
+    }),
+  );
+
+  try {
+    await next();
+  } finally {
+    console.log(
+      "[backend]",
+      JSON.stringify({
+        event: "storefront.response",
+        timestamp: new Date().toISOString(),
+        method: c.req.method,
+        path: url.pathname,
+        status: c.res.status,
+        durationMs: Date.now() - startedAt,
+      }),
+    );
+  }
+});
+
 app.use("/api/admin/*", createCorsMiddleware(SESSION_CORS_POLICY));
 app.use("/api/storefront/*", createCorsMiddleware(STOREFRONT_CORS_POLICY));
 

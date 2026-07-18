@@ -127,7 +127,12 @@ export async function fetchBackendWithLog(
     if (response.ok) {
       logStorefront("api.response", details);
     } else {
-      writeStorefrontLog("warn", "api.non_ok", details);
+      const responseText = await response.clone().text().catch(() => "");
+      writeStorefrontLog("warn", "api.non_ok", {
+        ...details,
+        contentType: response.headers.get("content-type"),
+        responseBody: responseText.slice(0, 500) || null,
+      });
     }
 
     return response;
