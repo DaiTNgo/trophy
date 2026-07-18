@@ -435,7 +435,7 @@ export const orders = sqliteTable("orders", {
   orderNumber: text("order_number").notNull(),
   // statuses: narrow string unions enforced at application layer
   status: text("status").notNull().default("pending"), // 'pending' | 'confirmed' | 'cancelled'
-  paymentStatus: text("payment_status").notNull().default("pending"), // 'pending' | 'paid' | 'failed' | 'refunded'
+  paymentStatus: text("payment_status").notNull().default("pending"), // 'pending' | 'paid' | 'failed' | 'refunded' | 'cancelled'
   fulfillmentStatus: text("fulfillment_status").notNull().default("unfulfilled"), // 'unfulfilled' | 'partially_fulfilled' | 'fulfilled'
   paymentMethod: text("payment_method").notNull(), // 'bank_transfer' | 'cash_on_delivery'
   // customer details
@@ -479,7 +479,7 @@ export const orderItems = sqliteTable("order_items", {
   backgroundSnapshotJson: text("background_snapshot_json"),
   // customization snapshot (JSON, nullable for non-customizable products)
   customizationSnapshotJson: text("customization_snapshot_json"),
-  // production status: 'not_required' for plain items, 'pending_review' for customized
+  // production status: 'not_required' for plain items, 'pending_review' for customized, 'ready' after operator review
   productionStatus: text("production_status").notNull().default("not_required"),
   createdAt: integer("created_at", { mode: "timestamp_ms" })
     .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)

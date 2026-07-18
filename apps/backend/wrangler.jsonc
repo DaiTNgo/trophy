@@ -24,9 +24,25 @@
 		"directory": "./fonts",
 		"binding": "ASSETS"
 	},
+	"observability": {
+    "enabled": false,
+    "head_sampling_rate": 1,
+    "logs": {
+      "enabled": true,
+      "head_sampling_rate": 1,
+      "persist": true,
+      "invocation_logs": true
+    },
+    "traces": {
+      "enabled": false,
+      "persist": true,
+      "head_sampling_rate": 1
+    }
+  },
 	"vars": {
 		"ADMIN_APP_ORIGIN": "https://trophy-admin.pages.dev",
 		"BETTER_AUTH_URL": "https://backend.dai-ngo.workers.dev",
+		"STOREFRONT_APP_ORIGIN": "https://storefront.dai-ngo.workers.dev",
 		"BETTER_AUTH_SECRET": "daingo7211@!"
 	}
 }

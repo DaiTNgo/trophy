@@ -1,6 +1,7 @@
 import * as React from "react";
 
 import { cn } from "../../lib/utils";
+import { MinusIcon, PlusIcon } from 'lucide-react'
 
 export interface QuantityInputProps
   extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "type" | "value" | "defaultValue"> {
@@ -8,48 +9,9 @@ export interface QuantityInputProps
   onValueChange?: (value: number) => void;
   min?: number;
   max?: number;
+  commitOnBlur?: boolean;
   containerClassName?: string;
 }
-
-const MinusIcon = () => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    aria-hidden="true"
-    focusable="false"
-    className="icon icon-minus"
-    fill="none"
-    viewBox="0 0 10 2"
-    width={10}
-    height={2}
-  >
-    <path
-      fillRule="evenodd"
-      clipRule="evenodd"
-      d="M.5 1C.5.7.7.5 1 .5h8a.5.5 0 110 1H1A.5.5 0 01.5 1z"
-      fill="currentColor"
-    />
-  </svg>
-);
-
-const PlusIcon = () => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    aria-hidden="true"
-    focusable="false"
-    className="icon icon-plus"
-    fill="none"
-    viewBox="0 0 10 10"
-    width={10}
-    height={10}
-  >
-    <path
-      fillRule="evenodd"
-      clipRule="evenodd"
-      d="M1 4.51a.5.5 0 000 1h3.5l.01 3.5a.5.5 0 001-.01V5.5l3.5-.01a.5.5 0 00-.01-1H5.5L5.49.99a.5.5 0 00-1 .01v3.5l-3.5.01H1z"
-      fill="currentColor"
-    />
-  </svg>
-);
 
 const QuantityInput = React.forwardRef<HTMLInputElement, QuantityInputProps>(
   (
@@ -59,8 +21,10 @@ const QuantityInput = React.forwardRef<HTMLInputElement, QuantityInputProps>(
       value,
       onValueChange,
       onChange,
+      onBlur,
       min = 1,
       max = 99,
+      commitOnBlur = false,
       step = 1,
       disabled,
       name,
@@ -70,28 +34,55 @@ const QuantityInput = React.forwardRef<HTMLInputElement, QuantityInputProps>(
     ref,
   ) => {
     const stepNum = typeof step === "number" ? step : 1;
+    const [inputValue, setInputValue] = React.useState(() => String(value));
+
+    React.useEffect(() => {
+      setInputValue(String(value));
+    }, [value]);
+
+    const clampValue = React.useCallback(
+      (nextValue: number) => Math.max(min, Math.min(max, nextValue)),
+      [max, min],
+    );
 
     const handleDecrement = () => {
-      const next = Math.max(min, value - stepNum);
+      const next = clampValue(value - stepNum);
       if (next !== value) {
+        setInputValue(String(next));
         onValueChange?.(next);
       }
     };
 
     const handleIncrement = () => {
-      const next = Math.min(max, value + stepNum);
+      const next = clampValue(value + stepNum);
       if (next !== value) {
+        setInputValue(String(next));
         onValueChange?.(next);
       }
     };
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const raw = e.target.value;
+      setInputValue(raw);
+
       const parsed = parseInt(raw, 10);
-      if (isNaN(parsed)) return;
-      const clamped = Math.max(min, Math.min(max, parsed));
-      onValueChange?.(clamped);
+      if (!commitOnBlur && !isNaN(parsed)) {
+        onValueChange?.(parsed);
+      }
+
       onChange?.(e);
+    };
+
+    const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+      const parsed = parseInt(e.target.value, 10);
+      const next = isNaN(parsed) ? min : clampValue(parsed);
+
+      setInputValue(String(next));
+      if (next !== value) {
+        onValueChange?.(next);
+      }
+
+      onBlur?.(e);
     };
 
     return (
@@ -117,14 +108,15 @@ const QuantityInput = React.forwardRef<HTMLInputElement, QuantityInputProps>(
           <span className="sr-only">
             {ariaLabel ? `Decrease quantity for ${ariaLabel}` : "Decrease quantity"}
           </span>
-          <MinusIcon />
+          <MinusIcon size={16} />
         </button>
 
         <input
           type="number"
           name={name}
-          value={value}
+          value={inputValue}
           onChange={handleInputChange}
+          onBlur={handleBlur}
           min={min}
           max={max}
           step={step}
@@ -154,7 +146,7 @@ const QuantityInput = React.forwardRef<HTMLInputElement, QuantityInputProps>(
           <span className="sr-only">
             {ariaLabel ? `Increase quantity for ${ariaLabel}` : "Increase quantity"}
           </span>
-          <PlusIcon />
+          <PlusIcon size={16} />
         </button>
       </div>
     );

@@ -3,6 +3,7 @@ import { Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { SearchResults as SearchResultsType } from "@/hooks/useSearch";
 import type { MockProduct, MockCategory } from "@/hooks/useSearch";
+import { getCategoryPath, getGenericProductPath } from "@/lib/storefront-paths";
 import { formatCurrency } from "@/lib/utils";
 
 interface SearchResultsProps {
@@ -15,7 +16,7 @@ interface SearchResultsProps {
 function ProductResult({ product }: { product: MockProduct }) {
   return (
     <Link
-      to={`/product/${product.handle}`}
+      to={getGenericProductPath(product.handle)}
       className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors rounded-md"
     >
       <div className="w-10 h-10 rounded-md bg-gray-100 flex items-center justify-center shrink-0 overflow-hidden">
@@ -39,7 +40,7 @@ function ProductResult({ product }: { product: MockProduct }) {
 function CategoryResult({ category }: { category: MockCategory }) {
   return (
     <Link
-      to={`/products?category=${encodeURIComponent(category.name)}`}
+      to={getCategoryPath(category.handle)}
       className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors rounded-md"
     >
       <div className="w-10 h-10 rounded-md bg-primary/10 flex items-center justify-center shrink-0">

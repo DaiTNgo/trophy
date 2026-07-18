@@ -1,7 +1,7 @@
 import { Link } from "react-router";
 import type { StorefrontCategory } from "../../lib/api";
 import { backendAssetUrl } from "../../lib/api";
-import { ArrowRight } from "lucide-react";
+import { getCategoryPath } from "../../lib/storefront-paths";
 import { getLocalized } from "../../lib/translation";
 import Container from "../container";
 
@@ -34,61 +34,73 @@ interface ShopByProductSectionProps {
 
 export function CategoriesSection({ categories, locale = "vi" }: ShopByProductSectionProps) {
   if (categories.length === 0) return null;
-
-  const displayCats = categories.slice(0, 4);
+  const featuredCategories = categories.slice(0, 4);
 
   return (
-    <Container className="py-24">
-      {/* Grid */}
-      <div className="grid gap-8 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-        {displayCats.map((cat, index) => {
-          const name = getLocalized(cat.name, locale);
-          const imageUrl = cat.imageUrl
-            ? backendAssetUrl(cat.imageUrl)
-            : FALLBACK_IMAGES[index % FALLBACK_IMAGES.length];
-          const desc = getDescription(cat.handle, getLocalized(cat.description, locale) || null);
+    <section className="bg-surface-base py-18 md:py-24">
+      <Container>
+        <div className="grid grid-cols-2 gap-5 sm:gap-8 lg:grid-cols-4">
+          {featuredCategories.map((cat, index) => {
+            const name = getLocalized(cat.name, locale);
+            const imageUrl = cat.imageUrl
+              ? backendAssetUrl(cat.imageUrl)
+              : FALLBACK_IMAGES[index % FALLBACK_IMAGES.length];
+            const desc = getDescription(cat.handle, getLocalized(cat.description, locale) || null);
 
-          return (
-            <div
-              key={cat.id}
-              className="flex flex-col items-center text-center group reveal active"
-              style={{ animationDelay: `${index * 60}ms` }}
-            >
-              <Link
-                to={`/products?category=${encodeURIComponent(cat.handle)}`}
-                className="block w-full group relative flex flex-col h-full"
+            return (
+              <div
+                key={cat.id}
+                className="group reveal active flex flex-col items-center text-center"
+                style={{ animationDelay: `${index * 60}ms` }}
               >
-                {/* Image */}
-                <div className="relative aspect-square w-full mb-6 flex items-center justify-center">
-                  <img
-                    className="max-w-full max-h-full object-contain transition-transform duration-700 group-hover:scale-105"
-                    src={imageUrl}
-                    alt={name}
-                    loading="lazy"
-                  />
-                </div>
-
-                {/* Text Area */}
-                <div className="text-center flex-1 flex flex-col">
-                  <h3 className="font-heading text-[20px] md:text-[24px] font-bold uppercase leading-tight text-[#111111] mb-4">
-                    {name}
-                  </h3>
-                  <p className="font-body text-[#444444] text-[15px] leading-relaxed mb-6">
-                    {desc}
-                  </p>
-                  
-                  {/* Button Wrapper (takes up space or positioned absolute based on preference, here we make it fade in and slide up) */}
-                  <div className="mt-auto opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300 pointer-events-none group-hover:pointer-events-auto pb-4">
-                    <span className="inline-block px-8 py-3.5 bg-[#2582a1] hover:bg-[#1d6b87] text-white font-bold text-[14px] uppercase tracking-wider rounded-sm transition-colors">
-                      Shop {name}
-                    </span>
+                <Link
+                  to={getCategoryPath(cat.handle)}
+                  className="group relative flex h-full w-full flex-col"
+                >
+                  <div className="relative mb-6 flex aspect-square w-full items-center justify-center bg-surface-container-low px-4">
+                    <img
+                      className="max-h-full max-w-full object-contain transition-transform duration-700 group-hover:scale-105"
+                      src={imageUrl}
+                      alt={name}
+                      loading="lazy"
+                    />
                   </div>
-                </div>
-              </Link>
-            </div>
-          );
-        })}
-      </div>
-    </Container>
+
+                  <div className="absolute -left-5 -right-5 bottom-8 z-10 flex flex-col items-center rounded-xl bg-surface-base/90 px-5 pb-6 pt-5 opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
+                    <h3 className="mb-4 text-center font-heading text-[24px] font-bold uppercase leading-tight text-text-base">
+                      {name}
+                    </h3>
+                    <p className="mb-6 line-clamp-3 text-center font-body text-[14px] leading-relaxed text-text-muted">
+                      {desc}
+                    </p>
+                    <div className="mt-auto">
+                      <span className="inline-block rounded-sm bg-action-support px-8 py-3 text-[14px] font-bold uppercase tracking-wider text-white transition-colors group-hover:bg-action-support-hover">
+                        {locale === "en" ? `Shop ${name}` : `Xem ${name}`}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 flex flex-1">
+                    <div className="flex h-full flex-col text-center opacity-100 group-hover:opacity-0">
+                      <h3 className="mb-4 font-heading text-[24px] font-bold uppercase leading-tight text-text-base">
+                        {name}
+                      </h3>
+                      <p className="mb-6 font-body text-[14px] leading-relaxed text-text-muted">
+                        {desc}
+                      </p>
+                      <div className="mt-auto pb-4 opacity-0">
+                        <span className="inline-block rounded-sm bg-action-support px-8 py-3 text-[14px] font-bold uppercase tracking-wider text-white">
+                          {locale === "en" ? `Shop ${name}` : `Xem ${name}`}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </Link>
+              </div>
+            );
+          })}
+        </div>
+      </Container>
+    </section>
   );
 }

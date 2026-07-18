@@ -1,41 +1,40 @@
 import { useState } from "react";
-import { Link } from "react-router";
-import { ChevronDown, Menu, Search, ShoppingCart, Package } from "lucide-react";
+import { Link, useLocation } from "react-router";
+import { ChevronDown, Menu, ShoppingCart } from "lucide-react";
 import { useNavbarScroll } from "@/hooks/useNavbarScroll";
-import { useLockBody } from "@/hooks/useLockBody";
 import { useClickOutside } from "@/hooks/useClickOutside";
 import { useCart } from "@/hooks/use-cart";
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-} from "@/components/ui/input-group";
 import { Container } from "@/components/container";
 import { MegaMenuGrid } from "./navbar/mega-menu-grid";
 import { NavbarMobileMenu } from "./navbar/mobile-menu";
+import { NavbarCategoryStrip } from "./navbar/category-strip";
 import { DesktopSearch } from "./navbar/DesktopSearch";
 import { NavbarSearchDialog } from "./navbar/search-dialog";
 import { NavbarMoreDropdown } from "./navbar/more-dropdown";
-import {
-  Carousel,
-  CarouselContent,
-  CarouselItem,
-  CarouselPrevious,
-  CarouselNext,
-} from "@/components/ui/carousel";
 import { LanguageSwitcher } from "./language-switcher";
 import type { StorefrontCategory, StorefrontCollection } from "@/lib/api";
+import { getActiveCategoryHandle, getCategoryPath } from "@/lib/storefront-paths";
 import { getLocalized } from "@/lib/translation";
 
 interface NavbarProps {
   categories: StorefrontCategory[];
   collections: StorefrontCollection[];
   locale?: string;
+  hideCategoryStripOnMobile?: boolean;
+  disableStickyOnMobile?: boolean;
 }
 
-export function Navbar({ categories, collections, locale = "vi" }: NavbarProps) {
+export function Navbar({
+  categories,
+  collections,
+  locale = "vi",
+  hideCategoryStripOnMobile = false,
+  disableStickyOnMobile = false,
+}: NavbarProps) {
+  const { pathname } = useLocation();
   const { itemCount } = useCart();
   const { isSticky, slideIn } = useNavbarScroll();
+  const activeCategoryHandle = getActiveCategoryHandle(pathname);
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<
@@ -46,12 +45,10 @@ export function Navbar({ categories, collections, locale = "vi" }: NavbarProps) 
     setActiveDropdown(null),
   );
 
-  useLockBody(isMobileMenuOpen);
-
   const productMenuItems = categories.map((cat) => ({
     title: getLocalized(cat.name, locale),
     imageUrl: cat.imageUrl,
-    href: `/products?category=${encodeURIComponent(cat.handle)}`,
+    href: getCategoryPath(cat.handle),
   }));
 
   const themeMenuItems = collections.map((col) => ({
@@ -60,17 +57,30 @@ export function Navbar({ categories, collections, locale = "vi" }: NavbarProps) 
     href: `/collections/${encodeURIComponent(col.handle)}`,
   }));
 
+  const spacerClassName = disableStickyOnMobile ? "hidden lg:block h-20" : "h-20";
+  const navbarContainerClassName = disableStickyOnMobile
+    ? [
+        "left-0 right-0 z-50 shadow-sm transition-all duration-500 ease-in-out",
+        "relative",
+        isSticky ? "lg:fixed lg:top-0" : "lg:relative",
+        slideIn ? "lg:translate-y-0" : isSticky ? "lg:-translate-y-full" : "",
+      ]
+        .filter(Boolean)
+        .join(" ")
+    : [
+        "left-0 right-0 z-50 shadow-sm transition-all duration-500 ease-in-out",
+        isSticky ? "fixed top-0" : "relative",
+        slideIn ? "translate-y-0" : isSticky ? "-translate-y-full" : "",
+      ]
+        .filter(Boolean)
+        .join(" ");
+
   return (
     <>
-    {isSticky && <div className="h-20" />}
+    {isSticky && <div className={spacerClassName} />}
     <div
       id="navbar-container"
-      className={`
-        left-0 right-0 z-50 shadow-sm
-        transition-all duration-500 ease-in-out
-        ${isSticky ? "fixed top-0" : "relative"}
-        ${slideIn ? "translate-y-0" : isSticky ? "-translate-y-full" : ""}
-      `}
+      className={navbarContainerClassName}
     >
       <header
         className="w-full bg-white flex flex-col relative transition-all duration-300"
@@ -108,7 +118,11 @@ export function Navbar({ categories, collections, locale = "vi" }: NavbarProps) 
                       activeDropdown === "products" ? null : "products",
                     )
                   }
-                  className={`flex items-center gap-1 px-4 h-full transition-colors uppercase relative z-[51] hover:text-primary ${activeDropdown === "products" ? "text-primary" : ""}`}
+                  className={`flex items-center gap-1 px-4 h-full transition-colors uppercase relative z-[51] hover:text-primary ${
+                    activeDropdown === "products" || activeCategoryHandle
+                      ? "text-primary"
+                      : ""
+                  }`}
                   style={{
                     marginBottom: activeDropdown === "products" ? "-1px" : "0",
                     borderBottomColor:
@@ -179,70 +193,18 @@ export function Navbar({ categories, collections, locale = "vi" }: NavbarProps) 
 
         <NavbarMobileMenu
           isOpen={isMobileMenuOpen}
-          onClose={() => setIsMobileMenuOpen(false)}
+          onOpenChange={setIsMobileMenuOpen}
           categories={categories}
           collections={collections}
           locale={locale}
         />
       </header>
 
-      {categories.length > 0 && (
-        <div className="relative z-10 hidden w-full border-y border-gray-100 bg-white sm:block">
-          <Container className="relative py-3">
-            <Carousel
-              opts={{
-                align: "start",
-                loop: true,
-                dragFree: true,
-                duration: 20,
-
-              }}
-              className="px-8 sm:px-8"
-            >
-              <CarouselContent className="gap-4 md:gap-8 ml-0">
-                {categories.map((cat) => (
-                  <CarouselItem
-                    key={cat.id}
-                    className="pl-0 basis-1/4 md:basis-1/5 lg:basis-auto"
-                  >
-                    <Link
-                      to={`/products?category=${encodeURIComponent(cat.handle)}`}
-                      className="block"
-                    >
-                      <div className="lg:hidden w-[65px] h-[65px] mx-auto rounded-lg overflow-hidden bg-gray-100 mb-1">
-                        {cat.imageUrl ? (
-                          <img
-                            src={cat.imageUrl}
-                            alt={getLocalized(cat.name, locale)}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-gray-300">
-                            <Package className="w-5 h-5" />
-                          </div>
-                        )}
-                      </div>
-                      <span className="block text-center text-[11px] font-bold uppercase leading-tight tracking-wide text-brand-strong transition-colors hover:text-brand-support lg:text-left lg:text-[13px] lg:whitespace-nowrap">
-                        {getLocalized(cat.name, locale)}
-                      </span>
-                    </Link>
-                  </CarouselItem>
-                ))}
-              </CarouselContent>
-              <CarouselPrevious
-                size={"icon"}
-                variant={"outline"}
-                className="absolute -left-2 top-1/2 -translate-y-1/2 z-10"
-              />
-              <CarouselNext
-                size={"icon"}
-                variant={"outline"}
-                className="absolute -right-2 top-1/2 -translate-y-1/2 z-10"
-              />
-            </Carousel>
-          </Container>
-        </div>
-      )}
+      <NavbarCategoryStrip
+        categories={categories}
+        locale={locale}
+        hideOnMobile={hideCategoryStripOnMobile}
+      />
     </div>
     </>
   );

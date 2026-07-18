@@ -1,4 +1,4 @@
-import { Outlet, useLoaderData } from "react-router";
+import { Outlet, useLoaderData, useLocation } from "react-router";
 import { Navbar } from "./Navbar";
 import { Footer } from "./Footer";
 import {
@@ -22,11 +22,22 @@ export async function loader({ request }: { request: Request }) {
 
 export default function StorefrontLayout() {
   const { categories, collections, locale } = useLoaderData<typeof loader>();
+  const location = useLocation();
+  const isProductDetailRoute =
+    location.pathname.startsWith("/product/") ||
+    /^\/categories\/[^/]+\/products\/[^/]+\/?$/.test(location.pathname);
+  const hideCategoryStripOnMobile = isProductDetailRoute;
 
   return (
     <div className="flex min-h-screen flex-col">
       <TrustBar />
-      <Navbar categories={categories} collections={collections} locale={locale} />
+      <Navbar
+        categories={categories}
+        collections={collections}
+        locale={locale}
+        hideCategoryStripOnMobile={hideCategoryStripOnMobile}
+        disableStickyOnMobile={isProductDetailRoute}
+      />
       <div className="flex-1">
         <Outlet />
       </div>
