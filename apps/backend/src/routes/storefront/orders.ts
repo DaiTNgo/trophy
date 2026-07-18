@@ -39,7 +39,7 @@ type OrderStatus = "pending" | "confirmed" | "cancelled";
 type PaymentStatus = "pending" | "paid" | "failed" | "refunded";
 type FulfillmentStatus = "unfulfilled" | "partially_fulfilled" | "fulfilled";
 type PaymentMethod = "manual";
-type ProductionStatus = "not_required" | "pending_review";
+type ProductionStatus = "not_required" | "pending_review" | "ready";
 
 const addressSchema = v.object({
   line1: v.pipe(v.string(), v.trim(), v.minLength(1, "Address line is required"), v.maxLength(500)),

@@ -102,6 +102,16 @@ export type AdminOrderDetail = {
   }>;
 };
 
+export type AdminOrderStatusUpdate = {
+  status?: "pending" | "confirmed" | "cancelled";
+  paymentStatus?: "pending" | "paid" | "failed" | "refunded" | "cancelled";
+  fulfillmentStatus?: "unfulfilled" | "partially_fulfilled" | "fulfilled";
+};
+
+export type AdminOrderItemProductionUpdate = {
+  productionStatus: "not_required" | "pending_review" | "ready";
+};
+
 function readJson<T>(response: Response): Promise<T> {
   return response.json() as Promise<T>;
 }
@@ -125,6 +135,52 @@ export async function fetchAdminOrderDetail(orderNumber: string) {
     }
     const body = (await response.json().catch(() => null)) as { error?: string; message?: string } | null;
     throw new Error(body?.error ?? body?.message ?? "Failed to load order detail");
+  }
+
+  const body = await readJson<{ order: AdminOrderDetail }>(response);
+  return body.order;
+}
+
+export async function updateAdminOrderStatus(
+  orderNumber: string,
+  payload: AdminOrderStatusUpdate,
+) {
+  const response = await backendFetch(`/api/admin/orders/${encodeURIComponent(orderNumber)}/status`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const body = (await response.json().catch(() => null)) as { error?: string; message?: string } | null;
+    throw new Error(body?.error ?? body?.message ?? "Failed to update order");
+  }
+
+  const body = await readJson<{ order: AdminOrderDetail }>(response);
+  return body.order;
+}
+
+export async function updateAdminOrderItemProductionStatus(
+  orderNumber: string,
+  itemId: number,
+  payload: AdminOrderItemProductionUpdate,
+) {
+  const response = await backendFetch(
+    `/api/admin/orders/${encodeURIComponent(orderNumber)}/items/${itemId}/production`,
+    {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    },
+  );
+
+  if (!response.ok) {
+    const body = (await response.json().catch(() => null)) as { error?: string; message?: string } | null;
+    throw new Error(body?.error ?? body?.message ?? "Failed to update production status");
   }
 
   const body = await readJson<{ order: AdminOrderDetail }>(response);

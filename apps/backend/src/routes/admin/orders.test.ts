@@ -10,9 +10,11 @@ import { adminRoute } from "./index";
 function createQueryChain({
   getQueue,
   selectQueue,
+  mutations,
 }: {
   getQueue: unknown[];
   selectQueue: unknown[];
+  mutations: unknown[];
 }) {
   const chain: any = {
     from: vi.fn(() => chain),
@@ -20,6 +22,10 @@ function createQueryChain({
     orderBy: vi.fn(() => chain),
     innerJoin: vi.fn(() => chain),
     leftJoin: vi.fn(() => chain),
+    set: vi.fn((value: unknown) => {
+      mutations.push(value);
+      return chain;
+    }),
     get: vi.fn(async () => getQueue.shift() ?? null),
     then: (resolve: (value: unknown) => unknown, reject?: (reason: unknown) => unknown) =>
       Promise.resolve(selectQueue.shift() ?? []).then(resolve, reject),
@@ -31,11 +37,14 @@ function createQueryChain({
 function createMockDb() {
   const getQueue: unknown[] = [];
   const selectQueue: unknown[] = [];
+  const mutations: unknown[] = [];
 
   const db: any = {
     getQueue,
     selectQueue,
-    select: vi.fn(() => createQueryChain({ getQueue, selectQueue })),
+    mutations,
+    select: vi.fn(() => createQueryChain({ getQueue, selectQueue, mutations })),
+    update: vi.fn(() => createQueryChain({ getQueue, selectQueue, mutations })),
   };
 
   return db;
@@ -228,5 +237,274 @@ describe("admin orders routes", () => {
     );
 
     expect(res.status).toBe(404);
+  });
+
+  it("rejects empty admin order status updates", async () => {
+    queueAdminSession(db.getQueue);
+
+    const res = await adminRoute.request(
+      "/orders/ORD-1/status",
+      {
+        method: "PATCH",
+        headers: {
+          Authorization: "Bearer token-1",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({}),
+      },
+      {} as never,
+    );
+
+    expect(res.status).toBe(400);
+    expect(db.update).not.toHaveBeenCalled();
+  });
+
+  it("updates admin order status fields and returns refreshed detail", async () => {
+    queueAdminSession(db.getQueue);
+    db.getQueue.push(
+      { id: 5 },
+      {
+        id: 5,
+        orderNumber: "ORD-1",
+        status: "cancelled",
+        paymentStatus: "paid",
+        fulfillmentStatus: "fulfilled",
+        paymentMethod: "manual",
+        customerName: "John Doe",
+        customerPhone: "0123456789",
+        customerEmail: "john@example.com",
+        primaryAddressJson: JSON.stringify({ line1: "123 Main St", city: "HCM", country: "VN" }),
+        shippingAddressJson: null,
+        shipToDifferentAddress: false,
+        subtotalAmount: 10000,
+        totalAmount: 10000,
+        currencyCode: "VND",
+        itemCount: 1,
+        createdAt: new Date("2026-07-05T00:00:00.000Z"),
+        updatedAt: new Date("2026-07-05T02:00:00.000Z"),
+      },
+    );
+    db.selectQueue.push([], [], [
+      {
+        id: 1,
+        orderId: 5,
+        quantity: 1,
+        unitPriceAmount: 10000,
+        lineSubtotalAmount: 10000,
+        productionStatus: "not_required",
+        productSnapshotJson: JSON.stringify({
+          id: 1,
+          title: "Champion Cup",
+          handle: "champion-cup",
+          status: "published",
+        }),
+        variantSnapshotJson: JSON.stringify({
+          id: 10,
+          title: "Gold",
+          sku: "SKU-1",
+          priceAmount: 10000,
+        }),
+        backgroundSnapshotJson: null,
+        customizationSnapshotJson: null,
+      },
+    ]);
+
+    const res = await adminRoute.request(
+      "/orders/ORD-1/status",
+      {
+        method: "PATCH",
+        headers: {
+          Authorization: "Bearer token-1",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          status: "cancelled",
+          paymentStatus: "paid",
+          fulfillmentStatus: "fulfilled",
+        }),
+      },
+      {} as never,
+    );
+
+    expect(res.status).toBe(200);
+    expect(db.update).toHaveBeenCalledTimes(1);
+    expect(db.mutations[0]).toMatchObject({
+      status: "cancelled",
+      paymentStatus: "paid",
+      fulfillmentStatus: "fulfilled",
+    });
+    expect(db.mutations[0].updatedAt).toBeInstanceOf(Date);
+    const body = (await res.json()) as any;
+    expect(body.order.status).toBe("cancelled");
+    expect(body.order.paymentStatus).toBe("paid");
+    expect(body.order.fulfillmentStatus).toBe("fulfilled");
+    expect(body.order.items[0].productionStatus).toBe("not_required");
+  });
+
+  it("allows cancelling pending payment when cancelling an admin order", async () => {
+    queueAdminSession(db.getQueue);
+    db.getQueue.push(
+      { id: 5 },
+      {
+        id: 5,
+        orderNumber: "ORD-1",
+        status: "cancelled",
+        paymentStatus: "cancelled",
+        fulfillmentStatus: "unfulfilled",
+        paymentMethod: "manual",
+        customerName: "John Doe",
+        customerPhone: "0123456789",
+        customerEmail: "john@example.com",
+        primaryAddressJson: JSON.stringify({ line1: "123 Main St", city: "HCM", country: "VN" }),
+        shippingAddressJson: null,
+        shipToDifferentAddress: false,
+        subtotalAmount: 10000,
+        totalAmount: 10000,
+        currencyCode: "VND",
+        itemCount: 1,
+        createdAt: new Date("2026-07-05T00:00:00.000Z"),
+        updatedAt: new Date("2026-07-05T02:00:00.000Z"),
+      },
+    );
+    db.selectQueue.push([], [], []);
+
+    const res = await adminRoute.request(
+      "/orders/ORD-1/status",
+      {
+        method: "PATCH",
+        headers: {
+          Authorization: "Bearer token-1",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          status: "cancelled",
+          paymentStatus: "cancelled",
+        }),
+      },
+      {} as never,
+    );
+
+    expect(res.status).toBe(200);
+    expect(db.mutations[0]).toMatchObject({
+      status: "cancelled",
+      paymentStatus: "cancelled",
+    });
+    const body = (await res.json()) as any;
+    expect(body.order.status).toBe("cancelled");
+    expect(body.order.paymentStatus).toBe("cancelled");
+  });
+
+  it("marks an admin order item ready for production", async () => {
+    queueAdminSession(db.getQueue);
+    db.getQueue.push(
+      {
+        id: 5,
+        orderNumber: "ORD-1",
+        status: "pending",
+        paymentStatus: "pending",
+        fulfillmentStatus: "unfulfilled",
+        paymentMethod: "manual",
+        customerName: "John Doe",
+        customerPhone: "0123456789",
+        customerEmail: "john@example.com",
+        primaryAddressJson: JSON.stringify({ line1: "123 Main St", city: "HCM", country: "VN" }),
+        shippingAddressJson: null,
+        shipToDifferentAddress: false,
+        subtotalAmount: 10000,
+        totalAmount: 10000,
+        currencyCode: "VND",
+        itemCount: 1,
+        createdAt: new Date("2026-07-05T00:00:00.000Z"),
+        updatedAt: new Date("2026-07-05T01:00:00.000Z"),
+      },
+      {
+        id: 10,
+        orderId: 5,
+        productionStatus: "pending_review",
+      },
+      {
+        id: 5,
+        orderNumber: "ORD-1",
+        status: "pending",
+        paymentStatus: "pending",
+        fulfillmentStatus: "unfulfilled",
+        paymentMethod: "manual",
+        customerName: "John Doe",
+        customerPhone: "0123456789",
+        customerEmail: "john@example.com",
+        primaryAddressJson: JSON.stringify({ line1: "123 Main St", city: "HCM", country: "VN" }),
+        shippingAddressJson: null,
+        shipToDifferentAddress: false,
+        subtotalAmount: 10000,
+        totalAmount: 10000,
+        currencyCode: "VND",
+        itemCount: 1,
+        createdAt: new Date("2026-07-05T00:00:00.000Z"),
+        updatedAt: new Date("2026-07-05T02:00:00.000Z"),
+      },
+    );
+    db.selectQueue.push([], [], [
+      {
+        id: 10,
+        orderId: 5,
+        quantity: 1,
+        unitPriceAmount: 10000,
+        lineSubtotalAmount: 10000,
+        productionStatus: "ready",
+        productSnapshotJson: JSON.stringify({
+          id: 1,
+          title: "Champion Cup",
+          handle: "champion-cup",
+          status: "published",
+        }),
+        variantSnapshotJson: JSON.stringify({
+          id: 10,
+          title: "Gold",
+          sku: "SKU-1",
+          priceAmount: 10000,
+        }),
+        backgroundSnapshotJson: null,
+        customizationSnapshotJson: null,
+      },
+    ]);
+
+    const res = await adminRoute.request(
+      "/orders/ORD-1/items/10/production",
+      {
+        method: "PATCH",
+        headers: {
+          Authorization: "Bearer token-1",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ productionStatus: "ready" }),
+      },
+      {} as never,
+    );
+
+    expect(res.status).toBe(200);
+    expect(db.mutations[0]).toMatchObject({ productionStatus: "ready" });
+    const body = (await res.json()) as any;
+    expect(body.order.items[0].productionStatus).toBe("ready");
+  });
+
+  it("returns 404 when updating a missing admin order", async () => {
+    queueAdminSession(db.getQueue);
+    db.getQueue.push(null);
+
+    const res = await adminRoute.request(
+      "/orders/ORD-missing/status",
+      {
+        method: "PATCH",
+        headers: {
+          Authorization: "Bearer token-1",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ paymentStatus: "paid" }),
+      },
+      {} as never,
+    );
+
+    expect(res.status).toBe(404);
+    expect(db.update).not.toHaveBeenCalled();
   });
 });

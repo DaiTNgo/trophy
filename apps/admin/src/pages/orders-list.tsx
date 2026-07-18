@@ -14,7 +14,7 @@ import {
 const PAGE_SIZE = 20;
 const DATE_FILTERS = ["Today", "Last 7 days", "Last 30 days", "Last 90 days"] as const;
 
-type OrderFilterKey = "region" | "sales_channel" | "payment" | "fulfillment" | "created";
+type OrderFilterKey = "status" | "payment" | "fulfillment" | "created";
 type SortField = "createdAt" | "orderNumber" | "customer" | "totalAmount";
 type SortOrder = "asc" | "desc";
 
@@ -72,7 +72,7 @@ function downloadOrdersCsv(orders: AdminOrderListItem[]) {
     "Order",
     "Date",
     "Customer",
-    "Sales Channel",
+    "Status",
     "Payment",
     "Fulfillment",
     "Order Total",
@@ -82,7 +82,7 @@ function downloadOrdersCsv(orders: AdminOrderListItem[]) {
     `#${order.orderNumber}`,
     formatAdminDate(order.createdAt),
     order.customerEmail || order.customerName,
-    "Default Sales Channel",
+    normalizeStatus(order.status),
     normalizeStatus(order.paymentStatus),
     normalizeStatus(order.fulfillmentStatus),
     order.totalAmount,
@@ -104,6 +104,7 @@ export function OrdersListPage() {
   const [orders, setOrders] = useState<AdminOrderListItem[]>([]);
   const [query, setQuery] = useState("");
   const [activeFilters, setActiveFilters] = useState<OrderFilterKey[]>([]);
+  const [statusFilter, setStatusFilter] = useState<string[]>([]);
   const [paymentFilter, setPaymentFilter] = useState<string[]>([]);
   const [fulfillmentFilter, setFulfillmentFilter] = useState<string[]>([]);
   const [createdFilter, setCreatedFilter] = useState<string | null>(null);
@@ -140,6 +141,10 @@ export function OrdersListPage() {
     };
   }, []);
 
+  const statusOptions = useMemo(
+    () => Array.from(new Set(orders.map((order) => order.status))),
+    [orders],
+  );
   const paymentOptions = useMemo(
     () => Array.from(new Set(orders.map((order) => order.paymentStatus))),
     [orders],
@@ -152,6 +157,9 @@ export function OrdersListPage() {
   const filteredOrders = useMemo(() => {
     const normalizedQuery = deferredQuery.trim().toLowerCase();
     let result = orders.filter((order) => {
+      if (statusFilter.length > 0 && !statusFilter.includes(order.status)) {
+        return false;
+      }
       if (paymentFilter.length > 0 && !paymentFilter.includes(order.paymentStatus)) {
         return false;
       }
@@ -169,7 +177,6 @@ export function OrdersListPage() {
         order.orderNumber,
         order.customerName,
         order.customerEmail ?? "",
-        "Default Sales Channel",
         order.status,
         order.paymentStatus,
         order.fulfillmentStatus,
@@ -191,7 +198,7 @@ export function OrdersListPage() {
     });
 
     return result;
-  }, [createdFilter, deferredQuery, fulfillmentFilter, orders, paymentFilter, sortField, sortOrder]);
+  }, [createdFilter, deferredQuery, fulfillmentFilter, orders, paymentFilter, sortField, sortOrder, statusFilter]);
 
   const pageCount = Math.max(1, Math.ceil(filteredOrders.length / PAGE_SIZE));
   const pageStart = pageIndex * PAGE_SIZE;
@@ -201,7 +208,7 @@ export function OrdersListPage() {
 
   useEffect(() => {
     setPageIndex(0);
-  }, [deferredQuery, paymentFilter, fulfillmentFilter, createdFilter, sortField, sortOrder]);
+  }, [deferredQuery, statusFilter, paymentFilter, fulfillmentFilter, createdFilter, sortField, sortOrder]);
 
   const addFilter = (filter: OrderFilterKey) => {
     setActiveFilters((current) => (current.includes(filter) ? current : [...current, filter]));
@@ -209,6 +216,7 @@ export function OrdersListPage() {
 
   const removeFilter = (filter: OrderFilterKey) => {
     setActiveFilters((current) => current.filter((item) => item !== filter));
+    if (filter === "status") setStatusFilter([]);
     if (filter === "payment") setPaymentFilter([]);
     if (filter === "fulfillment") setFulfillmentFilter([]);
     if (filter === "created") setCreatedFilter(null);
@@ -216,6 +224,7 @@ export function OrdersListPage() {
 
   const clearFilters = () => {
     setActiveFilters([]);
+    setStatusFilter([]);
     setPaymentFilter([]);
     setFulfillmentFilter([]);
     setCreatedFilter(null);
@@ -244,23 +253,34 @@ export function OrdersListPage() {
         {/* Filters */}
         <div className="flex flex-col gap-3 px-6 py-4 border-b border-ui-border-base lg:flex-row lg:items-center lg:justify-between">
           <div className="flex flex-wrap items-center gap-2">
-            {activeFilters.includes("region") ? (
+            {activeFilters.includes("status") ? (
               <div className="flex items-center overflow-hidden rounded-md border border-ui-border-base bg-ui-bg-base text-sm shadow-sm">
-                <div className="border-r border-ui-border-base bg-ui-bg-subtle px-2 py-1 font-medium">Region</div>
+                <div className="border-r border-ui-border-base bg-ui-bg-subtle px-2 py-1 font-medium">Status</div>
                 <div className="border-r border-ui-border-base px-2 py-1 text-ui-fg-muted">is</div>
-                <div className="px-2 py-1">Default Region</div>
-                <button className="border-l border-ui-border-base px-2 py-1 text-ui-fg-muted hover:text-ui-fg-base" onClick={() => removeFilter("region")} type="button">
-                  <X className="h-3 w-3" />
-                </button>
-              </div>
-            ) : null}
-
-            {activeFilters.includes("sales_channel") ? (
-              <div className="flex items-center overflow-hidden rounded-md border border-ui-border-base bg-ui-bg-base text-sm shadow-sm">
-                <div className="border-r border-ui-border-base bg-ui-bg-subtle px-2 py-1 font-medium">Sales Channel</div>
-                <div className="border-r border-ui-border-base px-2 py-1 text-ui-fg-muted">is</div>
-                <div className="px-2 py-1">Default Sales Channel</div>
-                <button className="border-l border-ui-border-base px-2 py-1 text-ui-fg-muted hover:text-ui-fg-base" onClick={() => removeFilter("sales_channel")} type="button">
+                <DropdownMenu>
+                  <DropdownMenu.Trigger className="flex items-center px-2 py-1 outline-none hover:bg-ui-bg-subtle-hover">
+                    {statusFilter.length > 0 ? statusFilter.map(normalizeStatus).join(", ") : "Select..."}
+                  </DropdownMenu.Trigger>
+                  <DropdownMenu.Content align="start">
+                    {statusOptions.map((status) => (
+                      <DropdownMenu.Item
+                        key={status}
+                        onClick={(event) => {
+                          event.preventDefault();
+                          setStatusFilter((current) =>
+                            current.includes(status) ? current.filter((item) => item !== status) : [...current, status],
+                          );
+                        }}
+                      >
+                        <div className="flex items-center gap-2">
+                          <Check className={statusFilter.includes(status) ? "h-4 w-4" : "invisible h-4 w-4"} />
+                          {normalizeStatus(status)}
+                        </div>
+                      </DropdownMenu.Item>
+                    ))}
+                  </DropdownMenu.Content>
+                </DropdownMenu>
+                <button className="border-l border-ui-border-base px-2 py-1 text-ui-fg-muted hover:text-ui-fg-base" onClick={() => removeFilter("status")} type="button">
                   <X className="h-3 w-3" />
                 </button>
               </div>
@@ -363,8 +383,7 @@ export function OrdersListPage() {
                 </Button>
               </DropdownMenu.Trigger>
               <DropdownMenu.Content align="start">
-                {!activeFilters.includes("region") ? <DropdownMenu.Item onClick={() => addFilter("region")}>Region</DropdownMenu.Item> : null}
-                {!activeFilters.includes("sales_channel") ? <DropdownMenu.Item onClick={() => addFilter("sales_channel")}>Sales Channel</DropdownMenu.Item> : null}
+                {!activeFilters.includes("status") ? <DropdownMenu.Item onClick={() => addFilter("status")}>Status</DropdownMenu.Item> : null}
                 {!activeFilters.includes("created") ? <DropdownMenu.Item onClick={() => addFilter("created")}>Created</DropdownMenu.Item> : null}
                 {!activeFilters.includes("payment") ? <DropdownMenu.Item onClick={() => addFilter("payment")}>Payment</DropdownMenu.Item> : null}
                 {!activeFilters.includes("fulfillment") ? <DropdownMenu.Item onClick={() => addFilter("fulfillment")}>Fulfillment</DropdownMenu.Item> : null}
@@ -459,7 +478,7 @@ export function OrdersListPage() {
                   <Table.HeaderCell>Order</Table.HeaderCell>
                   <Table.HeaderCell>Date</Table.HeaderCell>
                   <Table.HeaderCell>Customer</Table.HeaderCell>
-                  <Table.HeaderCell>Sales Channel</Table.HeaderCell>
+                  <Table.HeaderCell>Status</Table.HeaderCell>
                   <Table.HeaderCell>Payment</Table.HeaderCell>
                   <Table.HeaderCell>Fulfillment</Table.HeaderCell>
                   <Table.HeaderCell className="text-right">Order Total</Table.HeaderCell>
@@ -487,9 +506,9 @@ export function OrdersListPage() {
                       </Link>
                     </Table.Cell>
                     <Table.Cell>
-                      <Link to={`/orders/${order.orderNumber}`} className="text-ui-fg-subtle hover:text-ui-fg-base">
-                        Default Sales Channel
-                      </Link>
+                      <StatusBadge color={getBadgeColor(order.status)}>
+                        {formatStatusLabel(order.status)}
+                      </StatusBadge>
                     </Table.Cell>
                     <Table.Cell>
                       <StatusBadge color={getBadgeColor(order.paymentStatus)}>
