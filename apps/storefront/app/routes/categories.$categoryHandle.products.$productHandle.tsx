@@ -30,8 +30,11 @@ import { useCart } from "../hooks/use-cart";
 import { formatCurrency } from "../lib/utils";
 import { getLocalized } from "../lib/translation";
 import {
+  backendFontUrl,
+  backendStaticFontUrl,
   fetchStorefrontDynamicFonts,
   fetchStorefrontProduct,
+  uploadStorefrontCustomizationAsset,
   type StorefrontDetailResponse,
 } from "../lib/api";
 import { recordRecentlyViewedProduct } from "../lib/recently-viewed";
@@ -39,10 +42,6 @@ import type { Route } from "./+types/categories.$categoryHandle.products.$produc
 import { getLocaleFromRequest } from "../lib/locale";
 import Container from "@/components/container";
 import { QuantityInput } from "../components/ui/quantity-input";
-
-const BACKEND_URL =
-  (import.meta.env.VITE_BACKEND_URL as string | undefined)?.replace(/\/$/, "") ??
-  "http://localhost:8787";
 
 export async function loader({ params, request }: Route.LoaderArgs) {
   const locale = getLocaleFromRequest(request);
@@ -401,24 +400,13 @@ export default function ProductDetail() {
   ): Promise<ImageShapeFieldValue> {
     setUploadingFieldId(field.id);
     try {
-      const response = await fetch(`${BACKEND_URL}/api/storefront/customizations/assets`, {
-        method: "POST",
-        headers: { "Content-Type": file.type, "X-Upload-Token": getUploadToken() },
-        body: file,
-      });
-      const payload = (await response.json()) as {
-        asset?: { id: string; widthPx: number; heightPx: number; contentUrl: string };
-        error?: string;
-      };
-      if (!response.ok || !payload.asset) {
-        throw new Error(payload.error ?? "Upload failed.");
-      }
+      const asset = await uploadStorefrontCustomizationAsset(file, getUploadToken());
 
       return {
-        assetId: payload.asset.id,
-        previewUrl: payload.asset.contentUrl,
-        sourceWidthPx: payload.asset.widthPx,
-        sourceHeightPx: payload.asset.heightPx,
+        assetId: asset.id,
+        previewUrl: asset.contentUrl,
+        sourceWidthPx: asset.widthPx,
+        sourceHeightPx: asset.heightPx,
         cropScale: 1,
         cropXRatio: 0,
         cropYRatio: 0,
@@ -443,8 +431,8 @@ export default function ProductDetail() {
       values={customizationValues}
       dynamicFonts={dynamicFonts as DynamicFontFamily[]}
       className="border-0 rounded-none h-[min(50vh,460px)] min-h-[320px] lg:h-[min(72vh,740px)] lg:min-h-[520px]"
-      resolveFontUrl={(assetId) => `${BACKEND_URL}/api/storefront/brand-assets/fonts/file/${assetId}`}
-      resolveStaticFontUrl={(fileName) => `${BACKEND_URL}/fonts/${fileName}`}
+      resolveFontUrl={backendFontUrl}
+      resolveStaticFontUrl={backendStaticFontUrl}
       selectedVariantId={selectedVariant?.id ?? null}
       onImageValueChange={(fieldId, value) => {
         setCustomizationValues((current) => ({ ...current, [fieldId]: value }));
@@ -579,8 +567,8 @@ export default function ProductDetail() {
                       template={customizationTemplate}
                       values={customizationValues}
                       dynamicFonts={dynamicFonts as DynamicFontFamily[]}
-                      resolveFontUrl={(assetId) => `${BACKEND_URL}/api/storefront/brand-assets/fonts/file/${assetId}`}
-                      resolveStaticFontUrl={(fileName) => `${BACKEND_URL}/fonts/${fileName}`}
+                      resolveFontUrl={backendFontUrl}
+                      resolveStaticFontUrl={backendStaticFontUrl}
                       selectedVariantId={selectedVariant?.id ?? null}
                       onImageValueChange={(fieldId, value) => {
                         setCustomizationValues((current) => ({ ...current, [fieldId]: value }));
