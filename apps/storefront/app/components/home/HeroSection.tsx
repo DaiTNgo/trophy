@@ -1,5 +1,5 @@
 import { Link } from "react-router";
-import { Trophy, PenSquare, ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import {
   Carousel,
   CarouselContent,
@@ -87,7 +87,7 @@ export function HeroSection() {
                         {slide.headline.map((line, j) => (
                           <span
                             key={line}
-                            className={`block text-[56px] leading-[1] md:text-[72px] ${j === slide.accentIndex ? "text-brand-accent" : ""}`}
+                            className={`block text-[56px] leading-[1.15] md:text-[72px] ${j === slide.accentIndex ? "text-brand-accent" : ""}`}
                           >
                             {line}
                           </span>
@@ -96,7 +96,7 @@ export function HeroSection() {
                       <p className="mb-8 max-w-md font-body-lg text-body-lg leading-relaxed text-white/80">
                         {slide.body}
                       </p>
-                      <div className="mb-10 flex flex-col items-center gap-3 sm:flex-row sm:gap-4">
+                      <div className="mb-10 flex flex-col items-start gap-3 sm:flex-row sm:gap-4">
                         <Link
                           to={slide.cta.to}
                           className="rounded-lg bg-action-support px-8 py-4 text-center font-label-md text-label-md uppercase tracking-widest text-white transition-all duration-300 hover:bg-action-support-hover"
@@ -110,17 +110,7 @@ export function HeroSection() {
                           {slide.cta2.label}
                         </Link>
                       </div>
-                      <div className="flex items-center gap-6 text-[13px] font-semibold uppercase tracking-wide text-white/50">
-                        <span className="flex items-center gap-1.5">
-                          <Trophy className="text-[16px] text-brand-accent" />
-                          600k+ sản phẩm vinh danh
-                        </span>
-                        <span className="h-1 w-1 rounded-full bg-white/30" />
-                        <span className="flex items-center gap-1.5">
-                          <PenSquare className="text-[16px] text-brand-support" />
-                          Khắc theo yêu cầu
-                        </span>
-                      </div>
+
                     </div>
                   </div>
                 </Container>
