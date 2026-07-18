@@ -61,8 +61,8 @@ export function TrustBar() {
               </CarouselItem>
             ))}
           </CarouselContent>
-          <CarouselPrevious variant={"ghost"} size='icon' className="z-10 -left-0.5 top-1/2 -translate-y-1/2" />
-          <CarouselNext variant={"ghost"} size='icon' className="z-10 -right-0.5 top-1/2 -translate-y-1/2" />
+          <CarouselPrevious variant={"ghost"} size='icon' className="z-10 left-0.5 top-1/2 -translate-y-1/2" />
+          <CarouselNext variant={"ghost"} size='icon' className="z-10 right-0.5 top-1/2 -translate-y-1/2" />
         </Carousel>
       </div>
     </div>

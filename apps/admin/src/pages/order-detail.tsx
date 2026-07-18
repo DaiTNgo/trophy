@@ -9,6 +9,7 @@ import {
   Heading,
   Text,
   DropdownMenu,
+  toast,
 } from "@medusajs/ui";
 import { ProductCustomizationPreview } from "@trophy/customization-react";
 import type { CustomizationTemplate } from "@trophy/customization";
@@ -18,6 +19,9 @@ import {
   formatAdminCurrency,
   formatAdminDate,
   formatStatusLabel,
+  updateAdminOrderItemProductionStatus,
+  updateAdminOrderStatus,
+  type AdminOrderStatusUpdate,
   type AdminOrderDetail,
 } from "../lib/orders-client";
 import { useBreadcrumbs } from "../hooks/use-breadcrumbs";
@@ -31,6 +35,7 @@ function getBadgeColor(
   switch (status) {
     case "fulfilled":
     case "paid":
+    case "ready":
       return "green";
     case "pending":
     case "unfulfilled":
@@ -62,6 +67,98 @@ function renderAddress(address: AdminOrderDetail["primaryAddress"]) {
   ]
     .filter(Boolean)
     .join(", ");
+}
+
+function getPaidAmount(order: AdminOrderDetail) {
+  return order.paymentStatus === "paid" ? order.totals.totalAmount : 0;
+}
+
+function getOutstandingAmount(order: AdminOrderDetail) {
+  if (
+    order.paymentStatus === "paid" ||
+    order.paymentStatus === "refunded" ||
+    order.paymentStatus === "cancelled"
+  ) {
+    return 0;
+  }
+
+  return order.totals.totalAmount;
+}
+
+function getPaymentNotice(order: AdminOrderDetail) {
+  if (order.paymentStatus === "paid") {
+    return "Manual payment has been marked as paid.";
+  }
+
+  if (order.paymentStatus === "failed") {
+    return "Manual payment follow-up failed and needs operator review.";
+  }
+
+  if (order.paymentStatus === "refunded") {
+    return "Payment has been refunded.";
+  }
+
+  if (order.paymentStatus === "cancelled") {
+    return "Payment collection was cancelled with the order.";
+  }
+
+  return "Manual payment is pending operator follow-up.";
+}
+
+function getFulfillmentTitle(status: string) {
+  if (status === "fulfilled") return "Fulfilled Items";
+  if (status === "partially_fulfilled") return "Partially Fulfilled Items";
+  return "Unfulfilled Items";
+}
+
+function getFulfillmentNotice(status: string) {
+  if (status === "fulfilled") {
+    return "All order items are marked fulfilled.";
+  }
+
+  if (status === "partially_fulfilled") {
+    return "Some order items still need fulfillment follow-up.";
+  }
+
+  return "Order items are awaiting fulfillment.";
+}
+
+function getProductionSummary(items: OrderDetailItem[]) {
+  const customItems = items.filter((item) => item.customization?.values.length);
+  const pendingItems = items.filter((item) => item.productionStatus === "pending_review");
+
+  if (customItems.length === 0) {
+    return "No production review is required for plain order items.";
+  }
+
+  if (pendingItems.length > 0) {
+    return `${pendingItems.length} customized item${pendingItems.length === 1 ? "" : "s"} pending production review.`;
+  }
+
+  return "Customized items are ready for production.";
+}
+
+function getCancelOrderUpdate(order: AdminOrderDetail): AdminOrderStatusUpdate {
+  return {
+    status: "cancelled",
+    ...(order.paymentStatus === "pending" ? { paymentStatus: "cancelled" } : {}),
+  };
+}
+
+function DisabledActionHint() {
+  return (
+    <Text size="xsmall" className="px-2 py-1 text-ui-fg-muted">
+      Backend workflow not implemented yet
+    </Text>
+  );
+}
+
+function ActionHint({ children }: { children: string }) {
+  return (
+    <Text size="xsmall" className="px-2 py-1 text-ui-fg-muted">
+      {children}
+    </Text>
+  );
 }
 
 function buildOrderItemCustomizationTemplate(
@@ -203,7 +300,13 @@ function OrderCustomizationPreviewModal({
     <FocusModal open={Boolean(item)} onOpenChange={(open) => { if (!open) onClose(); }}>
       <FocusModal.Content>
         <FocusModal.Header>
-          <div className="flex items-center justify-end gap-x-2">
+          <div className="flex flex-1 items-center justify-between gap-x-2">
+            <FocusModal.Title asChild>
+              <Heading level="h2">Customization preview</Heading>
+            </FocusModal.Title>
+            <FocusModal.Description className="sr-only">
+              Read-only preview of the frozen order customization snapshot.
+            </FocusModal.Description>
             <FocusModal.Close asChild>
               <Button variant="secondary" size="small">Close</Button>
             </FocusModal.Close>
@@ -310,6 +413,7 @@ export function OrderDetailPage() {
   );
   const [error, setError] = useState("");
   const [previewItem, setPreviewItem] = useState<OrderDetailItem | null>(null);
+  const [updatingAction, setUpdatingAction] = useState<string | null>(null);
 
   useEffect(() => {
     if (!orderNumber) {
@@ -389,6 +493,44 @@ export function OrderDetailPage() {
     );
   }
 
+  const currentOrder = order;
+  const paidAmount = getPaidAmount(currentOrder);
+  const outstandingAmount = getOutstandingAmount(order);
+  const fulfillmentTitle = getFulfillmentTitle(order.fulfillmentStatus);
+  const fulfillmentNotice = getFulfillmentNotice(order.fulfillmentStatus);
+  const productionSummary = getProductionSummary(order.items);
+  const hasPendingPayment = order.paymentStatus === "pending";
+  const hasProductionReviewItems = order.items.some((item) => item.customization?.values.length);
+  const hasPendingProductionReview = order.items.some((item) => item.productionStatus === "pending_review");
+
+  async function updateOrderStatus(payload: AdminOrderStatusUpdate, successMessage: string, actionId: string) {
+    setUpdatingAction(actionId);
+    try {
+      const nextOrder = await updateAdminOrderStatus(currentOrder.orderNumber, payload);
+      setOrder(nextOrder);
+      toast.success(successMessage);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update order");
+    } finally {
+      setUpdatingAction(null);
+    }
+  }
+
+  async function updateOrderItemProductionStatus(itemId: number, actionId: string) {
+    setUpdatingAction(actionId);
+    try {
+      const nextOrder = await updateAdminOrderItemProductionStatus(currentOrder.orderNumber, itemId, {
+        productionStatus: "ready",
+      });
+      setOrder(nextOrder);
+      toast.success("Item marked ready for production");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update production status");
+    } finally {
+      setUpdatingAction(null);
+    }
+  }
+
   return (
     <div className="flex flex-col gap-y-4">
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
@@ -409,7 +551,7 @@ export function OrderDetailPage() {
                   </Button>
                 </div>
                 <Text size="small" className="text-ui-fg-subtle">
-                  {formatAdminDate(order.createdAt)} from Default Sales Channel
+                  {formatAdminDate(order.createdAt)}
                 </Text>
               </div>
               <div className="flex items-center gap-x-3">
@@ -421,17 +563,26 @@ export function OrderDetailPage() {
                 >
                   {formatStatusLabel(order.fulfillmentStatus)}
                 </StatusBadge>
+                <StatusBadge color={getBadgeColor(order.status)}>
+                  {formatStatusLabel(order.status)}
+                </StatusBadge>
                 <DropdownMenu>
                   <DropdownMenu.Trigger asChild>
                     <Button variant="transparent" size="small" className="p-1">
                       <EllipsisHorizontal className="h-5 w-5 text-ui-fg-muted" />
                     </Button>
                   </DropdownMenu.Trigger>
-                  <DropdownMenu.Content>
-                    <DropdownMenu.Item>
+                  <DropdownMenu.Content align="end">
+                    <DropdownMenu.Item
+                      disabled={order.status === "cancelled" || Boolean(updatingAction)}
+                      onClick={() => void updateOrderStatus(getCancelOrderUpdate(order), "Order cancelled", "cancel-order")}
+                    >
                       <XMark className="mr-2 h-4 w-4" />
-                      Cancel
+                      Cancel order
                     </DropdownMenu.Item>
+                    <ActionHint>
+                      Pending manual payment is cancelled with the order; settled payments stay separate.
+                    </ActionHint>
                   </DropdownMenu.Content>
                 </DropdownMenu>
               </div>
@@ -442,19 +593,25 @@ export function OrderDetailPage() {
           <Container className="p-0">
             <div className="flex items-center justify-between px-6 py-4 border-b border-ui-border-base">
               <Heading level="h2">Summary</Heading>
-              <DropdownMenu>
-                <DropdownMenu.Trigger asChild>
-                  <Button variant="transparent" size="small" className="p-1">
-                    <EllipsisHorizontal className="h-5 w-5 text-ui-fg-muted" />
-                  </Button>
-                </DropdownMenu.Trigger>
-                <DropdownMenu.Content>
-                  <DropdownMenu.Item>
-                    <PencilSquare className="mr-2 h-4 w-4" />
-                    Edit Order
-                  </DropdownMenu.Item>
-                </DropdownMenu.Content>
-              </DropdownMenu>
+              <div className="flex items-center gap-x-3">
+                <Text size="small" className="text-ui-fg-subtle">
+                  Immutable order item snapshots
+                </Text>
+                <DropdownMenu>
+                  <DropdownMenu.Trigger asChild>
+                    <Button variant="transparent" size="small" className="p-1">
+                      <EllipsisHorizontal className="h-5 w-5 text-ui-fg-muted" />
+                    </Button>
+                  </DropdownMenu.Trigger>
+                  <DropdownMenu.Content align="end">
+                    <DropdownMenu.Item disabled>
+                      <PencilSquare className="mr-2 h-4 w-4" />
+                      Edit order
+                    </DropdownMenu.Item>
+                    <DisabledActionHint />
+                  </DropdownMenu.Content>
+                </DropdownMenu>
+              </div>
             </div>
 
             <div className="flex flex-col gap-y-0 p-6">
@@ -505,7 +662,7 @@ export function OrderDetailPage() {
                         className="font-medium text-ui-fg-base w-16 text-right"
                       >
                         {formatAdminCurrency(
-                          item.lineSubtotalAmount * item.quantity,
+                          item.lineSubtotalAmount,
                           order.totals.currencyCode,
                         )}
                       </Text>
@@ -559,6 +716,26 @@ export function OrderDetailPage() {
                       ) : null}
                     </div>
                   ) : null}
+                  {!item.customization?.values.length ? (
+                    <div className="ml-12 mt-1 rounded-lg border border-ui-border-base bg-ui-bg-subtle p-3 shadow-sm">
+                      <div className="flex items-center justify-between">
+                        <div className="flex flex-col gap-y-0.5">
+                          <Text
+                            size="xsmall"
+                            className="font-medium uppercase tracking-wider text-ui-fg-base"
+                          >
+                            Production Ticket
+                          </Text>
+                          <Text size="xsmall" className="text-ui-fg-subtle">
+                            Plain item snapshot; no customization review is required.
+                          </Text>
+                        </div>
+                        <StatusBadge color={getBadgeColor(item.productionStatus)}>
+                          {formatStatusLabel(item.productionStatus)}
+                        </StatusBadge>
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
               ))}
             </div>
@@ -570,7 +747,7 @@ export function OrderDetailPage() {
                 </Text>
                 <Text size="small" className="text-ui-fg-base">
                   {formatAdminCurrency(
-                    order.totals.totalAmount,
+                    order.totals.subtotalAmount,
                     order.totals.currencyCode,
                   )}
                 </Text>
@@ -583,7 +760,7 @@ export function OrderDetailPage() {
                   Shipping Subtotal <span className="text-ui-fg-muted">›</span>
                 </Text>
                 <Text size="small" className="text-ui-fg-base">
-                  {formatAdminCurrency(0, order.totals.currencyCode)}
+                  Included in manual follow-up
                 </Text>
               </div>
               <div className="flex items-center justify-between">
@@ -591,7 +768,7 @@ export function OrderDetailPage() {
                   Tax Total
                 </Text>
                 <Text size="small" className="text-ui-fg-base">
-                  {formatAdminCurrency(0, order.totals.currencyCode)}
+                  Included in manual follow-up
                 </Text>
               </div>
               <div className="flex items-center justify-between">
@@ -611,7 +788,7 @@ export function OrderDetailPage() {
                   Paid Total
                 </Text>
                 <Text size="small" className="text-ui-fg-base">
-                  {formatAdminCurrency(0, order.totals.currencyCode)}
+                  {formatAdminCurrency(paidAmount, order.totals.currencyCode)}
                 </Text>
               </div>
               <div className="flex items-center justify-between">
@@ -620,7 +797,7 @@ export function OrderDetailPage() {
                 </Text>
                 <Text size="small" className="font-medium text-ui-fg-base">
                   {formatAdminCurrency(
-                    order.totals.totalAmount,
+                    outstandingAmount,
                     order.totals.currencyCode,
                   )}
                 </Text>
@@ -632,9 +809,41 @@ export function OrderDetailPage() {
           <Container className="p-0">
             <div className="flex items-center justify-between px-6 py-4 border-b border-ui-border-base">
               <Heading level="h2">Payments</Heading>
-              <StatusBadge color={getBadgeColor(order.paymentStatus)}>
-                {formatStatusLabel(order.paymentStatus)}
-              </StatusBadge>
+              <div className="flex items-center gap-x-3">
+                <StatusBadge color={getBadgeColor(order.paymentStatus)}>
+                  {formatStatusLabel(order.paymentStatus)}
+                </StatusBadge>
+                <DropdownMenu>
+                  <DropdownMenu.Trigger asChild>
+                    <Button variant="transparent" size="small" className="p-1">
+                      <EllipsisHorizontal className="h-5 w-5 text-ui-fg-muted" />
+                    </Button>
+                  </DropdownMenu.Trigger>
+                  <DropdownMenu.Content align="end">
+                    <DropdownMenu.Item
+                      disabled={order.paymentStatus === "paid" || Boolean(updatingAction)}
+                      onClick={() => void updateOrderStatus({ paymentStatus: "paid" }, "Payment marked as paid", "payment-paid")}
+                    >
+                      Mark as paid
+                    </DropdownMenu.Item>
+                    <DropdownMenu.Item
+                      disabled={order.paymentStatus === "failed" || Boolean(updatingAction)}
+                      onClick={() => void updateOrderStatus({ paymentStatus: "failed" }, "Payment marked as failed", "payment-failed")}
+                    >
+                      Mark as failed
+                    </DropdownMenu.Item>
+                    <DropdownMenu.Item
+                      disabled={order.paymentStatus === "refunded" || Boolean(updatingAction)}
+                      onClick={() => void updateOrderStatus({ paymentStatus: "refunded" }, "Payment marked as refunded", "payment-refunded")}
+                    >
+                      Refund payment
+                    </DropdownMenu.Item>
+                    <ActionHint>
+                      Manual payment state is tracked on the order record.
+                    </ActionHint>
+                  </DropdownMenu.Content>
+                </DropdownMenu>
+              </div>
             </div>
             <div className="p-6 flex flex-col gap-y-4">
               <div className="flex items-center justify-between">
@@ -650,8 +859,8 @@ export function OrderDetailPage() {
                   <Text size="small" className="text-ui-fg-subtle">
                     {formatStatusLabel(order.paymentMethod)}
                   </Text>
-                  <StatusBadge color="orange">
-                    Pending
+                  <StatusBadge color={getBadgeColor(order.paymentStatus)}>
+                    {formatStatusLabel(order.paymentStatus)}
                   </StatusBadge>
                   <Text
                     size="small"
@@ -662,23 +871,22 @@ export function OrderDetailPage() {
                       order.totals.currencyCode,
                     )}
                   </Text>
-                  <Button
-                    variant="transparent"
-                    size="small"
-                    className="p-1 -ml-2"
-                  >
-                    <EllipsisHorizontal className="h-5 w-5 text-ui-fg-muted" />
-                  </Button>
                 </div>
               </div>
 
               <div className="flex items-center justify-between p-3 bg-ui-bg-subtle rounded-lg border border-ui-border-base">
                 <div className="flex items-center gap-x-2 text-ui-fg-subtle">
                   <ArrowPath className="h-4 w-4" />
-                  <Text size="small">Payment is ready to be captured.</Text>
+                  <Text size="small">{getPaymentNotice(order)}</Text>
                 </div>
-                <Button variant="secondary" size="small">
-                  Capture payment
+                <Button
+                  variant="secondary"
+                  size="small"
+                  disabled={!hasPendingPayment || Boolean(updatingAction)}
+                  isLoading={updatingAction === "payment-paid-inline"}
+                  onClick={() => void updateOrderStatus({ paymentStatus: "paid" }, "Payment marked as paid", "payment-paid-inline")}
+                >
+                  {hasPendingPayment ? "Mark as paid" : "No payment action"}
                 </Button>
               </div>
 
@@ -688,16 +896,16 @@ export function OrderDetailPage() {
                     Total paid by customer
                   </Text>
                   <Text size="small" className="text-ui-fg-base">
-                    {formatAdminCurrency(0, order.totals.currencyCode)}
+                    {formatAdminCurrency(paidAmount, order.totals.currencyCode)}
                   </Text>
                 </div>
                 <div className="flex items-center justify-between">
                   <Text size="small" className="font-medium text-ui-fg-base">
-                    Total pending
+                    Outstanding amount
                   </Text>
                   <Text size="small" className="font-medium text-ui-fg-base">
                     {formatAdminCurrency(
-                      order.totals.totalAmount,
+                      outstandingAmount,
                       order.totals.currencyCode,
                     )}
                   </Text>
@@ -706,16 +914,13 @@ export function OrderDetailPage() {
             </div>
           </Container>
 
-          {/* Unfulfilled Items */}
+          {/* Fulfillment */}
           <Container className="p-0">
             <div className="flex items-center justify-between px-6 py-4 border-b border-ui-border-base">
-              <Heading level="h2">Unfulfilled Items</Heading>
+              <Heading level="h2">{fulfillmentTitle}</Heading>
               <div className="flex items-center gap-x-3">
-                <StatusBadge color="red">
-                  Requires shipping
-                </StatusBadge>
-                <StatusBadge color="red">
-                  Awaiting fulfillment
+                <StatusBadge color={getBadgeColor(order.fulfillmentStatus)}>
+                  {formatStatusLabel(order.fulfillmentStatus)}
                 </StatusBadge>
                 <DropdownMenu>
                   <DropdownMenu.Trigger asChild>
@@ -723,11 +928,36 @@ export function OrderDetailPage() {
                       <EllipsisHorizontal className="h-5 w-5 text-ui-fg-muted" />
                     </Button>
                   </DropdownMenu.Trigger>
-                  <DropdownMenu.Content>
-                    <DropdownMenu.Item>Fulfill order</DropdownMenu.Item>
+                  <DropdownMenu.Content align="end">
+                    <DropdownMenu.Item
+                      disabled={order.fulfillmentStatus === "fulfilled" || Boolean(updatingAction)}
+                      onClick={() => void updateOrderStatus({ fulfillmentStatus: "fulfilled" }, "Order marked fulfilled", "fulfillment-fulfilled")}
+                    >
+                      Fulfill order
+                    </DropdownMenu.Item>
+                    <DropdownMenu.Item
+                      disabled={order.fulfillmentStatus === "partially_fulfilled" || Boolean(updatingAction)}
+                      onClick={() => void updateOrderStatus({ fulfillmentStatus: "partially_fulfilled" }, "Order marked partially fulfilled", "fulfillment-partial")}
+                    >
+                      Mark partially fulfilled
+                    </DropdownMenu.Item>
+                    <DropdownMenu.Item
+                      disabled={order.fulfillmentStatus === "unfulfilled" || Boolean(updatingAction)}
+                      onClick={() => void updateOrderStatus({ fulfillmentStatus: "unfulfilled" }, "Order marked unfulfilled", "fulfillment-unfulfilled")}
+                    >
+                      Mark unfulfilled
+                    </DropdownMenu.Item>
+                    <ActionHint>
+                      Fulfillment state is tracked at order level until shipment records exist.
+                    </ActionHint>
                   </DropdownMenu.Content>
                 </DropdownMenu>
               </div>
+            </div>
+            <div className="border-b border-ui-border-base px-6 py-3">
+              <Text size="small" className="text-ui-fg-subtle">
+                {fulfillmentNotice}
+              </Text>
             </div>
             <div className="p-6">
               {order.items.map((item) => (
@@ -761,15 +991,15 @@ export function OrderDetailPage() {
                       )}
                     </Text>
                     <Text size="small">{item.quantity}x</Text>
-                    <Text
-                      size="small"
-                      className="font-medium text-ui-fg-base w-16 text-right"
-                    >
-                      {formatAdminCurrency(
-                        item.lineSubtotalAmount * item.quantity,
-                        order.totals.currencyCode,
-                      )}
-                    </Text>
+                      <Text
+                        size="small"
+                        className="font-medium text-ui-fg-base w-16 text-right"
+                      >
+                        {formatAdminCurrency(
+                          item.lineSubtotalAmount,
+                          order.totals.currencyCode,
+                        )}
+                      </Text>
                   </div>
                 </div>
               ))}
@@ -783,19 +1013,24 @@ export function OrderDetailPage() {
           <Container className="p-0">
             <div className="flex items-center justify-between px-6 py-4 border-b border-ui-border-base">
               <Heading level="h2">Customer</Heading>
-              <DropdownMenu>
-                <DropdownMenu.Trigger asChild>
-                  <Button variant="transparent" size="small" className="p-1">
-                    <EllipsisHorizontal className="h-5 w-5 text-ui-fg-muted" />
-                  </Button>
-                </DropdownMenu.Trigger>
-                <DropdownMenu.Content>
-                  <DropdownMenu.Item>Transfer ownership</DropdownMenu.Item>
-                  <DropdownMenu.Item>Shipping address</DropdownMenu.Item>
-                  <DropdownMenu.Item>Billing address</DropdownMenu.Item>
-                  <DropdownMenu.Item>Email</DropdownMenu.Item>
-                </DropdownMenu.Content>
-              </DropdownMenu>
+              <div className="flex items-center gap-x-3">
+                <Text size="small" className="text-ui-fg-subtle">
+                  Order address snapshot
+                </Text>
+                <DropdownMenu>
+                  <DropdownMenu.Trigger asChild>
+                    <Button variant="transparent" size="small" className="p-1">
+                      <EllipsisHorizontal className="h-5 w-5 text-ui-fg-muted" />
+                    </Button>
+                  </DropdownMenu.Trigger>
+                  <DropdownMenu.Content align="end">
+                    <DropdownMenu.Item disabled>Edit contact</DropdownMenu.Item>
+                    <DropdownMenu.Item disabled>Edit shipping address</DropdownMenu.Item>
+                    <DropdownMenu.Item disabled>Edit billing address</DropdownMenu.Item>
+                    <DisabledActionHint />
+                  </DropdownMenu.Content>
+                </DropdownMenu>
+              </div>
             </div>
 
             <div className="p-6 flex flex-col gap-y-6">
@@ -865,7 +1100,66 @@ export function OrderDetailPage() {
             </div>
           </Container>
 
-          {/* Activity Timeline Placeholder */}
+          {/* Production */}
+          <Container className="p-0">
+            <div className="flex items-center justify-between border-b border-ui-border-base px-6 py-4">
+              <Heading level="h2">Production</Heading>
+              <StatusBadge
+                color={
+                  hasPendingProductionReview
+                    ? "orange"
+                    : hasProductionReviewItems
+                      ? "green"
+                      : "grey"
+                }
+              >
+                {hasPendingProductionReview
+                  ? "Pending review"
+                  : hasProductionReviewItems
+                    ? "Ready"
+                    : "No review"}
+              </StatusBadge>
+            </div>
+            <div className="flex flex-col gap-y-3 p-6">
+              <Text size="small" className="text-ui-fg-subtle">
+                {productionSummary}
+              </Text>
+              <div className="flex flex-col divide-y divide-ui-border-base rounded-lg border border-ui-border-base">
+                {order.items.map((item) => (
+                  <div key={`production-${item.id}`} className="flex items-center justify-between gap-3 px-3 py-2">
+                    <div className="min-w-0">
+                      <Text size="small" className="truncate text-ui-fg-base">
+                        {item.product?.title ?? "Unknown product"}
+                      </Text>
+                      <Text size="xsmall" className="truncate text-ui-fg-subtle">
+                        {item.variant?.title ?? "Unknown variant"}
+                      </Text>
+                    </div>
+                    <StatusBadge color={getBadgeColor(item.productionStatus)}>
+                      {formatStatusLabel(item.productionStatus)}
+                    </StatusBadge>
+                    {item.productionStatus === "pending_review" ? (
+                      <Button
+                        variant="secondary"
+                        size="small"
+                        disabled={Boolean(updatingAction)}
+                        onClick={() =>
+                          void updateOrderItemProductionStatus(
+                            item.id,
+                            `production-ready-${item.id}`,
+                          )
+                        }
+                      >
+                        Mark ready
+                      </Button>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </Container>
+
+          {/* Activity */}
           <Container className="p-0">
             <div className="px-6 py-4 border-b border-ui-border-base">
               <Heading level="h2">Activity</Heading>
@@ -877,10 +1171,10 @@ export function OrderDetailPage() {
                 <div className="flex flex-col gap-y-0.5">
                   <div className="flex items-center justify-between">
                     <Text size="small" className="font-medium text-ui-fg-base">
-                      Awaiting payment
+                      {order.paymentStatus === "paid" ? "Payment marked paid" : "Awaiting manual payment"}
                     </Text>
                     <Text size="xsmall" className="text-ui-fg-muted">
-                      Just now
+                      {formatAdminDate(order.updatedAt)}
                     </Text>
                   </div>
                   <Text size="small" className="text-ui-fg-muted">
@@ -900,7 +1194,7 @@ export function OrderDetailPage() {
                       Order placed
                     </Text>
                     <Text size="xsmall" className="text-ui-fg-muted">
-                      Just now
+                      {formatAdminDate(order.createdAt)}
                     </Text>
                   </div>
                   <Text size="small" className="text-ui-fg-muted">

@@ -16,7 +16,8 @@
 	"preview_urls": true,
 	"upload_source_maps": true,
 	"compatibility_flags": [
-		"nodejs_compat"
+		"nodejs_compat",
+		"global_fetch_strictly_public"
 	]
 	/**
 	 * Smart Placement

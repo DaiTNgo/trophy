@@ -599,6 +599,8 @@ export function ProductDetailVariants({ product, mutate }: ProductDetailVariants
           </FocusModal.Header>
           <FocusModal.Body className="overflow-y-auto px-6 py-8">
             <div className="mx-auto flex w-full max-w-[760px] flex-col gap-8">
+              {variantError ? <InlineError message={variantError} /> : null}
+
               <section className="space-y-4">
                 <div>
                   <Heading level="h3" className="text-base font-medium">

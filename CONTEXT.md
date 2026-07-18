@@ -277,7 +277,7 @@ An order created without an online payment gateway or shopper-selected payment s
 _Avoid_: online checkout payment, gateway transaction, shopper payment method
 
 **Order Item Production Status**:
-The production readiness state tracked per order item. Non-customized items do not require production review, while customized items start pending operator review before production work begins.
+The production readiness state tracked per order item. Non-customized items are `not_required`; customized items start as `pending_review`; after an operator confirms the submitted customization snapshot is production-ready, the item becomes `ready`.
 _Avoid_: order status, fulfillment status, customization status
 
 **Admin Draft Discard Guard**:

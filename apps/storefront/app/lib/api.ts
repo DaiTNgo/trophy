@@ -1,13 +1,56 @@
 import type { LocalizedTextValue } from "./translation";
+import { fetchBackendWithLog } from "./observability";
 
 const BACKEND_URL =
   (import.meta.env.VITE_BACKEND_URL as string | undefined)?.replace(/\/$/, "") ??
   "http://localhost:8787";
 
+export function backendUrl(path: string) {
+  return `${BACKEND_URL}${path.startsWith("/") ? path : `/${path}`}`;
+}
+
 export function backendAssetUrl(path: string | null | undefined) {
   if (!path) return "";
   if (/^https?:\/\//i.test(path)) return path;
-  return `${BACKEND_URL}${path.startsWith("/") ? path : `/${path}`}`;
+  return backendUrl(path);
+}
+
+export function backendFontUrl(assetId: string) {
+  return backendUrl(`/api/storefront/brand-assets/fonts/file/${encodeURIComponent(assetId)}`);
+}
+
+export function backendStaticFontUrl(fileName: string) {
+  return backendUrl(`/fonts/${encodeURIComponent(fileName)}`);
+}
+
+export type StorefrontCustomizationAsset = {
+  id: string;
+  widthPx: number;
+  heightPx: number;
+  contentUrl: string;
+};
+
+export async function uploadStorefrontCustomizationAsset(
+  file: File,
+  uploadToken: string,
+): Promise<StorefrontCustomizationAsset> {
+  const response = await fetchBackendWithLog("uploadStorefrontCustomizationAsset", backendUrl("/api/storefront/customizations/assets"), {
+    method: "POST",
+    headers: { "Content-Type": file.type, "X-Upload-Token": uploadToken },
+    body: file,
+  });
+  const payload = (await response.json()) as {
+    asset?: StorefrontCustomizationAsset;
+    error?: string;
+  };
+  if (!response.ok || !payload.asset) {
+    throw new Error(payload.error ?? "Upload failed.");
+  }
+
+  return {
+    ...payload.asset,
+    contentUrl: backendAssetUrl(payload.asset.contentUrl),
+  };
 }
 
 export type StorefrontProductItem = {
@@ -96,9 +139,9 @@ export async function fetchStorefrontProducts(params: {
   if (params.locale) searchParams.set("locale", params.locale);
 
   const qs = searchParams.toString();
-  const url = `${BACKEND_URL}/api/storefront/products${qs ? `?${qs}` : ""}`;
+  const url = backendUrl(`/api/storefront/products${qs ? `?${qs}` : ""}`);
 
-  const res = await fetch(url);
+  const res = await fetchBackendWithLog("fetchStorefrontProducts", url);
 
   if (!res.ok) {
     throw new Response("Failed to load products", { status: res.status });
@@ -116,9 +159,9 @@ export async function fetchStorefrontProducts(params: {
 }
 
 export async function fetchStorefrontProduct(handle: string, locale?: string): Promise<StorefrontDetailResponse["item"]> {
-  const url = `${BACKEND_URL}/api/storefront/products/${encodeURIComponent(handle)}${locale ? `?locale=${locale}` : ''}`;
+  const url = backendUrl(`/api/storefront/products/${encodeURIComponent(handle)}${locale ? `?locale=${locale}` : ''}`);
 
-  const res = await fetch(url);
+  const res = await fetchBackendWithLog("fetchStorefrontProduct", url);
 
   if (!res.ok) {
     if (res.status === 404) {
@@ -141,7 +184,7 @@ export async function fetchStorefrontProduct(handle: string, locale?: string): P
 }
 
 export async function fetchStorefrontDynamicFonts(): Promise<StorefrontDynamicFont[]> {
-  const res = await fetch(`${BACKEND_URL}/api/storefront/brand-assets/fonts`);
+  const res = await fetchBackendWithLog("fetchStorefrontDynamicFonts", backendUrl("/api/storefront/brand-assets/fonts"));
 
   if (!res.ok) {
     throw new Response("Failed to load fonts", { status: res.status });
@@ -161,7 +204,7 @@ export type StorefrontCategory = {
 };
 
 export async function fetchStorefrontCategories(locale?: string): Promise<StorefrontCategory[]> {
-  const res = await fetch(`${BACKEND_URL}/api/storefront/categories${locale ? `?locale=${locale}` : ''}`);
+  const res = await fetchBackendWithLog("fetchStorefrontCategories", backendUrl(`/api/storefront/categories${locale ? `?locale=${locale}` : ''}`));
 
   if (!res.ok) {
     throw new Response("Failed to load categories", { status: res.status });
@@ -180,7 +223,7 @@ export type StorefrontCollection = {
 };
 
 export async function fetchStorefrontCollections(locale?: string): Promise<StorefrontCollection[]> {
-  const res = await fetch(`${BACKEND_URL}/api/storefront/collections${locale ? `?locale=${locale}` : ''}`);
+  const res = await fetchBackendWithLog("fetchStorefrontCollections", backendUrl(`/api/storefront/collections${locale ? `?locale=${locale}` : ''}`));
 
   if (!res.ok) {
     throw new Response("Failed to load collections", { status: res.status });
@@ -192,17 +235,18 @@ export async function fetchStorefrontCollections(locale?: string): Promise<Store
 
 export async function fetchStorefrontCollectionProducts(
   handle: string,
-  params?: { page?: number; limit?: number; locale?: string }
+  params?: { page?: number; limit?: number; locale?: string; customizable?: "all" | "true" | "false" }
 ): Promise<StorefrontListingResponse> {
   const searchParams = new URLSearchParams();
   if (params?.page) searchParams.set("page", String(params.page));
   if (params?.limit) searchParams.set("limit", String(params.limit));
   if (params?.locale) searchParams.set("locale", params.locale);
+  if (params?.customizable) searchParams.set("customizable", params.customizable);
 
   const qs = searchParams.toString();
-  const url = `${BACKEND_URL}/api/storefront/collections/${encodeURIComponent(handle)}/products${qs ? `?${qs}` : ""}`;
+  const url = backendUrl(`/api/storefront/collections/${encodeURIComponent(handle)}/products${qs ? `?${qs}` : ""}`);
 
-  const res = await fetch(url);
+  const res = await fetchBackendWithLog("fetchStorefrontCollectionProducts", url);
 
   if (!res.ok) {
     throw new Response("Failed to load collection products", { status: res.status });
@@ -350,9 +394,9 @@ export type StorefrontOrderLookupResponse = {
 export async function createStorefrontOrder(
   payload: StorefrontOrderRequest
 ): Promise<StorefrontOrderResponse> {
-  const url = `${BACKEND_URL}/api/storefront/orders`;
+  const url = backendUrl("/api/storefront/orders");
 
-  const res = await fetch(url, {
+  const res = await fetchBackendWithLog("createStorefrontOrder", url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -374,7 +418,7 @@ export async function createStorefrontOrder(
 export async function resolveStorefrontCartLines(
   payload: { items: Array<{ productId: number; variantId: number }>, locale?: string },
 ): Promise<StorefrontResolvedCartResponse> {
-  const res = await fetch(`${BACKEND_URL}/api/storefront/orders/resolve`, {
+  const res = await fetchBackendWithLog("resolveStorefrontCartLines", backendUrl("/api/storefront/orders/resolve"), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -404,7 +448,7 @@ export async function lookupStorefrontOrder(payload: {
   orderNumber: string;
   phone: string;
 }): Promise<StorefrontOrderLookupResponse> {
-  const res = await fetch(`${BACKEND_URL}/api/storefront/orders/lookup`, {
+  const res = await fetchBackendWithLog("lookupStorefrontOrder", backendUrl("/api/storefront/orders/lookup"), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

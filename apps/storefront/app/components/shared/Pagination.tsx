@@ -16,13 +16,13 @@ export function Pagination({ currentPage, totalPages, onPageChange }: Pagination
   ).sort((a, b) => a - b);
 
   return (
-    <div className="mt-10 flex flex-wrap items-center justify-center gap-2 md:mt-12">
+    <div className="mt-10 flex flex-wrap items-center justify-center gap-1.5 md:mt-12">
       <button
         onClick={() => onPageChange?.(currentPage - 1)}
         disabled={currentPage <= 1}
-        className="flex h-10 w-10 items-center justify-center rounded-sm border border-border-subtle bg-surface-base text-on-surface-variant transition-colors hover:border-brand-support hover:text-brand-support disabled:opacity-45 disabled:hover:border-border-subtle disabled:hover:text-on-surface-variant"
+        className="flex h-7 w-7 items-center justify-center rounded-[2px] border border-border-subtle bg-surface-base text-text-muted transition-colors hover:border-brand-support hover:text-brand-support disabled:opacity-45 disabled:hover:border-border-subtle disabled:hover:text-text-muted"
       >
-        <ChevronLeft />
+        <ChevronLeft className="h-4 w-4" />
       </button>
 
       {pages.map((page, index) => {
@@ -35,10 +35,10 @@ export function Pagination({ currentPage, totalPages, onPageChange }: Pagination
             <button
               onClick={() => onPageChange?.(page)}
               aria-current={page === currentPage ? "page" : undefined}
-              className={`flex h-10 min-w-10 items-center justify-center rounded-sm border px-3 font-label-md text-[12px] uppercase tracking-[0.12em] transition-colors ${
+              className={`flex h-7 min-w-7 items-center justify-center rounded-[2px] border px-2 font-body-md text-[11px] font-bold uppercase transition-colors ${
                 page === currentPage
                   ? "border-brand-strong bg-brand-strong text-white"
-                  : "border-border-subtle bg-surface-base text-on-surface-variant hover:border-brand-support hover:text-brand-support"
+                  : "border-border-subtle bg-surface-base text-text-muted hover:border-brand-support hover:text-brand-support"
               }`}
             >
               {page}
@@ -50,9 +50,9 @@ export function Pagination({ currentPage, totalPages, onPageChange }: Pagination
       <button
         onClick={() => onPageChange?.(currentPage + 1)}
         disabled={currentPage >= totalPages}
-        className="flex h-10 w-10 items-center justify-center rounded-sm border border-border-subtle bg-surface-base text-on-surface-variant transition-colors hover:border-brand-support hover:text-brand-support disabled:opacity-45 disabled:hover:border-border-subtle disabled:hover:text-on-surface-variant"
+        className="flex h-7 w-7 items-center justify-center rounded-[2px] border border-border-subtle bg-surface-base text-text-muted transition-colors hover:border-brand-support hover:text-brand-support disabled:opacity-45 disabled:hover:border-border-subtle disabled:hover:text-text-muted"
       >
-        <ChevronRight />
+        <ChevronRight className="h-4 w-4" />
       </button>
     </div>
   );

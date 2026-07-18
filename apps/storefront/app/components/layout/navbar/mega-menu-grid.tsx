@@ -13,12 +13,12 @@ interface MegaMenuGridProps {
 export function MegaMenuGrid({ items }: MegaMenuGridProps) {
   if (items.length === 0) return null;
   return (
-    <div className="grid grid-cols-2 border-border-subtle md:grid-cols-4 lg:grid-cols-5">
+    <div className="grid grid-cols-2 gap-px bg-border-subtle p-px md:grid-cols-4 lg:grid-cols-5">
       {items.map((item, i) => (
         <Link
           key={i}
           to={item.href}
-          className="group flex flex-row items-center justify-start gap-4 border-b border-r border-border-subtle bg-white px-8 py-6 transition-colors [&:nth-child(5n)]:border-r-0 lg:[&:nth-child(5n)]:border-r-0 md:[&:nth-child(4n)]:border-r-0 max-md:[&:nth-child(2n)]:border-r-0"
+          className="group flex flex-row items-center justify-start gap-4 bg-white px-8 py-6 transition-colors"
         >
           <div className="w-[50px] flex-shrink-0 flex items-center justify-center">
             {item.imageUrl ? (

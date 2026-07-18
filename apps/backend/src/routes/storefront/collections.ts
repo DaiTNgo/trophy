@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm'
+import { and, asc, desc, eq, inArray, sql, type SQL } from 'drizzle-orm'
 import { Hono, type Context } from 'hono'
 import { toAbsoluteAssetUrl } from '../../lib/url'
 import * as v from 'valibot'
@@ -19,7 +19,8 @@ import { localeSchema, DEFAULT_LOCALE } from '../../lib/locale'
 import { buildListingItem } from './products'
 
 const querySchema = v.object({
-  locale: v.optional(localeSchema, DEFAULT_LOCALE)
+  locale: v.optional(localeSchema, DEFAULT_LOCALE),
+  customizable: v.optional(v.picklist(['all', 'true', 'false']), 'all')
 })
 
 const handleParamsSchema = v.object({
@@ -31,11 +32,173 @@ const handleParamsSchema = v.object({
   )
 })
 
+type CustomizableFilter = 'all' | 'true' | 'false'
+
+function buildCustomizableCondition(filter: CustomizableFilter) {
+  if (filter === 'true') {
+    return sql`exists (
+      select 1
+      from ${productCustomizations}
+      where ${productCustomizations.productId} = ${products.id}
+        and ${productCustomizations.enabled} = true
+    )`
+  }
+
+  if (filter === 'false') {
+    return sql`not exists (
+      select 1
+      from ${productCustomizations}
+      where ${productCustomizations.productId} = ${products.id}
+        and ${productCustomizations.enabled} = true
+    )`
+  }
+
+  return undefined
+}
+
+async function loadListingPage(
+  c: Context<AppEnv>,
+  db: ReturnType<typeof getDb>,
+  whereClause: SQL | undefined,
+  limit: number,
+  offset: number
+) {
+  const [items, totalResult] = await Promise.all([
+    db
+      .select({
+        id: products.id,
+        title: products.title,
+        subtitle: products.subtitle,
+        handle: products.handle,
+        status: products.status
+      })
+      .from(products)
+      .where(whereClause)
+      .orderBy(desc(products.id))
+      .limit(limit)
+      .offset(offset),
+    db
+      .select({ total: sql<number>`count(*)` })
+      .from(products)
+      .where(whereClause)
+      .get()
+  ])
+
+  const productIds = items.map((item) => item.id)
+
+  const [categoryRows, variantRows, variantMediaRows, customizationRows] = await Promise.all([
+    productIds.length > 0
+      ? db
+          .select({
+            productId: productCategoryLinks.productId,
+            categoryId: productCategories.id,
+            name: productCategories.name
+          })
+          .from(productCategoryLinks)
+          .innerJoin(
+            productCategories,
+            eq(productCategoryLinks.categoryId, productCategories.id)
+          )
+          .where(inArray(productCategoryLinks.productId, productIds))
+      : Promise.resolve([] as Array<{ productId: number; categoryId: number; name: string }>),
+    productIds.length > 0
+      ? db
+          .select()
+          .from(productVariants)
+          .where(inArray(productVariants.productId, productIds))
+          .orderBy(asc(productVariants.position), asc(productVariants.id))
+      : Promise.resolve([] as Array<typeof productVariants.$inferSelect>),
+    productIds.length > 0
+      ? db
+          .select({
+            variantId: productVariantMedia.variantId,
+            assetId: productVariantMedia.assetId,
+            position: productVariantMedia.position,
+            productId: productVariants.productId
+          })
+          .from(productVariantMedia)
+          .innerJoin(productVariants, eq(productVariantMedia.variantId, productVariants.id))
+          .where(inArray(productVariants.productId, productIds))
+          .orderBy(
+            asc(productVariantMedia.variantId),
+            asc(productVariantMedia.position),
+            asc(productVariantMedia.assetId)
+          )
+      : Promise.resolve(
+          [] as Array<{
+            variantId: number
+            assetId: string
+            position: number
+            productId: number
+          }>
+        ),
+    productIds.length > 0
+      ? db
+          .select({
+            productId: productCustomizations.productId,
+            enabled: productCustomizations.enabled
+          })
+          .from(productCustomizations)
+          .where(inArray(productCustomizations.productId, productIds))
+      : Promise.resolve([] as Array<{ productId: number; enabled: boolean }>)
+  ])
+
+  const resolvedItems = await hydrateTranslations(db, 'product', items, i => String(i.id), [{fieldName: 'title', objectKey: 'title'}, {fieldName: 'subtitle', objectKey: 'subtitle'}], [{fieldName: 'title', objectKey: 'title'}, {fieldName: 'subtitle', objectKey: 'subtitle'}]);
+  const resolvedCategories = await hydrateTranslations(db, 'product_category', categoryRows, c => String(c.categoryId), [{fieldName: 'name', objectKey: 'name'}], [{fieldName: 'name', objectKey: 'name'}]);
+
+  const categoriesByProductId = new Map<number, string[]>()
+  for (const row of resolvedCategories) {
+    const current = categoriesByProductId.get(row.productId) ?? []
+    current.push(row.name)
+    categoriesByProductId.set(row.productId, current)
+  }
+
+  const variantsByProductId = new Map<number, (typeof variantRows)[number][]>()
+  for (const row of variantRows) {
+    const current = variantsByProductId.get(row.productId) ?? []
+    current.push(row)
+    variantsByProductId.set(row.productId, current)
+  }
+
+  const variantMediaByVariantId = new Map<
+    number,
+    (typeof variantMediaRows)[number][]
+  >()
+  for (const row of variantMediaRows) {
+    const current = variantMediaByVariantId.get(row.variantId) ?? []
+    current.push(row)
+    variantMediaByVariantId.set(row.variantId, current)
+  }
+
+  const customizationByProductId = new Map(
+    customizationRows.map((row) => [row.productId, row])
+  )
+
+  const listingItems = resolvedItems.map((item) =>
+    buildListingItem(
+      c,
+      item,
+      categoriesByProductId.get(item.id) ?? [],
+      variantsByProductId.get(item.id) ?? [],
+      variantMediaByVariantId,
+      customizationByProductId.get(item.id)?.enabled ?? false
+    )
+  )
+
+  return {
+    items: listingItems,
+    total: totalResult?.total ?? 0,
+  }
+}
+
 export const storefrontCollectionsRoute = new Hono<AppEnv>()
   .get('/', async (c) => {
     const db = getDb(c.env)
     const parsedQuery = v.safeParse(querySchema, c.req.query())
-    const locale = parsedQuery.success ? parsedQuery.output.locale : DEFAULT_LOCALE
+    if (!parsedQuery.success) {
+      return c.json({ error: 'Validation failed' }, 400)
+    }
+    const locale = parsedQuery.output.locale
 
     const items = await db
       .select({
@@ -56,7 +219,11 @@ export const storefrontCollectionsRoute = new Hono<AppEnv>()
 
     const db = getDb(c.env)
     const parsedQuery = v.safeParse(querySchema, c.req.query())
-    const locale = parsedQuery.success ? parsedQuery.output.locale : DEFAULT_LOCALE
+    if (!parsedQuery.success) {
+      return c.json({ error: 'Validation failed' }, 400)
+    }
+    const locale = parsedQuery.output.locale
+    const customizable = parsedQuery.output.customizable
     const page = Math.max(1, Number(c.req.query('page')) || 1)
     const limit = Math.min(100, Math.max(1, Number(c.req.query('limit')) || 20))
     const offset = (page - 1) * limit
@@ -75,134 +242,40 @@ export const storefrontCollectionsRoute = new Hono<AppEnv>()
       eq(products.status, 'published'),
       eq(products.collectionId, collection.id)
     ]
+    const customizableCondition = buildCustomizableCondition(customizable)
+    if (customizableCondition) {
+      conditions.push(customizableCondition)
+    }
     const whereClause = and(...conditions)
 
-    const [items, totalResult] = await Promise.all([
-      db
-        .select({
-          id: products.id,
-          title: products.title,
-          subtitle: products.subtitle,
-          handle: products.handle,
-          status: products.status
-        })
-        .from(products)
-        .where(whereClause)
-        .orderBy(desc(products.id))
-        .limit(limit)
-        .offset(offset),
-      db
-        .select({ total: sql<number>`count(*)` })
-        .from(products)
-        .where(whereClause)
-        .get()
-    ])
+    const primary = await loadListingPage(c, db, whereClause, limit, offset)
+    let listingItems = primary.items
+    let total = primary.total
 
-    const productIds = items.map((item) => item.id)
+    if (parsed.output.handle === 'best-sellers' && page === 1 && listingItems.length < limit) {
+      const fallbackConditions = [
+        eq(products.status, 'published'),
+        sql`(${products.collectionId} is null or ${products.collectionId} <> ${collection.id})`
+      ]
+      if (customizableCondition) {
+        fallbackConditions.push(customizableCondition)
+      }
 
-    const [categoryRows, variantRows, variantMediaRows, customizationRows] = await Promise.all([
-      productIds.length > 0
-        ? db
-            .select({
-              productId: productCategoryLinks.productId,
-              categoryId: productCategories.id,
-              name: productCategories.name
-            })
-            .from(productCategoryLinks)
-            .innerJoin(
-              productCategories,
-              eq(productCategoryLinks.categoryId, productCategories.id)
-            )
-            .where(inArray(productCategoryLinks.productId, productIds))
-        : Promise.resolve([] as Array<{ productId: number; categoryId: number; name: string }>),
-      productIds.length > 0
-        ? db
-            .select()
-            .from(productVariants)
-            .where(inArray(productVariants.productId, productIds))
-            .orderBy(asc(productVariants.position), asc(productVariants.id))
-        : Promise.resolve([] as Array<typeof productVariants.$inferSelect>),
-      productIds.length > 0
-        ? db
-            .select({
-              variantId: productVariantMedia.variantId,
-              assetId: productVariantMedia.assetId,
-              position: productVariantMedia.position,
-              productId: productVariants.productId
-            })
-            .from(productVariantMedia)
-            .innerJoin(productVariants, eq(productVariantMedia.variantId, productVariants.id))
-            .where(inArray(productVariants.productId, productIds))
-            .orderBy(
-              asc(productVariantMedia.variantId),
-              asc(productVariantMedia.position),
-              asc(productVariantMedia.assetId)
-            )
-        : Promise.resolve(
-            [] as Array<{
-              variantId: number
-              assetId: string
-              position: number
-              productId: number
-            }>
-          ),
-      productIds.length > 0
-        ? db
-            .select({
-              productId: productCustomizations.productId,
-              enabled: productCustomizations.enabled
-            })
-            .from(productCustomizations)
-            .where(inArray(productCustomizations.productId, productIds))
-        : Promise.resolve([] as Array<{ productId: number; enabled: boolean }>)
-    ])
-
-    const resolvedItems = await hydrateTranslations(db, 'product', items, i => String(i.id), [{fieldName: 'title', objectKey: 'title'}, {fieldName: 'subtitle', objectKey: 'subtitle'}], [{fieldName: 'title', objectKey: 'title'}, {fieldName: 'subtitle', objectKey: 'subtitle'}]);
-    const resolvedCategories = await hydrateTranslations(db, 'product_category', categoryRows, c => String(c.categoryId), [{fieldName: 'name', objectKey: 'name'}], [{fieldName: 'name', objectKey: 'name'}]);
-
-    const categoriesByProductId = new Map<number, string[]>()
-    for (const row of resolvedCategories) {
-      const current = categoriesByProductId.get(row.productId) ?? []
-      current.push(row.name)
-      categoriesByProductId.set(row.productId, current)
-    }
-
-    const variantsByProductId = new Map<number, (typeof variantRows)[number][]>()
-    for (const row of variantRows) {
-      const current = variantsByProductId.get(row.productId) ?? []
-      current.push(row)
-      variantsByProductId.set(row.productId, current)
-    }
-
-    const variantMediaByVariantId = new Map<
-      number,
-      (typeof variantMediaRows)[number][]
-    >()
-    for (const row of variantMediaRows) {
-      const current = variantMediaByVariantId.get(row.variantId) ?? []
-      current.push(row)
-      variantMediaByVariantId.set(row.variantId, current)
-    }
-
-    const customizationByProductId = new Map(
-      customizationRows.map((row) => [row.productId, row])
-    )
-
-    const listingItems = resolvedItems.map((item) =>
-      buildListingItem(
+      const fallback = await loadListingPage(
         c,
-        item,
-        categoriesByProductId.get(item.id) ?? [],
-        variantsByProductId.get(item.id) ?? [],
-        variantMediaByVariantId,
-        customizationByProductId.get(item.id)?.enabled ?? false
+        db,
+        and(...fallbackConditions),
+        limit - listingItems.length,
+        0
       )
-    )
+      listingItems = [...listingItems, ...fallback.items]
+      total += fallback.total
+    }
 
     return c.json({
       items: listingItems,
       page,
       limit,
-      total: totalResult?.total ?? 0
+      total
     }, 200)
   })

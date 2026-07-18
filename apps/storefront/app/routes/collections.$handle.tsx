@@ -2,33 +2,36 @@ import { useSearchParams } from "react-router";
 import { ProductListingShell } from "../components/products/ProductListingShell";
 import { fetchStorefrontCollectionProducts, fetchStorefrontCollections } from "../lib/api";
 import { getLocaleFromRequest } from "../lib/locale";
+import { withStorefrontLoaderLog } from "../lib/observability";
 import { getLocalized } from "../lib/translation";
 import type { Route } from "./+types/collections.$handle";
 
 export async function loader({ params, request }: Route.LoaderArgs) {
-  const locale = getLocaleFromRequest(request);
-  const url = new URL(request.url);
-  const currentPage = Number(url.searchParams.get("page")) || 1;
+  return withStorefrontLoaderLog("collection", request, async () => {
+    const locale = getLocaleFromRequest(request);
+    const url = new URL(request.url);
+    const currentPage = Number(url.searchParams.get("page")) || 1;
 
-  const [data, collections] = await Promise.all([
-    fetchStorefrontCollectionProducts(params.handle, {
-      page: currentPage,
-      limit: 12,
+    const [data, collections] = await Promise.all([
+      fetchStorefrontCollectionProducts(params.handle, {
+        page: currentPage,
+        limit: 24,
+        locale,
+      }),
+      fetchStorefrontCollections(locale).catch(() => []),
+    ]);
+    const collection = collections.find((item) => item.handle === params.handle) ?? null;
+
+    return {
+      collectionHandle: params.handle,
+      collection,
+      products: data.items,
+      currentPage: data.page,
+      totalPages: Math.max(1, Math.ceil(data.total / data.limit)),
+      totalItems: data.total,
       locale,
-    }),
-    fetchStorefrontCollections(locale).catch(() => []),
-  ]);
-  const collection = collections.find((item) => item.handle === params.handle) ?? null;
-
-  return {
-    collectionHandle: params.handle,
-    collection,
-    products: data.items,
-    currentPage: data.page,
-    totalPages: Math.max(1, Math.ceil(data.total / data.limit)),
-    totalItems: data.total,
-    locale,
-  };
+    };
+  }, { collectionHandle: params.handle });
 }
 
 export default function CollectionPage({ loaderData }: Route.ComponentProps) {

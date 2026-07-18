@@ -1,13 +1,51 @@
-import { ChevronRight } from "lucide-react";
+import Container from "@/components/container";
+import { Link } from "react-router";
+import { getCategoryPath } from "@/lib/storefront-paths";
 
-export function ProductBreadcrumbs({ title }: { title: string }) {
+export function ProductBreadcrumbs({
+  title,
+  categoryTitle,
+  categoryHandle,
+}: {
+  title: string;
+  categoryTitle?: string | null;
+  categoryHandle?: string | null;
+}) {
   return (
-    <nav className="mb-6 flex items-center gap-2 text-[13px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
-      <a className="transition hover:text-brand-strong" href="#">Home</a>
-      <ChevronRight className="size-3.5" />
-      <a className="transition hover:text-brand-strong" href="#">Collections</a>
-      <ChevronRight className="size-3.5" />
-      <span className="max-w-[46ch] truncate text-brand-strong">{title}</span>
+    <nav
+      aria-label="Breadcrumb"
+      className="border-y border-border-subtle bg-surface-subtle/80"
+    >
+      <Container className="flex min-h-13 items-center justify-center py-3">
+        <ol className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-center text-[12px] font-semibold tracking-[0.08em] text-text-muted">
+          <li>
+            <Link className="transition hover:text-brand-strong" to="/">
+              Home
+            </Link>
+          </li>
+          <li aria-hidden="true" className="text-text-muted/80">
+            ›
+          </li>
+          <li>
+            {categoryHandle && categoryTitle ? (
+              <Link
+                className="transition hover:text-brand-strong"
+                to={getCategoryPath(categoryHandle)}
+              >
+                {categoryTitle}
+              </Link>
+            ) : (
+              <Link className="transition hover:text-brand-strong" to="/products">
+                Collections
+              </Link>
+            )}
+          </li>
+          <li aria-hidden="true" className="text-text-muted/80">
+            ›
+          </li>
+          <li className="max-w-full truncate text-text-base">{title}</li>
+        </ol>
+      </Container>
     </nav>
   );
 }

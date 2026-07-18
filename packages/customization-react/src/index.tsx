@@ -30,15 +30,16 @@ import {
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from "react";
+import { createPortal } from "react-dom";
 import {
   ArrowDown,
   ArrowLeft,
   ArrowRight,
   ArrowUp,
+  Crosshair,
+  Fullscreen,
   ImagePlus,
-  Maximize2,
   Minus,
-  MousePointer2,
   Plus,
   RotateCcw,
   RotateCw,
@@ -48,7 +49,6 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
-type PreviewMode = "edit" | "view";
 type ResizeCorner = "nw" | "ne" | "sw" | "se";
 type PanState = { x: number; y: number };
 export type CustomizationUploadImage = (
@@ -160,6 +160,7 @@ export function ProductCustomizationPreview({
   dynamicFonts = [],
   selectedVariantId,
   readOnly = false,
+  className,
   resolveAssetUrl,
   resolveFontUrl,
   resolveStaticFontUrl,
@@ -170,6 +171,7 @@ export function ProductCustomizationPreview({
   dynamicFonts?: DynamicFontFamily[];
   selectedVariantId?: number | null;
   readOnly?: boolean;
+  className?: string;
   resolveAssetUrl?: ResolveCustomizationAssetUrl;
   resolveFontUrl?: ResolveCustomizationFontUrl;
   resolveStaticFontUrl?: ResolveCustomizationStaticFontUrl;
@@ -183,10 +185,9 @@ export function ProductCustomizationPreview({
   const background = template.background;
   const width = background?.widthPx ?? 900;
   const height = background?.heightPx ?? 900;
-  const [mode, setMode] = useState<PreviewMode>(readOnly ? "view" : "edit");
   const [zoom, setZoom] = useState(0.72);
-  const [zoomInput, setZoomInput] = useState("72");
   const [pan, setPan] = useState<PanState>({ x: 0, y: 0 });
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const viewportDrag = useRef<{ x: number; y: number; pan: PanState } | null>(null);
   const activePointers = useRef<Map<number, { x: number; y: number }>>(new Map());
@@ -208,6 +209,7 @@ export function ProductCustomizationPreview({
   const [selectedImageFieldId, setSelectedImageFieldId] = useState("");
   const selectedImageField =
     editableImageFields.find((entry) => entry.field.id === selectedImageFieldId) ?? null;
+  const isCanvasPanMode = readOnly || !selectedImageField;
 
   useEffect(() => {
     if (!selectedImageFieldId || editableImageFields.some((entry) => entry.field.id === selectedImageFieldId)) {
@@ -219,7 +221,6 @@ export function ProductCustomizationPreview({
   const setCommittedZoom = useCallback((nextZoom: number) => {
     const clamped = Math.min(MAX_PREVIEW_ZOOM, Math.max(MIN_PREVIEW_ZOOM, nextZoom));
     setZoom(clamped);
-    setZoomInput(String(Math.round(clamped * 100)));
   }, []);
 
   const fitToView = useCallback(() => {
@@ -236,20 +237,17 @@ export function ProductCustomizationPreview({
   }, [fitToView]);
 
   useEffect(() => {
-    if (readOnly && mode !== "view") {
-      setMode("view");
-      setSelectedImageFieldId("");
-    }
-  }, [mode, readOnly]);
+    if (readOnly && selectedImageFieldId) setSelectedImageFieldId("");
+  }, [readOnly, selectedImageFieldId]);
 
-  function commitZoomInput() {
-    const parsed = Number.parseFloat(zoomInput.replace("%", ""));
-    if (!Number.isFinite(parsed)) {
-      setZoomInput(String(Math.round(zoom * 100)));
-      return;
-    }
-    setCommittedZoom(parsed / 100);
-  }
+  useEffect(() => {
+    if (!isFullscreen || typeof document === "undefined") return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isFullscreen]);
 
   function updateImageValue(fieldId: string, value: ImageShapeFieldValue) {
     onImageValueChange?.(fieldId, value);
@@ -262,9 +260,13 @@ export function ProductCustomizationPreview({
     updateImageValue(selectedImageField.field.id, { ...selectedImageField.value, ...patch });
   }
 
-  return (
+  const previewFrame = (
     <div
-      className="relative mx-auto flex h-[min(72vh,740px)] min-h-[520px] w-full flex-col overflow-hidden rounded-lg border border-outline-variant bg-surface-container-low"
+      className={cn(
+        "relative mx-auto flex h-[min(72vh,740px)] min-h-[520px] w-full flex-col overflow-hidden rounded-lg border border-outline-variant bg-surface-container-low",
+        isFullscreen && "h-full min-h-0 max-h-full max-w-[1600px] rounded-xl",
+        className,
+      )}
       data-selected-variant-id={selectedVariantId ?? ""}
       data-preview-background-url={background?.previewUrl ?? ""}
     >
@@ -275,92 +277,18 @@ export function ProductCustomizationPreview({
         resolveStaticFontUrl={resolveStaticFontUrl}
       />
       <ShapeClipPaths layers={design.layers} />
-      <div className="flex h-14 shrink-0 items-center gap-3 border-b border-outline-variant bg-white/95 px-3 shadow-sm backdrop-blur sm:px-4">
-        {!readOnly ? (
-          <div className="inline-flex rounded-md border border-outline bg-surface-container-low p-0.5">
-            {(["edit", "view"] as const).map((entry) => (
-              <button
-                key={entry}
-                type="button"
-                onClick={() => setMode(entry)}
-                className={`inline-flex h-8 items-center gap-1.5 rounded px-3 text-xs font-bold uppercase tracking-[0.08em] transition ${
-                  mode === entry
-                    ? "bg-white text-on-surface shadow-sm"
-                    : "text-on-surface-variant hover:text-on-surface"
-                }`}
-              >
-                <MousePointer2 className="size-3.5" />
-                {entry}
-              </button>
-            ))}
-          </div>
-        ) : null}
-        <div className="flex items-center gap-1.5">
-          <CanvasAction label="Zoom out" onClick={() => setCommittedZoom(zoom - PREVIEW_ZOOM_STEP)}>
-            <Minus className="size-3.5" />
-          </CanvasAction>
-          <label className="flex h-8 items-center rounded-md border border-outline bg-white px-2">
-            <input
-              aria-label="Preview zoom percentage"
-              value={zoomInput}
-              onChange={(event) => setZoomInput(event.target.value)}
-              onBlur={commitZoomInput}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") event.currentTarget.blur();
-                if (event.key === "Escape") {
-                  setZoomInput(String(Math.round(zoom * 100)));
-                  event.currentTarget.blur();
-                }
-              }}
-              className="w-10 bg-transparent text-right text-xs font-bold text-on-surface outline-none"
-            />
-            <span className="text-[11px] text-on-surface-variant">%</span>
-          </label>
-          <CanvasAction label="Zoom in" onClick={() => setCommittedZoom(zoom + PREVIEW_ZOOM_STEP)}>
-            <Plus className="size-3.5" />
-          </CanvasAction>
-          <CanvasAction label="Fit canvas" onClick={fitToView}>
-            <Maximize2 className="size-3.5" />
-          </CanvasAction>
-        </div>
-        <span className="ml-auto hidden text-xs text-on-surface-variant md:inline">
-          {readOnly ? "Read-only order preview" : mode === "edit" ? "Click an uploaded image to crop" : "Drag canvas to pan"}
-        </span>
-      </div>
-      <div className="sticky top-0 z-20 flex h-[76px] shrink-0 items-center border-b border-outline-variant bg-surface-container-low/95 px-3 shadow-sm backdrop-blur sm:px-4">
-        {!readOnly && mode === "edit" && selectedImageField ? (
-          <div className="flex min-w-0 items-center gap-3">
-            <div className="min-w-0 rounded-md border border-outline-variant bg-white px-3 py-2">
-              <p className="max-w-48 truncate text-[11px] font-bold uppercase tracking-[0.16em] text-on-surface-variant">
-                {selectedImageField.field.label}
-              </p>
-            </div>
-            <div className="flex min-w-0 gap-1.5 overflow-x-auto py-1">
-              <CanvasAction label="Zoom out image" onClick={() => adjustSelectedImage({ cropScale: Math.max(MIN_FREE_IMAGE_SCALE, (selectedImageField.value.cropScale ?? 1) / 1.1) })}><Minus className="size-3.5" /></CanvasAction>
-              <CanvasAction label="Zoom in image" onClick={() => adjustSelectedImage({ cropScale: (selectedImageField.value.cropScale ?? 1) * 1.1 })}><Plus className="size-3.5" /></CanvasAction>
-              <CanvasAction label="Rotate image left" onClick={() => adjustSelectedImage({ cropRotationDeg: (selectedImageField.value.cropRotationDeg ?? 0) - 5 })}><RotateCcw className="size-3.5" /></CanvasAction>
-              <CanvasAction label="Rotate image right" onClick={() => adjustSelectedImage({ cropRotationDeg: (selectedImageField.value.cropRotationDeg ?? 0) + 5 })}><RotateCw className="size-3.5" /></CanvasAction>
-              <CanvasAction label="Move image left" onClick={() => adjustSelectedImage({ cropXRatio: (selectedImageField.value.cropXRatio ?? 0) - 0.05 })}><ArrowLeft className="size-3.5" /></CanvasAction>
-              <CanvasAction label="Move image right" onClick={() => adjustSelectedImage({ cropXRatio: (selectedImageField.value.cropXRatio ?? 0) + 0.05 })}><ArrowRight className="size-3.5" /></CanvasAction>
-              <CanvasAction label="Move image up" onClick={() => adjustSelectedImage({ cropYRatio: (selectedImageField.value.cropYRatio ?? 0) - 0.05 })}><ArrowUp className="size-3.5" /></CanvasAction>
-              <CanvasAction label="Move image down" onClick={() => adjustSelectedImage({ cropYRatio: (selectedImageField.value.cropYRatio ?? 0) + 0.05 })}><ArrowDown className="size-3.5" /></CanvasAction>
-              <CanvasAction label="Reset image" onClick={() => adjustSelectedImage({ cropScale: 1, cropXRatio: 0, cropYRatio: 0, cropRotationDeg: 0 })}><RotateCcw className="size-3.5" /></CanvasAction>
-            </div>
-          </div>
-        ) : (
-          <div className="flex h-full items-center text-sm font-medium text-on-surface-variant">
-            {readOnly ? "This preview uses the customer's submitted values and cannot be edited." : mode === "edit" ? "Select an uploaded image to show crop actions." : "Canvas actions are available in Edit mode."}
-          </div>
-        )}
-      </div>
       <div
         ref={viewportRef}
         className={`relative min-h-0 flex-1 overflow-hidden bg-[linear-gradient(90deg,rgba(28,27,27,0.035)_1px,transparent_1px),linear-gradient(rgba(28,27,27,0.035)_1px,transparent_1px)] bg-[size:28px_28px] ${
-          mode === "view" ? "cursor-grab active:cursor-grabbing" : ""
+          isCanvasPanMode ? "cursor-grab active:cursor-grabbing" : ""
         }`}
-        style={{ touchAction: mode === "view" ? "none" : "auto" }}
+        style={{ touchAction: isCanvasPanMode ? "none" : "auto" }}
         onPointerDown={(event) => {
-          if (mode !== "view") return;
+          const shouldPanCanvas = readOnly || !selectedImageField || event.target === event.currentTarget;
+          if (!shouldPanCanvas) return;
+          if (!readOnly && event.target === event.currentTarget && selectedImageField) {
+            setSelectedImageFieldId("");
+          }
           activePointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
           if (activePointers.current.size === 1) {
             viewportDrag.current = { x: event.clientX, y: event.clientY, pan };
@@ -372,7 +300,7 @@ export function ProductCustomizationPreview({
           event.currentTarget.setPointerCapture(event.pointerId);
         }}
         onPointerMove={(event) => {
-          if (mode !== "view") return;
+          if (!isCanvasPanMode) return;
           if (activePointers.current.has(event.pointerId)) {
             activePointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
           }
@@ -416,7 +344,7 @@ export function ProductCustomizationPreview({
             transform: `translate(calc(-50% + ${pan.x}px), calc(-50% + ${pan.y}px))`,
           }}
           onPointerDown={(event) => {
-            if (mode === "edit" && event.target === event.currentTarget) setSelectedImageFieldId("");
+            if (!readOnly && event.target === event.currentTarget) setSelectedImageFieldId("");
           }}
         >
           {background ? (
@@ -464,7 +392,7 @@ export function ProductCustomizationPreview({
                 width={width}
                 height={height}
                 scale={scale}
-                mode={mode}
+                interactive={!readOnly}
                 resolveAssetUrl={resolveAssetUrl}
                 value={uploadValue}
                 onChange={field && uploadValue && onImageValueChange
@@ -476,9 +404,127 @@ export function ProductCustomizationPreview({
             );
           })}
         </div>
+        {!readOnly && selectedImageField ? (
+          <div className="pointer-events-none absolute inset-x-3 bottom-3 z-20 flex items-end justify-between gap-3 sm:inset-x-4 sm:bottom-4">
+            <div className="pointer-events-auto flex min-w-0 max-w-full items-center gap-1.5 overflow-x-auto rounded-md border border-outline-variant bg-white/95 p-1 shadow-lg backdrop-blur">
+              <CanvasAction
+                label="Zoom out image"
+                onClick={() =>
+                  adjustSelectedImage({
+                    cropScale: Math.max(MIN_FREE_IMAGE_SCALE, (selectedImageField.value.cropScale ?? 1) / 1.1),
+                  })}
+              >
+                <Minus className="size-3.5" />
+              </CanvasAction>
+              <CanvasAction
+                label="Zoom in image"
+                onClick={() => adjustSelectedImage({ cropScale: (selectedImageField.value.cropScale ?? 1) * 1.1 })}
+              >
+                <Plus className="size-3.5" />
+              </CanvasAction>
+              <CanvasAction
+                label="Move image left"
+                onClick={() => adjustSelectedImage({ cropXRatio: (selectedImageField.value.cropXRatio ?? 0) - 0.05 })}
+              >
+                <ArrowLeft className="size-3.5" />
+              </CanvasAction>
+              <CanvasAction
+                label="Move image right"
+                onClick={() => adjustSelectedImage({ cropXRatio: (selectedImageField.value.cropXRatio ?? 0) + 0.05 })}
+              >
+                <ArrowRight className="size-3.5" />
+              </CanvasAction>
+              <CanvasAction
+                label="Move image up"
+                onClick={() => adjustSelectedImage({ cropYRatio: (selectedImageField.value.cropYRatio ?? 0) - 0.05 })}
+              >
+                <ArrowUp className="size-3.5" />
+              </CanvasAction>
+              <CanvasAction
+                label="Move image down"
+                onClick={() => adjustSelectedImage({ cropYRatio: (selectedImageField.value.cropYRatio ?? 0) + 0.05 })}
+              >
+                <ArrowDown className="size-3.5" />
+              </CanvasAction>
+              <CanvasAction
+                label="Reset image"
+                onClick={() => adjustSelectedImage({ cropScale: 1, cropXRatio: 0, cropYRatio: 0, cropRotationDeg: 0 })}
+              >
+                <RotateCcw className="size-3.5" />
+              </CanvasAction>
+            </div>
+            <div className="pointer-events-auto flex items-center gap-1.5 rounded-md border border-outline-variant bg-white/95 p-1 shadow-lg backdrop-blur">
+              <CanvasAction
+                label="Open fullscreen preview"
+                onClick={() => setIsFullscreen(true)}
+              >
+                <Fullscreen className="size-3.5" />
+              </CanvasAction>
+              <CanvasAction label="Zoom out" onClick={() => setCommittedZoom(zoom - PREVIEW_ZOOM_STEP)}>
+                <Minus className="size-3.5" />
+              </CanvasAction>
+              <CanvasAction label="Zoom in" onClick={() => setCommittedZoom(zoom + PREVIEW_ZOOM_STEP)}>
+                <Plus className="size-3.5" />
+              </CanvasAction>
+              <CanvasAction label="Fit canvas" onClick={fitToView}>
+                <Crosshair className="size-3.5" />
+              </CanvasAction>
+            </div>
+          </div>
+        ) : (
+          <div className="pointer-events-none absolute inset-x-3 bottom-3 z-20 flex justify-end sm:inset-x-4 sm:bottom-4">
+            <div className="pointer-events-auto flex items-center gap-1.5 rounded-md border border-outline-variant bg-white/95 p-1 shadow-lg backdrop-blur">
+              <CanvasAction
+                label="Open fullscreen preview"
+                onClick={() => setIsFullscreen(true)}
+              >
+                <Fullscreen className="size-3.5" />
+              </CanvasAction>
+              <CanvasAction label="Zoom out" onClick={() => setCommittedZoom(zoom - PREVIEW_ZOOM_STEP)}>
+                <Minus className="size-3.5" />
+              </CanvasAction>
+              <CanvasAction label="Zoom in" onClick={() => setCommittedZoom(zoom + PREVIEW_ZOOM_STEP)}>
+                <Plus className="size-3.5" />
+              </CanvasAction>
+              <CanvasAction label="Fit canvas" onClick={fitToView}>
+                <Crosshair className="size-3.5" />
+              </CanvasAction>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
+
+  if (!isFullscreen) {
+    return previewFrame;
+  }
+
+  const fullscreenOverlay = (
+    <div className="fixed inset-0 z-[2147483647] bg-black/70 p-3 backdrop-blur-sm sm:p-5">
+      <div className="absolute right-4 top-4 z-[121]">
+        <Button
+          variant="outline"
+          size="icon"
+          className="border-white/20 bg-white/95 text-on-surface shadow-lg"
+          aria-label="Close fullscreen preview"
+          title="Close fullscreen preview"
+          onClick={() => setIsFullscreen(false)}
+        >
+          <X className="size-4" />
+        </Button>
+      </div>
+      <div className="flex h-full items-center justify-center">
+        {previewFrame}
+      </div>
+    </div>
+  );
+
+  if (typeof document === "undefined") {
+    return fullscreenOverlay;
+  }
+
+  return createPortal(fullscreenOverlay, document.body);
 }
 
 function CanvasAction({
@@ -496,7 +542,14 @@ function CanvasAction({
       size="icon"
       title={label}
       aria-label={label}
-      onClick={onClick}
+      onPointerDown={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+      }}
+      onClick={(event) => {
+        event.stopPropagation();
+        onClick();
+      }}
     >
       {children}
     </Button>
@@ -824,7 +877,7 @@ function PreviewImageShape({
   width,
   height,
   scale,
-  mode,
+  interactive,
   resolveAssetUrl,
   value,
   onChange,
@@ -835,7 +888,7 @@ function PreviewImageShape({
   width: number;
   height: number;
   scale: number;
-  mode: PreviewMode;
+  interactive: boolean;
   resolveAssetUrl?: ResolveCustomizationAssetUrl;
   value?: ImageShapeFieldValue | null;
   onChange?: (value: ImageShapeFieldValue) => void;
@@ -919,11 +972,11 @@ function PreviewImageShape({
         width: rect.widthPx * scale,
         height: rect.heightPx * scale,
         transform: `rotate(${layer.geometry.rotationDeg}deg)`,
-        pointerEvents: mode === "edit" ? "auto" : "none",
+        pointerEvents: interactive ? "auto" : "none",
         touchAction: "none",
       }}
       onWheel={(event) => {
-        if (mode !== "edit" || !editable || !value) return;
+        if (!interactive || !editable || !value || !selected) return;
         event.preventDefault();
         event.stopPropagation();
         onSelect?.();
@@ -944,41 +997,47 @@ function PreviewImageShape({
           position: "absolute",
           inset: 0,
           overflow: "hidden",
-          cursor: editable && mode === "edit" ? "move" : "default",
+          cursor: editable && selected ? "move" : "default",
           clipPath 
         }}
-      onPointerDown={(event) => {
-          if (mode !== "edit" || !value || !onChange) return;
-        onSelect?.();
-        const startValue = value;
-        const updateImage = onChange;
-        event.preventDefault();
+        onPointerDown={(event) => {
+          if (!interactive || !editable || !value || !onChange) return;
+          if (!selected) {
+            event.preventDefault();
+            event.stopPropagation();
+            onSelect?.();
+            return;
+          }
+          onSelect?.();
+          const startValue = value;
+          const updateImage = onChange;
+          event.preventDefault();
           event.stopPropagation();
-        const startX = event.clientX;
-        const startY = event.clientY;
+          const startX = event.clientX;
+          const startY = event.clientY;
           const startCropX = imageRect.cropXRatio;
           const startCropY = imageRect.cropYRatio;
-        event.currentTarget.setPointerCapture(event.pointerId);
+          event.currentTarget.setPointerCapture(event.pointerId);
 
-        function move(pointer: PointerEvent) {
-          const dx = (pointer.clientX - startX) / scale;
-          const dy = (pointer.clientY - startY) / scale;
-          updateImage({
-            ...startValue,
+          function move(pointer: PointerEvent) {
+            const dx = (pointer.clientX - startX) / scale;
+            const dy = (pointer.clientY - startY) / scale;
+            updateImage({
+              ...startValue,
               cropScale: imageRect.cropScale,
               cropXRatio: startCropX + dx / Math.max(1, rect.widthPx),
               cropYRatio: startCropY + dy / Math.max(1, rect.heightPx),
-          });
-        }
+            });
+          }
 
-        function stop() {
-          window.removeEventListener("pointermove", move);
-          window.removeEventListener("pointerup", stop);
-        }
+          function stop() {
+            window.removeEventListener("pointermove", move);
+            window.removeEventListener("pointerup", stop);
+          }
 
-        window.addEventListener("pointermove", move);
-        window.addEventListener("pointerup", stop);
-      }}
+          window.addEventListener("pointermove", move);
+          window.addEventListener("pointerup", stop);
+        }}
       >
         <img
           src={resolveAssetUrl?.(value?.previewUrl ?? layer.previewUrl) ?? value?.previewUrl ?? layer.previewUrl}
@@ -998,7 +1057,7 @@ function PreviewImageShape({
           }}
         />
       </div>
-      {selected && editable && mode === "edit" ? (
+      {selected && editable && interactive ? (
         <>
           {(["nw", "ne", "sw", "se"] as const).map((corner) => (
             <button
