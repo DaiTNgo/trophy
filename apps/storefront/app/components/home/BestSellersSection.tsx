@@ -1,4 +1,3 @@
-import { Link } from "react-router";
 import { useState, useCallback, useEffect } from "react";
 import { ProductCard } from "../shared/ProductCard";
 import type { StorefrontProductItem } from "../../lib/api";
@@ -11,9 +10,16 @@ import { Carousel, CarouselContent, CarouselItem, type CarouselApi } from "../ui
 interface BestSellersSectionProps {
   products: StorefrontProductItem[];
   locale?: string;
+  title?: string;
+  subtitle?: string;
 }
 
-export function BestSellersSection({ products, locale = "vi" }: BestSellersSectionProps) {
+export function BestSellersSection({
+  products,
+  locale = "vi",
+  title,
+  subtitle,
+}: BestSellersSectionProps) {
   const [api, setApi] = useState<CarouselApi>();
   const [canScrollPrev, setCanScrollPrev] = useState(false);
   const [canScrollNext, setCanScrollNext] = useState(true); // Default to true if multiple items
@@ -46,13 +52,20 @@ export function BestSellersSection({ products, locale = "vi" }: BestSellersSecti
   const displayProducts = products.slice(0, 8);
 
   return (
-    <section className="overflow-hidden bg-surface-base py-9 md:pb-3 md:pt-22">
+    <section className="overflow-hidden bg-surface-base py-14 md:py-20">
       <Container>
         {/* Header row */}
-        <div className="relative mb-8 flex items-center justify-center md:mb-10 reveal active">
-          <h2 className="font-heading text-[30px] leading-none md:text-[40px] font-bold uppercase text-brand-strong text-center">
-            {locale === "en" ? "Best Selling Products" : "Sản phẩm bán chạy nhất"}
-          </h2>
+        <div className="relative mb-8 flex items-end justify-center md:mb-10 reveal active">
+          <div className="max-w-3xl text-center">
+            <h2 className="font-heading text-[30px] leading-none md:text-[40px] font-bold uppercase text-brand-strong">
+              {title ?? (locale === "en" ? "Best Selling Products" : "Sản phẩm bán chạy nhất")}
+            </h2>
+            {subtitle ? (
+              <p className="mx-auto mt-4 max-w-2xl font-body text-[15px] leading-7 text-text-muted">
+                {subtitle}
+              </p>
+            ) : null}
+          </div>
           <div className="hidden md:flex absolute right-0 items-center gap-3 text-text-muted">
             <button
               aria-label="Previous"

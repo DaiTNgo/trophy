@@ -65,13 +65,13 @@ const trustItems: TrustItem[] = [
 function TrustIcon({ icon }: { icon: TrustItem["icon"] }) {
   switch (icon) {
     case "shipping":
-      return <Truck className="h-4 w-4" />;
+      return <Truck className="h-7 w-7" />;
     case "quality":
-      return <BadgeCheck className="h-4 w-4" />;
+      return <BadgeCheck className="h-7 w-7" />;
     case "guarantee":
-      return <ShieldCheck className="h-4 w-4" />;
+      return <ShieldCheck className="h-7 w-7" />;
     default:
-      return <ClipboardCheck className="h-4 w-4" />;
+      return <ClipboardCheck className="h-7 w-7" />;
   }
 }
 
@@ -110,35 +110,43 @@ function ListingHero({
   imageAlt: string;
 }) {
   return (
-    <section className="relative isolate overflow-hidden bg-[url('/category_bg.jpg')] bg-cover bg-center text-white">
-      <div className="absolute inset-0 -z-10 bg-brand-strong/78" />
-      <div className="absolute inset-0 -z-10 bg-[linear-gradient(112deg,rgba(0,0,0,0.38)_0%,rgba(0,0,0,0.2)_54%,rgba(0,0,0,0.48)_100%)]" />
-      <div className="mx-auto grid w-full max-w-[1180px] gap-7 px-5 py-8 md:grid-cols-[minmax(0,1.05fr)_minmax(300px,0.95fr)] md:px-8 md:py-10 lg:min-h-[260px] lg:items-center">
-        <div>
+    <section className="relative isolate overflow-hidden bg-brand-hero text-white">
+      <div className="absolute inset-0 -z-20 bg-[url('/category_bg.jpg')] bg-cover bg-center opacity-80" />
+      <div className="absolute inset-0 -z-10 bg-gradient-to-r from-brand-hero via-brand-strong/94 to-brand-hero/62" />
+      <div className="absolute inset-y-0 left-0 -z-10 hidden w-[64%] bg-brand-hero/50 md:block" />
+      <div className="absolute inset-y-0 left-[51%] z-0 hidden w-3 -skew-x-[18deg] bg-white md:block" />
+
+      <div className="mx-auto grid w-full max-w-[1440px] gap-0 px-0 md:grid-cols-[minmax(0,0.95fr)_minmax(360px,0.78fr)] lg:min-h-[340px]">
+        <div className="relative z-10 px-5 pb-9 pt-8 md:px-8 md:pb-10 md:pt-11 lg:pl-12">
           <Breadcrumbs items={breadcrumbs} />
 
-          <p className="mb-2 font-body-md text-[11px] font-bold uppercase tracking-[0.2em] text-brand-accent">
-            {eyebrow}
-          </p>
-          <h1 className="max-w-[580px] font-heading text-[42px] uppercase leading-[0.9] md:text-[60px] lg:text-[72px]">
+          <div className="mb-4 inline-flex items-center gap-2 border border-white/20 bg-white/10 px-3 py-2">
+            <span className="h-2 w-2 bg-brand-accent" />
+            <p className="font-body-md text-[10px] font-bold uppercase tracking-[0.18em] text-white/86">
+              {eyebrow}
+            </p>
+          </div>
+          <h1 className="max-w-[640px] min-w-0 [overflow-wrap:anywhere] font-heading text-[46px] uppercase leading-[0.88] text-white md:text-[68px] lg:text-[82px]">
             {title}
           </h1>
-          <p className="mt-4 max-w-[610px] font-body-md text-[14px] font-semibold leading-6 text-white/86 md:text-[15px]">
+          <p className="mt-5 max-w-[660px] font-body-md text-[15px] font-bold leading-7 text-white/92 md:text-[18px] md:leading-8">
             {description}
           </p>
         </div>
 
-        <div className="relative min-h-[210px] overflow-hidden border-l border-white/18 bg-[radial-gradient(circle_at_48%_40%,rgba(255,255,255,0.22),rgba(255,255,255,0)_56%)] px-6 py-4">
-          <div className="absolute bottom-0 left-8 right-8 h-8 border-t border-white/18 bg-black/15" />
+        <div className="relative z-10 min-h-[250px] overflow-hidden border-t-4 border-white bg-brand-strong md:min-h-full md:border-t-0 md:[clip-path:polygon(12%_0,100%_0,100%_100%,0_100%)]">
+          <div className="absolute inset-0 bg-[url('/category_bg.jpg')] bg-cover bg-center opacity-90" />
+          <div className="absolute inset-0 bg-gradient-to-br from-brand-support/20 via-brand-hero/10 to-brand-hero/75" />
+          <div className="absolute bottom-0 left-[12%] right-0 h-12 border-t border-white/18 bg-brand-hero/56" />
           {imageSrc ? (
             <img
               src={imageSrc}
               alt={imageAlt}
-              className="relative z-10 mx-auto h-[210px] w-full object-contain md:h-[240px]"
+              className="relative z-10 mx-auto h-[250px] w-full object-contain px-8 py-5 drop-shadow-2xl md:h-[330px] md:pl-16 md:pr-10"
             />
           ) : (
-            <div className="relative z-10 flex h-[210px] w-full items-center justify-center text-white/45">
-              <Package className="h-14 w-14" />
+            <div className="relative z-10 flex h-[250px] w-full items-center justify-center text-white/45 md:h-[330px]">
+              <Package className="h-16 w-16" />
             </div>
           )}
         </div>
@@ -149,14 +157,15 @@ function ListingHero({
 
 function ListingTrustBar() {
   return (
-    <section className="bg-brand-strong text-white">
-      <div className="mx-auto grid w-full max-w-[1180px] grid-cols-2 divide-x divide-white/12 px-5 md:grid-cols-4 md:px-8">
+    <section className="relative bg-brand-strong text-white">
+      <div className="absolute inset-x-0 top-0 h-1 bg-white" />
+      <div className="mx-auto grid w-full max-w-[1180px] grid-cols-2 divide-x divide-y divide-white/12 px-5 md:grid-cols-4 md:divide-y-0 md:px-8">
         {trustItems.map((item) => (
-          <div key={item.label} className="flex min-h-12 items-center justify-center gap-2 px-3 py-3 text-center">
-            <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-white/12 text-white">
+          <div key={item.label} className="flex min-h-[76px] items-center justify-center gap-3 px-3 py-4 text-center">
+            <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center text-white">
               <TrustIcon icon={item.icon} />
             </span>
-            <span className="font-body-md text-[10px] font-bold uppercase tracking-[0.09em] text-white/88 md:text-[11px]">
+            <span className="font-heading text-[17px] uppercase leading-none text-white md:text-[20px]">
               {item.label}
             </span>
           </div>
@@ -414,7 +423,7 @@ export function ProductListingShell({
   return (
     <div className="min-h-screen bg-surface-base text-text-base">
       <main>
-        <ListingHero
+        {/*<ListingHero
           breadcrumbs={breadcrumbs}
           eyebrow={eyebrow}
           title={title}
@@ -427,7 +436,7 @@ export function ProductListingShell({
           filters={filters}
           resultLabel={resultLabel}
           locale={locale}
-        />
+        />*/}
         <ListingResults
           products={products}
           locale={locale}

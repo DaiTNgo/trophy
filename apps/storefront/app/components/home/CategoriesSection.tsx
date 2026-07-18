@@ -1,8 +1,6 @@
 import { Link } from "react-router";
-import { useCallback, useEffect, useRef, useState } from "react";
 import type { StorefrontCategory } from "../../lib/api";
 import { backendAssetUrl } from "../../lib/api";
-import { ChevronLeft, ChevronRight } from "lucide-react";
 import { getCategoryPath } from "../../lib/storefront-paths";
 import { getLocalized } from "../../lib/translation";
 import Container from "../container";
@@ -35,103 +33,14 @@ interface ShopByProductSectionProps {
 }
 
 export function CategoriesSection({ categories, locale = "vi" }: ShopByProductSectionProps) {
-  const scrollRef = useRef<HTMLDivElement | null>(null);
-  const [canScrollLeft, setCanScrollLeft] = useState(false);
-  const [canScrollRight, setCanScrollRight] = useState(false);
-
-  const updateScrollState = useCallback(() => {
-    const node = scrollRef.current;
-
-    if (!node) {
-      setCanScrollLeft(false);
-      setCanScrollRight(false);
-      return;
-    }
-
-    const maxScrollLeft = node.scrollWidth - node.clientWidth;
-    const hasOverflow = maxScrollLeft > 1;
-
-    setCanScrollLeft(hasOverflow && node.scrollLeft > 1);
-    setCanScrollRight(hasOverflow && node.scrollLeft < maxScrollLeft - 1);
-  }, []);
-
-  useEffect(() => {
-    const node = scrollRef.current;
-
-    if (!node) {
-      return;
-    }
-
-    updateScrollState();
-    node.addEventListener("scroll", updateScrollState, { passive: true });
-    window.addEventListener("resize", updateScrollState);
-
-    const resizeObserver =
-      typeof ResizeObserver !== "undefined"
-        ? new ResizeObserver(updateScrollState)
-        : null;
-
-    resizeObserver?.observe(node);
-
-    return () => {
-      node.removeEventListener("scroll", updateScrollState);
-      window.removeEventListener("resize", updateScrollState);
-      resizeObserver?.disconnect();
-    };
-  }, [categories.length, updateScrollState]);
-
-  const scrollByDirection = useCallback((direction: "left" | "right") => {
-    const node = scrollRef.current;
-
-    if (!node) return;
-
-    const scrollAmount = Math.max(node.clientWidth * 0.85, 280);
-
-    node.scrollBy({
-      left: direction === "left" ? -scrollAmount : scrollAmount,
-      behavior: "smooth",
-    });
-  }, []);
-
   if (categories.length === 0) return null;
-
-  const hasScrollableControls = canScrollLeft || canScrollRight;
+  const featuredCategories = categories.slice(0, 4);
 
   return (
-    <Container className="py-24">
-      <div className="relative">
-        {hasScrollableControls ? (
-          <div className="pointer-events-none absolute inset-y-0 left-0 right-0 z-20 hidden items-center justify-between md:flex">
-            <button
-              type="button"
-              aria-label="Scroll categories left"
-              className={`pointer-events-auto -ml-5 flex h-11 w-11 items-center justify-center rounded-full border border-border-subtle bg-surface-base shadow-sm transition-opacity ${
-                canScrollLeft ? "opacity-100 hover:text-brand-strong" : "opacity-0"
-              }`}
-              disabled={!canScrollLeft}
-              onClick={() => scrollByDirection("left")}
-            >
-              <ChevronLeft className="h-6 w-6 stroke-[1.5]" />
-            </button>
-            <button
-              type="button"
-              aria-label="Scroll categories right"
-              className={`pointer-events-auto -mr-5 flex h-11 w-11 items-center justify-center rounded-full border border-border-subtle bg-surface-base shadow-sm transition-opacity ${
-                canScrollRight ? "opacity-100 hover:text-brand-strong" : "opacity-0"
-              }`}
-              disabled={!canScrollRight}
-              onClick={() => scrollByDirection("right")}
-            >
-              <ChevronRight className="h-6 w-6 stroke-[1.5]" />
-            </button>
-          </div>
-        ) : null}
-
-        <div
-          ref={scrollRef}
-          className="flex snap-x snap-mandatory gap-8 overflow-x-auto scroll-smooth pb-2"
-        >
-          {categories.map((cat, index) => {
+    <section className="bg-surface-base py-18 md:py-24">
+      <Container>
+        <div className="grid grid-cols-2 gap-5 sm:gap-8 lg:grid-cols-4">
+          {featuredCategories.map((cat, index) => {
             const name = getLocalized(cat.name, locale);
             const imageUrl = cat.imageUrl
               ? backendAssetUrl(cat.imageUrl)
@@ -141,50 +50,47 @@ export function CategoriesSection({ categories, locale = "vi" }: ShopByProductSe
             return (
               <div
                 key={cat.id}
-                className="group reveal active flex shrink-0 grow-0 basis-[78vw] snap-start flex-col items-center text-center sm:basis-[calc((100%_-_2rem)/2)] lg:basis-[calc((100%_-_6rem)/4)]"
+                className="group reveal active flex flex-col items-center text-center"
                 style={{ animationDelay: `${index * 60}ms` }}
               >
                 <Link
                   to={getCategoryPath(cat.handle)}
-                  className="block w-full group relative flex flex-col h-full"
+                  className="group relative flex h-full w-full flex-col"
                 >
-                  {/* Image */}
-                  <div className="relative aspect-square w-full mb-6 flex items-center justify-center">
+                  <div className="relative mb-6 flex aspect-square w-full items-center justify-center bg-surface-container-low px-4">
                     <img
-                      className="max-w-full max-h-full object-contain transition-transform duration-700 group-hover:scale-105"
+                      className="max-h-full max-w-full object-contain transition-transform duration-700 group-hover:scale-105"
                       src={imageUrl}
                       alt={name}
                       loading="lazy"
                     />
                   </div>
 
-                  <div className="absolute -left-5 -right-5 bottom-8  bg-white/75 opacity-0 group-hover:opacity-100 z-10 flex flex-col items-center pt-5 pb-6 px-5 pointer-events-none group-hover:pointer-events-auto rounded-xl">
-                    <h3 className="font-heading text-[24px] font-bold uppercase leading-tight text-[#232323] mb-4 text-center">
+                  <div className="absolute -left-5 -right-5 bottom-8 z-10 flex flex-col items-center rounded-xl bg-surface-base/90 px-5 pb-6 pt-5 opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
+                    <h3 className="mb-4 text-center font-heading text-[24px] font-bold uppercase leading-tight text-text-base">
                       {name}
                     </h3>
-                    <p className="font-body text-[#4a4a4a] text-[14px] leading-relaxed mb-6 text-center line-clamp-3">
+                    <p className="mb-6 line-clamp-3 text-center font-body text-[14px] leading-relaxed text-text-muted">
                       {desc}
                     </p>
                     <div className="mt-auto">
-                      <span className="inline-block px-8 py-3 bg-[#288ab6] hover:bg-[#244159] text-white font-bold text-[14px] uppercase tracking-wider rounded-sm transition-colors">
-                        Shop {name}
+                      <span className="inline-block rounded-sm bg-action-support px-8 py-3 text-[14px] font-bold uppercase tracking-wider text-white transition-colors group-hover:bg-action-support-hover">
+                        {locale === "en" ? `Shop ${name}` : `Xem ${name}`}
                       </span>
                     </div>
                   </div>
 
-                  {/* Text Area Container (Relative to contain the absolute hover card) */}
-                  <div className=" flex-1 mt-4">
-                    {/* Fake UI: Luôn giữ kích thước cố định, có chứa button nhưng bị ẩn đi, khi hover thì opacity 0 (không animation theo yêu cầu) */}
-                    <div className="text-center flex flex-col h-full opacity-100 group-hover:opacity-0">
-                      <h3 className="font-heading text-[24px] font-bold uppercase leading-tight text-[#232323] mb-4">
+                  <div className="mt-4 flex flex-1">
+                    <div className="flex h-full flex-col text-center opacity-100 group-hover:opacity-0">
+                      <h3 className="mb-4 font-heading text-[24px] font-bold uppercase leading-tight text-text-base">
                         {name}
                       </h3>
-                      <p className="font-body text-[#4a4a4a] text-[14px] leading-relaxed mb-6">
+                      <p className="mb-6 font-body text-[14px] leading-relaxed text-text-muted">
                         {desc}
                       </p>
                       <div className="mt-auto pb-4 opacity-0">
-                        <span className="inline-block px-8 py-3 bg-[#288ab6] text-white font-bold text-[14px] uppercase tracking-wider rounded-sm">
-                          Shop {name}
+                        <span className="inline-block rounded-sm bg-action-support px-8 py-3 text-[14px] font-bold uppercase tracking-wider text-white">
+                          {locale === "en" ? `Shop ${name}` : `Xem ${name}`}
                         </span>
                       </div>
                     </div>
@@ -194,34 +100,7 @@ export function CategoriesSection({ categories, locale = "vi" }: ShopByProductSe
             );
           })}
         </div>
-
-        {hasScrollableControls ? (
-          <div className="mt-6 flex items-center justify-center gap-4 md:hidden">
-            <button
-              type="button"
-              aria-label="Scroll categories left"
-              className={`flex h-10 w-10 items-center justify-center rounded-full border border-border-subtle bg-surface-base shadow-sm transition-opacity ${
-                canScrollLeft ? "opacity-100" : "opacity-40"
-              }`}
-              disabled={!canScrollLeft}
-              onClick={() => scrollByDirection("left")}
-            >
-              <ChevronLeft className="h-5 w-5 stroke-[1.5]" />
-            </button>
-            <button
-              type="button"
-              aria-label="Scroll categories right"
-              className={`flex h-10 w-10 items-center justify-center rounded-full border border-border-subtle bg-surface-base shadow-sm transition-opacity ${
-                canScrollRight ? "opacity-100" : "opacity-40"
-              }`}
-              disabled={!canScrollRight}
-              onClick={() => scrollByDirection("right")}
-            >
-              <ChevronRight className="h-5 w-5 stroke-[1.5]" />
-            </button>
-          </div>
-        ) : null}
-      </div>
-    </Container>
+      </Container>
+    </section>
   );
 }

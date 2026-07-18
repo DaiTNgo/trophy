@@ -30,13 +30,15 @@ import {
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from "react";
+import { createPortal } from "react-dom";
 import {
   ArrowDown,
   ArrowLeft,
   ArrowRight,
   ArrowUp,
+  Crosshair,
+  Fullscreen,
   ImagePlus,
-  Maximize2,
   Minus,
   Plus,
   RotateCcw,
@@ -421,20 +423,6 @@ export function ProductCustomizationPreview({
                 <Plus className="size-3.5" />
               </CanvasAction>
               <CanvasAction
-                label="Rotate image left"
-                onClick={() =>
-                  adjustSelectedImage({ cropRotationDeg: (selectedImageField.value.cropRotationDeg ?? 0) - 5 })}
-              >
-                <RotateCcw className="size-3.5" />
-              </CanvasAction>
-              <CanvasAction
-                label="Rotate image right"
-                onClick={() =>
-                  adjustSelectedImage({ cropRotationDeg: (selectedImageField.value.cropRotationDeg ?? 0) + 5 })}
-              >
-                <RotateCw className="size-3.5" />
-              </CanvasAction>
-              <CanvasAction
                 label="Move image left"
                 onClick={() => adjustSelectedImage({ cropXRatio: (selectedImageField.value.cropXRatio ?? 0) - 0.05 })}
               >
@@ -470,7 +458,7 @@ export function ProductCustomizationPreview({
                 label="Open fullscreen preview"
                 onClick={() => setIsFullscreen(true)}
               >
-                <Maximize2 className="size-3.5" />
+                <Fullscreen className="size-3.5" />
               </CanvasAction>
               <CanvasAction label="Zoom out" onClick={() => setCommittedZoom(zoom - PREVIEW_ZOOM_STEP)}>
                 <Minus className="size-3.5" />
@@ -479,7 +467,7 @@ export function ProductCustomizationPreview({
                 <Plus className="size-3.5" />
               </CanvasAction>
               <CanvasAction label="Fit canvas" onClick={fitToView}>
-                <Maximize2 className="size-3.5" />
+                <Crosshair className="size-3.5" />
               </CanvasAction>
             </div>
           </div>
@@ -490,7 +478,7 @@ export function ProductCustomizationPreview({
                 label="Open fullscreen preview"
                 onClick={() => setIsFullscreen(true)}
               >
-                <Maximize2 className="size-3.5" />
+                <Fullscreen className="size-3.5" />
               </CanvasAction>
               <CanvasAction label="Zoom out" onClick={() => setCommittedZoom(zoom - PREVIEW_ZOOM_STEP)}>
                 <Minus className="size-3.5" />
@@ -499,7 +487,7 @@ export function ProductCustomizationPreview({
                 <Plus className="size-3.5" />
               </CanvasAction>
               <CanvasAction label="Fit canvas" onClick={fitToView}>
-                <Maximize2 className="size-3.5" />
+                <Crosshair className="size-3.5" />
               </CanvasAction>
             </div>
           </div>
@@ -512,8 +500,8 @@ export function ProductCustomizationPreview({
     return previewFrame;
   }
 
-  return (
-    <div className="fixed inset-0 z-[120] bg-black/70 p-3 backdrop-blur-sm sm:p-5">
+  const fullscreenOverlay = (
+    <div className="fixed inset-0 z-[2147483647] bg-black/70 p-3 backdrop-blur-sm sm:p-5">
       <div className="absolute right-4 top-4 z-[121]">
         <Button
           variant="outline"
@@ -531,6 +519,12 @@ export function ProductCustomizationPreview({
       </div>
     </div>
   );
+
+  if (typeof document === "undefined") {
+    return fullscreenOverlay;
+  }
+
+  return createPortal(fullscreenOverlay, document.body);
 }
 
 function CanvasAction({
