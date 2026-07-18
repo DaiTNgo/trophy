@@ -23,7 +23,7 @@ export function DesktopSearch() {
   const showClear = query.length > 0;
 
   return (
-    <div ref={wrapperRef} className="hidden xl:block relative grow max-w-3xl">
+    <div ref={wrapperRef} className="hidden lg:block relative grow max-w-3xl">
       <InputGroup className="rounded-full bg-gray-50 border-gray-200 text-gray-500 hover:border-gray-300 hover:bg-gray-100 transition-all h-10 shadow-none focus-within:ring-0 has-[[data-slot=input-group-control]:focus-visible]:ring-0">
         <InputGroupAddon>
           <Search className="text-gray-500 text-[22px]" />

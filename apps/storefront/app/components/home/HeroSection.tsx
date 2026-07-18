@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/carousel";
 import Autoplay from "embla-carousel-autoplay";
 import { useState, useEffect } from "react";
+import Container from "../container";
 
 const HERO_SLIDES = [
   {
@@ -19,7 +20,7 @@ const HERO_SLIDES = [
     accentIndex: 2,
     body: "Cúp, kỷ niệm chương và giải thưởng tùy chỉnh cho doanh nghiệp, giải đấu và sự kiện.",
     cta: { label: "Khám phá sản phẩm", to: "/products" },
-    cta2: { label: "Tùy chỉnh theo yêu cầu", to: "/contact" },
+    cta2: { label: "Liên hệ tư vấn", to: "/contact" },
   },
   {
     image: "/images/home/hero-2.jpg",
@@ -28,7 +29,7 @@ const HERO_SLIDES = [
     accentIndex: 2,
     body: "15+ năm kinh nghiệm — 2 xưởng sản xuất tại Hà Nội và TP. HCM. Sản phẩm đã góp mặt tại hàng nghìn sự kiện trên khắp cả nước.",
     cta: { label: "Khám phá sản phẩm", to: "/products" },
-    cta2: { label: "Nhận báo giá", to: "/contact" },
+    cta2: { label: "Liên hệ tư vấn", to: "/contact" },
   },
   {
     image: "/images/home/hero-3.png",
@@ -36,7 +37,7 @@ const HERO_SLIDES = [
     headline: ["THIẾT KẾ", "THEO YÊU CẦU", "CÁ NHÂN HÓA"],
     accentIndex: 2,
     body: "Từ ý tưởng đến sản phẩm hoàn thiện. Thiết kế riêng theo logo, thông điệp và phong cách của bạn.",
-    cta: { label: "Xem mẫu thiết kế", to: "/products" },
+    cta: { label: "Khám phá sản phẩm", to: "/products" },
     cta2: { label: "Liên hệ tư vấn", to: "/contact" },
   },
 ];
@@ -62,7 +63,7 @@ export function HeroSection() {
         <CarouselContent className="ml-0">
           {HERO_SLIDES.map((slide, i) => (
             <CarouselItem key={i} className="pl-0">
-              <div className="relative flex min-h-[75vh] w-full items-center overflow-hidden bg-surface-dark">
+              <div className="relative flex h-[75vh] w-full items-center overflow-hidden bg-surface-dark">
                 <div className="absolute inset-0 z-0">
                   <img
                     className="h-full w-full object-cover object-center"
@@ -73,55 +74,56 @@ export function HeroSection() {
                 </div>
                 <div className="absolute inset-0 z-10 bg-gradient-to-r from-[color:color-mix(in_srgb,var(--brand-hero)_94%,transparent)] via-[color:color-mix(in_srgb,var(--brand-hero)_60%,transparent)] to-transparent" />
                 <div className="absolute inset-x-0 bottom-0 z-10 h-32 bg-gradient-to-t from-[color:color-mix(in_srgb,var(--brand-hero)_70%,transparent)] to-transparent" />
-
-                <div className="relative z-20 mx-auto w-full max-w-container-max px-margin-mobile py-24 md:px-margin-desktop">
-                  <div className="max-w-xl">
-                    <div className="mb-5 flex items-center gap-3">
-                      <div className="h-[3px] w-16 bg-brand-accent" />
-                      <span className="font-label-md text-label-md uppercase tracking-[0.35em] text-brand-accent">
-                        {slide.eyebrow}
-                      </span>
-                    </div>
-                    <h1 className="mb-6 font-heading uppercase leading-none tracking-wide text-white">
-                      {slide.headline.map((line, j) => (
-                        <span
-                          key={line}
-                          className={`block text-[56px] leading-[1] md:text-[72px] ${j === slide.accentIndex ? "text-brand-accent" : ""}`}
-                        >
-                          {line}
+                <Container className="py-24">
+                  <div className="relative z-20 mx-auto w-full max-w-container-max px-margin-mobile py-24 md:px-margin-desktop">
+                    <div className="max-w-xl">
+                      <div className="mb-5 flex items-center gap-3">
+                        <div className="h-[3px] w-16 bg-brand-accent" />
+                        <span className="font-label-md text-label-md uppercase tracking-[0.35em] text-brand-accent">
+                          {slide.eyebrow}
                         </span>
-                      ))}
-                    </h1>
-                    <p className="mb-8 max-w-md font-body-lg text-body-lg leading-relaxed text-white/80">
-                      {slide.body}
-                    </p>
-                    <div className="mb-10 flex flex-col items-center gap-3 sm:flex-row sm:gap-4">
-                      <Link
-                        to={slide.cta.to}
-                        className="rounded-lg bg-action-support px-8 py-4 text-center font-label-md text-label-md uppercase tracking-widest text-white transition-all duration-300 hover:bg-action-support-hover"
-                      >
-                        {slide.cta.label}
-                      </Link>
-                      <Link
-                        to={slide.cta2.to}
-                        className="rounded-lg border-2 border-white/60 px-8 py-4 text-center font-label-md text-label-md uppercase tracking-widest text-white transition-all duration-300 hover:border-brand-accent hover:bg-white/10"
-                      >
-                        {slide.cta2.label}
-                      </Link>
-                    </div>
-                    <div className="flex items-center gap-6 text-[13px] font-semibold uppercase tracking-wide text-white/50">
-                      <span className="flex items-center gap-1.5">
-                        <Trophy className="text-[16px] text-brand-accent" />
-                        600k+ sản phẩm vinh danh
-                      </span>
-                      <span className="h-1 w-1 rounded-full bg-white/30" />
-                      <span className="flex items-center gap-1.5">
-                        <PenSquare className="text-[16px] text-brand-support" />
-                        Khắc theo yêu cầu
-                      </span>
+                      </div>
+                      <h1 className="mb-6 font-heading uppercase leading-none tracking-wide text-white">
+                        {slide.headline.map((line, j) => (
+                          <span
+                            key={line}
+                            className={`block text-[56px] leading-[1] md:text-[72px] ${j === slide.accentIndex ? "text-brand-accent" : ""}`}
+                          >
+                            {line}
+                          </span>
+                        ))}
+                      </h1>
+                      <p className="mb-8 max-w-md font-body-lg text-body-lg leading-relaxed text-white/80">
+                        {slide.body}
+                      </p>
+                      <div className="mb-10 flex flex-col items-center gap-3 sm:flex-row sm:gap-4">
+                        <Link
+                          to={slide.cta.to}
+                          className="rounded-lg bg-action-support px-8 py-4 text-center font-label-md text-label-md uppercase tracking-widest text-white transition-all duration-300 hover:bg-action-support-hover"
+                        >
+                          {slide.cta.label}
+                        </Link>
+                        <Link
+                          to={slide.cta2.to}
+                          className="rounded-lg border-2 border-white/60 px-8 py-4 text-center font-label-md text-label-md uppercase tracking-widest text-white transition-all duration-300 hover:border-brand-accent hover:bg-white/10"
+                        >
+                          {slide.cta2.label}
+                        </Link>
+                      </div>
+                      <div className="flex items-center gap-6 text-[13px] font-semibold uppercase tracking-wide text-white/50">
+                        <span className="flex items-center gap-1.5">
+                          <Trophy className="text-[16px] text-brand-accent" />
+                          600k+ sản phẩm vinh danh
+                        </span>
+                        <span className="h-1 w-1 rounded-full bg-white/30" />
+                        <span className="flex items-center gap-1.5">
+                          <PenSquare className="text-[16px] text-brand-support" />
+                          Khắc theo yêu cầu
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
+                </Container>
               </div>
             </CarouselItem>
           ))}

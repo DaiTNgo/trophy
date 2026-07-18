@@ -97,8 +97,8 @@ export function Navbar({ categories, collections, locale = "vi" }: NavbarProps) 
         id="main-nav"
       >
         <div ref={dropdownRef}>
-          <Container className="flex items-center justify-between xl:justify-start gap-4 h-20 lg:gap-8 bg-white relative z-20">
-            <div className="flex xl:hidden shrink-0 items-center gap-0">
+          <Container className="flex items-center justify-between lg:justify-start gap-4 h-20 lg:gap-8 bg-white relative z-20">
+            <div className="flex lg:hidden shrink-0 items-center gap-0">
               <button
                 onClick={() => setIsMobileMenuOpen(true)}
                 className="p-2 -ml-2 text-brand-strong"
@@ -111,7 +111,7 @@ export function Navbar({ categories, collections, locale = "vi" }: NavbarProps) 
 
             <Link
               to="/"
-              className="shrink-0 xl:mr-4 absolute left-1/2 -translate-x-1/2 xl:relative xl:left-0 xl:translate-x-0"
+              className="shrink-0 lg:mr-4 absolute left-1/2 -translate-x-1/2 lg:relative lg:left-0 lg:translate-x-0"
             >
               <img
                 alt="PHÙNG THỊ"
@@ -120,7 +120,7 @@ export function Navbar({ categories, collections, locale = "vi" }: NavbarProps) 
               />
             </Link>
 
-            <div className="hidden h-full shrink-0 items-center gap-2 text-[13px] font-bold tracking-wide text-brand-strong xl:flex">
+            <div className="hidden h-full shrink-0 items-center gap-2 text-[13px] font-bold tracking-wide text-brand-strong lg:flex">
               <div className="h-[40px] flex items-center relative">
                 <button
                   onClick={() =>
@@ -168,7 +168,7 @@ export function Navbar({ categories, collections, locale = "vi" }: NavbarProps) 
 
             <DesktopSearch />
 
-            <div className="flex w-10 shrink-0 items-center justify-end gap-4 text-brand-strong xl:w-auto">
+            <div className="flex w-10 shrink-0 items-center justify-end gap-4 text-brand-strong lg:w-auto">
               <LanguageSwitcher />
               <NavbarMoreDropdown />
 
@@ -196,14 +196,6 @@ export function Navbar({ categories, collections, locale = "vi" }: NavbarProps) 
             </div>
           )}
         </div>
-
-        <NavbarMobileMenu
-          isOpen={isMobileMenuOpen}
-          onClose={() => setIsMobileMenuOpen(false)}
-          categories={categories}
-          collections={collections}
-          locale={locale}
-        />
       </header>
 
       {categories.length > 0 && (
@@ -265,6 +257,14 @@ export function Navbar({ categories, collections, locale = "vi" }: NavbarProps) 
         </div>
       )}
     </div>
+
+    <NavbarMobileMenu
+      isOpen={isMobileMenuOpen}
+      onClose={() => setIsMobileMenuOpen(false)}
+      categories={categories}
+      collections={collections}
+      locale={locale}
+    />
     </>
   );
 }

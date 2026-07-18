@@ -29,7 +29,7 @@ export function NavbarMobileMenu({ isOpen, onClose, categories, collections, loc
   }));
 
   return (
-    <div className="fixed inset-0 z-[100] bg-white flex flex-col xl:hidden animate-in slide-in-from-left duration-300">
+    <div className="fixed inset-0 z-[100] bg-white flex flex-col lg:hidden animate-in slide-in-from-left duration-300">
       <div className="flex h-[70px] shrink-0 items-center justify-between border-b border-border-subtle px-6 text-brand-strong">
         <Link to="/" className="shrink-0" onClick={onClose}>
           <img
