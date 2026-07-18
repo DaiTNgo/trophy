@@ -40,24 +40,30 @@ import {
 import { recordRecentlyViewedProduct } from "../lib/recently-viewed";
 import type { Route } from "./+types/categories.$categoryHandle.products.$productHandle";
 import { getLocaleFromRequest } from "../lib/locale";
+import { withStorefrontLoaderLog } from "../lib/observability";
 import Container from "@/components/container";
 import { QuantityInput } from "../components/ui/quantity-input";
 
 export async function loader({ params, request }: Route.LoaderArgs) {
-  const locale = getLocaleFromRequest(request);
-  const product = await fetchStorefrontProduct(params.productHandle, locale);
-  const activeCategory =
-    product.categories.find((category) => category.handle === params.categoryHandle) ?? null;
+  return withStorefrontLoaderLog("category-product-detail", request, async () => {
+    const locale = getLocaleFromRequest(request);
+    const product = await fetchStorefrontProduct(params.productHandle, locale);
+    const activeCategory =
+      product.categories.find((category) => category.handle === params.categoryHandle) ?? null;
 
-  if (!activeCategory) {
-    throw new Response("Not Found", { status: 404 });
-  }
+    if (!activeCategory) {
+      throw new Response("Not Found", { status: 404 });
+    }
 
-  const dynamicFonts = product.customization
-    ? await fetchStorefrontDynamicFonts()
-    : [];
+    const dynamicFonts = product.customization
+      ? await fetchStorefrontDynamicFonts()
+      : [];
 
-  return { product, dynamicFonts, locale, activeCategory };
+    return { product, dynamicFonts, locale, activeCategory };
+  }, {
+    categoryHandle: params.categoryHandle,
+    productHandle: params.productHandle,
+  });
 }
 
 export function meta({ loaderData }: Route.MetaArgs) {

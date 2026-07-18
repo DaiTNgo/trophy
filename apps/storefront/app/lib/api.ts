@@ -1,4 +1,5 @@
 import type { LocalizedTextValue } from "./translation";
+import { fetchBackendWithLog } from "./observability";
 
 const BACKEND_URL =
   (import.meta.env.VITE_BACKEND_URL as string | undefined)?.replace(/\/$/, "") ??
@@ -33,7 +34,7 @@ export async function uploadStorefrontCustomizationAsset(
   file: File,
   uploadToken: string,
 ): Promise<StorefrontCustomizationAsset> {
-  const response = await fetch(backendUrl("/api/storefront/customizations/assets"), {
+  const response = await fetchBackendWithLog("uploadStorefrontCustomizationAsset", backendUrl("/api/storefront/customizations/assets"), {
     method: "POST",
     headers: { "Content-Type": file.type, "X-Upload-Token": uploadToken },
     body: file,
@@ -140,7 +141,7 @@ export async function fetchStorefrontProducts(params: {
   const qs = searchParams.toString();
   const url = backendUrl(`/api/storefront/products${qs ? `?${qs}` : ""}`);
 
-  const res = await fetch(url);
+  const res = await fetchBackendWithLog("fetchStorefrontProducts", url);
 
   if (!res.ok) {
     throw new Response("Failed to load products", { status: res.status });
@@ -160,7 +161,7 @@ export async function fetchStorefrontProducts(params: {
 export async function fetchStorefrontProduct(handle: string, locale?: string): Promise<StorefrontDetailResponse["item"]> {
   const url = backendUrl(`/api/storefront/products/${encodeURIComponent(handle)}${locale ? `?locale=${locale}` : ''}`);
 
-  const res = await fetch(url);
+  const res = await fetchBackendWithLog("fetchStorefrontProduct", url);
 
   if (!res.ok) {
     if (res.status === 404) {
@@ -183,7 +184,7 @@ export async function fetchStorefrontProduct(handle: string, locale?: string): P
 }
 
 export async function fetchStorefrontDynamicFonts(): Promise<StorefrontDynamicFont[]> {
-  const res = await fetch(backendUrl("/api/storefront/brand-assets/fonts"));
+  const res = await fetchBackendWithLog("fetchStorefrontDynamicFonts", backendUrl("/api/storefront/brand-assets/fonts"));
 
   if (!res.ok) {
     throw new Response("Failed to load fonts", { status: res.status });
@@ -203,7 +204,7 @@ export type StorefrontCategory = {
 };
 
 export async function fetchStorefrontCategories(locale?: string): Promise<StorefrontCategory[]> {
-  const res = await fetch(backendUrl(`/api/storefront/categories${locale ? `?locale=${locale}` : ''}`));
+  const res = await fetchBackendWithLog("fetchStorefrontCategories", backendUrl(`/api/storefront/categories${locale ? `?locale=${locale}` : ''}`));
 
   if (!res.ok) {
     throw new Response("Failed to load categories", { status: res.status });
@@ -222,7 +223,7 @@ export type StorefrontCollection = {
 };
 
 export async function fetchStorefrontCollections(locale?: string): Promise<StorefrontCollection[]> {
-  const res = await fetch(backendUrl(`/api/storefront/collections${locale ? `?locale=${locale}` : ''}`));
+  const res = await fetchBackendWithLog("fetchStorefrontCollections", backendUrl(`/api/storefront/collections${locale ? `?locale=${locale}` : ''}`));
 
   if (!res.ok) {
     throw new Response("Failed to load collections", { status: res.status });
@@ -245,7 +246,7 @@ export async function fetchStorefrontCollectionProducts(
   const qs = searchParams.toString();
   const url = backendUrl(`/api/storefront/collections/${encodeURIComponent(handle)}/products${qs ? `?${qs}` : ""}`);
 
-  const res = await fetch(url);
+  const res = await fetchBackendWithLog("fetchStorefrontCollectionProducts", url);
 
   if (!res.ok) {
     throw new Response("Failed to load collection products", { status: res.status });
@@ -395,7 +396,7 @@ export async function createStorefrontOrder(
 ): Promise<StorefrontOrderResponse> {
   const url = backendUrl("/api/storefront/orders");
 
-  const res = await fetch(url, {
+  const res = await fetchBackendWithLog("createStorefrontOrder", url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -417,7 +418,7 @@ export async function createStorefrontOrder(
 export async function resolveStorefrontCartLines(
   payload: { items: Array<{ productId: number; variantId: number }>, locale?: string },
 ): Promise<StorefrontResolvedCartResponse> {
-  const res = await fetch(backendUrl("/api/storefront/orders/resolve"), {
+  const res = await fetchBackendWithLog("resolveStorefrontCartLines", backendUrl("/api/storefront/orders/resolve"), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -447,7 +448,7 @@ export async function lookupStorefrontOrder(payload: {
   orderNumber: string;
   phone: string;
 }): Promise<StorefrontOrderLookupResponse> {
-  const res = await fetch(backendUrl("/api/storefront/orders/lookup"), {
+  const res = await fetchBackendWithLog("lookupStorefrontOrder", backendUrl("/api/storefront/orders/lookup"), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

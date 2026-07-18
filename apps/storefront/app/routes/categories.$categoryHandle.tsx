@@ -2,51 +2,54 @@ import { useNavigate, useSearchParams } from "react-router";
 import { ProductListingShell } from "@/components/products/ProductListingShell";
 import { fetchStorefrontCategories, fetchStorefrontProducts } from "../lib/api";
 import { getLocaleFromRequest } from "../lib/locale";
+import { withStorefrontLoaderLog } from "../lib/observability";
 import { getCategoryPath } from "../lib/storefront-paths";
 import { getLocalized } from "../lib/translation";
 import type { Route } from "./+types/categories.$categoryHandle";
 
 export async function loader({ params, request }: Route.LoaderArgs) {
-  const locale = getLocaleFromRequest(request);
-  const url = new URL(request.url);
-  const currentPage = Number(url.searchParams.get("page")) || 1;
-  const activeCategory = params.categoryHandle;
+  return withStorefrontLoaderLog("category-products", request, async () => {
+    const locale = getLocaleFromRequest(request);
+    const url = new URL(request.url);
+    const currentPage = Number(url.searchParams.get("page")) || 1;
+    const activeCategory = params.categoryHandle;
 
-  const apiCategories = await fetchStorefrontCategories(locale).catch(() => []);
-  const data = await fetchStorefrontProducts({
-    category: activeCategory,
-    page: currentPage,
-    limit: 24,
-    locale,
-  });
+    const apiCategories = await fetchStorefrontCategories(locale).catch(() => []);
+    const data = await fetchStorefrontProducts({
+      category: activeCategory,
+      page: currentPage,
+      limit: 24,
+      locale,
+    });
 
-  const allCategories = [
-    { name: locale === "en" ? "All" : "Tất cả", handle: "" },
-    ...apiCategories.map((category) => ({
-      name: getLocalized(category.name, locale),
-      handle: category.handle,
-    })),
-  ];
-  const selectedCategory =
-    apiCategories.find((category) => category.handle === activeCategory) ?? null;
+    const allCategories = [
+      { name: locale === "en" ? "All" : "Tất cả", handle: "" },
+      ...apiCategories.map((category) => ({
+        name: getLocalized(category.name, locale),
+        handle: category.handle,
+      })),
+    ];
+    const selectedCategory =
+      apiCategories.find((category) => category.handle === activeCategory) ?? null;
 
-  if (!selectedCategory) {
-    throw new Response("Not Found", { status: 404 });
-  }
+    if (!selectedCategory) {
+      throw new Response("Not Found", { status: 404 });
+    }
 
-  const categoryTitle = getLocalized(selectedCategory.name, locale) || activeCategory;
+    const categoryTitle = getLocalized(selectedCategory.name, locale) || activeCategory;
 
-  return {
-    categories: allCategories,
-    selectedCategory,
-    categoryTitle,
-    products: data.items,
-    activeCategory,
-    currentPage: data.page,
-    totalPages: Math.max(1, Math.ceil(data.total / data.limit)),
-    totalItems: data.total,
-    locale,
-  };
+    return {
+      categories: allCategories,
+      selectedCategory,
+      categoryTitle,
+      products: data.items,
+      activeCategory,
+      currentPage: data.page,
+      totalPages: Math.max(1, Math.ceil(data.total / data.limit)),
+      totalItems: data.total,
+      locale,
+    };
+  }, { categoryHandle: params.categoryHandle });
 }
 
 export default function CategoryProductsPage({
