@@ -123,16 +123,6 @@ export function BestSellersSection({ products, locale = "vi" }: BestSellersSecti
             </button>
           </div>
         </div>
-
-        {/* Mobile "view all" */}
-        <div className="mt-12 text-center md:hidden">
-          <Link
-            to="/products"
-            className="inline-flex items-center gap-2 rounded-lg border-2 border-brand-strong px-10 py-4 font-label-md text-label-md uppercase tracking-widest text-brand-strong transition-all duration-300 hover:bg-brand-strong hover:text-white"
-          >
-            Xem tất cả sản phẩm
-          </Link>
-        </div>
       </Container>
     </section>
   );

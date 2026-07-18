@@ -35,9 +35,6 @@ export function Navbar({
   const { itemCount } = useCart();
   const { isSticky, slideIn } = useNavbarScroll();
   const activeCategoryHandle = getActiveCategoryHandle(pathname);
-  const activeCategoryHref = activeCategoryHandle
-    ? getCategoryPath(activeCategoryHandle)
-    : null;
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<
@@ -189,7 +186,6 @@ export function Navbar({
                     ? productMenuItems
                     : themeMenuItems
                 }
-                activeHref={activeDropdown === "products" ? activeCategoryHref : null}
               />
             </div>
           )}

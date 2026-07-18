@@ -115,6 +115,12 @@
       "skillPath": "skills/productivity/grilling/SKILL.md",
       "computedHash": "bf1e75d96966edd298902d63348c828921b8b095d7306d0cdd56b4a591a7a82b"
     },
+    "hallmark": {
+      "source": "nutlope/hallmark",
+      "sourceType": "github",
+      "skillPath": "skills/hallmark/SKILL.md",
+      "computedHash": "8a8ecafd613f09e701330b5aa4a591ac539abb2605596df4a2394f03628d1d76"
+    },
     "handoff": {
       "source": "mattpocock/skills",
       "sourceType": "github",

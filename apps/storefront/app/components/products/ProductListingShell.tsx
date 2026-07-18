@@ -50,6 +50,11 @@ type ProductListingShellProps = {
   };
 };
 
+type ListingFilterConfig = NonNullable<ProductListingShellProps["filters"]>;
+type EmptyStateConfig = ProductListingShellProps["emptyState"];
+
+const reviewCountCycle = [0, 9, 12, 17, 21, 0, 8, 14];
+
 const trustItems: TrustItem[] = [
   { icon: "proof", label: "Duyệt mẫu trước khi sản xuất" },
   { icon: "quality", label: "Chất lượng gia công ổn định" },
@@ -68,6 +73,236 @@ function TrustIcon({ icon }: { icon: TrustItem["icon"] }) {
     default:
       return <ClipboardCheck className="h-4 w-4" />;
   }
+}
+
+function Breadcrumbs({ items }: { items: BreadcrumbItem[] }) {
+  return (
+    <nav className="mb-5 flex flex-wrap items-center gap-2 text-[10px] font-bold uppercase tracking-[0.14em] text-white/70">
+      {items.map((item, index) => (
+        <span key={`${item.label}-${index}`} className="inline-flex items-center gap-2">
+          {item.href ? (
+            <Link to={item.href} className="transition-colors hover:text-white">
+              {item.label}
+            </Link>
+          ) : (
+            <span className="text-white">{item.label}</span>
+          )}
+          {index < items.length - 1 ? <ChevronRight className="h-3 w-3" /> : null}
+        </span>
+      ))}
+    </nav>
+  );
+}
+
+function ListingHero({
+  breadcrumbs,
+  eyebrow,
+  title,
+  description,
+  imageSrc,
+  imageAlt,
+}: {
+  breadcrumbs: BreadcrumbItem[];
+  eyebrow: string;
+  title: string;
+  description: string;
+  imageSrc: string | null;
+  imageAlt: string;
+}) {
+  return (
+    <section className="relative isolate overflow-hidden bg-[url('/category_bg.jpg')] bg-cover bg-center text-white">
+      <div className="absolute inset-0 -z-10 bg-brand-strong/78" />
+      <div className="absolute inset-0 -z-10 bg-[linear-gradient(112deg,rgba(0,0,0,0.38)_0%,rgba(0,0,0,0.2)_54%,rgba(0,0,0,0.48)_100%)]" />
+      <div className="mx-auto grid w-full max-w-[1180px] gap-7 px-5 py-8 md:grid-cols-[minmax(0,1.05fr)_minmax(300px,0.95fr)] md:px-8 md:py-10 lg:min-h-[260px] lg:items-center">
+        <div>
+          <Breadcrumbs items={breadcrumbs} />
+
+          <p className="mb-2 font-body-md text-[11px] font-bold uppercase tracking-[0.2em] text-brand-accent">
+            {eyebrow}
+          </p>
+          <h1 className="max-w-[580px] font-heading text-[42px] uppercase leading-[0.9] md:text-[60px] lg:text-[72px]">
+            {title}
+          </h1>
+          <p className="mt-4 max-w-[610px] font-body-md text-[14px] font-semibold leading-6 text-white/86 md:text-[15px]">
+            {description}
+          </p>
+        </div>
+
+        <div className="relative min-h-[210px] overflow-hidden border-l border-white/18 bg-[radial-gradient(circle_at_48%_40%,rgba(255,255,255,0.22),rgba(255,255,255,0)_56%)] px-6 py-4">
+          <div className="absolute bottom-0 left-8 right-8 h-8 border-t border-white/18 bg-black/15" />
+          {imageSrc ? (
+            <img
+              src={imageSrc}
+              alt={imageAlt}
+              className="relative z-10 mx-auto h-[210px] w-full object-contain md:h-[240px]"
+            />
+          ) : (
+            <div className="relative z-10 flex h-[210px] w-full items-center justify-center text-white/45">
+              <Package className="h-14 w-14" />
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ListingTrustBar() {
+  return (
+    <section className="bg-brand-strong text-white">
+      <div className="mx-auto grid w-full max-w-[1180px] grid-cols-2 divide-x divide-white/12 px-5 md:grid-cols-4 md:px-8">
+        {trustItems.map((item) => (
+          <div key={item.label} className="flex min-h-12 items-center justify-center gap-2 px-3 py-3 text-center">
+            <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-white/12 text-white">
+              <TrustIcon icon={item.icon} />
+            </span>
+            <span className="font-body-md text-[10px] font-bold uppercase tracking-[0.09em] text-white/88 md:text-[11px]">
+              {item.label}
+            </span>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function ListingFilterSummary({
+  filters,
+  resultLabel,
+  locale,
+}: {
+  filters?: ListingFilterConfig;
+  resultLabel: string;
+  locale: string;
+}) {
+  const title = filters
+    ? locale === "en"
+      ? "Filter by product"
+      : "Lọc theo sản phẩm"
+    : locale === "en"
+      ? "Collection"
+      : "Bộ sưu tập";
+
+  return (
+    <section className="border-b border-border-subtle bg-surface-base py-4">
+      <div className="mx-auto w-full max-w-[1180px] px-4">
+        <div className="mb-3 flex items-center justify-center gap-3">
+          <span className="h-px w-10 bg-border-subtle" />
+          <p className="font-heading text-[18px] uppercase leading-none text-brand-strong">
+            {title}
+          </p>
+          <span className="h-px w-10 bg-border-subtle" />
+        </div>
+
+        {filters ? (
+          <FilterChips
+            categories={filters.categories}
+            activeCategory={filters.activeCategory}
+            onSelect={filters.onSelect}
+          />
+        ) : null}
+
+        <p className="mt-3 text-center font-body-md text-[11px] font-semibold uppercase tracking-[0.08em] text-text-muted">
+          {resultLabel}
+        </p>
+      </div>
+    </section>
+  );
+}
+
+function EmptyListingState({ emptyState }: { emptyState: EmptyStateConfig }) {
+  return (
+    <div className="flex flex-col items-center justify-center border border-dashed border-border-subtle bg-surface-panel px-6 py-20 text-center">
+      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-surface-subtle text-brand-strong">
+        <Package className="h-8 w-8" />
+      </div>
+      <h2 className="mt-6 font-heading text-[30px] uppercase leading-none text-brand-strong">
+        {emptyState.title}
+      </h2>
+      <p className="mt-3 max-w-[560px] font-body-md text-[14px] leading-6 text-text-muted">
+        {emptyState.description}
+      </p>
+      <Link
+        to={emptyState.ctaHref}
+        className="mt-8 inline-flex items-center justify-center bg-action-support px-6 py-3 font-body-md text-[12px] font-bold uppercase tracking-[0.12em] text-white transition-colors hover:bg-action-support-hover"
+      >
+        {emptyState.ctaLabel}
+      </Link>
+    </div>
+  );
+}
+
+function ProductGrid({
+  products,
+  locale,
+  categoryHandle,
+}: {
+  products: StorefrontProductItem[];
+  locale: string;
+  categoryHandle?: string | null;
+}) {
+  return (
+    <div className="grid grid-cols-2 gap-x-5 gap-y-11 md:grid-cols-3 md:gap-x-10 md:gap-y-14">
+      {products.map((product, index) => {
+        const title = getLocalized(product.title, locale);
+
+        return (
+          <ProductCard
+            key={product.id}
+            {...product}
+            categoryHandle={categoryHandle}
+            title={title}
+            subtitle={getLocalized(product.subtitle, locale) || null}
+            categorySummary={getLocalized(product.categorySummary, locale) || null}
+            imageAlt={title}
+            rating={5}
+            reviewsCount={reviewCountCycle[index % reviewCountCycle.length]}
+            variant="listing"
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+function ListingResults({
+  products,
+  locale,
+  categoryHandle,
+  currentPage,
+  totalPages,
+  onPageChange,
+  emptyState,
+}: {
+  products: StorefrontProductItem[];
+  locale: string;
+  categoryHandle?: string | null;
+  currentPage: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
+  emptyState: EmptyStateConfig;
+}) {
+  return (
+    <section className="bg-surface-base px-4 py-8 md:px-8 md:py-10">
+      <div className="mx-auto w-full max-w-[1040px]">
+        {products.length === 0 ? (
+          <EmptyListingState emptyState={emptyState} />
+        ) : (
+          <>
+            <ProductGrid products={products} locale={locale} categoryHandle={categoryHandle} />
+
+            {totalPages > 1 ? (
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={onPageChange}
+              />
+            ) : null}
+          </>
+        )}
+      </div>
+    </section>
+  );
 }
 
 function ListingEditorial({ title, locale }: { title: string; locale: string }) {
@@ -179,141 +414,29 @@ export function ProductListingShell({
   return (
     <div className="min-h-screen bg-surface-base text-text-base">
       <main>
-        <section className="bg-[linear-gradient(112deg,#0f2535_0%,#142d3f_54%,#254760_100%)] text-white">
-          <div className="mx-auto grid w-full max-w-[1180px] gap-7 px-5 py-8 md:grid-cols-[minmax(0,1.05fr)_minmax(300px,0.95fr)] md:px-8 md:py-10 lg:min-h-[260px] lg:items-center">
-            <div>
-              <nav className="mb-5 flex flex-wrap items-center gap-2 text-[10px] font-bold uppercase tracking-[0.14em] text-white/70">
-                {breadcrumbs.map((item, index) => (
-                  <span key={`${item.label}-${index}`} className="inline-flex items-center gap-2">
-                    {item.href ? (
-                      <Link to={item.href} className="transition-colors hover:text-white">
-                        {item.label}
-                      </Link>
-                    ) : (
-                      <span className="text-white">{item.label}</span>
-                    )}
-                    {index < breadcrumbs.length - 1 ? <ChevronRight className="h-3 w-3" /> : null}
-                  </span>
-                ))}
-              </nav>
-
-              <p className="mb-2 font-body-md text-[11px] font-bold uppercase tracking-[0.2em] text-brand-accent">
-                {eyebrow}
-              </p>
-              <h1 className="max-w-[580px] font-heading text-[42px] uppercase leading-[0.9] md:text-[60px] lg:text-[72px]">
-                {title}
-              </h1>
-              <p className="mt-4 max-w-[610px] font-body-md text-[14px] font-semibold leading-6 text-white/86 md:text-[15px]">
-                {description}
-              </p>
-            </div>
-
-            <div className="relative min-h-[210px] overflow-hidden border-l border-white/18 bg-[radial-gradient(circle_at_48%_40%,rgba(255,255,255,0.22),rgba(255,255,255,0)_56%)] px-6 py-4">
-              <div className="absolute bottom-0 left-8 right-8 h-8 border-t border-white/18 bg-black/15" />
-              {heroImage ? (
-                <img
-                  src={heroImage}
-                  alt={featuredImageAlt ?? title}
-                  className="relative z-10 mx-auto h-[210px] w-full object-contain md:h-[240px]"
-                />
-              ) : (
-                <div className="relative z-10 flex h-[210px] w-full items-center justify-center text-white/45">
-                  <Package className="h-14 w-14" />
-                </div>
-              )}
-            </div>
-          </div>
-        </section>
-
-        <section className="bg-brand-strong text-white">
-          <div className="mx-auto grid w-full max-w-[1180px] grid-cols-2 divide-x divide-white/12 px-5 md:grid-cols-4 md:px-8">
-            {trustItems.map((item) => (
-              <div key={item.label} className="flex min-h-12 items-center justify-center gap-2 px-3 py-3 text-center">
-                <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-white/12 text-white">
-                  <TrustIcon icon={item.icon} />
-                </span>
-                <span className="font-body-md text-[10px] font-bold uppercase tracking-[0.09em] text-white/88 md:text-[11px]">
-                  {item.label}
-                </span>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/*<section className="border-b border-border-subtle bg-surface-base py-4">
-          <div className="mx-auto w-full max-w-[1180px] px-4">
-            <div className="mb-3 flex items-center justify-center gap-3">
-              <span className="h-px w-10 bg-border-subtle" />
-              <p className="font-heading text-[18px] uppercase leading-none text-brand-strong">
-                {filters ? (locale === "en" ? "Filter by product" : "Lọc theo sản phẩm") : (locale === "en" ? "Collection" : "Bộ sưu tập")}
-              </p>
-              <span className="h-px w-10 bg-border-subtle" />
-            </div>
-
-            {filters ? (
-              <FilterChips
-                categories={filters.categories}
-                activeCategory={filters.activeCategory}
-                onSelect={filters.onSelect}
-              />
-            ) : null}
-
-            <p className="mt-3 text-center font-body-md text-[11px] font-semibold uppercase tracking-[0.08em] text-text-muted">
-              {resultLabel}
-            </p>
-          </div>
-        </section>*/}
-
-        <section className="bg-surface-base px-4 py-8 md:px-8 md:py-10">
-          <div className="mx-auto w-full max-w-[1040px]">
-            {products.length === 0 ? (
-              <div className="flex flex-col items-center justify-center border border-dashed border-border-subtle bg-surface-panel px-6 py-20 text-center">
-                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-surface-subtle text-brand-strong">
-                  <Package className="h-8 w-8" />
-                </div>
-                <h2 className="mt-6 font-heading text-[30px] uppercase leading-none text-brand-strong">
-                  {emptyState.title}
-                </h2>
-                <p className="mt-3 max-w-[560px] font-body-md text-[14px] leading-6 text-text-muted">
-                  {emptyState.description}
-                </p>
-                <Link
-                  to={emptyState.ctaHref}
-                  className="mt-8 inline-flex items-center justify-center bg-action-support px-6 py-3 font-body-md text-[12px] font-bold uppercase tracking-[0.12em] text-white transition-colors hover:bg-action-support-hover"
-                >
-                  {emptyState.ctaLabel}
-                </Link>
-              </div>
-            ) : (
-              <>
-                <div className="grid grid-cols-2 gap-x-5 gap-y-11 md:grid-cols-3 md:gap-x-10 md:gap-y-14">
-                  {products.map((product, index) => (
-                    <ProductCard
-                      key={product.id}
-                      {...product}
-                      categoryHandle={categoryHandle}
-                      title={getLocalized(product.title, locale)}
-                      subtitle={getLocalized(product.subtitle, locale) || null}
-                      categorySummary={getLocalized(product.categorySummary, locale) || null}
-                      imageAlt={getLocalized(product.title, locale)}
-                      rating={5}
-                      reviewsCount={[0, 9, 12, 17, 21, 0, 8, 14][index % 8]}
-                      variant="listing"
-                    />
-                  ))}
-                </div>
-
-                {totalPages > 1 ? (
-                  <Pagination
-                    currentPage={currentPage}
-                    totalPages={totalPages}
-                    onPageChange={onPageChange}
-                  />
-                ) : null}
-              </>
-            )}
-          </div>
-        </section>
+        <ListingHero
+          breadcrumbs={breadcrumbs}
+          eyebrow={eyebrow}
+          title={title}
+          description={description}
+          imageSrc={heroImage}
+          imageAlt={featuredImageAlt ?? title}
+        />
+        <ListingTrustBar />
+        <ListingFilterSummary
+          filters={filters}
+          resultLabel={resultLabel}
+          locale={locale}
+        />
+        <ListingResults
+          products={products}
+          locale={locale}
+          categoryHandle={categoryHandle}
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={onPageChange}
+          emptyState={emptyState}
+        />
 
         <ListingEditorial title={title} locale={locale} />
       </main>
