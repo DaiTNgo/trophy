@@ -22,7 +22,9 @@ export async function loader({ request }: Route.LoaderArgs) {
       throw redirect(`${redirectUrl.pathname}${redirectUrl.search}`);
     }
 
-    const apiCategories = await fetchStorefrontCategories(locale).catch(() => []);
+    const apiCategories = await fetchStorefrontCategories(locale).catch(
+      () => [],
+    );
 
     const data = await fetchStorefrontProducts({
       category: activeCategory || undefined,
@@ -39,7 +41,8 @@ export async function loader({ request }: Route.LoaderArgs) {
       })),
     ];
     const selectedCategory =
-      apiCategories.find((category) => category.handle === activeCategory) ?? null;
+      apiCategories.find((category) => category.handle === activeCategory) ??
+      null;
 
     return {
       categories: allCategories,
@@ -118,7 +121,8 @@ export default function Products({ loaderData }: Route.ComponentProps) {
         onSelect: handleCategorySelect,
       }}
       emptyState={{
-        title: locale === "en" ? "No products found" : "Chưa có sản phẩm phù hợp",
+        title:
+          locale === "en" ? "No products found" : "Chưa có sản phẩm phù hợp",
         description:
           locale === "en"
             ? "Try another product category or return to the full catalog."

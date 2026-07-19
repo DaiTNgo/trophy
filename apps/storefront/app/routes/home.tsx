@@ -1,6 +1,7 @@
 import { BestSellersSection } from "../components/home/BestSellersSection";
 import { CategoriesSection } from "../components/home/CategoriesSection";
 import { HeroSection } from "../components/home/HeroSection";
+import { QuoteTicker } from "../components/home/QuoteTicker";
 import { CustomizationFeatureSection } from "../components/home/ManufacturerSection";
 import { NewsletterSection } from "../components/home/NewsletterSection";
 import { ProofRow } from "../components/home/ProofRow";
@@ -65,6 +66,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     <div className="overflow-x-hidden">
       {/* 2. Cinematic full-bleed hero */}
       <HeroSection />
+
+      <QuoteTicker />
 
       {/* 3. Production proof claims */}
       <ProofRow />

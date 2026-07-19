@@ -8,7 +8,7 @@ export function NavbarMoreDropdown() {
   const ref = useClickOutside<HTMLDivElement>(() => setIsOpen(false));
 
   return (
-    <div className="relative hidden xl:block" ref={ref}>
+    <div className="relative hidden lg:block" ref={ref}>
       <button
         onClick={() => setIsOpen(!isOpen)}
         className={`flex items-center gap-1 text-[13px] font-bold uppercase tracking-wide hover:text-primary transition-colors ${isOpen ? "text-primary" : ""}`}

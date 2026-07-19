@@ -12,7 +12,11 @@ export interface FilterChipsProps {
   onSelect?: (categoryHandle: string) => void;
 }
 
-export function FilterChips({ categories, activeCategory, onSelect }: FilterChipsProps) {
+export function FilterChips({
+  categories,
+  activeCategory,
+  onSelect,
+}: FilterChipsProps) {
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
@@ -62,7 +66,8 @@ export function FilterChips({ categories, activeCategory, onSelect }: FilterChip
     if (!node) return;
 
     node.scrollBy({
-      left: direction === "left" ? -node.clientWidth * 0.7 : node.clientWidth * 0.7,
+      left:
+        direction === "left" ? -node.clientWidth * 0.7 : node.clientWidth * 0.7,
       behavior: "smooth",
     });
   }, []);
@@ -104,7 +109,9 @@ export function FilterChips({ categories, activeCategory, onSelect }: FilterChip
         style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
       >
         {categories.map((cat) => {
-          const isActive = activeCategory === cat.handle || (!activeCategory && cat.handle === "");
+          const isActive =
+            activeCategory === cat.handle ||
+            (!activeCategory && cat.handle === "");
 
           return (
             <button
