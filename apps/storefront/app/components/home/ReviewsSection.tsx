@@ -50,9 +50,9 @@ export function ReviewsSection() {
               style={{ animationDelay: `${i * 80}ms` }}
             >
               <div className="mb-6 flex h-10 w-10 items-center justify-center rounded-lg bg-brand-strong/10">
-                {icon === "ShieldCheck" && <ShieldCheck className="text-[22px] text-brand-accent" />}
-                {icon === "Eye" && <Eye className="text-[22px] text-brand-strong" />}
-                {icon === "Clock" && <Clock className="text-[22px] text-brand-support" />}
+                {icon === "ShieldCheck" && <ShieldCheck className="text-[22px] text-text-base" />}
+                {icon === "Eye" && <Eye className="text-[22px] text-text-base" />}
+                {icon === "Clock" && <Clock className="text-[22px] text-text-base" />}
               </div>
               <p className="font-body-lg text-body-lg text-on-surface-variant leading-relaxed italic">
                 "{quote}"

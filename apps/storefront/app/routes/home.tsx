@@ -13,7 +13,7 @@ import {
     fetchStorefrontCategories,
     fetchStorefrontCollectionProducts,
 } from "../lib/api";
-import { getLocaleFromRequest } from "../lib/locale";
+import { getLocale } from "../i18n.server";
 import { withStorefrontLoaderLog } from "../lib/observability";
 import type { Route } from "./+types/home";
 
@@ -28,9 +28,9 @@ export function meta({}: Route.MetaArgs) {
   ];
 }
 
-export async function loader({ request }: Route.LoaderArgs) {
+export async function loader({ request, context }: Route.LoaderArgs) {
   return withStorefrontLoaderLog("home", request, async () => {
-    const locale = getLocaleFromRequest(request);
+    const locale = getLocale(context);
     const [categories, customizableBestSellersData, standardBestSellersData] = await Promise.all([
       fetchStorefrontCategories(locale).catch(() => []),
       fetchStorefrontCollectionProducts("best-sellers", {

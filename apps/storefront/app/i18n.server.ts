@@ -4,10 +4,12 @@ import i18n from "./i18n";
 
 import enCommon from "./locales/en/common.json";
 import viCommon from "./locales/vi/common.json";
+import enAbout from "./locales/en/about.json";
+import viAbout from "./locales/vi/about.json";
 
 const resources = {
-  en: { common: enCommon },
-  vi: { common: viCommon },
+  en: { common: enCommon, about: enAbout },
+  vi: { common: viCommon, about: viAbout },
 };
 
 export const localeCookie = createCookie("lng", {

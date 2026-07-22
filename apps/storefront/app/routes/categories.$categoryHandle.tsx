@@ -1,15 +1,15 @@
 import { useNavigate, useSearchParams } from "react-router";
 import { ProductListingShell } from "@/components/products/ProductListingShell";
 import { fetchStorefrontCategories, fetchStorefrontProducts } from "../lib/api";
-import { getLocaleFromRequest } from "../lib/locale";
+import { getLocale } from "../i18n.server";
 import { withStorefrontLoaderLog } from "../lib/observability";
 import { getCategoryPath } from "../lib/storefront-paths";
 import { getLocalized } from "../lib/translation";
 import type { Route } from "./+types/categories.$categoryHandle";
 
-export async function loader({ params, request }: Route.LoaderArgs) {
+export async function loader({ params, request, context }: Route.LoaderArgs) {
   return withStorefrontLoaderLog("category-products", request, async () => {
-    const locale = getLocaleFromRequest(request);
+    const locale = getLocale(context);
     const url = new URL(request.url);
     const currentPage = Number(url.searchParams.get("page")) || 1;
     const activeCategory = params.categoryHandle;

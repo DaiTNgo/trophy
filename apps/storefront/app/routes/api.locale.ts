@@ -7,7 +7,10 @@ export async function loader({ request }: Route.LoaderArgs) {
   const lng = url.searchParams.get("lng") || "en";
   const returnTo = url.searchParams.get("returnTo") || "/";
 
-  return redirect(returnTo, {
+  const redirectUrl = new URL(returnTo, url.origin);
+  redirectUrl.searchParams.set("locale", lng);
+
+  return redirect(redirectUrl.pathname + redirectUrl.search, {
     headers: {
       "Set-Cookie": await localeCookie.serialize(lng),
     },

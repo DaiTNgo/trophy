@@ -1,14 +1,14 @@
 import { useSearchParams } from "react-router";
 import { ProductListingShell } from "../components/products/ProductListingShell";
 import { fetchStorefrontCollectionProducts, fetchStorefrontCollections } from "../lib/api";
-import { getLocaleFromRequest } from "../lib/locale";
+import { getLocale } from "../i18n.server";
 import { withStorefrontLoaderLog } from "../lib/observability";
 import { getLocalized } from "../lib/translation";
 import type { Route } from "./+types/collections.$handle";
 
-export async function loader({ params, request }: Route.LoaderArgs) {
+export async function loader({ params, request, context }: Route.LoaderArgs) {
   return withStorefrontLoaderLog("collection", request, async () => {
-    const locale = getLocaleFromRequest(request);
+    const locale = getLocale(context);
     const url = new URL(request.url);
     const currentPage = Number(url.searchParams.get("page")) || 1;
 
