@@ -4,6 +4,7 @@ import { HeroSection } from "../components/home/HeroSection";
 import { QuoteTicker } from "../components/home/QuoteTicker";
 import { CustomizationFeatureSection } from "../components/home/ManufacturerSection";
 import { NewsletterSection } from "../components/home/NewsletterSection";
+import { PartnerLogosSection } from "../components/home/PartnerLogosSection";
 import { ProofRow } from "../components/home/ProofRow";
 import { ReviewsSection } from "../components/home/ReviewsSection";
 import { SeoIntroSection } from "../components/home/SeoIntroSection";
@@ -70,7 +71,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       <QuoteTicker />
 
       {/* 3. Production proof claims */}
-      <ProofRow />
+      {/*<ProofRow />*/}
 
       {/* 4. Shop by product type */}
       <CategoriesSection categories={categories} locale={locale} />
@@ -113,7 +114,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       {/* 10. SEO intro text */}
       <SeoIntroSection />
 
-      {/* 11. Newsletter */}
+      {/* 11. Partner logos */}
+      <PartnerLogosSection />
+
+      {/* 12. Newsletter */}
       <NewsletterSection />
     </div>
   );

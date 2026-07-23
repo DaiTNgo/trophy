@@ -66,8 +66,8 @@ export function CustomizationFeatureSection() {
                   className="rounded-xl border border-border-subtle bg-surface-base p-4"
                 >
                   <div className="flex items-center gap-3 mb-2">
-                    <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-brand-accent/10">
-                      <Icon className="w-[18px] h-[18px] text-brand-accent" />
+                    <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-action-support/10">
+                      <Icon className="w-[18px] h-[18px] text-action-support" />
                     </div>
                     <span className="font-semibold text-[15px] text-brand-strong">
                       {title}
