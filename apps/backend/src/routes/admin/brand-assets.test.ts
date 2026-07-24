@@ -87,6 +87,11 @@ function queueAdminSession(db: ReturnType<typeof createMockDb>) {
 const env = {
   CUSTOMIZATION_ASSETS: {
     put: vi.fn(async () => undefined),
+    get: vi.fn(async () => ({
+      body: new ReadableStream(),
+      httpEtag: "etag-admin-font",
+      writeHttpMetadata: (headers: Headers) => headers.set("content-type", "font/ttf"),
+    })),
   },
 };
 
@@ -139,6 +144,13 @@ describe("admin brand assets routes", () => {
           (entry.values as { id?: string; name?: string } | undefined)?.id === "champion-serif",
       ),
     ).toBe(true);
+  });
+
+  it("serves an uploaded font asset by asset ID", async () => {
+    const res = await adminBrandAssetsRoute.request("/fonts/file/font_regular", {}, env as never);
+
+    expect(res.status).toBe(200);
+    expect(env.CUSTOMIZATION_ASSETS.get).toHaveBeenCalledWith("fonts/font_regular.ttf");
   });
 
   it("does not expose the removed legacy icon route directly", async () => {

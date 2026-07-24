@@ -2,10 +2,15 @@ import {
   buildDesignFromForm,
   FONT_FILES,
   getImageShapeClipartCategoryMode,
+  getFontStyleCapabilities,
+  getUsableFontOptions,
   getOrderedFormFields,
   getTextPathRenderAttributes,
   getTextPathSvgD,
   layerGeometryToPixels,
+  normalizeFontStyle,
+  resolveFormat,
+  resolveFontVariant,
   validateCustomizationValues,
   vectorPointsToSvgPathD,
   type CustomizationFieldValue,
@@ -716,59 +721,58 @@ function FontLoader({
   resolveFontUrl?: ResolveCustomizationFontUrl;
   resolveStaticFontUrl?: ResolveCustomizationStaticFontUrl;
 }) {
-  const fontFamilies = Array.from(
+  const fontIds = Array.from(
     new Set(
       layers
         .filter((layer): layer is Extract<RuntimeLayer, { type: "text" }> => layer.type === "text" && !!layer.fontId)
         .map((layer) => layer.fontId),
     ),
   );
+  const dynamicFontAssetIds = new Set(
+    dynamicFonts
+      .flatMap((font) => [
+        font.regularAssetId,
+        font.boldAssetId,
+        font.italicAssetId,
+        font.boldItalicAssetId,
+      ])
+      .filter((assetId): assetId is string => Boolean(assetId)),
+  );
 
   return (
     <>
-      {fontFamilies.flatMap((familyId) => {
-        const dynamicFont = dynamicFonts.find((font) => font.id === familyId);
-        if (!dynamicFont) {
-          return ["regular", "bold", "italic", "bold-italic"].map((weight) => {
-            const variantId = `${familyId}-${weight}`;
-            const file = FONT_FILES[variantId];
-            if (!file) return null;
-            return (
-              <style
-                key={variantId}
-                dangerouslySetInnerHTML={{
-                  __html: `
-                    @font-face {
-                      font-family: '${variantId}';
-                      src: url('${resolveStaticFontUrl?.(file) ?? `/fonts/${file}`}') format('truetype');
-                    }
-                  `,
-                }}
-              />
-            );
-          });
-        }
-
-        return [
-          dynamicFont.regularAssetId,
-          dynamicFont.boldAssetId,
-          dynamicFont.italicAssetId,
-          dynamicFont.boldItalicAssetId,
-        ]
-          .filter((assetId): assetId is string => Boolean(assetId))
-          .map((assetId) => (
+      {fontIds.map((fontId) => {
+        if (dynamicFontAssetIds.has(fontId)) {
+          return (
             <style
-              key={assetId}
+              key={fontId}
               dangerouslySetInnerHTML={{
                 __html: `
                   @font-face {
-                    font-family: '${assetId}';
-                    src: url('${resolveFontUrl?.(assetId) ?? assetId}') format('truetype');
+                    font-family: '${fontId}';
+                    src: url('${resolveFontUrl?.(fontId) ?? fontId}') format('truetype');
                   }
                 `,
               }}
             />
-          ));
+          );
+        }
+
+        const file = FONT_FILES[fontId];
+        if (!file) return null;
+        return (
+          <style
+            key={fontId}
+            dangerouslySetInnerHTML={{
+              __html: `
+                @font-face {
+                  font-family: '${fontId}';
+                  src: url('${resolveStaticFontUrl?.(file) ?? `/fonts/${file}`}') format('truetype');
+                }
+              `,
+            }}
+          />
+        );
       })}
     </>
   );
@@ -1100,6 +1104,7 @@ function FormField({
   value,
   issue,
   uploading,
+  dynamicFonts = [],
   resolveAssetUrl,
   onChange,
   onUpload,
@@ -1132,7 +1137,7 @@ function FormField({
         </label>
       </div>
       {layer.type === "text" ? (
-        <TextField field={field} layer={layer} value={value} onChange={onChange} />
+        <TextField field={field} layer={layer} value={value} dynamicFonts={dynamicFonts} onChange={onChange} />
       ) : (
         <ImageField
           layer={imageLayer}
@@ -1152,15 +1157,45 @@ function TextField({
   field,
   layer,
   value,
+  dynamicFonts = [],
   onChange,
 }: {
   field: CustomizationFormField;
   layer: Extract<CustomizationLayer, { type: "text" }>;
   value: CustomizationFieldValue | undefined;
+  dynamicFonts?: DynamicFontFamily[];
   onChange: (value: TextFieldValue) => void;
 }) {
   const textValue = value && "text" in value ? value : { text: "" };
   const pathText = layer.text.path.type !== "straight";
+  const fontPolicy = layer.text.fontPolicy;
+  const availableFontOptions =
+    fontPolicy.mode === "shopper_selectable"
+      ? getUsableFontOptions(fontPolicy.options, dynamicFonts)
+      : [];
+  const selectedFontId =
+    fontPolicy.mode === "shopper_selectable"
+      ? availableFontOptions.find((option) => option.value === textValue.fontId)?.value ?? availableFontOptions[0]?.value ?? fontPolicy.defaultFontId
+      : fontPolicy.fontId;
+  const selectedFontCapabilities = getFontStyleCapabilities(selectedFontId, dynamicFonts);
+  const requestedFormat = resolveFormat(layer.text.formatPolicy, textValue);
+  const normalizedStyle = normalizeFontStyle({
+    fontFamily: selectedFontId,
+    isBold: requestedFormat.isBold,
+    isItalic: requestedFormat.isItalic,
+    dynamicFonts,
+  });
+
+  useEffect(() => {
+    if (
+      textValue.fontId === selectedFontId &&
+      textValue.isBold === normalizedStyle.isBold &&
+      textValue.isItalic === normalizedStyle.isItalic
+    ) {
+      return;
+    }
+    onChange({ ...textValue, fontId: selectedFontId, ...normalizedStyle });
+  }, [normalizedStyle.isBold, normalizedStyle.isItalic, onChange, selectedFontId, textValue]);
 
   return (
     <div className="space-y-4">
@@ -1207,27 +1242,32 @@ function TextField({
           );
         })()
       ) : null}
-      {layer.text.fontPolicy.mode === "shopper_selectable" ? (
-        (() => {
-          const fontPolicy = layer.text.fontPolicy;
-          return (
+      {fontPolicy.mode === "shopper_selectable" && availableFontOptions.length > 1 ? (
             <div className="space-y-2">
               <p className="text-xs font-semibold uppercase tracking-[0.1em] text-on-surface-variant">Font</p>
               <div className="flex flex-wrap gap-2">
-                {fontPolicy.options.map((option) => {
-                  const selected = (textValue.fontId ?? fontPolicy.defaultFontId) === option.value;
+                {availableFontOptions.map((option) => {
+                  const selected = selectedFontId === option.value;
                   return (
                     <button
                       key={option.value}
                       type="button"
                       title={option.label}
-                      onClick={() => onChange({ ...textValue, fontId: option.value })}
+                      onClick={() => {
+                        const nextStyle = normalizeFontStyle({
+                          fontFamily: option.value,
+                          isBold: normalizedStyle.isBold,
+                          isItalic: normalizedStyle.isItalic,
+                          dynamicFonts,
+                        });
+                        onChange({ ...textValue, fontId: option.value, ...nextStyle });
+                      }}
                       className={`flex h-9 items-center justify-center rounded border px-3 text-sm transition ${
                         selected
                           ? "border-accent bg-accent/10 text-accent font-semibold"
                           : "border-outline bg-white text-on-surface hover:border-accent"
                       }`}
-                      style={{ fontFamily: option.value }}
+                      style={{ fontFamily: resolveFontVariant(option.value, false, false, dynamicFonts) }}
                     >
                       {option.label}
                     </button>
@@ -1235,8 +1275,60 @@ function TextField({
                 })}
               </div>
             </div>
-          );
-        })()
+      ) : null}
+      {layer.text.formatPolicy.mode === "shopper_selectable" &&
+      (selectedFontCapabilities.bold || selectedFontCapabilities.italic) ? (
+        <div className="space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-[0.1em] text-on-surface-variant">Format</p>
+          <div className="flex flex-wrap gap-2">
+            {selectedFontCapabilities.bold ? (
+              <button
+                type="button"
+                aria-pressed={normalizedStyle.isBold}
+                onClick={() => {
+                  const nextBold = !normalizedStyle.isBold;
+                  const nextStyle = normalizeFontStyle({
+                    fontFamily: selectedFontId,
+                    isBold: nextBold,
+                    isItalic: normalizedStyle.isItalic,
+                    dynamicFonts,
+                  });
+                  onChange({ ...textValue, fontId: selectedFontId, ...nextStyle });
+                }}
+                className={`flex h-9 w-9 items-center justify-center rounded border text-sm font-bold transition ${
+                  normalizedStyle.isBold
+                    ? "border-accent bg-accent/10 text-accent"
+                    : "border-outline bg-white text-on-surface hover:border-accent"
+                }`}
+              >
+                B
+              </button>
+            ) : null}
+            {selectedFontCapabilities.italic ? (
+              <button
+                type="button"
+                aria-pressed={normalizedStyle.isItalic}
+                onClick={() => {
+                  const nextItalic = !normalizedStyle.isItalic;
+                  const nextStyle = normalizeFontStyle({
+                    fontFamily: selectedFontId,
+                    isBold: normalizedStyle.isBold,
+                    isItalic: nextItalic,
+                    dynamicFonts,
+                  });
+                  onChange({ ...textValue, fontId: selectedFontId, ...nextStyle });
+                }}
+                className={`flex h-9 w-9 items-center justify-center rounded border text-sm italic transition ${
+                  normalizedStyle.isItalic
+                    ? "border-accent bg-accent/10 text-accent"
+                    : "border-outline bg-white text-on-surface hover:border-accent"
+                }`}
+              >
+                I
+              </button>
+            ) : null}
+          </div>
+        </div>
       ) : null}
     </div>
   );
