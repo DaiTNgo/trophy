@@ -12,16 +12,40 @@ export type ProductGalleryThumbnail = {
 export function ProductGallery({
   mainContent,
   thumbnails,
+  onPrevious,
+  onNext,
 }: {
   mainContent: ReactNode;
   customizable?: boolean;
   thumbnails: ProductGalleryThumbnail[];
+  onPrevious?: () => void;
+  onNext?: () => void;
 }) {
   return (
     <section className="lg:sticky lg:top-36 lg:self-start">
       <div className="overflow-hidden rounded-lg border border-border-subtle bg-white">
-        <div className="bg-surface-panel">
+        <div className="relative bg-surface-panel">
+          {onPrevious && thumbnails.length > 1 ? (
+            <button
+              type="button"
+              aria-label="Previous product image"
+              onClick={onPrevious}
+              className="absolute left-3 top-1/2 z-10 flex size-10 -translate-y-1/2 items-center justify-center rounded-full border border-border-subtle bg-white/90 shadow-sm transition hover:border-border-strong"
+            >
+              <ChevronLeft className="size-5 text-text-base" />
+            </button>
+          ) : null}
           {mainContent}
+          {onNext && thumbnails.length > 1 ? (
+            <button
+              type="button"
+              aria-label="Next product image"
+              onClick={onNext}
+              className="absolute right-3 top-1/2 z-10 flex size-10 -translate-y-1/2 items-center justify-center rounded-full border border-border-subtle bg-white/90 shadow-sm transition hover:border-border-strong"
+            >
+              <ChevronRight className="size-5 text-text-base" />
+            </button>
+          ) : null}
         </div>
         <ProductGalleryThumbnails thumbnails={thumbnails} />
       </div>

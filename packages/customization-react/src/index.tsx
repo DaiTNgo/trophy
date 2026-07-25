@@ -65,6 +65,13 @@ export type ResolveCustomizationFontUrl = (assetId: string) => string;
 export type ResolveCustomizationStaticFontUrl = (fileName: string) => string;
 export type ResolveCustomizationAssetUrl = (url: string) => string;
 
+export function createCustomizationInteractionHandlers(onInteraction?: () => void) {
+  return {
+    onFocusCapture: onInteraction,
+    onPointerDown: onInteraction,
+  };
+}
+
 const MIN_FREE_IMAGE_SCALE = 0.02;
 const MIN_PREVIEW_ZOOM = 0.05;
 const MAX_PREVIEW_ZOOM = 4;
@@ -768,6 +775,7 @@ export function ProductCustomizationForm({
   resolveAssetUrl,
   onMessageChange,
   onUploadImage,
+  onInteraction,
   onValueChange,
 }: {
   template: CustomizationTemplate;
@@ -777,6 +785,7 @@ export function ProductCustomizationForm({
   resolveAssetUrl?: ResolveCustomizationAssetUrl;
   onMessageChange?: (message: string) => void;
   onUploadImage?: CustomizationUploadImage;
+  onInteraction?: () => void;
   onValueChange: (fieldId: string, value: CustomizationFieldValue) => void;
 }) {
   const [uploadingFieldId, setUploadingFieldId] = useState("");
@@ -819,9 +828,13 @@ export function ProductCustomizationForm({
   }
 
   const orderedFields = getOrderedFormFields(template);
+  const interactionHandlers = createCustomizationInteractionHandlers(onInteraction);
 
   return (
-    <div className="divide-y divide-outline-variant">
+    <div
+      className="divide-y divide-outline-variant"
+      {...interactionHandlers}
+    >
       {activeMessage ? (
         <p className="px-0 py-3 text-sm text-destructive">{activeMessage}</p>
       ) : null}

@@ -12,7 +12,7 @@ import {
 } from "@trophy/customization-react";
 import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { useLoaderData, useSearchParams } from "react-router";
-import { ChevronDown, ChevronUp, Minus, Plus } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Minus, Plus } from "lucide-react";
 import { validateCustomizationValues } from "@trophy/customization";
 import { ProductBreadcrumbs } from "../components/product/ProductBreadcrumbs";
 import {
@@ -23,6 +23,7 @@ import {
 import { ProductDetailSections, ProductInfo } from "../components/product/ProductInfo";
 import { ProductMobileActionBar } from "../components/product/ProductMobileActionBar";
 import {
+  buildProductMediaCarousel,
   buildProductCustomizationTemplate,
   mergeCustomizationValues,
 } from "../lib/product-customization";
@@ -117,12 +118,20 @@ export default function ProductDetail() {
         : null,
     [selectedVariant, locale],
   );
-  const selectedVariantMedia = useMemo(
+  const selectedVariantGalleryMedia = useMemo(
     () =>
       [...(selectedVariant?.media ?? [])]
         .filter((media) => Boolean(media.contentUrl))
         .sort((a, b) => a.position - b.position),
     [selectedVariant],
+  );
+  const selectedVariantMedia = useMemo(
+    () =>
+      buildProductMediaCarousel({
+        customizationMedia: selectedVariant?.customizationMedia,
+        galleryMedia: selectedVariantGalleryMedia,
+      }),
+    [selectedVariant?.customizationMedia, selectedVariantGalleryMedia],
   );
   const selectedMedia =
     selectedVariantMedia.find((media) => media.id === selectedMediaId) ?? selectedVariantMedia[0] ?? null;
@@ -131,6 +140,19 @@ export default function ProductDetail() {
   useEffect(() => {
     setSelectedMediaId(selectedVariantMedia[0]?.id ?? null);
   }, [selectedVariant?.id, selectedVariantMedia]);
+
+  const moveSelectedMedia = (direction: -1 | 1) => {
+    if (selectedVariantMedia.length < 2) return;
+    const currentIndex = selectedVariantMedia.findIndex((media) => media.id === selectedMedia?.id);
+    const index = currentIndex < 0 ? 0 : currentIndex;
+    const nextIndex = (index + direction + selectedVariantMedia.length) % selectedVariantMedia.length;
+    setSelectedMediaId(selectedVariantMedia[nextIndex]?.id ?? null);
+  };
+
+  const resetToCustomizationMedia = () => {
+    const customizationMedia = selectedVariant?.customizationMedia;
+    setSelectedMediaId(customizationMedia?.id ?? selectedVariantMedia[0]?.id ?? null);
+  };
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -498,6 +520,23 @@ export default function ProductDetail() {
       }}
     />
   ) : null;
+  const isCustomizationMediaActive = Boolean(
+    customizationTemplate && selectedMedia?.id === selectedVariant?.customizationMedia?.id,
+  );
+  const galleryImageNode = mainMedia?.contentUrl ? (
+    <div className="group flex min-h-[480px] items-center justify-center p-6">
+      <img
+        className="max-h-[600px] w-full object-contain transition-transform duration-700 group-hover:scale-105"
+        src={mainMedia.contentUrl}
+        alt={getLocalized(product.title, locale)}
+      />
+    </div>
+  ) : (
+    <div className="flex min-h-[480px] items-center justify-center text-on-surface-variant">
+      Product image unavailable
+    </div>
+  );
+  const selectedMediaNode = isCustomizationMediaActive ? previewNode : galleryImageNode;
   const shouldShowHiddenPreviewBar = isMobilePreviewHidden && !isAtPageTop;
   const mobilePreviewShellMinHeight = shouldShowHiddenPreviewBar
     ? mobileHiddenShellHeight ?? undefined
@@ -557,7 +596,29 @@ export default function ProductDetail() {
                       }`}
                     data-selected-variant-id={selectedVariant?.id ?? ""}
                   >
-                    {previewNode}
+                    <div className="relative">
+                      {selectedVariantMedia.length > 1 ? (
+                        <>
+                          <button
+                            type="button"
+                            aria-label="Previous product image"
+                            onClick={() => moveSelectedMedia(-1)}
+                            className="absolute left-3 top-1/2 z-10 flex size-10 -translate-y-1/2 items-center justify-center rounded-full border border-border-subtle bg-white/90 shadow-sm"
+                          >
+                            <ChevronLeft className="size-5 text-text-base" />
+                          </button>
+                          <button
+                            type="button"
+                            aria-label="Next product image"
+                            onClick={() => moveSelectedMedia(1)}
+                            className="absolute right-3 top-1/2 z-10 flex size-10 -translate-y-1/2 items-center justify-center rounded-full border border-border-subtle bg-white/90 shadow-sm"
+                          >
+                            <ChevronRight className="size-5 text-text-base" />
+                          </button>
+                        </>
+                      ) : null}
+                      {selectedMediaNode}
+                    </div>
                     <ProductGalleryThumbnails thumbnails={mobileGalleryThumbnails} />
                     {isMobilePreviewSticky ? (
                       <button
@@ -605,6 +666,7 @@ export default function ProductDetail() {
                       onValueChange={(fieldId, value) => {
                         setCustomizationValues((current) => ({ ...current, [fieldId]: value }));
                       }}
+                      onInteraction={resetToCustomizationMedia}
                     />
                   }
                   isContactPrice={selectedVariant?.priceAmount === null}
@@ -622,22 +684,14 @@ export default function ProductDetail() {
             <div className="hidden grid-cols-1 gap-8 lg:grid lg:grid-cols-[minmax(0,1fr)_440px] lg:items-start xl:grid-cols-[minmax(0,1fr)_480px]">
               <ProductGallery
                 customizable
+                onPrevious={() => moveSelectedMedia(-1)}
+                onNext={() => moveSelectedMedia(1)}
                 mainContent={
                   <section
                     className="min-h-[560px]"
                     data-selected-variant-id={selectedVariant?.id ?? ""}
                   >
-                    <ProductCustomizationPreview
-                      template={customizationTemplate}
-                      values={customizationValues}
-                      dynamicFonts={dynamicFonts as DynamicFontFamily[]}
-                      resolveFontUrl={backendFontUrl}
-                      resolveStaticFontUrl={backendStaticFontUrl}
-                      selectedVariantId={selectedVariant?.id ?? null}
-                      onImageValueChange={(fieldId, value) => {
-                        setCustomizationValues((current) => ({ ...current, [fieldId]: value }));
-                      }}
-                    />
+                    {selectedMediaNode}
                   </section>
                 }
                 thumbnails={galleryThumbnails}
@@ -668,6 +722,7 @@ export default function ProductDetail() {
                     onValueChange={(fieldId, value) => {
                       setCustomizationValues((current) => ({ ...current, [fieldId]: value }));
                     }}
+                    onInteraction={resetToCustomizationMedia}
                   />
                 }
                 isContactPrice={selectedVariant?.priceAmount === null}
@@ -684,21 +739,9 @@ export default function ProductDetail() {
         ) : (
           <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_440px] lg:items-start xl:grid-cols-[minmax(0,1fr)_480px]">
             <ProductGallery
-              mainContent={
-                mainMedia?.contentUrl ? (
-                  <div className="group flex min-h-[480px] items-center justify-center p-6">
-                    <img
-                      className="max-h-[600px] w-full object-contain transition-transform duration-700 group-hover:scale-105"
-                      src={mainMedia.contentUrl}
-                      alt={getLocalized(product.title, locale)}
-                    />
-                  </div>
-                ) : (
-                  <div className="flex min-h-[480px] items-center justify-center text-on-surface-variant">
-                    Product image unavailable
-                  </div>
-                )
-              }
+              onPrevious={selectedVariantMedia.length > 1 ? () => moveSelectedMedia(-1) : undefined}
+              onNext={selectedVariantMedia.length > 1 ? () => moveSelectedMedia(1) : undefined}
+                mainContent={galleryImageNode}
               thumbnails={galleryThumbnails}
             />
             <ProductInfo
@@ -814,6 +857,7 @@ function CustomizationPurchaseSection({
   setQuantity,
   onMessageChange,
   onUploadImage,
+  onInteraction,
   onValueChange,
 }: {
   template: CustomizationTemplate;
@@ -824,6 +868,7 @@ function CustomizationPurchaseSection({
   setQuantity: Dispatch<SetStateAction<number>>;
   onMessageChange: (message: string) => void;
   onUploadImage: (field: CustomizationFormField, file: File) => Promise<ImageShapeFieldValue>;
+  onInteraction: () => void;
   onValueChange: (fieldId: string, value: CustomizationFormValues[string]) => void;
 }) {
   return (
@@ -835,6 +880,7 @@ function CustomizationPurchaseSection({
         message={message}
         onMessageChange={onMessageChange}
         onUploadImage={onUploadImage}
+        onInteraction={onInteraction}
         onValueChange={onValueChange}
       />
       <div className="mt-4 border-t border-border-subtle pt-4">

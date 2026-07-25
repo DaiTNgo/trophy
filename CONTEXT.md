@@ -208,6 +208,14 @@ _Avoid_: gallery image, all variant media, upload background
 Gallery Media shown to shoppers as product examples or past-work references, but not used as a customization canvas.
 _Avoid_: customization background, canvas media
 
+**Product Media Carousel**:
+The shopper-facing ordered image sequence for the selected variant: its Customization Media first, followed by that variant's Gallery Media in gallery position order. Next/Previous navigation changes the visible image within this sequence and does not change the selected variant.
+_Avoid_: variant switcher, gallery-only carousel, customization canvas history
+
+**Customization Preview Reset**:
+The storefront behavior that returns the visible image to the selected variant's Customization Media whenever the shopper focuses or clicks the customization form. The reset changes the visible image only; it preserves the shopper's entered customization values.
+_Avoid_: clear customization, reset form, replace gallery media
+
 **Customization Publish Readiness**:
 The product-level condition that a customizable product must satisfy before it can be published, including one Customization Background for every variant, matching background dimensions, and a valid customization editor model. Draft products may be incomplete but cannot open the customization editor until its required backgrounds are available.
 _Avoid_: template publish validation, customization status
