@@ -107,6 +107,21 @@ describe("buildListingItem", () => {
     expect(item.thumbnail).toBe("http://localhost/api/assets/products/asset_a/content");
   });
 
+  it("uses the selected product media thumbnail before variant media", () => {
+    const item = buildListingItem(
+      { req: { url: "http://localhost/" } } as any,
+      baseItem,
+      [],
+      [makeVariant({ id: 1, isDefault: true })],
+      new Map([[1, [makeMedia("variant-asset")]]]),
+      false,
+      new Map(),
+      [{ url: "/api/assets/products/product-asset/content", position: 0 }],
+    );
+
+    expect(item.thumbnail).toBe("http://localhost/api/assets/products/product-asset/content");
+  });
+
   it("falls back to first variant with media when default has none", () => {
     const mediaByVariant = new Map([
       [2, [makeMedia("asset_b")]],

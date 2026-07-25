@@ -10,9 +10,23 @@ import {
   ProductCustomizationForm,
   ProductCustomizationPreview,
 } from "@trophy/customization-react";
-import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 import { useLoaderData, useSearchParams } from "react-router";
-import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Minus, Plus } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  ChevronUp,
+  Minus,
+  Plus,
+} from "lucide-react";
 import { validateCustomizationValues } from "@trophy/customization";
 import { ProductBreadcrumbs } from "../components/product/ProductBreadcrumbs";
 import {
@@ -20,7 +34,10 @@ import {
   ProductGalleryThumbnails,
   type ProductGalleryThumbnail,
 } from "../components/product/ProductGallery";
-import { ProductDetailSections, ProductInfo } from "../components/product/ProductInfo";
+import {
+  ProductDetailSections,
+  ProductInfo,
+} from "../components/product/ProductInfo";
 import { ProductMobileActionBar } from "../components/product/ProductMobileActionBar";
 import {
   buildProductMediaCarousel,
@@ -44,37 +61,53 @@ import { getLocale } from "../i18n.server";
 import { withStorefrontLoaderLog } from "../lib/observability";
 import Container from "@/components/container";
 import { QuantityInput } from "../components/ui/quantity-input";
-import { CART_LINE_REVISION_PARAM, resolveCartLineRevision } from "../lib/cart-revision";
+import {
+  CART_LINE_REVISION_PARAM,
+  resolveCartLineRevision,
+} from "../lib/cart-revision";
 
 export async function loader({ params, request, context }: Route.LoaderArgs) {
-  return withStorefrontLoaderLog("category-product-detail", request, async () => {
-    const locale = getLocale(context);
-    const product = await fetchStorefrontProduct(params.productHandle, locale);
-    const activeCategory =
-      product.categories.find((category) => category.handle === params.categoryHandle) ?? null;
+  return withStorefrontLoaderLog(
+    "category-product-detail",
+    request,
+    async () => {
+      const locale = getLocale(context);
+      const product = await fetchStorefrontProduct(
+        params.productHandle,
+        locale,
+      );
+      const activeCategory =
+        product.categories.find(
+          (category) => category.handle === params.categoryHandle,
+        ) ?? null;
 
-    if (!activeCategory) {
-      throw new Response("Not Found", { status: 404 });
-    }
+      if (!activeCategory) {
+        throw new Response("Not Found", { status: 404 });
+      }
 
-    const dynamicFonts = product.customization
-      ? await fetchStorefrontDynamicFonts()
-      : [];
+      const dynamicFonts = product.customization
+        ? await fetchStorefrontDynamicFonts()
+        : [];
 
-    return { product, dynamicFonts, locale, activeCategory };
-  }, {
-    categoryHandle: params.categoryHandle,
-    productHandle: params.productHandle,
-  });
+      return { product, dynamicFonts, locale, activeCategory };
+    },
+    {
+      categoryHandle: params.categoryHandle,
+      productHandle: params.productHandle,
+    },
+  );
 }
 
 export function meta({ loaderData }: Route.MetaArgs) {
-  const title = getLocalized(loaderData?.product?.title, loaderData?.locale || 'vi') || "Sản Phẩm";
+  const title =
+    getLocalized(loaderData?.product?.title, loaderData?.locale || "vi") ||
+    "Sản Phẩm";
   return [{ title: `${title} | TROPHY PRESTIGE` }];
 }
 
 export default function ProductDetail() {
-  const { product, dynamicFonts, locale, activeCategory } = useLoaderData<typeof loader>();
+  const { product, dynamicFonts, locale, activeCategory } =
+    useLoaderData<typeof loader>();
   const { addLine, isReady: isCartReady, lines } = useCart();
   const [searchParams] = useSearchParams();
   const previewSectionRef = useRef<HTMLDivElement | null>(null);
@@ -83,12 +116,16 @@ export default function ProductDetail() {
   const recordedRecentlyViewedProductId = useRef<number | null>(null);
   const appliedCartLineRevisionId = useRef<string | null>(null);
   const defaultVariantId =
-    product.variants.find((variant) => variant.isDefault && variant.priceAmount !== null)?.id ??
+    product.variants.find(
+      (variant) => variant.isDefault && variant.priceAmount !== null,
+    )?.id ??
     product.variants.find((variant) => variant.priceAmount !== null)?.id ??
     product.variants.find((variant) => variant.isDefault)?.id ??
     product.variants[0]?.id ??
     null;
-  const [selectedVariantId, setSelectedVariantId] = useState<number | null>(defaultVariantId);
+  const [selectedVariantId, setSelectedVariantId] = useState<number | null>(
+    defaultVariantId,
+  );
   const [message, setMessage] = useState("");
   const [cartMessage, setCartMessage] = useState("");
   const [uploadingFieldId, setUploadingFieldId] = useState("");
@@ -96,12 +133,16 @@ export default function ProductDetail() {
   const [selectedMediaId, setSelectedMediaId] = useState<string | null>(null);
   const [isAtPageTop, setIsAtPageTop] = useState(true);
   const [isMobilePreviewHidden, setIsMobilePreviewHidden] = useState(false);
-  const [isMobilePreviewAutoRestoreArmed, setIsMobilePreviewAutoRestoreArmed] = useState(false);
-  const [mobileHiddenShellHeight, setMobileHiddenShellHeight] = useState<number | null>(null);
+  const [isMobilePreviewAutoRestoreArmed, setIsMobilePreviewAutoRestoreArmed] =
+    useState(false);
+  const [mobileHiddenShellHeight, setMobileHiddenShellHeight] = useState<
+    number | null
+  >(null);
   const [isMobilePreviewSticky, setIsMobilePreviewSticky] = useState(false);
   const [isCartLineRevision, setIsCartLineRevision] = useState(false);
   const [revisionNotice, setRevisionNotice] = useState("");
-  const [hasInvalidRevisionVariant, setHasInvalidRevisionVariant] = useState(false);
+  const [hasInvalidRevisionVariant, setHasInvalidRevisionVariant] =
+    useState(false);
   const cartLineRevisionId = searchParams.get(CART_LINE_REVISION_PARAM);
 
   const selectedVariant =
@@ -112,9 +153,9 @@ export default function ProductDetail() {
     () =>
       selectedVariant
         ? {
-          ...selectedVariant,
-          title: getLocalized(selectedVariant.title, locale),
-        }
+            ...selectedVariant,
+            title: getLocalized(selectedVariant.title, locale),
+          }
         : null,
     [selectedVariant, locale],
   );
@@ -134,7 +175,9 @@ export default function ProductDetail() {
     [selectedVariant?.customizationMedia, selectedVariantGalleryMedia],
   );
   const selectedMedia =
-    selectedVariantMedia.find((media) => media.id === selectedMediaId) ?? selectedVariantMedia[0] ?? null;
+    selectedVariantMedia.find((media) => media.id === selectedMediaId) ??
+    selectedVariantMedia[0] ??
+    null;
   const displayPrice = formatCurrency(selectedVariant?.priceAmount ?? null);
 
   useEffect(() => {
@@ -143,15 +186,21 @@ export default function ProductDetail() {
 
   const moveSelectedMedia = (direction: -1 | 1) => {
     if (selectedVariantMedia.length < 2) return;
-    const currentIndex = selectedVariantMedia.findIndex((media) => media.id === selectedMedia?.id);
+    const currentIndex = selectedVariantMedia.findIndex(
+      (media) => media.id === selectedMedia?.id,
+    );
     const index = currentIndex < 0 ? 0 : currentIndex;
-    const nextIndex = (index + direction + selectedVariantMedia.length) % selectedVariantMedia.length;
+    const nextIndex =
+      (index + direction + selectedVariantMedia.length) %
+      selectedVariantMedia.length;
     setSelectedMediaId(selectedVariantMedia[nextIndex]?.id ?? null);
   };
 
   const resetToCustomizationMedia = () => {
     const customizationMedia = selectedVariant?.customizationMedia;
-    setSelectedMediaId(customizationMedia?.id ?? selectedVariantMedia[0]?.id ?? null);
+    setSelectedMediaId(
+      customizationMedia?.id ?? selectedVariantMedia[0]?.id ?? null,
+    );
   };
 
   useEffect(() => {
@@ -171,7 +220,8 @@ export default function ProductDetail() {
   }, [product.customization?.enabled]);
 
   useEffect(() => {
-    if (typeof window === "undefined" || !product.customization?.enabled) return;
+    if (typeof window === "undefined" || !product.customization?.enabled)
+      return;
 
     const handleScroll = () => {
       const scrollY = window.scrollY;
@@ -206,7 +256,8 @@ export default function ProductDetail() {
       title: getLocalized(product.title, locale),
       thumbnail: selectedVariantMedia[0]?.contentUrl ?? null,
       priceAmount:
-        product.variants.find((variant) => variant.priceAmount !== null)?.priceAmount ??
+        product.variants.find((variant) => variant.priceAmount !== null)
+          ?.priceAmount ??
         product.variants[0]?.priceAmount ??
         null,
     });
@@ -229,7 +280,8 @@ export default function ProductDetail() {
       canvasWidthPx: product.customization.canvasWidthPx,
       canvasHeightPx: product.customization.canvasHeightPx,
       layers: product.customization.layers as ProductCustomization["layers"],
-      formFields: product.customization.formFields as ProductCustomization["formFields"],
+      formFields: product.customization
+        .formFields as ProductCustomization["formFields"],
     };
   }, [product]);
 
@@ -237,26 +289,40 @@ export default function ProductDetail() {
     () =>
       customization
         ? buildProductCustomizationTemplate({
-          productId: product.id,
-          productTitle: getLocalized(product.title, locale),
-          customization,
-          selectedVariant: selectedCustomizationVariant,
-        })
+            productId: product.id,
+            productTitle: getLocalized(product.title, locale),
+            customization,
+            selectedVariant: selectedCustomizationVariant,
+          })
         : null,
-    [customization, product.id, product.title, locale, selectedCustomizationVariant, selectedMedia],
+    [
+      customization,
+      product.id,
+      product.title,
+      locale,
+      selectedCustomizationVariant,
+      selectedMedia,
+    ],
   );
 
   const [customizationValues, setCustomizationValues] = useState(() =>
-    customizationTemplate ? mergeCustomizationValues(customizationTemplate, null) : {},
+    customizationTemplate
+      ? mergeCustomizationValues(customizationTemplate, null)
+      : {},
   );
 
   useEffect(() => {
     if (!customizationTemplate) return;
-    setCustomizationValues((current) => mergeCustomizationValues(customizationTemplate, current));
+    setCustomizationValues((current) =>
+      mergeCustomizationValues(customizationTemplate, current),
+    );
   }, [customizationTemplate]);
 
   useEffect(() => {
-    if (!isCartReady || appliedCartLineRevisionId.current === cartLineRevisionId) {
+    if (
+      !isCartReady ||
+      appliedCartLineRevisionId.current === cartLineRevisionId
+    ) {
       return;
     }
 
@@ -275,7 +341,9 @@ export default function ProductDetail() {
       variantIds: product.variants.map((variant) => variant.id),
     });
     if (!revision.line) {
-      setRevisionNotice("Your saved customization could not be restored. Please customize this product again.");
+      setRevisionNotice(
+        "Your saved customization could not be restored. Please customize this product again.",
+      );
       return;
     }
 
@@ -283,21 +351,38 @@ export default function ProductDetail() {
       setSelectedVariantId(revision.line.variantId);
     } else {
       setHasInvalidRevisionVariant(true);
-      setRevisionNotice("The saved variant is no longer available. Choose a current variant before adding to cart.");
+      setRevisionNotice(
+        "The saved variant is no longer available. Choose a current variant before adding to cart.",
+      );
     }
 
     if (customizationTemplate && revision.line.customizationValues) {
-      setCustomizationValues(mergeCustomizationValues(
-        customizationTemplate,
-        revision.line.customizationValues as CustomizationFormValues,
-      ));
+      setCustomizationValues(
+        mergeCustomizationValues(
+          customizationTemplate,
+          revision.line.customizationValues as CustomizationFormValues,
+        ),
+      );
     }
     setQuantity(1);
     setIsCartLineRevision(true);
-  }, [cartLineRevisionId, customizationTemplate, isCartReady, lines, product.id, product.variants]);
+  }, [
+    cartLineRevisionId,
+    customizationTemplate,
+    isCartReady,
+    lines,
+    product.id,
+    product.variants,
+  ]);
 
   const customizationValidation = useMemo(
-    () => customizationTemplate ? validateCustomizationValues({ template: customizationTemplate, values: customizationValues }) : null,
+    () =>
+      customizationTemplate
+        ? validateCustomizationValues({
+            template: customizationTemplate,
+            values: customizationValues,
+          })
+        : null,
     [customizationTemplate, customizationValues],
   );
 
@@ -316,7 +401,10 @@ export default function ProductDetail() {
   );
 
   const selectedOptionValueIds = new Map(
-    selectedVariant?.optionValues.map((optionValue) => [optionValue.optionId, optionValue.id]) ?? [],
+    selectedVariant?.optionValues.map((optionValue) => [
+      optionValue.optionId,
+      optionValue.id,
+    ]) ?? [],
   );
   const visibleOptions = product.options
     .map((option) => ({
@@ -331,7 +419,10 @@ export default function ProductDetail() {
     selectedValues: Map<number, number>,
   ) {
     return Array.from(selectedValues.entries()).every(([optionId, valueId]) =>
-      variant.optionValues.some((optionValue) => optionValue.optionId === optionId && optionValue.id === valueId),
+      variant.optionValues.some(
+        (optionValue) =>
+          optionValue.optionId === optionId && optionValue.id === valueId,
+      ),
     );
   }
 
@@ -339,9 +430,14 @@ export default function ProductDetail() {
     const nextSelection = new Map(selectedOptionValueIds);
     nextSelection.set(optionId, valueId);
     return (
-      product.variants.find((variant) => variantMatchesSelection(variant, nextSelection)) ??
       product.variants.find((variant) =>
-        variant.optionValues.some((optionValue) => optionValue.optionId === optionId && optionValue.id === valueId),
+        variantMatchesSelection(variant, nextSelection),
+      ) ??
+      product.variants.find((variant) =>
+        variant.optionValues.some(
+          (optionValue) =>
+            optionValue.optionId === optionId && optionValue.id === valueId,
+        ),
       ) ??
       null
     );
@@ -354,7 +450,12 @@ export default function ProductDetail() {
           {getLocalized(option.title, locale)}
         </p>
         <span className="text-xs font-semibold uppercase tracking-[0.08em] text-on-surface-variant">
-          {getLocalized(option.values.find((value) => selectedOptionValueIds.get(option.id) === value.id)?.value, locale) || "Select"}
+          {getLocalized(
+            option.values.find(
+              (value) => selectedOptionValueIds.get(option.id) === value.id,
+            )?.value,
+            locale,
+          ) || "Select"}
         </span>
       </div>
       <div className="grid gap-1.5 sm:grid-cols-2">
@@ -376,10 +477,11 @@ export default function ProductDetail() {
                   setHasInvalidRevisionVariant(false);
                 }
               }}
-              className={`h-10 rounded border px-3 text-left text-sm font-medium transition ${selected
-                ? "border-brand-strong bg-white text-text-base ring-2 ring-brand-strong/15"
-                : "border-border-subtle bg-white text-text-base hover:border-brand-support"
-                } disabled:cursor-not-allowed disabled:opacity-40`}
+              className={`h-10 rounded border px-3 text-left text-sm font-medium transition ${
+                selected
+                  ? "border-brand-strong bg-white text-text-base ring-2 ring-brand-strong/15"
+                  : "border-border-subtle bg-white text-text-base hover:border-brand-support"
+              } disabled:cursor-not-allowed disabled:opacity-40`}
             >
               {getLocalized(value.value, locale)}
             </button>
@@ -397,9 +499,13 @@ export default function ProductDetail() {
     active: media.id === selectedMedia?.id,
     onClick: () => setSelectedMediaId(media.id),
   }));
-  const mobileGalleryThumbnails = galleryThumbnails as ProductGalleryThumbnail[];
-  const contactHref = `/contact?product=${encodeURIComponent(getLocalized(product.title, locale))}${selectedVariant ? `&variant=${encodeURIComponent(getLocalized(selectedVariant.title, locale))}` : ""
-    }${selectedVariant?.sku ? `&sku=${encodeURIComponent(selectedVariant.sku)}` : ""}`;
+  const mobileGalleryThumbnails =
+    galleryThumbnails as ProductGalleryThumbnail[];
+  const contactHref = `/contact?product=${encodeURIComponent(getLocalized(product.title, locale))}${
+    selectedVariant
+      ? `&variant=${encodeURIComponent(getLocalized(selectedVariant.title, locale))}`
+      : ""
+  }${selectedVariant?.sku ? `&sku=${encodeURIComponent(selectedVariant.sku)}` : ""}`;
 
   const addToCartDisabled =
     !selectedVariant ||
@@ -407,71 +513,124 @@ export default function ProductDetail() {
     quantity < 1 ||
     Boolean(uploadingFieldId) ||
     hasInvalidRevisionVariant ||
-    Boolean(customizationTemplate && customizationValidation && !customizationValidation.valid);
+    Boolean(
+      customizationTemplate &&
+      customizationValidation &&
+      !customizationValidation.valid,
+    );
 
   const addToCartMessage = selectedVariant
     ? selectedVariant.priceAmount === null
       ? "This variant uses Contact Price and cannot be added to cart."
       : hasInvalidRevisionVariant
         ? "Choose a current variant before adding this item to cart."
-      : customizationTemplate && customizationValidation && !customizationValidation.valid
-        ? "Complete the required customization fields before adding this item to cart."
-        : cartMessage
+        : customizationTemplate &&
+            customizationValidation &&
+            !customizationValidation.valid
+          ? "Complete the required customization fields before adding this item to cart."
+          : cartMessage
     : "Select a variant before adding this item to cart.";
 
   function handleAddToCart() {
-    if (!selectedVariant || selectedVariant.priceAmount === null || quantity < 1) {
+    if (
+      !selectedVariant ||
+      selectedVariant.priceAmount === null ||
+      quantity < 1
+    ) {
       return;
     }
 
-    if (customizationTemplate && customizationValidation && !customizationValidation.valid) {
-      setCartMessage("Complete the required customization fields before adding this item to cart.");
+    if (
+      customizationTemplate &&
+      customizationValidation &&
+      !customizationValidation.valid
+    ) {
+      setCartMessage(
+        "Complete the required customization fields before adding this item to cart.",
+      );
       return;
     }
 
     const customizationSummary = customizationTemplate
       ? customizationTemplate.formFields
-        .map((field) => {
-          const value = customizationValues[field.id];
-          if (!value) {
-            return null;
-          }
+          .map((field) => {
+            const value = customizationValues[field.id];
+            if (!value) {
+              return null;
+            }
 
-          if (typeof value === "object" && value && "text" in value && typeof value.text === "string") {
-            return { fieldId: field.id, label: field.label, valueSummary: value.text };
-          }
+            if (
+              typeof value === "object" &&
+              value &&
+              "text" in value &&
+              typeof value.text === "string"
+            ) {
+              return {
+                fieldId: field.id,
+                label: field.label,
+                valueSummary: value.text,
+              };
+            }
 
-          if (typeof value === "object" && value && "assetId" in value) {
-            return { fieldId: field.id, label: field.label, valueSummary: "Uploaded image" };
-          }
+            if (typeof value === "object" && value && "assetId" in value) {
+              return {
+                fieldId: field.id,
+                label: field.label,
+                valueSummary: "Uploaded image",
+              };
+            }
 
-          if (typeof value === "object" && value && "source" in value && value.source === "clipart") {
-            return { fieldId: field.id, label: field.label, valueSummary: value.clipartAssetName };
-          }
+            if (
+              typeof value === "object" &&
+              value &&
+              "source" in value &&
+              value.source === "clipart"
+            ) {
+              return {
+                fieldId: field.id,
+                label: field.label,
+                valueSummary: value.clipartAssetName,
+              };
+            }
 
-          return { fieldId: field.id, label: field.label, valueSummary: "Custom value" };
-        })
-        .filter((entry): entry is { fieldId: string; label: string; valueSummary: string } => entry !== null)
+            return {
+              fieldId: field.id,
+              label: field.label,
+              valueSummary: "Custom value",
+            };
+          })
+          .filter(
+            (
+              entry,
+            ): entry is {
+              fieldId: string;
+              label: string;
+              valueSummary: string;
+            } => entry !== null,
+          )
       : [];
 
-    addLine({
-      productId: product.id,
-      variantId: selectedVariant.id,
-      quantity,
-      customizationValues: customizationTemplate ? customizationValues : null,
-      customizationSummary,
-      display: {
-        productTitle: getLocalized(product.title, locale),
-        productHandle: product.handle,
-        variantTitle: getLocalized(selectedVariant.title, locale),
-        sku: selectedVariant.sku,
-        thumbnail: selectedVariant.media[0]?.contentUrl ?? null,
-        priceAmount: selectedVariant.priceAmount,
-        customizable: Boolean(customizationTemplate),
-        requiresCustomization: Boolean(customizationTemplate),
-        isContactPrice: selectedVariant.priceAmount === null,
+    addLine(
+      {
+        productId: product.id,
+        variantId: selectedVariant.id,
+        quantity,
+        customizationValues: customizationTemplate ? customizationValues : null,
+        customizationSummary,
+        display: {
+          productTitle: getLocalized(product.title, locale),
+          productHandle: product.handle,
+          variantTitle: getLocalized(selectedVariant.title, locale),
+          sku: selectedVariant.sku,
+          thumbnail: selectedVariant.media[0]?.contentUrl ?? null,
+          priceAmount: selectedVariant.priceAmount,
+          customizable: Boolean(customizationTemplate),
+          requiresCustomization: Boolean(customizationTemplate),
+          isContactPrice: selectedVariant.priceAmount === null,
+        },
       },
-    }, { forceSeparate: isCartLineRevision });
+      { forceSeparate: isCartLineRevision },
+    );
     setCartMessage("Added to cart. You can keep browsing or open the cart.");
   }
 
@@ -481,7 +640,10 @@ export default function ProductDetail() {
   ): Promise<ImageShapeFieldValue> {
     setUploadingFieldId(field.id);
     try {
-      const asset = await uploadStorefrontCustomizationAsset(file, getUploadToken());
+      const asset = await uploadStorefrontCustomizationAsset(
+        file,
+        getUploadToken(),
+      );
 
       return {
         assetId: asset.id,
@@ -506,12 +668,15 @@ export default function ProductDetail() {
     return lastPeriod > 120 ? cut.slice(0, lastPeriod + 1) : cut + "…";
   }, [product.description, locale]);
 
+  const galleryMediaFrameClassName =
+    "h-[min(50vh,460px)] min-h-[320px] lg:h-[min(72vh,740px)] lg:min-h-[520px]";
+
   const previewNode = customizationTemplate ? (
     <ProductCustomizationPreview
       template={customizationTemplate}
       values={customizationValues}
       dynamicFonts={dynamicFonts as DynamicFontFamily[]}
-      className="border-0 rounded-none h-[min(50vh,460px)] min-h-[320px] lg:h-[min(72vh,740px)] lg:min-h-[520px]"
+      className={`border-0 rounded-none ${galleryMediaFrameClassName}`}
       resolveFontUrl={backendFontUrl}
       resolveStaticFontUrl={backendStaticFontUrl}
       selectedVariantId={selectedVariant?.id ?? null}
@@ -521,25 +686,32 @@ export default function ProductDetail() {
     />
   ) : null;
   const isCustomizationMediaActive = Boolean(
-    customizationTemplate && selectedMedia?.id === selectedVariant?.customizationMedia?.id,
+    customizationTemplate &&
+    selectedMedia?.id === selectedVariant?.customizationMedia?.id,
   );
   const galleryImageNode = mainMedia?.contentUrl ? (
-    <div className="group flex min-h-[480px] items-center justify-center p-6">
+    <div
+      className={`flex items-center justify-center p-6 ${galleryMediaFrameClassName}`}
+    >
       <img
-        className="max-h-[600px] w-full object-contain transition-transform duration-700 group-hover:scale-105"
+        className="h-full w-full object-contain transition-transform duration-700"
         src={mainMedia.contentUrl}
         alt={getLocalized(product.title, locale)}
       />
     </div>
   ) : (
-    <div className="flex min-h-[480px] items-center justify-center text-on-surface-variant">
+    <div
+      className={`flex items-center justify-center text-on-surface-variant ${galleryMediaFrameClassName}`}
+    >
       Product image unavailable
     </div>
   );
-  const selectedMediaNode = isCustomizationMediaActive ? previewNode : galleryImageNode;
+  const selectedMediaNode = isCustomizationMediaActive
+    ? previewNode
+    : galleryImageNode;
   const shouldShowHiddenPreviewBar = isMobilePreviewHidden && !isAtPageTop;
   const mobilePreviewShellMinHeight = shouldShowHiddenPreviewBar
-    ? mobileHiddenShellHeight ?? undefined
+    ? (mobileHiddenShellHeight ?? undefined)
     : undefined;
 
   return (
@@ -549,11 +721,12 @@ export default function ProductDetail() {
         categoryTitle={getLocalized(activeCategory.name, locale)}
         categoryHandle={activeCategory.handle}
       />
-      <Container
-        className="py-8"
-      >
+      <Container className="py-8">
         {revisionNotice ? (
-          <p className="mb-5 border border-border-subtle bg-surface-subtle px-4 py-3 text-sm text-text-base" role="status">
+          <p
+            className="mb-5 border border-border-subtle bg-surface-subtle px-4 py-3 text-sm text-text-base"
+            role="status"
+          >
             {revisionNotice}
           </p>
         ) : null}
@@ -561,7 +734,11 @@ export default function ProductDetail() {
         {customizationTemplate ? (
           <>
             <div className="lg:hidden">
-              <div ref={mobilePreviewSentinelRef} className="h-px" aria-hidden />
+              <div
+                ref={mobilePreviewSentinelRef}
+                className="h-px"
+                aria-hidden
+              />
               <div
                 ref={mobilePreviewShellRef}
                 className="sticky top-0 z-[70]"
@@ -572,9 +749,7 @@ export default function ProductDetail() {
                 }
               >
                 {shouldShowHiddenPreviewBar ? (
-                  <div
-                    className="rounded-b-2xl border border-border-subtle bg-white/96 px-4 py-3 shadow-[0_20px_48px_rgba(24,22,26,0.12)] backdrop-blur-md"
-                  >
+                  <div className="rounded-b-2xl border border-border-subtle bg-white/96 px-4 py-3 shadow-[0_20px_48px_rgba(24,22,26,0.12)] backdrop-blur-md">
                     <button
                       type="button"
                       onClick={() => {
@@ -590,10 +765,11 @@ export default function ProductDetail() {
                   </div>
                 ) : (
                   <section
-                    className={`overflow-hidden border border-border-subtle bg-white shadow-[0_18px_48px_rgba(24,22,26,0.08)] ${isMobilePreviewSticky
-                      ? "rounded-b-2xl shadow-[0_22px_56px_rgba(24,22,26,0.12)]"
-                      : "rounded-2xl"
-                      }`}
+                    className={`overflow-hidden border border-border-subtle bg-white shadow-[0_18px_48px_rgba(24,22,26,0.08)] ${
+                      isMobilePreviewSticky
+                        ? "rounded-b-2xl shadow-[0_22px_56px_rgba(24,22,26,0.12)]"
+                        : "rounded-2xl"
+                    }`}
                     data-selected-variant-id={selectedVariant?.id ?? ""}
                   >
                     <div className="relative">
@@ -619,13 +795,16 @@ export default function ProductDetail() {
                       ) : null}
                       {selectedMediaNode}
                     </div>
-                    <ProductGalleryThumbnails thumbnails={mobileGalleryThumbnails} />
+                    <ProductGalleryThumbnails
+                      thumbnails={mobileGalleryThumbnails}
+                    />
                     {isMobilePreviewSticky ? (
                       <button
                         type="button"
                         onClick={() => {
                           setMobileHiddenShellHeight(
-                            mobilePreviewShellRef.current?.getBoundingClientRect().height ?? null,
+                            mobilePreviewShellRef.current?.getBoundingClientRect()
+                              .height ?? null,
                           );
                           setIsMobilePreviewHidden(true);
                           setIsMobilePreviewAutoRestoreArmed(false);
@@ -648,9 +827,7 @@ export default function ProductDetail() {
                   description={shortDescription}
                   variantSelector={
                     optionGroups.length > 0 ? (
-                      <div className="space-y-4">
-                        {optionGroups}
-                      </div>
+                      <div className="space-y-4">{optionGroups}</div>
                     ) : null
                   }
                   customizationSection={
@@ -664,7 +841,10 @@ export default function ProductDetail() {
                       onMessageChange={setMessage}
                       onUploadImage={uploadCustomizationImage}
                       onValueChange={(fieldId, value) => {
-                        setCustomizationValues((current) => ({ ...current, [fieldId]: value }));
+                        setCustomizationValues((current) => ({
+                          ...current,
+                          [fieldId]: value,
+                        }));
                       }}
                       onInteraction={resetToCustomizationMedia}
                     />
@@ -688,7 +868,7 @@ export default function ProductDetail() {
                 onNext={() => moveSelectedMedia(1)}
                 mainContent={
                   <section
-                    className="min-h-[560px]"
+                    className={galleryMediaFrameClassName}
                     data-selected-variant-id={selectedVariant?.id ?? ""}
                   >
                     {selectedMediaNode}
@@ -704,9 +884,7 @@ export default function ProductDetail() {
                 description={shortDescription}
                 variantSelector={
                   optionGroups.length > 0 ? (
-                    <div className="space-y-4">
-                      {optionGroups}
-                    </div>
+                    <div className="space-y-4">{optionGroups}</div>
                   ) : null
                 }
                 customizationSection={
@@ -720,7 +898,10 @@ export default function ProductDetail() {
                     onMessageChange={setMessage}
                     onUploadImage={uploadCustomizationImage}
                     onValueChange={(fieldId, value) => {
-                      setCustomizationValues((current) => ({ ...current, [fieldId]: value }));
+                      setCustomizationValues((current) => ({
+                        ...current,
+                        [fieldId]: value,
+                      }));
                     }}
                     onInteraction={resetToCustomizationMedia}
                   />
@@ -739,9 +920,17 @@ export default function ProductDetail() {
         ) : (
           <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_440px] lg:items-start xl:grid-cols-[minmax(0,1fr)_480px]">
             <ProductGallery
-              onPrevious={selectedVariantMedia.length > 1 ? () => moveSelectedMedia(-1) : undefined}
-              onNext={selectedVariantMedia.length > 1 ? () => moveSelectedMedia(1) : undefined}
-                mainContent={galleryImageNode}
+              onPrevious={
+                selectedVariantMedia.length > 1
+                  ? () => moveSelectedMedia(-1)
+                  : undefined
+              }
+              onNext={
+                selectedVariantMedia.length > 1
+                  ? () => moveSelectedMedia(1)
+                  : undefined
+              }
+              mainContent={galleryImageNode}
               thumbnails={galleryThumbnails}
             />
             <ProductInfo
@@ -752,9 +941,7 @@ export default function ProductDetail() {
               description={shortDescription}
               variantSelector={
                 optionGroups.length > 0 ? (
-                  <div className="space-y-4">
-                    {optionGroups}
-                  </div>
+                  <div className="space-y-4">{optionGroups}</div>
                 ) : null
               }
               customizationSection={
@@ -815,7 +1002,9 @@ function QuantityOnlySection({
 }) {
   return (
     <div className="space-y-2">
-      <label className="block text-xs font-bold uppercase tracking-[0.12em] text-text-muted">Quantity</label>
+      <label className="block text-xs font-bold uppercase tracking-[0.12em] text-text-muted">
+        Quantity
+      </label>
       <div className="inline-flex h-10 items-center overflow-hidden rounded border border-border-subtle bg-white">
         <button
           type="button"
@@ -867,9 +1056,15 @@ function CustomizationPurchaseSection({
   quantity: number;
   setQuantity: Dispatch<SetStateAction<number>>;
   onMessageChange: (message: string) => void;
-  onUploadImage: (field: CustomizationFormField, file: File) => Promise<ImageShapeFieldValue>;
+  onUploadImage: (
+    field: CustomizationFormField,
+    file: File,
+  ) => Promise<ImageShapeFieldValue>;
   onInteraction: () => void;
-  onValueChange: (fieldId: string, value: CustomizationFormValues[string]) => void;
+  onValueChange: (
+    fieldId: string,
+    value: CustomizationFormValues[string],
+  ) => void;
 }) {
   return (
     <div>
