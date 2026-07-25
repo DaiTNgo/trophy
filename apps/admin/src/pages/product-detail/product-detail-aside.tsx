@@ -4,7 +4,6 @@ import { CheckCircle2, Globe, Archive } from "lucide-react";
 import { ChecklistItem } from "../../components/ui/medusa";
 import { publishProduct, archiveProduct } from "../../lib/products-client";
 import type { CatalogProduct } from "../../types";
-import { InlineError } from "../../components/ui/medusa/inline-error";
 
 type ProductDetailAsideProps = {
   product: CatalogProduct;
@@ -21,20 +20,19 @@ function getBadgeColor(status: string): "green" | "red" | "blue" | "orange" | "g
 
 export function ProductDetailAside({ product, mutate }: ProductDetailAsideProps) {
   const [isPublishing, setIsPublishing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   if (!product) return null;
 
   const handlePublish = async () => {
     setIsPublishing(true);
-    setError(null);
     try {
       await publishProduct(product.id);
       await mutate();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to publish";
-      setError(message);
-      toast.error(message);
+      toast.error("Product could not be published", {
+        description: `${message} Fix the publish requirements shown above, then try again.`,
+      });
     } finally {
       setIsPublishing(false);
     }
@@ -42,14 +40,14 @@ export function ProductDetailAside({ product, mutate }: ProductDetailAsideProps)
 
   const handleArchive = async () => {
     setIsPublishing(true);
-    setError(null);
     try {
       await archiveProduct(product.id);
       await mutate();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to archive";
-      setError(message);
-      toast.error(message);
+      toast.error("Product could not be archived", {
+        description: `${message} Refresh the product and try again.`,
+      });
     } finally {
       setIsPublishing(false);
     }
@@ -75,7 +73,6 @@ export function ProductDetailAside({ product, mutate }: ProductDetailAsideProps)
             label="Variants have prices"
             complete={product.variants.length > 0 && product.variants.every(v => v.price > 0)}
           />
-          {error && <div className="mt-2"><InlineError message={error} /></div>}
           <div className="mt-4 flex flex-col gap-y-2">
             {product.status === "Draft" || product.status === "Rejected" ? (
               <Button 

@@ -3,7 +3,6 @@ import { Button, Container, Heading, Text, Drawer, DropdownMenu, IconButton, toa
 import { Plus, Trash2, MoreHorizontal } from "lucide-react";
 import { updateProductAttributes } from "../../lib/products-client";
 import type { CatalogProduct, ProductAttribute, AdminLocale, LocalizedTextValue } from "../../types";
-import { InlineError } from "../../components/ui/medusa/inline-error";
 import { LocalizedTextField } from "../../components/ui/medusa";
 
 type ProductDetailAttributesProps = {
@@ -17,14 +16,12 @@ export function ProductDetailAttributes({ product, mutate }: ProductDetailAttrib
     product.attributes.map((a) => ({ key: a.key, value: a.value }))
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const [attributeLocale, setAttributeLocale] = useState<AdminLocale>("vi");
 
   const handleOpen = (isOpen: boolean) => {
     if (isOpen) {
       setAttributes(product.attributes.map((a) => ({ key: { ...a.key }, value: { ...a.value } })));
-      setError(null);
       setAttributeLocale("vi");
     }
     setOpen(isOpen);
@@ -46,7 +43,6 @@ export function ProductDetailAttributes({ product, mutate }: ProductDetailAttrib
 
   const handleSave = async () => {
     setIsSubmitting(true);
-    setError(null);
     try {
       const validAttrs = attributes.filter(a => a.key.vi.trim() && a.value.vi.trim());
       await updateProductAttributes(product.id, validAttrs.map(a => ({ name: a.key, value: a.value })));
@@ -54,8 +50,9 @@ export function ProductDetailAttributes({ product, mutate }: ProductDetailAttrib
       setOpen(false);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to save attributes";
-      setError(message);
-      toast.error(message);
+      toast.error("Attributes could not be saved", {
+        description: `${message} Check that each attribute has both a name and a Vietnamese value, then try again.`,
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -86,7 +83,6 @@ export function ProductDetailAttributes({ product, mutate }: ProductDetailAttrib
               <Drawer.Title>Edit Attributes</Drawer.Title>
             </Drawer.Header>
             <Drawer.Body className="flex flex-col gap-y-6 overflow-y-auto">
-              {error && <InlineError message={error} />}
               <div className="flex flex-col gap-y-3">
                 <div className="flex items-center justify-between">
                   <Text size="small" className="text-ui-fg-subtle">

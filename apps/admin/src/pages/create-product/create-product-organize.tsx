@@ -2,7 +2,6 @@ import { XMarkMini } from "@medusajs/icons";
 import { Heading, IconButton, Label, Select, Text } from "@medusajs/ui";
 import type { ReactNode } from "react";
 import { CategoryMultiSelect } from "../../components/ui/medusa/category-multiselect";
-import { InlineError } from "../../components/ui/medusa/inline-error";
 import type { useCreateProduct } from "./use-create-product";
 
 type CreateProductOrganizeProps = {
@@ -23,7 +22,6 @@ function OptionalFormLabel({ children }: { children: ReactNode }) {
 export function CreateProductOrganize({ state }: CreateProductOrganizeProps) {
   const {
     metadata,
-    metadataError,
     isLoadingMetadata,
     selectedCollectionId,
     setSelectedCollectionId,
@@ -36,11 +34,10 @@ export function CreateProductOrganize({ state }: CreateProductOrganizeProps) {
       <div>
         <Heading level="h2">Organize</Heading>
         <Text size="small" className="mt-1 text-ui-fg-subtle">
-          Assign lightweight merchandising structure without mixing in pricing or shipping logic.
+          Assign lightweight merchandising structure without mixing in pricing
+          or shipping logic.
         </Text>
       </div>
-
-      {metadataError ? <InlineError message={metadataError} /> : null}
 
       <div className="grid gap-5 md:grid-cols-1">
         <div className="space-y-2">
@@ -53,7 +50,13 @@ export function CreateProductOrganize({ state }: CreateProductOrganizeProps) {
                 disabled={isLoadingMetadata}
               >
                 <Select.Trigger>
-                  <Select.Value placeholder={isLoadingMetadata ? "Loading collections..." : "Select collection"} />
+                  <Select.Value
+                    placeholder={
+                      isLoadingMetadata
+                        ? "Loading collections..."
+                        : "Select collection"
+                    }
+                  />
                 </Select.Trigger>
                 <Select.Content>
                   {metadata.collections.map((option) => (
@@ -95,7 +98,8 @@ export function CreateProductOrganize({ state }: CreateProductOrganizeProps) {
             onChange={setSelectedCategoryIds}
           />
           <Text size="small" className="text-ui-fg-subtle">
-            Shopper-facing product-kind placement. A product may belong to multiple categories.
+            Shopper-facing product-kind placement. A product may belong to
+            multiple categories.
           </Text>
         </div>
       </div>

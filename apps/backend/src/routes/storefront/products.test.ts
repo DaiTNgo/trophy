@@ -1,6 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_TEMPLATE, type ProductCustomization } from "@trophy/customization";
-import { buildListingItem, sanitizeShopperCustomization } from "./products";
+import { buildListingItem, matchesSearchQuery, normalizeSearchText, sanitizeShopperCustomization } from "./products";
+
+describe("storefront search normalization", () => {
+  it("matches Vietnamese text regardless of accents and case", () => {
+    expect(normalizeSearchText("ÁO KHOÁC")).toBe("ao khoac");
+    expect(matchesSearchQuery(["Áo khoác mùa đông"], "áo đông")).toBe(true);
+  });
+
+  it("requires every search term to be present", () => {
+    expect(matchesSearchQuery(["Áo khoác mùa đông"], "áo hè")).toBe(false);
+  });
+});
 
 const baseItem = {
   id: 1,

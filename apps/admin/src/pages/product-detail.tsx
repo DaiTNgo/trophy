@@ -53,7 +53,7 @@ export function ProductDetailPage() {
               <div className="flex flex-col gap-y-1">
                 <Heading level="h2">Product not found</Heading>
                 <Text size="base" className="text-ui-fg-subtle">
-                  {error || "The requested product does not exist."}
+                  The requested product could not be loaded. Check the toast for details, then try again from Products.
                 </Text>
               </div>
               <Button variant="secondary" size="small" asChild>

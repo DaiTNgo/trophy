@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "react-router";
+import { toast } from "@medusajs/ui";
 import { fetchProduct, mapApiProductToCatalogProduct } from "../../lib/products-client";
 import type { CatalogProduct } from "../../types";
 
@@ -16,7 +17,11 @@ export function useProductDetail() {
       const apiProduct = await fetchProduct(productId);
       setProduct(mapApiProductToCatalogProduct(apiProduct));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to load product");
+      const message = err instanceof Error ? err.message : "Unable to load product.";
+      setError(message);
+      toast.error("Product could not be loaded", {
+        description: `${message} Return to Products and try opening the product again.`,
+      });
     } finally {
       setIsLoading(false);
     }

@@ -116,6 +116,32 @@ export function sanitizeShopperCustomization(customization: ProductCustomization
   });
 }
 
+export function normalizeSearchText(value: string) {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[đĐ]/g, 'd')
+    .toLocaleLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .trim()
+}
+
+function localizedSearchValues(value: unknown) {
+  if (typeof value === 'string') return [value]
+  if (!value || typeof value !== 'object') return []
+  return Object.values(value).filter((entry): entry is string => typeof entry === 'string')
+}
+
+export function matchesSearchQuery(values: unknown[], query: string) {
+  const tokens = normalizeSearchText(query).split(' ').filter(Boolean)
+  const haystacks = values
+    .flatMap(localizedSearchValues)
+    .map(normalizeSearchText)
+    .filter(Boolean)
+
+  return tokens.length > 0 && tokens.every((token) => haystacks.some((haystack) => haystack.includes(token)))
+}
+
 function sanitizeShopperCustomizationWithClipart(
   customization: ProductCustomization,
   {
@@ -212,25 +238,6 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
 
     const conditions = [eq(products.status, 'published')]
 
-    if (parsedQuery.output.q) {
-      const pattern = `%${parsedQuery.output.q.toLowerCase()}%`
-      conditions.push(
-        sql`(
-          lower(${products.title}) like ${pattern}
-          or lower(${products.subtitle}) like ${pattern}
-          or lower(${products.handle}) like ${pattern}
-          or exists (
-            select 1
-            from ${productCategoryLinks}
-            inner join ${productCategories}
-              on ${productCategories.id} = ${productCategoryLinks.categoryId}
-            where ${productCategoryLinks.productId} = ${products.id}
-              and lower(${productCategories.name}) like ${pattern}
-          )
-        )`
-      )
-    }
-
     if (parsedQuery.output.category) {
       conditions.push(
         sql`exists (
@@ -245,9 +252,19 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
     }
 
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined
+    type ListingQueryItem = {
+      id: number
+      title: string
+      subtitle: string | null
+      handle: string
+      status: string
+    }
 
-    const [items, totalResult] = await Promise.all([
-      db
+    let items: ListingQueryItem[]
+    let totalResult: { total: number } | undefined
+
+    if (parsedQuery.output.q) {
+      const candidates = await db
         .select({
           id: products.id,
           title: products.title,
@@ -258,14 +275,87 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
         .from(products)
         .where(whereClause)
         .orderBy(desc(products.id))
-        .limit(limit)
-        .offset(offset),
-      db
-        .select({ total: sql<number>`count(*)` })
-        .from(products)
-        .where(whereClause)
-        .get()
-    ])
+
+      const hydratedCandidates = await hydrateTranslations(
+        db,
+        'product',
+        candidates,
+        (item) => String(item.id),
+        [
+          { fieldName: 'title', objectKey: 'title' },
+          { fieldName: 'subtitle', objectKey: 'subtitle' }
+        ],
+        [
+          { fieldName: 'title', objectKey: 'title' },
+          { fieldName: 'subtitle', objectKey: 'subtitle' }
+        ]
+      )
+      const hydratedById = new Map(hydratedCandidates.map((item) => [item.id, item]))
+      const categoryRows = candidates.length > 0
+        ? await db
+            .select({
+              productId: productCategoryLinks.productId,
+              categoryId: productCategories.id,
+              name: productCategories.name,
+              handle: productCategories.handle
+            })
+            .from(productCategoryLinks)
+            .innerJoin(productCategories, eq(productCategoryLinks.categoryId, productCategories.id))
+            .where(inArray(productCategoryLinks.productId, candidates.map((item) => item.id)))
+        : []
+      const hydratedCategories = await hydrateTranslations(
+        db,
+        'product_category',
+        categoryRows,
+        (item) => String(item.categoryId),
+        [{ fieldName: 'name', objectKey: 'name' }],
+        [{ fieldName: 'name', objectKey: 'name' }]
+      )
+      const categoriesByProductId = new Map<number, unknown[]>()
+      for (const category of hydratedCategories) {
+        const values = categoriesByProductId.get(category.productId) ?? []
+        values.push(category.name, category.handle)
+        categoriesByProductId.set(category.productId, values)
+      }
+
+      const matchingCandidates = candidates.filter((candidate) => {
+        const localized = hydratedById.get(candidate.id)
+        return matchesSearchQuery(
+          [
+            localized?.title,
+            localized?.subtitle,
+            candidate.handle,
+            ...(categoriesByProductId.get(candidate.id) ?? [])
+          ],
+          parsedQuery.output.q as string
+        )
+      })
+      totalResult = { total: matchingCandidates.length }
+      items = matchingCandidates.slice(offset, offset + limit)
+    } else {
+      const result = await Promise.all([
+        db
+          .select({
+            id: products.id,
+            title: products.title,
+            subtitle: products.subtitle,
+            handle: products.handle,
+            status: products.status
+          })
+          .from(products)
+          .where(whereClause)
+          .orderBy(desc(products.id))
+          .limit(limit)
+          .offset(offset),
+        db
+          .select({ total: sql<number>`count(*)` })
+          .from(products)
+          .where(whereClause)
+          .get()
+      ])
+      items = result[0]
+      totalResult = result[1]
+    }
 
     const productIds = items.map((item) => item.id)
 

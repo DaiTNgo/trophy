@@ -3,7 +3,6 @@ import { Container, Heading, Text, Drawer, Button, Input, StatusBadge, DropdownM
 import { MoreHorizontal } from "lucide-react";
 import type { CatalogProduct } from "../../types";
 import { updateProductOverview, publishProduct, archiveProduct } from "../../lib/products-client";
-import { InlineError } from "../../components/ui/medusa/inline-error";
 import { LocalizedTextField } from "../../components/ui/medusa";
 import type { AdminLocale } from "../../types";
 
@@ -23,7 +22,6 @@ export function ProductDetailOverview({ product, mutate }: ProductDetailOverview
   const [subtitleLocale, setSubtitleLocale] = useState<AdminLocale>("vi");
   const [descriptionLocale, setDescriptionLocale] = useState<AdminLocale>("vi");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const handleOpen = (isOpen: boolean) => {
     if (isOpen) {
@@ -32,14 +30,12 @@ export function ProductDetailOverview({ product, mutate }: ProductDetailOverview
       setSubtitle(product.subtitle ?? { vi: "", en: "" });
       setDescription(product.description ?? { vi: "", en: "" });
       setStatus(product.status);
-      setError(null);
     }
     setOpen(isOpen);
   };
 
   const handleSave = async () => {
     setIsSubmitting(true);
-    setError(null);
     try {
       if (!title.vi.trim()) {
         throw new Error("Vietnamese product title is required.");
@@ -64,8 +60,9 @@ export function ProductDetailOverview({ product, mutate }: ProductDetailOverview
       setOpen(false);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to save overview";
-      setError(message);
-      toast.error(message);
+      toast.error("Product overview could not be saved", {
+        description: `${message} Enter a Vietnamese title and review the overview fields, then try again.`,
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -104,7 +101,6 @@ export function ProductDetailOverview({ product, mutate }: ProductDetailOverview
               <Drawer.Title>Edit Product</Drawer.Title>
             </Drawer.Header>
             <Drawer.Body className="flex flex-col gap-y-6 overflow-y-auto">
-              {error && <InlineError message={error} />}
               <div className="flex flex-col gap-y-1.5">
                 <Label size="small" weight="plus" className="text-ui-fg-subtle">Status</Label>
                 <Select value={status} onValueChange={setStatus}>

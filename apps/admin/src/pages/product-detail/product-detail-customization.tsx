@@ -4,7 +4,6 @@ import { Badge, Button, Container, Heading, Text, toast } from "@medusajs/ui";
 import { Play, Trash2 } from "lucide-react";
 import { updateProductCustomization } from "../../lib/products-client";
 import type { CatalogProduct } from "../../types";
-import { InlineError } from "../../components/ui/medusa/inline-error";
 
 type ProductDetailCustomizationProps = {
   product: CatalogProduct;
@@ -13,13 +12,11 @@ type ProductDetailCustomizationProps = {
 
 export function ProductDetailCustomization({ product, mutate }: ProductDetailCustomizationProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const customization = product.customization;
 
   const handleEnable = async () => {
     setIsSubmitting(true);
-    setError(null);
     try {
       await updateProductCustomization(product.id, {
         enabled: true,
@@ -29,8 +26,9 @@ export function ProductDetailCustomization({ product, mutate }: ProductDetailCus
       await mutate();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to enable customization";
-      setError(message);
-      toast.error(message);
+      toast.error("Customization could not be enabled", {
+        description: `${message} Refresh the product and try again.`,
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -38,7 +36,6 @@ export function ProductDetailCustomization({ product, mutate }: ProductDetailCus
 
   const handleDisable = async () => {
     setIsSubmitting(true);
-    setError(null);
     try {
       await updateProductCustomization(product.id, {
         enabled: false
@@ -46,8 +43,9 @@ export function ProductDetailCustomization({ product, mutate }: ProductDetailCus
       await mutate();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to disable customization";
-      setError(message);
-      toast.error(message);
+      toast.error("Customization could not be disabled", {
+        description: `${message} Refresh the product and try again.`,
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -79,7 +77,6 @@ export function ProductDetailCustomization({ product, mutate }: ProductDetailCus
           </div>
         </div>
 
-        {error && <InlineError message={error} />}
 
         {customization?.enabled && (
           <div className="border-t border-ui-border-base px-6 py-4">

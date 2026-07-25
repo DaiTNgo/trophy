@@ -2,7 +2,7 @@ import { Link } from "react-router";
 import { Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { SearchResults as SearchResultsType } from "@/hooks/useSearch";
-import type { MockProduct, MockCategory } from "@/hooks/useSearch";
+import type { SearchProduct, SearchCategory } from "@/hooks/useSearch";
 import { getCategoryPath, getGenericProductPath } from "@/lib/storefront-paths";
 import { formatCurrency } from "@/lib/utils";
 
@@ -13,7 +13,7 @@ interface SearchResultsProps {
   onResultClick?: () => void;
 }
 
-function ProductResult({ product }: { product: MockProduct }) {
+function ProductResult({ product }: { product: SearchProduct }) {
   return (
     <Link
       to={getGenericProductPath(product.handle)}
@@ -37,7 +37,7 @@ function ProductResult({ product }: { product: MockProduct }) {
   );
 }
 
-function CategoryResult({ category }: { category: MockCategory }) {
+function CategoryResult({ category }: { category: SearchCategory }) {
   return (
     <Link
       to={getCategoryPath(category.handle)}
@@ -83,8 +83,8 @@ function Column({
   renderItem,
 }: {
   title: string;
-  items: MockProduct[] | MockCategory[];
-  renderItem: (item: MockProduct | MockCategory) => React.ReactNode;
+  items: SearchProduct[] | SearchCategory[];
+  renderItem: (item: SearchProduct | SearchCategory) => React.ReactNode;
 }) {
   return (
     <div>
@@ -125,25 +125,25 @@ export function SearchResults({ results, loading, query, onResultClick }: Search
           <Column
             title="Danh mục"
             items={results.categories}
-            renderItem={(item) => <CategoryResult category={item as MockCategory} />}
+            renderItem={(item) => <CategoryResult category={item as SearchCategory} />}
           />
           <Column
             title="Sản phẩm"
             items={results.products}
-            renderItem={(item) => <ProductResult product={item as MockProduct} />}
+            renderItem={(item) => <ProductResult product={item as SearchProduct} />}
           />
         </div>
       ) : hasCategories ? (
         <Column
           title="Danh mục"
           items={results.categories}
-          renderItem={(item) => <CategoryResult category={item as MockCategory} />}
+          renderItem={(item) => <CategoryResult category={item as SearchCategory} />}
         />
       ) : (
         <Column
           title="Sản phẩm"
           items={results.products}
-          renderItem={(item) => <ProductResult product={item as MockProduct} />}
+          renderItem={(item) => <ProductResult product={item as SearchProduct} />}
         />
       )}
     </div>
