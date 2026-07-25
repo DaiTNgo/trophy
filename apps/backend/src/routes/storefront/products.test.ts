@@ -107,6 +107,21 @@ describe("buildListingItem", () => {
     expect(item.thumbnail).toBe("http://localhost/api/assets/products/asset_a/content");
   });
 
+  it("uses the selected product media thumbnail before variant media", () => {
+    const item = buildListingItem(
+      { req: { url: "http://localhost/" } } as any,
+      baseItem,
+      [],
+      [makeVariant({ id: 1, isDefault: true })],
+      new Map([[1, [makeMedia("variant-asset")]]]),
+      false,
+      new Map(),
+      [{ url: "/api/assets/products/product-asset/content", position: 0 }],
+    );
+
+    expect(item.thumbnail).toBe("http://localhost/api/assets/products/product-asset/content");
+  });
+
   it("falls back to first variant with media when default has none", () => {
     const mediaByVariant = new Map([
       [2, [makeMedia("asset_b")]],
@@ -278,5 +293,45 @@ describe("sanitizeShopperCustomization", () => {
       }),
     ]);
     expect((imageLayer as any).clipartAssets).toHaveLength(1);
+  });
+
+  it("preserves polygon geometry while sanitizing shopper customization", () => {
+    const imageLayer = DEFAULT_TEMPLATE.layers.find(
+      (layer) => layer.type === "image_shape",
+    );
+    if (!imageLayer || imageLayer.type !== "image_shape") {
+      throw new Error("Missing image shape fixture");
+    }
+
+    const polygonShape = {
+      type: "vector" as const,
+      lockAspectRatio: false,
+      vectorPath: {
+        closed: true,
+        points: [
+          { id: "top", type: "corner" as const, xRatio: 0.5, yRatio: 0, cornerRadius: 0.08 },
+          { id: "right", type: "corner" as const, xRatio: 1, yRatio: 1 },
+          { id: "left", type: "corner" as const, xRatio: 0, yRatio: 1 },
+        ],
+      },
+    };
+
+    const customization: ProductCustomization = {
+      productId: "1",
+      enabled: true,
+      canvasWidthPx: 1200,
+      canvasHeightPx: 900,
+      layers: [
+        {
+          ...imageLayer,
+          shape: polygonShape,
+        },
+      ],
+      formFields: [],
+    };
+
+    const result = sanitizeShopperCustomization(customization);
+    const resultLayer = result.layers[0];
+    expect(resultLayer && resultLayer.type === "image_shape" ? resultLayer.shape : null).toEqual(polygonShape);
   });
 });

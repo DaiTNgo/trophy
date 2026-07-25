@@ -17,6 +17,7 @@ import {
   customizationClipartCategories,
   productCategories,
   productCategoryLinks,
+  productMedia,
   productCustomizations,
   productOptions,
   productOptionValues,
@@ -268,7 +269,7 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
 
     const productIds = items.map((item) => item.id)
 
-    const [categoryRows, variantRows, variantMediaRows, variantCustomizationMediaRows, customizationRows] = await Promise.all([
+    const [categoryRows, productMediaRows, variantRows, variantMediaRows, variantCustomizationMediaRows, customizationRows] = await Promise.all([
       productIds.length > 0
         ? db
             .select({
@@ -283,6 +284,17 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
             )
             .where(inArray(productCategoryLinks.productId, productIds))
         : Promise.resolve([] as Array<{ productId: number; categoryId: number; name: string }>),
+      productIds.length > 0
+        ? db
+            .select({
+              productId: productMedia.productId,
+              url: productMedia.url,
+              position: productMedia.position
+            })
+            .from(productMedia)
+            .where(inArray(productMedia.productId, productIds))
+            .orderBy(asc(productMedia.productId), asc(productMedia.position), asc(productMedia.id))
+        : Promise.resolve([] as Array<{ productId: number; url: string; position: number }>),
       productIds.length > 0
         ? db
             .select()
@@ -346,6 +358,12 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
       current.push(row)
       variantMediaByVariantId.set(row.variantId, current)
     }
+    const productMediaByProductId = new Map<number, Array<{ url: string; position: number }>>()
+    for (const row of productMediaRows) {
+      const current = productMediaByProductId.get(row.productId) ?? []
+      current.push(row)
+      productMediaByProductId.set(row.productId, current)
+    }
     for (const row of variantCustomizationMediaRows) {
       variantCustomizationMediaByVariantId.set(row.variantId, row)
     }
@@ -380,7 +398,8 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
         variantsByProductId.get(item.id) ?? [],
         variantMediaByVariantId,
         customizationByProductId.get(item.id)?.enabled ?? false,
-        variantCustomizationMediaByVariantId
+        variantCustomizationMediaByVariantId,
+        productMediaByProductId.get(item.id) ?? []
       )
     )
 
@@ -724,6 +743,7 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
       customization
     }
 
+    c.header('Cache-Control', 'no-store')
     return c.json({ item: detail }, 200)
   })
 
@@ -741,7 +761,8 @@ export function buildListingItem(
   variants: Array<{ id: number; isDefault: boolean; priceAmount: number | null }>,
   variantMediaByVariantId: Map<number, Array<{ assetId: string }>>,
   customizationEnabled: boolean,
-  variantCustomizationMediaByVariantId: Map<number, { assetId: string }> = new Map()
+  variantCustomizationMediaByVariantId: Map<number, { assetId: string }> = new Map(),
+  productMedia: Array<{ url: string; position: number }> = []
 ) {
   const prices = variants
     .map((v) => v.priceAmount)
@@ -753,9 +774,13 @@ export function buildListingItem(
   const defaultVariant = variants.find((v) => v.isDefault) ?? variants[0]
 
   let thumbnail: string | null = null
+  const firstProductMedia = [...productMedia].sort((a, b) => a.position - b.position)[0]
+  if (firstProductMedia) {
+    thumbnail = toAbsoluteAssetUrl(c, firstProductMedia.url) as string
+  }
   if (defaultVariant) {
     const defaultMedia = variantMediaByVariantId.get(defaultVariant.id) ?? []
-    if (defaultMedia.length > 0) {
+    if (!thumbnail && defaultMedia.length > 0) {
       thumbnail = toAbsoluteAssetUrl(c, `/api/assets/products/${defaultMedia[0].assetId}/content`) as string
     }
     if (!thumbnail) {

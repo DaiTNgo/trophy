@@ -121,6 +121,7 @@ function EditorContent({ product, productId, mutate }: { product: CatalogProduct
     flash,
     previewOpen,
     pathEditingLayerId,
+    selectedVectorPointId,
     previewValues,
     selectedLayer,
     isDrawing,
@@ -129,6 +130,7 @@ function EditorContent({ product, productId, mutate }: { product: CatalogProduct
     setActiveTab,
     setPreviewOpen,
     setPathEditingLayerId,
+    setSelectedVectorPointId,
     updateTemplate,
     updateLayer,
     updateField,
@@ -201,6 +203,7 @@ function EditorContent({ product, productId, mutate }: { product: CatalogProduct
               template={template}
               selectedLayerId={selectedLayerId}
               pathEditingLayerId={pathEditingLayerId}
+              selectedVectorPointId={selectedVectorPointId}
               isDrawing={isDrawing}
               pendingVectorPoints={pendingVectorPoints}
               dynamicFonts={dynamicFonts}
@@ -211,12 +214,14 @@ function EditorContent({ product, productId, mutate }: { product: CatalogProduct
               onCancelDraw={cancelDrawMode}
               onUndoVectorPoint={undoVectorPoint}
               onPathEditingLayerChange={setPathEditingLayerId}
+              onSelectVectorPoint={setSelectedVectorPointId}
               onUploadBackground={updateBackground}
             />
             <Inspector
               template={template}
               selectedLayer={selectedLayer || null}
               pathEditingLayerId={pathEditingLayerId}
+              selectedVectorPointId={selectedVectorPointId}
               onUpdateLayer={updateLayer}
               onPathEditingLayerChange={setPathEditingLayerId}
               onUpdateTemplate={updateTemplate}

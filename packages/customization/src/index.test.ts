@@ -280,6 +280,19 @@ describe("vector CSS clipping", () => {
       ),
     ).toBeNull();
   });
+
+  it("keeps SVG clipping for corner-radius vectors", () => {
+    expect(
+      vectorPointsToCssPolygon(
+        [
+          { id: "top", type: "corner", xRatio: 0.5, yRatio: 0, cornerRadius: 0.08 },
+          { id: "right", type: "corner", xRatio: 1, yRatio: 1 },
+          { id: "left", type: "corner", xRatio: 0, yRatio: 1 },
+        ],
+        true,
+      ),
+    ).toBeNull();
+  });
 });
 
 describe("publish validation", () => {

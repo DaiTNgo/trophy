@@ -12,7 +12,6 @@ import {
   resolveFormat,
   resolveFontVariant,
   validateCustomizationValues,
-  vectorPointsToCssPolygon,
   vectorPointsToSvgPathD,
   type CustomizationFieldValue,
   type CustomizationFormField,
@@ -32,6 +31,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useId,
   type ButtonHTMLAttributes,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
@@ -64,6 +64,13 @@ export type CustomizationUploadImage = (
 export type ResolveCustomizationFontUrl = (assetId: string) => string;
 export type ResolveCustomizationStaticFontUrl = (fileName: string) => string;
 export type ResolveCustomizationAssetUrl = (url: string) => string;
+
+export function createCustomizationInteractionHandlers(onInteraction?: () => void) {
+  return {
+    onFocusCapture: onInteraction,
+    onPointerDown: onInteraction,
+  };
+}
 
 const MIN_FREE_IMAGE_SCALE = 0.02;
 const MIN_PREVIEW_ZOOM = 0.05;
@@ -768,6 +775,7 @@ export function ProductCustomizationForm({
   resolveAssetUrl,
   onMessageChange,
   onUploadImage,
+  onInteraction,
   onValueChange,
 }: {
   template: CustomizationTemplate;
@@ -777,6 +785,7 @@ export function ProductCustomizationForm({
   resolveAssetUrl?: ResolveCustomizationAssetUrl;
   onMessageChange?: (message: string) => void;
   onUploadImage?: CustomizationUploadImage;
+  onInteraction?: () => void;
   onValueChange: (fieldId: string, value: CustomizationFieldValue) => void;
 }) {
   const [uploadingFieldId, setUploadingFieldId] = useState("");
@@ -819,9 +828,13 @@ export function ProductCustomizationForm({
   }
 
   const orderedFields = getOrderedFormFields(template);
+  const interactionHandlers = createCustomizationInteractionHandlers(onInteraction);
 
   return (
-    <div className="divide-y divide-outline-variant">
+    <div
+      className="divide-y divide-outline-variant"
+      {...interactionHandlers}
+    >
       {activeMessage ? (
         <p className="px-0 py-3 text-sm text-destructive">{activeMessage}</p>
       ) : null}
@@ -1136,13 +1149,13 @@ function PreviewImageShape({
     cropYRatio: value?.cropYRatio ?? layer.cropYRatio,
   });
   const editable = Boolean(value && onChange);
-  const clipPath =
-    layer.shape.type === "vector" && layer.shape.vectorPath
-      ? (vectorPointsToCssPolygon(
-          layer.shape.vectorPath.points,
-          layer.shape.vectorPath.closed,
-        ) ?? cssShapeClip(layer.shape.type, layer.id))
-      : cssShapeClip(layer.shape.type, layer.id);
+  const vectorPath = layer.shape.type === "vector" ? layer.shape.vectorPath : undefined;
+  const inlineClipId = `inline-clip-${useId().replace(/:/g, "")}`;
+  const imageSource =
+    resolveAssetUrl?.(value?.previewUrl ?? layer.previewUrl) ??
+    value?.previewUrl ??
+    layer.previewUrl;
+  const cropRotationDeg = value?.cropRotationDeg ?? layer.cropRotationDeg;
 
   function updateFromImageRect(next: {
     centerXPx: number;
@@ -1259,9 +1272,7 @@ function PreviewImageShape({
           position: "absolute",
           inset: 0,
           overflow: "hidden",
-          WebkitClipPath: clipPath,
           cursor: editable && selected ? "move" : "default",
-          clipPath,
         }}
         onPointerDown={(event) => {
           if (!interactive || !editable || !value || !onChange) return;
@@ -1302,27 +1313,48 @@ function PreviewImageShape({
           window.addEventListener("pointerup", stop);
         }}
       >
-        <img
-          src={
-            resolveAssetUrl?.(value?.previewUrl ?? layer.previewUrl) ??
-            value?.previewUrl ??
-            layer.previewUrl
-          }
-          alt=""
-          draggable={false}
-          style={{
-            position: "absolute",
-            pointerEvents: "none",
-            maxWidth: "none",
-            userSelect: "none",
-            left: imageRect.xPx * scale,
-            top: imageRect.yPx * scale,
-            width: imageRect.widthPx * scale,
-            height: imageRect.heightPx * scale,
-            transform: `rotate(${value?.cropRotationDeg ?? layer.cropRotationDeg}deg)`,
-            transformOrigin: "center",
-          }}
-        />
+        {vectorPath ? (
+          <svg
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 h-full w-full"
+            viewBox="0 0 1 1"
+            preserveAspectRatio="none"
+          >
+            <defs>
+              <clipPath id={inlineClipId} clipPathUnits="userSpaceOnUse">
+                <path d={vectorPointsToSvgPathD(vectorPath.points, vectorPath.closed)} />
+              </clipPath>
+            </defs>
+            <image
+              href={imageSource}
+              x={imageRect.xPx / Math.max(1, rect.widthPx)}
+              y={imageRect.yPx / Math.max(1, rect.heightPx)}
+              width={imageRect.widthPx / Math.max(1, rect.widthPx)}
+              height={imageRect.heightPx / Math.max(1, rect.heightPx)}
+              preserveAspectRatio="none"
+              clipPath={`url(#${inlineClipId})`}
+              transform={`rotate(${cropRotationDeg} ${imageRect.centerXPx / Math.max(1, rect.widthPx)} ${imageRect.centerYPx / Math.max(1, rect.heightPx)})`}
+            />
+          </svg>
+        ) : (
+          <img
+            src={imageSource}
+            alt=""
+            draggable={false}
+            style={{
+              position: "absolute",
+              pointerEvents: "none",
+              maxWidth: "none",
+              userSelect: "none",
+              left: imageRect.xPx * scale,
+              top: imageRect.yPx * scale,
+              width: imageRect.widthPx * scale,
+              height: imageRect.heightPx * scale,
+              transform: `rotate(${cropRotationDeg}deg)`,
+              transformOrigin: "center",
+            }}
+          />
+        )}
       </div>
       {selected && editable && interactive ? (
         <>

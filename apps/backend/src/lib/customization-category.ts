@@ -4,7 +4,7 @@ import { productCategories } from '../db/schema'
 import { upsertTranslations } from './catalog-translation'
 
 export const CUSTOMIZATION_CATEGORY_HANDLE = 'customization'
-export const CUSTOMIZATION_CATEGORY_LABEL = { vi: 'Tùy chỉnh', en: 'Customization' } as const
+export const CUSTOMIZATION_CATEGORY_LABEL = { vi: 'Tùy chỉnh', en: 'Custom' } as const
 
 export const isCustomizationCategory = (handle: string | null | undefined) =>
   handle === CUSTOMIZATION_CATEGORY_HANDLE

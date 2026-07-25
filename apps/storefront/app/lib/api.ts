@@ -172,7 +172,9 @@ export async function fetchStorefrontProducts(params: {
 export async function fetchStorefrontProduct(handle: string, locale?: string): Promise<StorefrontDetailResponse["item"]> {
   const url = backendUrl(`/api/storefront/products/${encodeURIComponent(handle)}${locale ? `?locale=${locale}` : ''}`);
 
-  const res = await fetchBackendWithLog("fetchStorefrontProduct", url);
+  const res = await fetchBackendWithLog("fetchStorefrontProduct", url, {
+    cache: "no-store",
+  });
 
   if (!res.ok) {
     if (res.status === 404) {

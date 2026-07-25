@@ -29,6 +29,7 @@ export default function CustomizationTemplatePage() {
     flash,
     previewOpen,
     pathEditingLayerId,
+    selectedVectorPointId,
     previewValues,
     deleted,
     selectedLayer,
@@ -38,6 +39,7 @@ export default function CustomizationTemplatePage() {
     setActiveTab,
     setPreviewOpen,
     setPathEditingLayerId,
+    setSelectedVectorPointId,
     updateTemplate,
     updateLayer,
     updateField,
@@ -94,11 +96,13 @@ export default function CustomizationTemplatePage() {
           template={template}
           selectedLayerId={selectedLayerId}
           pathEditingLayerId={pathEditingLayerId}
+          selectedVectorPointId={selectedVectorPointId}
           isDrawing={isDrawing}
           pendingVectorPoints={pendingVectorPoints}
           dynamicFonts={dynamicFonts}
           onSelectLayer={setSelectedLayerId}
           onPathEditingLayerChange={setPathEditingLayerId}
+          onSelectVectorPoint={setSelectedVectorPointId}
           onUpdateLayer={updateLayer}
           onUploadBackground={updateBackground}
           onAddVectorPoint={addVectorPoint}
@@ -110,6 +114,7 @@ export default function CustomizationTemplatePage() {
           template={template}
           selectedLayer={selectedLayer}
           pathEditingLayerId={pathEditingLayerId}
+          selectedVectorPointId={selectedVectorPointId}
           onUpdateLayer={updateLayer}
           onPathEditingLayerChange={setPathEditingLayerId}
           onUpdateTemplate={updateTemplate}

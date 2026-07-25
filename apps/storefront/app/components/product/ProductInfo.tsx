@@ -89,16 +89,6 @@ export function ProductInfo({
           {/* Preview button — scrolls to canvas on the left */}
           <button
             type="button"
-            onClick={() => {
-              previewRef?.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-            }}
-            className="flex h-12 w-full items-center justify-center gap-2 rounded border-2 border-brand-strong bg-white px-6 text-sm font-bold uppercase tracking-[0.1em] text-brand-strong transition hover:bg-surface-subtle"
-          >
-            <Zap className="size-4" />
-            Preview
-          </button>
-          <button
-            type="button"
             onClick={onPrimaryAction}
             disabled={primaryActionDisabled}
             className="flex h-12 w-full items-center justify-center gap-2 rounded bg-action-commerce px-6 text-sm font-bold uppercase tracking-[0.1em] text-white transition hover:bg-action-commerce-hover active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"

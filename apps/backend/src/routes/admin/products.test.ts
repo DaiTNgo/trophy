@@ -137,6 +137,45 @@ describe("product full-create helpers", () => {
     expect(row ? JSON.parse(row.formFieldsJson) : null).toEqual(DEFAULT_TEMPLATE.formFields);
   });
 
+  it("persists edited polygon geometry without dropping corner radius", () => {
+    const polygonLayer = DEFAULT_TEMPLATE.layers.find(
+      (layer) => layer.type === "image_shape",
+    );
+    if (!polygonLayer || polygonLayer.type !== "image_shape") {
+      throw new Error("Missing image shape fixture");
+    }
+
+    const customization = {
+      ...baseCustomization,
+      layers: [
+        {
+          ...polygonLayer,
+          shape: {
+            type: "vector" as const,
+            lockAspectRatio: false,
+            vectorPath: {
+              closed: true,
+              points: [
+                { id: "top", type: "corner" as const, xRatio: 0.5, yRatio: 0, cornerRadius: 0.08 },
+                { id: "right", type: "corner" as const, xRatio: 1, yRatio: 1 },
+                { id: "left", type: "corner" as const, xRatio: 0, yRatio: 1 },
+              ],
+            },
+          },
+        },
+      ],
+    };
+
+    const row = buildProductCustomizationInsert({
+      productId: 42,
+      customization,
+      submittedVariants: [],
+      assetsById: new Map(),
+    });
+
+    expect(JSON.parse(row!.layersJson)[0].shape.vectorPath.points[0].cornerRadius).toBe(0.08);
+  });
+
   it("omits disabled customization from persistence", () => {
     const row = buildProductCustomizationInsert({
       productId: 42,

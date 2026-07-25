@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   DEFAULT_FONT_FAMILY_OPTIONS,
   DEFAULT_TEXT_COLOR_OPTIONS,
@@ -17,6 +17,7 @@ import { createId, shapeLabel } from "./customization-template-ui";
 export function Inspector({
   template,
   selectedLayer,
+  selectedVectorPointId,
   pathEditingLayerId,
   onUpdateLayer,
   onPathEditingLayerChange,
@@ -24,6 +25,7 @@ export function Inspector({
 }: {
   template: CustomizationTemplate;
   selectedLayer: CustomizationLayer | null;
+  selectedVectorPointId: string | null;
   pathEditingLayerId: string;
   onUpdateLayer: (layerId: string, updater: (layer: CustomizationLayer) => CustomizationLayer) => void;
   onPathEditingLayerChange: (layerId: string) => void;
@@ -41,7 +43,7 @@ export function Inspector({
           onUpdate={(updater) => onUpdateLayer(selectedLayer.id, updater)}
         />
       ) : null}
-      {selectedLayer?.type === "image_shape" ? <ImageShapeInspector template={template} layer={selectedLayer} onUpdate={(updater) => onUpdateLayer(selectedLayer.id, updater)} /> : null}
+      {selectedLayer?.type === "image_shape" ? <ImageShapeInspector template={template} layer={selectedLayer} selectedVectorPointId={selectedVectorPointId} onUpdate={(updater) => onUpdateLayer(selectedLayer.id, updater)} /> : null}
     </aside>
   );
 }
@@ -133,7 +135,7 @@ function TextInspector({
   );
 }
 
-function ImageShapeInspector({ template, layer, onUpdate }: { template: CustomizationTemplate; layer: ImageShapeEditorLayer; onUpdate: (updater: (layer: CustomizationLayer) => CustomizationLayer) => void }) {
+function ImageShapeInspector({ template, layer, selectedVectorPointId, onUpdate }: { template: CustomizationTemplate; layer: ImageShapeEditorLayer; selectedVectorPointId: string | null; onUpdate: (updater: (layer: CustomizationLayer) => CustomizationLayer) => void }) {
   const { clipartCategories } = useBrandAssets();
   const activeClipartCategories = clipartCategories.filter((category) => category.active);
   const sourcePolicy = layer.sourcePolicy ?? "upload_only";
@@ -276,6 +278,7 @@ function ImageShapeInspector({ template, layer, onUpdate }: { template: Customiz
       {layer.shape.type === "vector" && layer.shape.vectorPath ? (
         <VectorPointsTable
           vectorPath={layer.shape.vectorPath}
+          selectedPointId={selectedVectorPointId}
           onChange={(vectorPath) => onUpdate((current) => ({ ...current, shape: { ...(current as ImageShapeEditorLayer).shape, vectorPath } }) as CustomizationLayer)}
         />
       ) : (
@@ -293,11 +296,20 @@ function ImageShapeInspector({ template, layer, onUpdate }: { template: Customiz
 
 function VectorPointsTable({
   vectorPath,
+  selectedPointId,
   onChange,
 }: {
   vectorPath: import("@trophy/customization").VectorPath;
+  selectedPointId: string | null;
   onChange: (path: import("@trophy/customization").VectorPath) => void;
 }) {
+  const pointRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  useEffect(() => {
+    if (!selectedPointId) return;
+    pointRefs.current[selectedPointId]?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [selectedPointId]);
+
   function updatePoint(index: number, updater: (p: VectorPoint) => VectorPoint) {
     const next = [...vectorPath.points];
     next[index] = updater(next[index]!);
@@ -307,9 +319,15 @@ function VectorPointsTable({
   return (
     <div className="space-y-2">
       <p className="text-xs font-medium uppercase text-ui-fg-muted">Vector Points</p>
-      <div className="max-h-48 space-y-2 overflow-y-auto">
+      <div className="space-y-2">
         {vectorPath.points.map((point, index) => (
-          <div key={point.id} className="rounded border border-ui-border-base p-2">
+          <div
+            key={point.id}
+            ref={(element) => {
+              pointRefs.current[point.id] = element;
+            }}
+            className={`rounded border p-2 transition-colors ${selectedPointId === point.id ? "border-ui-fg-interactive bg-ui-bg-subtle ring-1 ring-ui-fg-interactive" : "border-ui-border-base"}`}
+          >
             <div className="mb-1 flex items-center justify-between">
               <span className="text-xs font-medium">Point {index + 1}</span>
               <select

@@ -258,7 +258,13 @@ export const vectorPointsToCssPolygon = (points: VectorPoint[], closed: boolean)
   if (
     !closed ||
     points.length < 3 ||
-    points.some((point) => point.inHandle || point.outHandle || point.type === "smooth")
+    points.some(
+      (point) =>
+        point.inHandle ||
+        point.outHandle ||
+        point.type === "smooth" ||
+        (point.cornerRadius ?? 0) > 0,
+    )
   ) {
     return null;
   }

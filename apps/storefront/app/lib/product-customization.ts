@@ -1,12 +1,14 @@
 import { createDefaultFormValues, type BackgroundAsset, type CustomizationFormValues, type CustomizationTemplate, type ProductCustomization } from "@trophy/customization";
 
 export type StorefrontVariantMedia = {
+  id: string;
   assetId: string;
   contentUrl: string;
   fileName: string;
   mimeType: string;
   widthPx: number | null;
   heightPx: number | null;
+  position?: number;
 };
 
 export type StorefrontProductVariant = {
@@ -15,6 +17,26 @@ export type StorefrontProductVariant = {
   media: StorefrontVariantMedia[];
   customizationMedia: StorefrontVariantMedia | null;
 };
+
+export function buildProductMediaCarousel({
+  customizationMedia,
+  galleryMedia,
+}: {
+  customizationMedia: StorefrontVariantMedia | null | undefined;
+  galleryMedia: StorefrontVariantMedia[];
+}): StorefrontVariantMedia[] {
+  const ordered = [
+    ...(customizationMedia ? [customizationMedia] : []),
+    ...[...galleryMedia].sort((a, b) => (a.position ?? 0) - (b.position ?? 0)),
+  ];
+  const seen = new Set<string>();
+  return ordered.filter((media) => {
+    const key = media.assetId || media.id;
+    if (seen.has(key) || !media.contentUrl) return false;
+    seen.add(key);
+    return true;
+  });
+}
 
 export function buildProductCustomizationTemplate({
   productId,

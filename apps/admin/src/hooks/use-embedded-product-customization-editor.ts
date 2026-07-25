@@ -67,6 +67,7 @@ export function useEmbeddedProductCustomizationEditor({
   const [activeTab, setActiveTab] = useState<RailTab>("blocks");
   const [flash, setFlash] = useState("");
   const [pathEditingLayerId, setPathEditingLayerId] = useState("");
+  const [selectedVectorPointId, setSelectedVectorPointId] = useState<string | null>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [pendingVectorPoints, setPendingVectorPoints] = useState<VectorPoint[]>([]);
   const [previewValues, setPreviewValues] = useState<CustomizationFormValues>(() =>
@@ -454,6 +455,7 @@ export function useEmbeddedProductCustomizationEditor({
     activeTab,
     flash,
     pathEditingLayerId,
+    selectedVectorPointId,
     previewValues,
     deleted,
     selectedLayer,
@@ -463,6 +465,7 @@ export function useEmbeddedProductCustomizationEditor({
     setActiveTab,
     setFlash,
     setPathEditingLayerId,
+    setSelectedVectorPointId,
     updateTemplate,
     updateLayer,
     updateField,
