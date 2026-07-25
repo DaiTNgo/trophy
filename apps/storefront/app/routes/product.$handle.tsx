@@ -2,7 +2,7 @@ import { redirect } from "react-router";
 import { fetchStorefrontProduct } from "../lib/api";
 import { getLocale } from "../i18n.server";
 import { withStorefrontLoaderLog } from "../lib/observability";
-import { getCategoryProductPath } from "../lib/storefront-paths";
+import { getCategoryProductRedirectPath } from "../lib/storefront-paths";
 import type { Route } from "./+types/product.$handle";
 
 export async function loader({ params, request, context }: Route.LoaderArgs) {
@@ -15,7 +15,8 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
       throw new Response("Not Found", { status: 404 });
     }
 
-    throw redirect(getCategoryProductPath(primaryCategoryHandle, product.handle));
+    const search = new URL(request.url).search;
+    throw redirect(getCategoryProductRedirectPath(primaryCategoryHandle, product.handle, search));
   }, { productHandle: params.handle });
 }
 

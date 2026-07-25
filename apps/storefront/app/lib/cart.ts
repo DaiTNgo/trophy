@@ -28,6 +28,10 @@ export type CartLine = {
 
 export type AddCartLineInput = Omit<CartLine, "id">;
 
+export type AddCartLineOptions = {
+  forceSeparate?: boolean;
+};
+
 function stableStringify(value: unknown): string {
   if (Array.isArray(value)) {
     return `[${value.map((item) => stableStringify(item)).join(",")}]`;
@@ -51,7 +55,12 @@ export function addCartLine(
   current: CartLine[],
   input: AddCartLineInput,
   createId: () => string,
+  options: AddCartLineOptions = {},
 ) {
+  if (options.forceSeparate) {
+    return [...current, { ...input, id: createId() }];
+  }
+
   const signature = buildCartLineSignature(input);
   const existingIndex = current.findIndex((line) => buildCartLineSignature(line) === signature);
 

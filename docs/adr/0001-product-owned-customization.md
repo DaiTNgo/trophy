@@ -4,4 +4,4 @@ Customization configuration belongs to the product lifecycle, not to a separate 
 
 **Consequences**
 
-`product_customizations` stores the current editor model and canvas size for a product, while product status determines whether the customization is draft or published. Background images are derived from product variant images rather than persisted as separate customization assets, and all variant images for a customizable product must match the stored canvas size. Separate template save, publish, and revision flows are out of scope unless product-level draft revisioning is introduced later.
+`product_customizations` stores the current editor model and canvas size for a product, while product status determines whether the customization is draft or published. Variant-owned Customization Media supplies the canvas for each variant; Gallery Media remains a separate reference collection. See ADR 0003 for the media ownership and dimension rules. Separate template save, publish, and revision flows are out of scope unless product-level draft revisioning is introduced later.
