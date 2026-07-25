@@ -451,14 +451,14 @@ export default function ProductDetail() {
     : undefined;
 
   return (
-    <div className="bg-white font-body-md text-on-surface selection:bg-secondary-container selection:text-brand-strong">
+    <div className="bg-white font-body-md text-on-surface">
       <ProductBreadcrumbs
         title={getLocalized(product.title, locale)}
         categoryTitle={getLocalized(activeCategory.name, locale)}
         categoryHandle={activeCategory.handle}
       />
       <Container
-        className="pt-8"
+        className="py-8"
       >
         <div ref={previewSectionRef} className="h-0" aria-hidden />
         {customizationTemplate ? (

@@ -1,9 +1,16 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { zipSync } from "fflate";
 import { Button, Container, FocusModal, Heading, Text } from "@medusajs/ui";
 import { ProductCustomizationPreview } from "@trophy/customization-react";
-import type { CustomizationTemplate } from "@trophy/customization";
+import {
+  buildDesignFromForm,
+  DEFAULT_FONT_FAMILY_OPTIONS,
+  resolveFont,
+  type CustomizationTemplate,
+  type DynamicFontFamily,
+} from "@trophy/customization";
 
+import { useBrandAssets } from "../../hooks/use-brand-assets";
 import type { AdminOrderDetail } from "../../lib/orders-client";
 import { backendFetch } from "../../lib/fetch";
 import type { OrderDetailItem } from "./order-detail-utils";
@@ -99,6 +106,31 @@ function getUploadedImageEntries(item: OrderDetailItem) {
     );
 }
 
+function fontVariantLabel(isBold: boolean, isItalic: boolean) {
+  if (isBold && isItalic) return "Bold italic";
+  if (isBold) return "Bold";
+  if (isItalic) return "Italic";
+  return "Regular";
+}
+
+function textPathLabel(type: string) {
+  return (
+    {
+      straight: "Straight",
+      arc_up: "Arc up",
+      arc_down: "Arc down",
+      circle_top: "Circle top",
+      circle_bottom: "Circle bottom",
+      closed_ellipse: "Closed ellipse",
+      custom: "Custom path",
+    }[type] ?? type
+  );
+}
+
+function formatCanvasPosition(value: number, canvasSize: number) {
+  return `${Math.round(value * canvasSize)} px`;
+}
+
 async function fetchUploadBytes(previewUrl: string) {
   const url = previewUrl;
   const response =
@@ -130,6 +162,79 @@ export function OrderCustomizationPreviewModal({
 }) {
   const template = buildOrderItemCustomizationTemplate(order, item);
   const preview = item.customization?.preview;
+  const { fonts } = useBrandAssets();
+  const dynamicFonts = useMemo<DynamicFontFamily[]>(
+    () =>
+      fonts.map((font) => ({
+        id: font.id,
+        name: font.name,
+        regularAssetId: font.regularAssetId ?? null,
+        boldAssetId: font.boldAssetId ?? null,
+        italicAssetId: font.italicAssetId ?? null,
+        boldItalicAssetId: font.boldItalicAssetId ?? null,
+      })),
+    [fonts],
+  );
+  const productionTextSpecs = useMemo(() => {
+    if (!template || !preview) return [];
+
+    const fontNames = new Map<string, string>();
+    for (const font of DEFAULT_FONT_FAMILY_OPTIONS) {
+      fontNames.set(font.value, font.label);
+    }
+    for (const font of dynamicFonts) {
+      fontNames.set(font.id, font.name);
+    }
+    const design = buildDesignFromForm({
+      template,
+      values: preview.values,
+      designId: `order_${order.id}_item_${item.id}_production`,
+      dynamicFonts,
+    });
+
+    return design.layers
+      .filter((layer) => layer.type === "text")
+      .map((layer) => {
+        const sourceLayer = template.layers.find(
+          (entry) => entry.id === layer.layerId,
+        );
+        const field = template.formFields.find(
+          (entry) => entry.layerId === layer.layerId,
+        );
+        const fieldValue = field ? preview.values[field.id] : null;
+        const fontFamilyId =
+          sourceLayer?.type === "text"
+            ? resolveFont(
+                sourceLayer.text.fontPolicy,
+                fieldValue &&
+                  typeof fieldValue === "object" &&
+                  "text" in fieldValue
+                  ? fieldValue.fontId
+                  : undefined,
+              )
+            : layer.fontId;
+        const canvasWidth = template.background?.widthPx ?? 900;
+        const canvasHeight = template.background?.heightPx ?? 900;
+
+        return {
+          id: layer.id,
+          name: sourceLayer?.name ?? field?.label ?? layer.id,
+          fieldLabel: field?.label ?? null,
+          text: layer.text,
+          fontName: fontNames.get(fontFamilyId) ?? fontFamilyId,
+          variant: fontVariantLabel(layer.isBold, layer.isItalic),
+          color: layer.color,
+          isBold: layer.isBold,
+          isItalic: layer.isItalic,
+          align: layer.align,
+          fontSizePt: layer.fontSizePt,
+          path: textPathLabel(layer.path.type),
+          rotationDeg: layer.geometry.rotationDeg,
+          position: `${formatCanvasPosition(layer.geometry.xRatio, canvasWidth)} × ${formatCanvasPosition(layer.geometry.yRatio, canvasHeight)}`,
+          size: `${formatCanvasPosition(layer.geometry.widthRatio, canvasWidth)} × ${formatCanvasPosition(layer.geometry.heightRatio ?? layer.geometry.widthRatio, canvasHeight)}`,
+        };
+      });
+  }, [dynamicFonts, item.id, order.id, preview, template]);
   const uploadedImages = getUploadedImageEntries(item);
   const [isDownloadingUploads, setIsDownloadingUploads] = useState(false);
   const [downloadError, setDownloadError] = useState("");
@@ -192,7 +297,7 @@ export function OrderCustomizationPreviewModal({
             </FocusModal.Close>
           </div>
         </FocusModal.Header>
-        <FocusModal.Body className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-6 py-6">
+        <FocusModal.Body className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-6 py-6 xl:overflow-hidden">
           <div className="flex flex-col gap-y-1">
             <Heading level="h1">Customization preview</Heading>
             <Text size="small" className="text-ui-fg-subtle">
@@ -207,17 +312,18 @@ export function OrderCustomizationPreviewModal({
                 <ProductCustomizationPreview
                   template={template}
                   values={preview.values}
+                  dynamicFonts={dynamicFonts}
                   readOnly
                   selectedVariantId={item.variant?.id ?? null}
                   resolveFontUrl={(assetId) =>
-                    `${import.meta.env.VITE_BACKEND_URL ?? "http://localhost:8787"}/api/admin/brand-assets/fonts/file/${assetId}`
+                    `${import.meta.env.VITE_BACKEND_URL ?? "http://localhost:8787"}/api/storefront/brand-assets/fonts/file/${assetId}`
                   }
                   resolveStaticFontUrl={(fileName) =>
                     `${import.meta.env.VITE_BACKEND_URL ?? "http://localhost:8787"}/fonts/${fileName}`
                   }
                 />
               </div>
-              <aside className="flex flex-col gap-y-4 rounded-lg border border-ui-border-base bg-ui-bg-base p-5">
+              <aside className="flex flex-col gap-y-4 rounded-lg border border-ui-border-base bg-ui-bg-base p-5 xl:min-h-0 xl:overflow-y-auto">
                 <div className="flex flex-col gap-y-1">
                   <Heading level="h2">Submitted values</Heading>
                   <Text size="small" className="text-ui-fg-subtle">
@@ -276,6 +382,191 @@ export function OrderCustomizationPreviewModal({
                       </Text>
                     </div>
                   ))}
+                </div>
+                <div className="flex flex-col gap-y-3 border-t border-ui-border-base pt-4">
+                  <div className="flex flex-col gap-y-1">
+                    <Heading level="h2">Production specification</Heading>
+                    <Text size="small" className="text-ui-fg-subtle">
+                      Resolved from the frozen order snapshot, including fixed
+                      template settings.
+                    </Text>
+                  </div>
+                  {productionTextSpecs.length ? (
+                    <div className="flex flex-col gap-y-3">
+                      {productionTextSpecs.map((spec) => (
+                        <div
+                          key={spec.id}
+                          className="flex flex-col gap-y-3 rounded-lg border border-ui-border-base bg-ui-bg-subtle p-3"
+                        >
+                          <div className="flex flex-col gap-y-1">
+                            <Text
+                              size="small"
+                              className="font-medium text-ui-fg-base"
+                            >
+                              {spec.name}
+                            </Text>
+                            {spec.fieldLabel &&
+                            spec.fieldLabel !== spec.name ? (
+                              <Text size="xsmall" className="text-ui-fg-subtle">
+                                Field: {spec.fieldLabel}
+                              </Text>
+                            ) : null}
+                          </div>
+                          <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-2 text-small">
+                            <Text
+                              as="div"
+                              size="small"
+                              className="text-ui-fg-subtle"
+                            >
+                              Text
+                            </Text>
+                            <Text
+                              as="div"
+                              size="small"
+                              className="break-words text-ui-fg-base"
+                            >
+                              {spec.text}
+                            </Text>
+                            <Text
+                              as="div"
+                              size="small"
+                              className="text-ui-fg-subtle"
+                            >
+                              Font
+                            </Text>
+                            <Text
+                              as="div"
+                              size="small"
+                              className="break-words text-ui-fg-base"
+                            >
+                              {spec.fontName} · {spec.variant}
+                            </Text>
+                            <Text
+                              as="div"
+                              size="small"
+                              className="text-ui-fg-subtle"
+                            >
+                              Color
+                            </Text>
+                            <Text
+                              as="div"
+                              size="small"
+                              className="flex items-center gap-x-2 text-ui-fg-base"
+                            >
+                              <span
+                                className="size-3 shrink-0 rounded-full border border-ui-border-base"
+                                style={{ backgroundColor: spec.color }}
+                              />
+                              {spec.color.toUpperCase()}
+                            </Text>
+                            <Text
+                              as="div"
+                              size="small"
+                              className="text-ui-fg-subtle"
+                            >
+                              Style
+                            </Text>
+                            <Text
+                              as="div"
+                              size="small"
+                              className="text-ui-fg-base"
+                            >
+                              Bold: {spec.isBold ? "Yes" : "No"} · Italic:{" "}
+                              {spec.isItalic ? "Yes" : "No"}
+                            </Text>
+                            <Text
+                              as="div"
+                              size="small"
+                              className="text-ui-fg-subtle"
+                            >
+                              Alignment
+                            </Text>
+                            <Text
+                              as="div"
+                              size="small"
+                              className="capitalize text-ui-fg-base"
+                            >
+                              {spec.align}
+                            </Text>
+                            <Text
+                              as="div"
+                              size="small"
+                              className="text-ui-fg-subtle"
+                            >
+                              Type size
+                            </Text>
+                            <Text
+                              as="div"
+                              size="small"
+                              className="text-ui-fg-base"
+                            >
+                              {spec.fontSizePt} pt
+                            </Text>
+                            <Text
+                              as="div"
+                              size="small"
+                              className="text-ui-fg-subtle"
+                            >
+                              Text path
+                            </Text>
+                            <Text
+                              as="div"
+                              size="small"
+                              className="text-ui-fg-base"
+                            >
+                              {spec.path}
+                            </Text>
+                            <Text
+                              as="div"
+                              size="small"
+                              className="text-ui-fg-subtle"
+                            >
+                              Rotation
+                            </Text>
+                            <Text
+                              as="div"
+                              size="small"
+                              className="text-ui-fg-base"
+                            >
+                              {spec.rotationDeg}°
+                            </Text>
+                            <Text
+                              as="div"
+                              size="small"
+                              className="text-ui-fg-subtle"
+                            >
+                              Position
+                            </Text>
+                            <Text
+                              as="div"
+                              size="small"
+                              className="text-ui-fg-base"
+                            >
+                              {spec.position}
+                            </Text>
+                            <Text
+                              as="div"
+                              size="small"
+                              className="text-ui-fg-subtle"
+                            >
+                              Print area
+                            </Text>
+                            <Text
+                              as="div"
+                              size="small"
+                              className="text-ui-fg-base"
+                            >
+                              {spec.size}
+                            </Text>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <Text size="small" className="text-ui-fg-subtle">
+                      No visible text layers are included in this customization.
+                    </Text>
+                  )}
                 </div>
               </aside>
             </div>
