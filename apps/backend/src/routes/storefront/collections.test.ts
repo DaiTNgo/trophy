@@ -93,34 +93,77 @@ describe("GET /api/storefront/collections/:handle/products", () => {
     expect(res.status).toBe(400);
   });
 
-  it("fills best-sellers customizable results with matching published fallback products", async () => {
+  it("returns published non-customizable products when the virtual best-sellers collection is absent", async () => {
     const queuedDb = createQueuedDb([
-      { id: 7 },
-      [{ id: 1, title: "Curated Cup", subtitle: null, handle: "curated-cup", status: "published" }],
-      { total: 1 },
+      undefined,
+      [{ id: 10 }, { id: 8 }],
+      { total: 4 },
+      [
+        { id: 8, title: "Fallback Cup", subtitle: null, handle: "fallback-cup", status: "published" },
+        { id: 10, title: "Fallback Plate", subtitle: null, handle: "fallback-plate", status: "published" },
+      ],
+      { total: 2 },
       [],
-      [{ id: 11, productId: 1, isDefault: true, priceAmount: 10000, position: 0 }],
+      [
+        { id: 81, productId: 8, isDefault: true, priceAmount: 10000, position: 0 },
+        { id: 101, productId: 10, isDefault: true, priceAmount: 12000, position: 0 },
+      ],
       [],
-      [{ productId: 1, enabled: true }],
-      [{ id: 2, title: "Fallback Cup", subtitle: null, handle: "fallback-cup", status: "published" }],
-      { total: 1 },
       [],
-      [{ id: 22, productId: 2, isDefault: true, priceAmount: 12000, position: 0 }],
-      [],
-      [{ productId: 2, enabled: true }],
     ]);
     (dbClient.getDb as any).mockReturnValue(queuedDb);
 
     const res = await storefrontCollectionsRoute.request(
-      "/best-sellers/products?customizable=true&limit=2"
+      "/best-sellers/products?customizable=false&limit=2"
     );
 
     expect(res.status).toBe(200);
     const body = await res.json() as any;
     expect(body.items).toEqual([
-      expect.objectContaining({ id: 1, handle: "curated-cup", customizable: true }),
-      expect.objectContaining({ id: 2, handle: "fallback-cup", customizable: true }),
+      expect.objectContaining({ id: 10, handle: "fallback-plate", customizable: false }),
+      expect.objectContaining({ id: 8, handle: "fallback-cup", customizable: false }),
     ]);
-    expect(body).toMatchObject({ page: 1, limit: 2, total: 2 });
+    expect(body).toMatchObject({ page: 1, limit: 2, total: 4 });
+  });
+
+  it("keeps curated, sales-ranked, and fallback products in the virtual best-sellers order", async () => {
+    const queuedDb = createQueuedDb([
+      { id: 7 },
+      [{ id: 7 }, { id: 9 }, { id: 13 }],
+      { total: 3 },
+      [
+        { id: 13, title: "Fallback Cup", subtitle: null, handle: "fallback-cup", status: "published" },
+        { id: 9, title: "Sales Cup", subtitle: null, handle: "sales-cup", status: "published" },
+        { id: 7, title: "Curated Cup", subtitle: null, handle: "curated-cup", status: "published" },
+      ],
+      { total: 3 },
+      [],
+      [
+        { id: 71, productId: 7, isDefault: true, priceAmount: 10000, position: 0 },
+        { id: 91, productId: 9, isDefault: true, priceAmount: 12000, position: 0 },
+        { id: 131, productId: 13, isDefault: true, priceAmount: 14000, position: 0 },
+      ],
+      [],
+      [
+        { productId: 7, enabled: true },
+        { productId: 9, enabled: true },
+        { productId: 13, enabled: true },
+      ],
+    ]);
+    (dbClient.getDb as any).mockReturnValue(queuedDb);
+
+    const res = await storefrontCollectionsRoute.request(
+      "/best-sellers/products?customizable=true&limit=3"
+    );
+
+    expect(res.status).toBe(200);
+    const body = await res.json() as any;
+    expect(body.items.map((item: { id: number }) => item.id)).toEqual([7, 9, 13]);
+    expect(body.items).toEqual([
+      expect.objectContaining({ handle: "curated-cup", customizable: true }),
+      expect.objectContaining({ handle: "sales-cup", customizable: true }),
+      expect.objectContaining({ handle: "fallback-cup", customizable: true }),
+    ]);
+    expect(body).toMatchObject({ page: 1, limit: 3, total: 3 });
   });
 });

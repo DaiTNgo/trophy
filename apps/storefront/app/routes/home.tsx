@@ -11,14 +11,14 @@ import { SeoIntroSection } from "../components/home/SeoIntroSection";
 import { ShopByOccasionSection } from "../components/home/ShopByOccasionSection";
 import { useScrollReveal } from "../hooks/useScrollReveal";
 import {
-    fetchStorefrontCategories,
-    fetchStorefrontCollectionProducts,
+  fetchStorefrontCategories,
+  fetchStorefrontCollectionProducts,
 } from "../lib/api";
 import { getLocale } from "../i18n.server";
 import { withStorefrontLoaderLog } from "../lib/observability";
 import type { Route } from "./+types/home";
 
-export function meta({}: Route.MetaArgs) {
+export function meta({ }: Route.MetaArgs) {
   return [
     { title: "PHÙNG THỊ - Cúp Vinh Danh & Kỷ Niệm Chương Cao Cấp" },
     {
@@ -87,8 +87,6 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             : "Cá nhân hóa tên, logo, hạng mục giải thưởng và thông điệp trước khi sản xuất."
         }
       />
-
-
 
       {/* 6. Best-selling standard products */}
       <BestSellersSection

@@ -8,12 +8,13 @@ import {
   productCategoryLinks,
   productCollections,
   productCustomizations,
+  orderItems,
   productVariantMedia,
   productVariants,
   products
 } from '../../db/schema'
 import type { AppEnv } from '../../lib/env'
-import { jsonError, parseParams } from '../../lib/validation'
+import { parseParams } from '../../lib/validation'
 import { hydrateTranslations } from '../../lib/catalog-translation'
 import { localeSchema, DEFAULT_LOCALE } from '../../lib/locale'
 import { buildListingItem } from './products'
@@ -191,6 +192,70 @@ async function loadListingPage(
   }
 }
 
+async function loadBestSellersPage(
+  c: Context<AppEnv>,
+  db: ReturnType<typeof getDb>,
+  collection: { id: number } | undefined,
+  customizable: CustomizableFilter,
+  limit: number,
+  offset: number
+) {
+  const conditions = [eq(products.status, 'published')]
+  const customizableCondition = buildCustomizableCondition(customizable)
+  if (customizableCondition) {
+    conditions.push(customizableCondition)
+  }
+  const whereClause = and(...conditions)
+  const salesQuantity = sql<number>`coalesce((
+    select sum(${orderItems.quantity})
+    from ${orderItems}
+    where ${orderItems.productId} = ${products.id}
+  ), 0)`
+  const sourceTier = collection
+    ? sql<number>`case
+      when ${products.collectionId} = ${collection.id} then 0
+      when ${salesQuantity} > 0 then 1
+      else 2
+    end`
+    : sql<number>`case when ${salesQuantity} > 0 then 1 else 2 end`
+  const salesPriority = sql<number>`case when ${sourceTier} = 1 then ${salesQuantity} else 0 end`
+
+  const rankedRows = await db
+    .select({ id: products.id })
+    .from(products)
+    .where(whereClause)
+    .orderBy(asc(sourceTier), desc(salesPriority), desc(products.id))
+    .limit(limit)
+    .offset(offset)
+  const totalResult = await db
+    .select({ total: sql<number>`count(*)` })
+    .from(products)
+    .where(whereClause)
+    .get()
+  const productIds = rankedRows.map((row) => row.id)
+
+  if (productIds.length === 0) {
+    return { items: [], total: totalResult?.total ?? 0 }
+  }
+
+  const details = await loadListingPage(
+    c,
+    db,
+    inArray(products.id, productIds),
+    productIds.length,
+    0
+  )
+  const itemsByProductId = new Map(details.items.map((item) => [item.id, item]))
+
+  return {
+    items: productIds.flatMap((id) => {
+      const item = itemsByProductId.get(id)
+      return item ? [item] : []
+    }),
+    total: totalResult?.total ?? 0
+  }
+}
+
 export const storefrontCollectionsRoute = new Hono<AppEnv>()
   .get('/', async (c) => {
     const db = getDb(c.env)
@@ -198,8 +263,6 @@ export const storefrontCollectionsRoute = new Hono<AppEnv>()
     if (!parsedQuery.success) {
       return c.json({ error: 'Validation failed' }, 400)
     }
-    const locale = parsedQuery.output.locale
-
     const items = await db
       .select({
         id: productCollections.id,
@@ -222,7 +285,6 @@ export const storefrontCollectionsRoute = new Hono<AppEnv>()
     if (!parsedQuery.success) {
       return c.json({ error: 'Validation failed' }, 400)
     }
-    const locale = parsedQuery.output.locale
     const customizable = parsedQuery.output.customizable
     const page = Math.max(1, Number(c.req.query('page')) || 1)
     const limit = Math.min(100, Math.max(1, Number(c.req.query('limit')) || 20))
@@ -233,6 +295,23 @@ export const storefrontCollectionsRoute = new Hono<AppEnv>()
       .from(productCollections)
       .where(eq(productCollections.handle, parsed.output.handle))
       .get()
+
+    if (parsed.output.handle === 'best-sellers') {
+      const listing = await loadBestSellersPage(
+        c,
+        db,
+        collection,
+        customizable,
+        limit,
+        offset
+      )
+      return c.json({
+        items: listing.items,
+        page,
+        limit,
+        total: listing.total
+      }, 200)
+    }
 
     if (!collection) {
       return c.json({ items: [], page, limit, total: 0 }, 200)
@@ -251,26 +330,6 @@ export const storefrontCollectionsRoute = new Hono<AppEnv>()
     const primary = await loadListingPage(c, db, whereClause, limit, offset)
     let listingItems = primary.items
     let total = primary.total
-
-    if (parsed.output.handle === 'best-sellers' && page === 1 && listingItems.length < limit) {
-      const fallbackConditions = [
-        eq(products.status, 'published'),
-        sql`(${products.collectionId} is null or ${products.collectionId} <> ${collection.id})`
-      ]
-      if (customizableCondition) {
-        fallbackConditions.push(customizableCondition)
-      }
-
-      const fallback = await loadListingPage(
-        c,
-        db,
-        and(...fallbackConditions),
-        limit - listingItems.length,
-        0
-      )
-      listingItems = [...listingItems, ...fallback.items]
-      total += fallback.total
-    }
 
     return c.json({
       items: listingItems,
