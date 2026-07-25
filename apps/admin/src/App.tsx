@@ -8,6 +8,7 @@ import { LoginPage } from "./pages/login";
 import { OnboardingPage } from "./pages/onboarding";
 import { TeamPage } from "./pages/team";
 import { SecurityPage } from "./pages/security";
+import { SuperAdminRecoveryPage } from "./pages/super-admin-recovery";
 import { OrdersListPage } from "./pages/orders-list";
 import { OrderDetailPage } from "./pages/order-detail";
 import { ProductsListPage } from "./pages/products-list";
@@ -103,6 +104,7 @@ const router = createBrowserRouter([
           { path: "team", Component: TeamPage },
           { path: "settings", Component: () => <Navigate to="/settings/security" replace /> },
           { path: "settings/security", Component: SecurityPage },
+          { path: "super-admin/recovery", Component: SuperAdminRecoveryPage },
           { path: "customization/templates/*", Component: CustomizationTemplatesRouter },
           { path: "customization/clipart", Component: ClipartPage },
           { path: "customization/clipart/:categoryId", Component: ClipartDetailPage },

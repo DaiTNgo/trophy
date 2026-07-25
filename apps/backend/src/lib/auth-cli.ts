@@ -2,9 +2,14 @@ import { betterAuth } from 'better-auth/minimal'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
 import { admin } from 'better-auth/plugins/admin'
 import { username } from 'better-auth/plugins/username'
-import { adminAc, userAc } from 'better-auth/plugins/admin/access'
+import { defaultAc, userAc } from 'better-auth/plugins/admin/access'
 import * as schema from '../db/schema'
 import { AUTH_BASE_PATH } from './auth'
+
+const superAdminAc = defaultAc.newRole({
+  user: ["set-password"],
+  session: []
+})
 
 export const auth = betterAuth({
   appName: 'Trophy Admin',
@@ -28,7 +33,7 @@ export const auth = betterAuth({
       defaultRole: 'admin',
       adminRoles: ['super-admin', 'admin'],
       roles: {
-        'super-admin': adminAc,
+        'super-admin': superAdminAc,
         admin: userAc
       },
       bannedUserMessage: 'This admin account has been disabled.'

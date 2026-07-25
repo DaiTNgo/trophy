@@ -9,12 +9,15 @@ import { adminClipartRoute } from "./clipart";
 import { customizationAssetsRoute as adminCustomizationAssetsRoute } from "./customization-assets";
 import { customizationsRoute as adminCustomizationsRoute } from "./customizations/index";
 import { adminOrdersRoute } from "./orders";
+import { adminOnboardingRoute } from "./onboarding";
 import { productAssetsRoute as adminProductAssetsRoute } from "./product-assets";
 import { productMetadataRoute as adminProductMetadataRoute } from "./product-metadata";
 import { productsRoute as adminProductsRoute } from "./products";
+import { superAdminRoute } from "./super-admin";
 
 export const adminRoute = new Hono<AppEnv>()
   .route("/bootstrap", adminBootstrapRoute)
+  .route("/onboarding", adminOnboardingRoute)
   .get("/me", async (c) => {
     const session = await getAdminSession(c.env, c.req.raw.headers);
 
@@ -40,6 +43,7 @@ export const adminRoute = new Hono<AppEnv>()
   })
   .use("*", requireAdminSession)
   .route("/accounts", adminAccountsRoute)
+  .route("/super-admin", superAdminRoute)
   .route("/brand-assets", adminBrandAssetsRoute)
   .route("/customization/clipart", adminClipartRoute)
   .route("/customizations/assets", adminCustomizationAssetsRoute)

@@ -21,6 +21,7 @@ import {
   normalizeTextPath,
   pixelRectToLayerGeometry,
   validateCustomizationValues,
+  vectorPointsToCssPolygon,
   validateProductCustomizationForPublish,
   validateTemplateForPublish,
   type CustomizationClipartAsset,
@@ -250,6 +251,34 @@ describe("dynamic font capabilities", () => {
     });
     expect(hasAvailableFontFormat(["missing-regular"], dynamicFonts)).toBe(false);
     expect(hasAvailableFontFormat(["inter"], dynamicFonts)).toBe(true);
+  });
+});
+
+describe("vector CSS clipping", () => {
+  it("creates an inline polygon clip path for closed corner-only vectors", () => {
+    expect(
+      vectorPointsToCssPolygon(
+        [
+          { id: "top", type: "corner", xRatio: 0.5, yRatio: 0 },
+          { id: "right", type: "corner", xRatio: 1, yRatio: 1 },
+          { id: "left", type: "corner", xRatio: 0, yRatio: 1 },
+        ],
+        true,
+      ),
+    ).toBe("polygon(50.0000% 0.0000%, 100.0000% 100.0000%, 0.0000% 100.0000%)");
+  });
+
+  it("keeps SVG clipping for curved or open vectors", () => {
+    expect(
+      vectorPointsToCssPolygon(
+        [
+          { id: "start", type: "smooth", xRatio: 0, yRatio: 0 },
+          { id: "right", type: "corner", xRatio: 1, yRatio: 0 },
+          { id: "bottom", type: "corner", xRatio: 0.5, yRatio: 1 },
+        ],
+        true,
+      ),
+    ).toBeNull();
   });
 });
 

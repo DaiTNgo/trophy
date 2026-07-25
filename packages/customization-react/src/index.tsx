@@ -12,6 +12,7 @@ import {
   resolveFormat,
   resolveFontVariant,
   validateCustomizationValues,
+  vectorPointsToCssPolygon,
   vectorPointsToSvgPathD,
   type CustomizationFieldValue,
   type CustomizationFormField,
@@ -186,6 +187,25 @@ export function ProductCustomizationPreview({
     () => buildDesignFromForm({ template, values, designId: "storefront_product_preview", dynamicFonts }),
     [dynamicFonts, template, values],
   );
+  const fontPreviewIds = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          template.layers.flatMap((layer) => {
+            if (layer.type !== "text") return [];
+            const { fontPolicy } = layer.text;
+            const families =
+              fontPolicy.mode === "fixed"
+                ? [fontPolicy.fontId]
+                : [fontPolicy.defaultFontId, ...fontPolicy.options.map((option) => option.value)];
+            return families
+              .map((fontFamily) => resolveFontVariant(fontFamily, false, false, dynamicFonts))
+              .filter(Boolean);
+          }),
+        ),
+      ),
+    [dynamicFonts, template.layers],
+  );
 
   const background = template.background;
   const width = background?.widthPx ?? 900;
@@ -277,6 +297,7 @@ export function ProductCustomizationPreview({
     >
       <FontLoader
         layers={design.layers}
+        fontIds={fontPreviewIds}
         dynamicFonts={dynamicFonts}
         resolveFontUrl={resolveFontUrl}
         resolveStaticFontUrl={resolveStaticFontUrl}
@@ -712,11 +733,13 @@ export {
 
 function FontLoader({
   layers,
+  fontIds: additionalFontIds = [],
   dynamicFonts = [],
   resolveFontUrl,
   resolveStaticFontUrl,
 }: {
   layers: RuntimeLayer[];
+  fontIds?: string[];
   dynamicFonts?: DynamicFontFamily[];
   resolveFontUrl?: ResolveCustomizationFontUrl;
   resolveStaticFontUrl?: ResolveCustomizationStaticFontUrl;
@@ -725,7 +748,8 @@ function FontLoader({
     new Set(
       layers
         .filter((layer): layer is Extract<RuntimeLayer, { type: "text" }> => layer.type === "text" && !!layer.fontId)
-        .map((layer) => layer.fontId),
+        .map((layer) => layer.fontId)
+        .concat(additionalFontIds),
     ),
   );
   const dynamicFontAssetIds = new Set(
@@ -910,7 +934,11 @@ function PreviewImageShape({
     cropYRatio: value?.cropYRatio ?? layer.cropYRatio,
   });
   const editable = Boolean(value && onChange);
-  const clipPath = cssShapeClip(layer.shape.type, layer.id);
+  const clipPath =
+    layer.shape.type === "vector" && layer.shape.vectorPath
+      ? vectorPointsToCssPolygon(layer.shape.vectorPath.points, layer.shape.vectorPath.closed) ??
+        cssShapeClip(layer.shape.type, layer.id)
+      : cssShapeClip(layer.shape.type, layer.id);
 
   function updateFromImageRect(next: { centerXPx: number; centerYPx: number; widthPx: number }) {
     if (!value || !onChange) return;
@@ -1001,8 +1029,9 @@ function PreviewImageShape({
           position: "absolute",
           inset: 0,
           overflow: "hidden",
+          WebkitClipPath: clipPath,
           cursor: editable && selected ? "move" : "default",
-          clipPath 
+          clipPath,
         }}
         onPointerDown={(event) => {
           if (!interactive || !editable || !value || !onChange) return;
@@ -1199,6 +1228,16 @@ function TextField({
 
   return (
     <div className="space-y-4">
+      <style>{`
+        .trophy-customization-text-input::selection {
+          color: #ffffff;
+          background-color: #288ab6;
+        }
+        .trophy-customization-text-input::-moz-selection {
+          color: #ffffff;
+          background-color: #288ab6;
+        }
+      `}</style>
       <input
         type="text"
         value={pathText ? textValue.text : textValue.text.replace(/\n/g, " ")}
@@ -1209,7 +1248,7 @@ function TextField({
             text: event.target.value,
           })
         }
-        className="h-10 w-full rounded border border-outline bg-white px-3 text-sm text-on-surface outline-none transition focus:border-accent focus:ring-1 focus:ring-accent/30"
+        className="trophy-customization-text-input h-10 w-full rounded border border-outline bg-white px-3 text-sm text-on-surface outline-none transition focus:border-accent focus:ring-1 focus:ring-accent/30"
       />
       {layer.text.colorPolicy.mode === "shopper_selectable" ? (
         (() => {

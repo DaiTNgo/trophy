@@ -92,7 +92,7 @@ export const hasAvailableFontFormat = (
 ) =>
   fontFamilyIds.some((fontFamily) => {
     const capabilities = getFontStyleCapabilities(fontFamily, dynamicFonts);
-    return capabilities.bold || capabilities.italic;
+    return capabilities.usable && (capabilities.bold || capabilities.italic);
   });
 
 export const normalizeFontStyle = ({
