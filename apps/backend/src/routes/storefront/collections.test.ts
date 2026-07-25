@@ -110,6 +110,7 @@ describe("GET /api/storefront/collections/:handle/products", () => {
       ],
       [],
       [],
+      [],
     ]);
     (dbClient.getDb as any).mockReturnValue(queuedDb);
 
@@ -143,6 +144,7 @@ describe("GET /api/storefront/collections/:handle/products", () => {
         { id: 91, productId: 9, isDefault: true, priceAmount: 12000, position: 0 },
         { id: 131, productId: 13, isDefault: true, priceAmount: 14000, position: 0 },
       ],
+      [],
       [],
       [
         { productId: 7, enabled: true },

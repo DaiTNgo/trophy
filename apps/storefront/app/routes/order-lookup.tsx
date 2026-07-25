@@ -1,9 +1,25 @@
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router";
+import { ProductCustomizationPreview } from "@trophy/customization-react";
+import type { DynamicFontFamily } from "@trophy/customization";
 import type { Route } from "./+types/order-lookup";
 import { lookupStorefrontOrder } from "../lib/api";
+import {
+  getOrderItemPreviewCustomizationValues,
+  selectOrderItemPreview,
+} from "../lib/order-item-preview";
 import { getGenericProductPath } from "../lib/storefront-paths";
 import { formatCurrency } from "../lib/utils";
+import { backendFontUrl, backendStaticFontUrl } from "../lib/api";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import Container from "@/components/container";
 
 export function meta({ }: Route.MetaArgs) {
@@ -20,6 +36,10 @@ export default function OrderLookupRoute() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState<Awaited<ReturnType<typeof lookupStorefrontOrder>> | null>(null);
+  const [selectedItem, setSelectedItem] = useState<
+    Awaited<ReturnType<typeof lookupStorefrontOrder>>["order"]["items"][number] | null
+  >(null);
+  const [isCustomizationFullscreen, setIsCustomizationFullscreen] = useState(false);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -29,6 +49,7 @@ export default function OrderLookupRoute() {
     try {
       const response = await lookupStorefrontOrder({ orderNumber, phone });
       setResult(response);
+      setSelectedItem(null);
     } catch (err) {
       setResult(null);
       setError(err instanceof Error ? err.message : "Không thể tra cứu đơn hàng.");
@@ -138,13 +159,20 @@ export default function OrderLookupRoute() {
                           <p className="text-sm text-on-surface-variant">{item.variantTitle}</p>
                           <p className="text-sm text-on-surface-variant">SL: {item.quantity}</p>
                         </div>
-                        <div className="text-right font-semibold text-on-surface">
-                          {formatCurrency(item.lineSubtotalAmount)}
+                        <div className="flex shrink-0 flex-col items-end gap-3 text-right">
+                          <p className="font-semibold text-on-surface">{formatCurrency(item.lineSubtotalAmount)}</p>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedItem(selectOrderItemPreview(result.order.items, index))}
+                            className="rounded-full border border-primary px-4 py-2 text-xs font-semibold uppercase tracking-wide text-primary transition-colors hover:bg-primary hover:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+                          >
+                            Preview
+                          </button>
                         </div>
                       </div>
-                      {item.customizationValues.length > 0 ? (
+                      {getOrderItemPreviewCustomizationValues(item.customizationValues).length > 0 ? (
                         <div className="mt-4 space-y-1 text-sm text-on-surface-variant">
-                          {item.customizationValues.map((entry) => (
+                          {getOrderItemPreviewCustomizationValues(item.customizationValues).map((entry) => (
                             <p key={entry.fieldId}>
                               <span className="font-medium text-on-surface">{entry.label}:</span> {entry.valueSummary}
                             </p>
@@ -154,6 +182,108 @@ export default function OrderLookupRoute() {
                     </div>
                   ))}
                 </div>
+
+                <Dialog
+                  modal={false}
+                  open={selectedItem !== null}
+                  onOpenChange={(open) => {
+                    if (!open && !isCustomizationFullscreen) setSelectedItem(null);
+                  }}
+                >
+                  <DialogContent
+                    showOverlay={!isCustomizationFullscreen}
+                    aria-hidden={isCustomizationFullscreen || undefined}
+                    className={`max-h-[min(720px,calc(100vh-2rem))] overflow-y-auto ${
+                      isCustomizationFullscreen ? "pointer-events-none opacity-0" : ""
+                    }`}
+                    onPointerDownOutside={(event) => {
+                      if (isCustomizationFullscreen) event.preventDefault();
+                    }}
+                    onInteractOutside={(event) => {
+                      if (isCustomizationFullscreen) event.preventDefault();
+                    }}
+                  >
+                    {selectedItem ? (
+                      <>
+                        <DialogHeader>
+                          <DialogTitle>{selectedItem.productTitle}</DialogTitle>
+                          <DialogDescription>Thông tin sản phẩm trong đơn hàng</DialogDescription>
+                        </DialogHeader>
+
+                        {selectedItem.previewImageUrl && !selectedItem.customizationPreview ? (
+                          <div className="overflow-hidden rounded-xl border border-outline bg-surface-container-low">
+                            <img
+                              src={selectedItem.previewImageUrl}
+                              alt={selectedItem.productTitle}
+                              className="mx-auto max-h-72 w-full object-contain"
+                            />
+                          </div>
+                        ) : null}
+
+                        {selectedItem.customizationPreview ? (
+                          <ProductCustomizationPreview
+                            template={selectedItem.customizationPreview.template}
+                            values={selectedItem.customizationPreview.values}
+                            dynamicFonts={[] as DynamicFontFamily[]}
+                            readOnly
+                            className="h-[min(52vh,420px)] min-h-[280px] rounded-xl border border-outline"
+                            resolveFontUrl={backendFontUrl}
+                            resolveStaticFontUrl={backendStaticFontUrl}
+                            selectedVariantId={null}
+                            onFullscreenChange={setIsCustomizationFullscreen}
+                          />
+                        ) : null}
+
+                        <div className="space-y-4 text-sm">
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            <div>
+                              <p className="text-on-surface-variant">Phiên bản</p>
+                              <p className="font-medium text-on-surface">{selectedItem.variantTitle}</p>
+                            </div>
+                            {selectedItem.sku ? (
+                              <div>
+                                <p className="text-on-surface-variant">SKU</p>
+                                <p className="font-medium text-on-surface">{selectedItem.sku}</p>
+                              </div>
+                            ) : null}
+                            <div>
+                              <p className="text-on-surface-variant">Số lượng</p>
+                              <p className="font-medium text-on-surface">{selectedItem.quantity}</p>
+                            </div>
+                            <div>
+                              <p className="text-on-surface-variant">Thành tiền</p>
+                              <p className="font-medium text-primary">{formatCurrency(selectedItem.lineSubtotalAmount)}</p>
+                            </div>
+                          </div>
+
+                          {getOrderItemPreviewCustomizationValues(selectedItem.customizationValues).length > 0 ? (
+                            <div className="border-t border-outline pt-4">
+                              <p className="mb-2 font-medium text-on-surface">Thông tin tùy chỉnh</p>
+                              <div className="space-y-2 text-on-surface-variant">
+                                {getOrderItemPreviewCustomizationValues(selectedItem.customizationValues).map((entry) => (
+                                  <p key={entry.fieldId}>
+                                    <span className="font-medium text-on-surface">{entry.label}:</span> {entry.valueSummary}
+                                  </p>
+                                ))}
+                              </div>
+                            </div>
+                          ) : null}
+                        </div>
+
+                        <DialogFooter>
+                          <DialogClose asChild>
+                            <button
+                              type="button"
+                              className="rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+                            >
+                              Đóng
+                            </button>
+                          </DialogClose>
+                        </DialogFooter>
+                      </>
+                    ) : null}
+                  </DialogContent>
+                </Dialog>
               </div>
             ) : (
               <div className="flex h-full min-h-[320px] items-center justify-center text-center text-on-surface-variant">

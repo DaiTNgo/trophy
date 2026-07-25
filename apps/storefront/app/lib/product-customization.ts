@@ -13,6 +13,7 @@ export type StorefrontProductVariant = {
   id: number;
   title: string;
   media: StorefrontVariantMedia[];
+  customizationMedia: StorefrontVariantMedia | null;
 };
 
 export function buildProductCustomizationTemplate({
@@ -20,13 +21,11 @@ export function buildProductCustomizationTemplate({
   productTitle,
   customization,
   selectedVariant,
-  selectedMedia,
 }: {
   productId: number;
   productTitle: string;
   customization: ProductCustomization;
   selectedVariant: StorefrontProductVariant | null;
-  selectedMedia?: StorefrontVariantMedia | null;
 }): CustomizationTemplate {
   return {
     id: `product_${productId}`,
@@ -34,7 +33,7 @@ export function buildProductCustomizationTemplate({
     name: `${productTitle} customization`,
     revision: 1,
     status: "published",
-    background: getVariantBackground(customization, selectedVariant, selectedMedia),
+    background: getVariantBackground(customization, selectedVariant),
     layers: customization.layers,
     formFields: customization.formFields,
   };
@@ -57,9 +56,8 @@ export function mergeCustomizationValues(
 function getVariantBackground(
   customization: ProductCustomization,
   selectedVariant: StorefrontProductVariant | null,
-  selectedMedia?: StorefrontVariantMedia | null,
 ): BackgroundAsset | null {
-  const media = selectedMedia ?? selectedVariant?.media[0];
+  const media = selectedVariant?.customizationMedia;
   if (!media?.contentUrl || media.widthPx == null || media.heightPx == null) {
     return null;
   }

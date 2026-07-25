@@ -5,6 +5,7 @@ import { useState } from "react";
 type CategoryOption = {
   value: string;
   label: string;
+  locked?: boolean;
 };
 
 const normalizeOption = (option: string | CategoryOption): CategoryOption =>
@@ -65,7 +66,11 @@ export function CategoryMultiSelect({
             className="w-full bg-transparent text-sm text-ui-fg-base outline-none placeholder:text-ui-fg-muted"
           />
         </div>
-        <div className="max-h-60 overflow-y-auto">
+        <div
+          className="h-60 min-h-0 overflow-y-scroll overscroll-contain"
+          style={{ WebkitOverflowScrolling: "touch", overscrollBehavior: "contain" }}
+          onWheel={(event) => event.stopPropagation()}
+        >
           {filtered.length === 0 ? (
             <div className="px-3 py-6 text-center">
               <Text size="small" className="text-ui-fg-muted">
@@ -78,13 +83,16 @@ export function CategoryMultiSelect({
               return (
                 <label
                   key={option.value}
-                  className="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm transition hover:bg-ui-bg-base-hover"
+                  className={`flex items-center gap-2 px-3 py-2 text-sm transition ${option.locked ? "cursor-not-allowed opacity-70" : "cursor-pointer hover:bg-ui-bg-base-hover"}`}
                 >
                   <Checkbox
                     checked={checked}
+                    disabled={option.locked}
                     onCheckedChange={() => toggle(option.value)}
                   />
-                  <span className="text-ui-fg-base">{option.label}</span>
+                  <span className="text-ui-fg-base">
+                    {option.label}{option.locked ? " (system)" : ""}
+                  </span>
                 </label>
               );
             })

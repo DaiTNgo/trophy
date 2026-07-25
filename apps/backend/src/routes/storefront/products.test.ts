@@ -138,6 +138,34 @@ describe("buildListingItem", () => {
     expect(item.thumbnail).toBeNull();
   });
 
+  it("uses customization media only as the thumbnail fallback when gallery media is empty", () => {
+    const item = buildListingItem(
+      { req: { url: "http://localhost/" } } as any,
+      baseItem,
+      [],
+      [makeVariant({ id: 1, isDefault: true })],
+      new Map(),
+      true,
+      new Map([[1, { assetId: "canvas-asset" }]]),
+    );
+
+    expect(item.thumbnail).toBe("http://localhost/api/assets/products/canvas-asset/content");
+  });
+
+  it("keeps gallery media ahead of customization media for thumbnails", () => {
+    const item = buildListingItem(
+      { req: { url: "http://localhost/" } } as any,
+      baseItem,
+      [],
+      [makeVariant({ id: 1, isDefault: true })],
+      new Map([[1, [makeMedia("gallery-asset")]]]),
+      true,
+      new Map([[1, { assetId: "canvas-asset" }]]),
+    );
+
+    expect(item.thumbnail).toBe("http://localhost/api/assets/products/gallery-asset/content");
+  });
+
   it("builds categorySummary from category names", () => {
     const item = buildListingItem({ req: { url: "http://localhost/" } } as any, 
       baseItem,

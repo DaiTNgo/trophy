@@ -25,6 +25,7 @@ export type StoredProductSnapshot = {
   title: string;
   handle: string;
   status: string;
+  thumbnail: string | null;
 };
 
 export type StoredVariantSnapshot = {

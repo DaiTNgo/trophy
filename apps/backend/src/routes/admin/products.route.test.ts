@@ -124,6 +124,15 @@ function queueReadProduct(
       heightPx: number | null;
       byteSize: number;
     }>;
+    variantCustomizationMediaRows?: Array<{
+      variantId: number;
+      assetId: string;
+      fileName: string;
+      mimeType: string;
+      widthPx: number | null;
+      heightPx: number | null;
+      byteSize: number;
+    }>;
     customizationRow?: {
       enabled: boolean;
       canvasWidthPx: number | null;
@@ -154,6 +163,7 @@ function queueReadProduct(
   db.selectQueue.push(input?.variantRows ?? []);
   db.selectQueue.push(input?.variantAttributeRows ?? []);
   db.selectQueue.push(input?.variantMediaRows ?? []);
+  db.selectQueue.push(input?.variantCustomizationMediaRows ?? []);
   db.getQueue.push(input?.customizationRow ?? null);
 
   if ((input?.optionRows ?? []).length > 0) {
@@ -281,6 +291,8 @@ describe("admin products operation-specific routes", () => {
     db.selectQueue.push([]);
     // variantMedia
     db.selectQueue.push([]);
+    // variantCustomizationMedia
+    db.selectQueue.push([]);
     // customization
     db.getQueue.push(null);
     // productOptionValues
@@ -389,6 +401,8 @@ describe("admin products operation-specific routes", () => {
     // variantAttributes
     db.selectQueue.push([]);
     // variantMedia
+    db.selectQueue.push([]);
+    // variantCustomizationMedia
     db.selectQueue.push([]);
     // customization
     db.getQueue.push(null);
@@ -662,6 +676,17 @@ describe("admin products operation-specific routes", () => {
             byteSize: 1024,
           },
         ],
+        variantCustomizationMediaRows: [
+          {
+            variantId: 20,
+            assetId: "asset-1",
+            fileName: "asset-1.png",
+            mimeType: "image/png",
+            widthPx: 1200,
+            heightPx: 900,
+            byteSize: 1024,
+          },
+        ],
         customizationRow: {
           enabled: true,
           canvasWidthPx: 1200,
@@ -678,9 +703,7 @@ describe("admin products operation-specific routes", () => {
       body: JSON.stringify({ items: [] }),
     });
 
-    expect(res.status).toBe(409);
-    const body = (await res.json()) as any;
-    expect(body.error).toContain("Customization requires at least one valid variant image before publish");
+    expect(res.status).toBe(200);
   });
 
   it("returns absolute URLs for product media and variant media", async () => {
@@ -722,5 +745,83 @@ describe("admin products operation-specific routes", () => {
     expect(res.status).toBe(200);
     const body = (await res.json()) as any;
     expect(body.item.variants[0].media[0].contentUrl).toBe("http://localhost:8787/api/assets/products/asset-1/content");
+  });
+
+  it("replaces a variant customization media asset independently from gallery media", async () => {
+    const variant = {
+      id: 20,
+      productId: 1,
+      title: "Default",
+      sku: "SKU-1",
+      priceAmount: 5000,
+      inventoryQuantity: 8,
+      allowBackorder: false,
+      isDefault: true,
+      position: 0,
+      createdAt: "2026-07-04T00:00:00.000Z",
+      updatedAt: "2026-07-04T00:00:00.000Z",
+    };
+    const customization = {
+      enabled: true,
+      canvasWidthPx: 1200,
+      canvasHeightPx: 900,
+      layersJson: "[]",
+      formFieldsJson: "[]",
+    };
+    const existingCanvas = {
+      variantId: 20,
+      assetId: "00000000-0000-4000-8000-000000000001",
+      fileName: "old.png",
+      mimeType: "image/png",
+      widthPx: 1200,
+      heightPx: 900,
+      byteSize: 100,
+    };
+    const readOptions = {
+      variantRows: [variant],
+      variantCustomizationMediaRows: [existingCanvas],
+      customizationRow: customization,
+    };
+    queueReadProduct(db, { id: 1, status: "draft" }, readOptions);
+    db.getQueue.push({
+      id: "00000000-0000-4000-8000-000000000002",
+      fileName: "new.png",
+      mimeType: "image/png",
+      widthPx: 1200,
+      heightPx: 900,
+      byteSize: 200,
+      objectKey: "products/asset-new",
+    });
+    db.getQueue.push({
+      id: "00000000-0000-4000-8000-000000000001",
+      fileName: "old.png",
+      mimeType: "image/png",
+      widthPx: 1200,
+      heightPx: 900,
+      byteSize: 100,
+      objectKey: "products/asset-old",
+    });
+    queueReadProduct(db, { id: 1, status: "draft" }, {
+      ...readOptions,
+      variantCustomizationMediaRows: [{ ...existingCanvas, assetId: "00000000-0000-4000-8000-000000000002", fileName: "new.png", byteSize: 200 }],
+    });
+
+    const res = await productsRoute.request("/1/variants/20/customization-media", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ assetId: "00000000-0000-4000-8000-000000000002" }),
+    }, {
+      CUSTOMIZATION_ASSETS: { delete: vi.fn(async () => undefined) },
+    } as never);
+
+    expect(res.status).toBe(200);
+    expect(db.mutations).toContainEqual({
+      kind: "insert",
+      values: { variantId: 20, assetId: "00000000-0000-4000-8000-000000000002", updatedAt: expect.any(String) },
+    });
+    expect(db.mutations).not.toContainEqual(expect.objectContaining({
+      kind: "insert",
+      values: expect.objectContaining({ variantId: 20, assetId: "00000000-0000-4000-8000-000000000001" }),
+    }));
   });
 });

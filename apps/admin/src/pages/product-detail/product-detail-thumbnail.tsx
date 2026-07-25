@@ -166,6 +166,13 @@ export function ProductDetailThumbnail({ product, mutate }: ProductDetailThumbna
           map.set(m.contentUrl, { url: m.contentUrl, mimeType: m.mimeType });
         }
       });
+      const customizationMedia = v.customizationMedia;
+      if (customizationMedia && !map.has(customizationMedia.contentUrl)) {
+        map.set(customizationMedia.contentUrl, {
+          url: customizationMedia.contentUrl,
+          mimeType: customizationMedia.mimeType,
+        });
+      }
     });
     return Array.from(map.values());
   }, [product.variants]);

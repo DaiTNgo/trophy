@@ -5,6 +5,7 @@ type LocalizedLabel = { vi: string; en?: string | null };
 export type ProductMetadataItem = {
   id: number;
   label: string;
+  isSystem?: boolean;
 };
 
 export type ProductMetadataSnapshot = {
@@ -13,7 +14,7 @@ export type ProductMetadataSnapshot = {
 };
 
 type CollectionsResponse = { items?: Array<{ id: number; title: LocalizedLabel }> };
-type CategoriesResponse = { categories?: Array<{ id: number; name: LocalizedLabel }> };
+type CategoriesResponse = { categories?: Array<{ id: number; name: LocalizedLabel; isSystem?: boolean }> };
 
 const extractLabel = (v: string | LocalizedLabel): string =>
   typeof v === "string" ? v : (v.vi ?? "");
@@ -35,6 +36,10 @@ export async function fetchProductMetadata(): Promise<ProductMetadataSnapshot> {
 
   return {
     collections: (collectionsBody.items ?? []).map((item) => ({ id: item.id, label: extractLabel(item.title) })),
-    categories: (categoriesBody.categories ?? []).map((item) => ({ id: item.id, label: extractLabel(item.name) })),
+    categories: (categoriesBody.categories ?? []).map((item) => ({
+      id: item.id,
+      label: extractLabel(item.name),
+      isSystem: item.isSystem,
+    })),
   };
 }

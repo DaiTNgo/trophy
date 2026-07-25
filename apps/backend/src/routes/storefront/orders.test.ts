@@ -230,12 +230,19 @@ describe("storefront orders route", () => {
           title: "Champion Cup",
           handle: "champion-cup",
           status: "published",
+          thumbnail: "http://localhost/api/assets/products/asset-1/content",
         }),
         variantSnapshotJson: JSON.stringify({
           id: 10,
           title: "Gold",
           sku: "SKU-1",
           priceAmount: 5000,
+        }),
+        backgroundSnapshotJson: JSON.stringify({
+          assetId: "asset-1",
+          previewUrl: "http://localhost/api/assets/products/asset-1/content",
+          widthPx: null,
+          heightPx: null,
         }),
         customizationSnapshotJson: JSON.stringify({
           values: {
@@ -264,7 +271,62 @@ describe("storefront orders route", () => {
     expect(body.order.items[0].customizationValues).toEqual([
       { fieldId: "text_1", label: "Name", valueSummary: "Alice" },
     ]);
+    expect(body.order.items[0].previewImageUrl).toBe("http://localhost/api/assets/products/asset-1/content");
+    expect(body.order.items[0].customizationPreview.values.text_1).toEqual({ text: "Alice" });
+    expect(body.order.items[0].customizationPreview.template.formFields[0].id).toBe("text_1");
     expect(JSON.stringify(body)).not.toContain("design");
+  });
+
+  it("falls back to the persisted background image for older item snapshots", async () => {
+    db.getQueue.push({
+      id: 6,
+      orderNumber: "ORD-LEGACY-1234",
+      status: "pending",
+      paymentStatus: "pending",
+      fulfillmentStatus: "unfulfilled",
+      customerName: "Legacy Buyer",
+      customerPhone: "0123456789",
+      customerEmail: null,
+      primaryAddressJson: null,
+      shippingAddressJson: null,
+      totalAmount: 5000,
+      currencyCode: "VND",
+      itemCount: 1,
+      createdAt: new Date("2026-07-05T00:00:00.000Z"),
+    });
+    db.selectQueue.push([
+      {
+        id: 2,
+        orderId: 6,
+        quantity: 1,
+        unitPriceAmount: 5000,
+        lineSubtotalAmount: 5000,
+        productSnapshotJson: JSON.stringify({
+          id: 1,
+          title: "Legacy Cup",
+          handle: "legacy-cup",
+          status: "published",
+        }),
+        variantSnapshotJson: JSON.stringify({ id: 11, title: "Silver", sku: null, priceAmount: 5000 }),
+        backgroundSnapshotJson: JSON.stringify({
+          assetId: "legacy-asset",
+          previewUrl: "http://localhost/api/assets/products/legacy-asset/content",
+          widthPx: null,
+          heightPx: null,
+        }),
+        customizationSnapshotJson: null,
+      },
+    ]);
+
+    const res = await storefrontOrdersRoute.request("/lookup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orderNumber: "ORD-LEGACY-1234", phone: "0123456789" }),
+    });
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as any;
+    expect(body.order.items[0].previewImageUrl).toBe("http://localhost/api/assets/products/legacy-asset/content");
   });
 
   it("summarizes selected icon values in order lookups", async () => {

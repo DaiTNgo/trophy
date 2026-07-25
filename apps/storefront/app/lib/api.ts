@@ -1,4 +1,5 @@
 import type { LocalizedTextValue } from "./translation";
+import type { CustomizationFormValues, CustomizationTemplate } from "@trophy/customization";
 import { fetchBackendWithLog } from "./observability";
 
 const BACKEND_URL =
@@ -103,6 +104,16 @@ export type StorefrontDetailResponse = {
         position: number;
         contentUrl: string;
       }>;
+      customizationMedia: {
+        id: string;
+        assetId: string;
+        fileName: string;
+        mimeType: string;
+        widthPx: number | null;
+        heightPx: number | null;
+        byteSize: number;
+        contentUrl: string;
+      } | null;
       optionValues: Array<{ id: number; value: LocalizedTextValue; optionId: number; optionTitle: LocalizedTextValue }>;
     }>;
     customization: {
@@ -179,6 +190,12 @@ export async function fetchStorefrontProduct(handle: string, locale?: string): P
         ...media,
         contentUrl: backendAssetUrl(media.contentUrl),
       })),
+      customizationMedia: variant.customizationMedia
+        ? {
+            ...variant.customizationMedia,
+            contentUrl: backendAssetUrl(variant.customizationMedia.contentUrl),
+          }
+        : null,
     })),
   };
 }
@@ -380,6 +397,11 @@ export type StorefrontOrderLookupResponse = {
       lineSubtotalAmount: number;
       productTitle: string;
       productHandle: string | null;
+      previewImageUrl: string | null;
+      customizationPreview: {
+        values: CustomizationFormValues;
+        template: CustomizationTemplate;
+      } | null;
       variantTitle: string;
       sku: string | null;
       customizationValues: Array<{

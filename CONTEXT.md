@@ -173,7 +173,7 @@ The product customization layer's approved subset of clipart assets from one cli
 _Avoid_: whole category selection, global icon library, shopper icon search
 
 **Customization Template**:
-The admin-defined configuration for a customizable product, including editable layers, form fields, and visual placement rules. Its background images are derived from the product's variant images rather than stored as independent customization data.
+The admin-defined configuration for a customizable product, including editable layers, form fields, and visual placement rules. Its background choices come from the variants' independently stored Customization Media rather than from Gallery Media.
 _Avoid_: customization config, editor setup
 
 **Embedded Product Customization**:

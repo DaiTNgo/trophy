@@ -127,6 +127,7 @@ export function useCreateProduct() {
   } | null>(null);
 
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const customizationFileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const [showColumns, setShowColumns] = useState({
     sku: true,
     media: true,
@@ -262,7 +263,7 @@ export function useCreateProduct() {
       return;
     }
 
-    const firstMedia = createdVariantRows[0]?.media[0];
+    const firstMedia = createdVariantRows[0]?.customizationMedia;
     if (!firstMedia) {
       return;
     }
@@ -462,10 +463,19 @@ export function useCreateProduct() {
               return uploaded;
             }),
           );
+          let uploadedCustomizationMedia = variant.customizationMedia;
+          if (uploadedCustomizationMedia?.isPending && uploadedCustomizationMedia.file) {
+            uploadedCustomizationMedia = await uploadProductVariantMedia(
+              uploadedCustomizationMedia.file,
+              uploadedCustomizationMedia.widthPx,
+              uploadedCustomizationMedia.heightPx,
+            );
+          }
 
           return {
             ...variant,
             media: uploadedMedia,
+            customizationMedia: uploadedCustomizationMedia,
           };
         }),
       );
@@ -484,6 +494,9 @@ export function useCreateProduct() {
             value: option.value,
           })),
           media: variant.media.map((asset) => ({ assetId: asset.id })),
+          customizationMedia: variant.customizationMedia
+            ? { assetId: variant.customizationMedia.id }
+            : null,
         }));
       const submittedDetails = {
         title: values.title,
@@ -719,6 +732,19 @@ export function useCreateProduct() {
     );
   }
 
+  function updateVariantCustomizationMedia(
+    variantSignature: string,
+    asset: ProductVariantMedia | null,
+  ) {
+    setVariantRows((current) =>
+      current.map((variant) =>
+        buildVariantSignature(variant.options) === variantSignature
+          ? { ...variant, customizationMedia: asset }
+          : variant,
+      ),
+    );
+  }
+
   async function handleVariantMediaUpload(
     variantSignature: string,
     files: FileList | null,
@@ -788,6 +814,57 @@ export function useCreateProduct() {
       setProcessingVariantKeys((current) =>
         current.filter((key) => key !== variantSignature),
       );
+    }
+  }
+
+  async function handleCustomizationMediaUpload(
+    variantSignature: string,
+    files: FileList | null,
+  ) {
+    const file = files?.[0];
+    if (!file) return;
+
+    setVariantMediaError(null);
+    setProcessingVariantKeys((current) => [...current, variantSignature]);
+
+    try {
+      if (!["image/png", "image/jpeg", "image/webp", "application/pdf"].includes(file.type)) {
+        throw new Error("Only PNG, JPEG, WebP, and PDF product assets are supported.");
+      }
+      const fileToProcess = file.type === "application/pdf" ? await convertPdfToImageFile(file) : file;
+      const objectUrl = URL.createObjectURL(fileToProcess);
+      const dimensions = await new Promise<{ width: number; height: number }>((resolve, reject) => {
+        const image = new Image();
+        image.onload = () => resolve({ width: image.naturalWidth, height: image.naturalHeight });
+        image.onerror = () => reject(new Error("Unable to read image dimensions."));
+        image.src = objectUrl;
+      });
+      const expected = effectiveVariantRows.find(
+        (variant) => buildVariantSignature(variant.options) !== variantSignature && variant.customizationMedia,
+      )?.customizationMedia;
+      if (expected && (expected.widthPx !== dimensions.width || expected.heightPx !== dimensions.height)) {
+        URL.revokeObjectURL(objectUrl);
+        throw new Error(`Customization Media must be ${expected.widthPx} x ${expected.heightPx} px.`);
+      }
+      const previous = effectiveVariantRows.find(
+        (variant) => buildVariantSignature(variant.options) === variantSignature,
+      )?.customizationMedia;
+      if (previous?.isPending) URL.revokeObjectURL(previous.contentUrl);
+      updateVariantCustomizationMedia(variantSignature, {
+        id: `pending_${crypto.randomUUID()}`,
+        fileName: fileToProcess.name,
+        mimeType: fileToProcess.type,
+        widthPx: dimensions.width,
+        heightPx: dimensions.height,
+        byteSize: fileToProcess.size,
+        contentUrl: objectUrl,
+        file: fileToProcess,
+        isPending: true,
+      });
+    } catch (error) {
+      setVariantMediaError(error instanceof Error ? error.message : "Unable to upload Customization Media.");
+    } finally {
+      setProcessingVariantKeys((current) => current.filter((key) => key !== variantSignature));
     }
   }
 
@@ -889,6 +966,7 @@ export function useCreateProduct() {
     isSubmittingMedia,
     variantGallery,
     fileInputRefs,
+    customizationFileInputRefs,
     showColumns,
     
     // Computed
@@ -936,7 +1014,9 @@ export function useCreateProduct() {
     toggleVariantCreation,
     toggleAllVariants,
     updateVariantMedia,
+    updateVariantCustomizationMedia,
     handleVariantMediaUpload,
+    handleCustomizationMediaUpload,
     handleDeleteVariantMedia,
     setVariantMediaError,
     setProcessingVariantKeys,

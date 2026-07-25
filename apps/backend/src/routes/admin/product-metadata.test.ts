@@ -129,4 +129,28 @@ describe("product metadata routes", () => {
     expect(res.status).toBe(400);
     expect(db.batch).not.toHaveBeenCalled();
   });
+
+  it("rejects deleting the system customization category", async () => {
+    db.getQueue.push({ id: 9, handle: "customization" });
+
+    const res = await productMetadataRoute.request("/categories/9", {
+      method: "DELETE",
+    });
+
+    expect(res.status).toBe(409);
+    expect(db.mutations).toHaveLength(0);
+  });
+
+  it("allows only image and position updates for the system customization category", async () => {
+    db.getQueue.push({ id: 9, handle: "customization" });
+
+    const rejected = await productMetadataRoute.request("/categories/9", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: { vi: "Other" } }),
+    });
+
+    expect(rejected.status).toBe(409);
+    expect(db.mutations).toHaveLength(0);
+  });
 });

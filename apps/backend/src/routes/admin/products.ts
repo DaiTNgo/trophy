@@ -17,6 +17,7 @@ import {
   productCollections,
   productCustomizations,
   productMedia,
+  productVariantCustomizationMedia,
   productOptionValues,
   productOptions,
   productVariantMedia,
@@ -31,6 +32,10 @@ import {
   parseStoredProductCustomizationModel
 } from './customizations/helpers'
 import { hydrateCustomization, persistCustomizationTranslations } from '../../lib/customization-translation'
+import {
+  CUSTOMIZATION_CATEGORY_HANDLE,
+  ensureCustomizationCategory,
+} from '../../lib/customization-category'
 
 const DEFAULT_PRODUCT_OPTION_TITLE = 'Default option'
 const DEFAULT_PRODUCT_OPTION_VALUE = 'Default option value'
@@ -285,6 +290,11 @@ const variantsSchema = v.object({
             assetId: assetIdSchema
           })
         )
+      ),
+      customizationMedia: v.optional(
+        v.nullable(
+          v.object({ assetId: assetIdSchema })
+        )
       )
     })
   )
@@ -306,6 +316,9 @@ const variantCreateSchema = v.object({
   allowBackorder: v.optional(v.boolean()),
   optionValueIds: v.optional(v.array(v.pipe(v.number(), v.integer(), v.minValue(1)))),
   attributes: v.optional(variantAttributesSchema),
+  customizationMedia: v.optional(
+    v.nullable(v.object({ assetId: assetIdSchema }))
+  ),
   media: v.optional(
     v.array(
       v.object({
@@ -345,6 +358,10 @@ const variantMediaSchema = v.object({
       assetId: assetIdSchema
     })
   )
+})
+
+const variantCustomizationMediaSchema = v.object({
+  assetId: assetIdSchema
 })
 
 const fullCreateCustomizationSchema = v.object({
@@ -413,6 +430,13 @@ const fullCreateProductSchema = v.object({
         v.object({
           assetId: assetIdSchema
         })
+      ),
+      customizationMedia: v.optional(
+        v.nullable(
+          v.object({
+            assetId: assetIdSchema
+          })
+        )
       )
     })
   ),
@@ -484,6 +508,7 @@ const readProduct = async (c: Context<AppEnv>, db: ReturnType<typeof getDb>, pro
     variantRows,
     variantAttributeRows,
     variantMediaRows,
+    variantCustomizationMediaRows,
     customizationRow
   ] = await Promise.all([
     product.collectionId
@@ -571,6 +596,25 @@ const readProduct = async (c: Context<AppEnv>, db: ReturnType<typeof getDb>, pro
         asc(productVariantMedia.variantId),
         asc(productVariantMedia.position),
         asc(productVariantMedia.assetId)
+      ),
+    db
+      .select({
+        variantId: productVariantCustomizationMedia.variantId,
+        assetId: productVariantCustomizationMedia.assetId,
+        fileName: productAssets.fileName,
+        mimeType: productAssets.mimeType,
+        widthPx: productAssets.widthPx,
+        heightPx: productAssets.heightPx,
+        byteSize: productAssets.byteSize
+      })
+      .from(productVariantCustomizationMedia)
+      .innerJoin(productAssets, eq(productVariantCustomizationMedia.assetId, productAssets.id))
+      .where(
+        sql`${productVariantCustomizationMedia.variantId} in (
+          select ${productVariants.id}
+          from ${productVariants}
+          where ${productVariants.productId} = ${productId}
+        )`
       ),
     db
       .select()
@@ -679,6 +723,7 @@ const readProduct = async (c: Context<AppEnv>, db: ReturnType<typeof getDb>, pro
   const variantOptionIds = new Map<number, number[]>()
   const variantAttributesByVariantId = new Map<number, typeof hydratedVariantAttributeRows>()
   const variantMediaByVariantId = new Map<number, typeof variantMediaRows>()
+  const variantCustomizationMediaByVariantId = new Map<number, (typeof variantCustomizationMediaRows)[number]>()
   for (const variantOption of variantOptionRows) {
     const current = variantOptionIds.get(variantOption.variantId) ?? []
     current.push(variantOption.optionValueId)
@@ -689,6 +734,10 @@ const readProduct = async (c: Context<AppEnv>, db: ReturnType<typeof getDb>, pro
     const current = variantMediaByVariantId.get(variantMedia.variantId) ?? []
     current.push(variantMedia)
     variantMediaByVariantId.set(variantMedia.variantId, current)
+  }
+
+  for (const customizationMedia of variantCustomizationMediaRows) {
+    variantCustomizationMediaByVariantId.set(customizationMedia.variantId, customizationMedia)
   }
 
   for (const variantAttribute of hydratedVariantAttributeRows) {
@@ -749,6 +798,20 @@ const readProduct = async (c: Context<AppEnv>, db: ReturnType<typeof getDb>, pro
           position: media.position,
           contentUrl: toAbsoluteAssetUrl(c, `/api/assets/products/${media.assetId}/content`) as string
         })),
+        customizationMedia: (() => {
+          const media = variantCustomizationMediaByVariantId.get(variant.id)
+          return media
+            ? {
+                id: media.assetId,
+                fileName: media.fileName,
+                mimeType: media.mimeType,
+                widthPx: media.widthPx,
+                heightPx: media.heightPx,
+                byteSize: media.byteSize,
+                contentUrl: toAbsoluteAssetUrl(c, `/api/assets/products/${media.assetId}/content`) as string
+              }
+            : null
+        })(),
         optionValueIds,
         optionValues: optionValueIds
           .map((optionValueId) => {
@@ -1256,6 +1319,7 @@ const replaceVariants = async (
       unit?: string | null
     }>
     media?: Array<{ assetId: string }>
+    customizationMedia?: { assetId: string } | null
   }>
 ) => {
   const product = await db.select().from(products).where(eq(products.id, productId)).get()
@@ -1400,6 +1464,9 @@ const replaceVariants = async (
     await db
       .delete(productVariantMedia)
       .where(inArray(productVariantMedia.variantId, existingVariantIds))
+    await db
+      .delete(productVariantCustomizationMedia)
+      .where(inArray(productVariantCustomizationMedia.variantId, existingVariantIds))
   }
   await db.delete(productVariants).where(eq(productVariants.productId, productId))
 
@@ -1449,6 +1516,11 @@ const replaceVariants = async (
 
   const variantsWithMedia = normalized.map((item) => ({ media: item.media ?? [] }))
   await insertVariantMedia(db, insertedVariants, variantsWithMedia)
+  await insertVariantCustomizationMedia(
+    db,
+    insertedVariants,
+    normalized.map((item) => ({ customizationMedia: item.customizationMedia }))
+  )
 
   return null
 }
@@ -1535,6 +1607,15 @@ export const buildVariantMediaInsertRows = (
     }))
   )
 
+export const buildVariantCustomizationMediaInsertRows = (
+  persistedVariants: Array<{ id: number }>,
+  submittedVariants: Array<{ customizationMedia?: { assetId: string } | null }>
+) =>
+  persistedVariants.flatMap((variant, variantIndex) => {
+    const assetId = submittedVariants[variantIndex]?.customizationMedia?.assetId
+    return assetId ? [{ variantId: variant.id, assetId }] : []
+  })
+
 const defaultLocalizedText = (value: string) => ({ vi: value, en: value })
 
 const defaultProductOptionInput = () => ({
@@ -1560,7 +1641,8 @@ const defaultProductVariantInput = () => ({
       value: DEFAULT_PRODUCT_OPTION_VALUE
     }
   ],
-  media: [] as Array<{ assetId: string }>
+  media: [] as Array<{ assetId: string }>,
+  customizationMedia: null as { assetId: string } | null
 })
 
 const localizedInputValue = (value: string | { vi: string }) =>
@@ -1636,18 +1718,28 @@ const insertVariantMedia = async (
   }
 }
 
+const insertVariantCustomizationMedia = async (
+  db: ReturnType<typeof getDb>,
+  persistedVariants: Array<{ id: number }>,
+  submittedVariants: Array<{ customizationMedia?: { assetId: string } | null }>
+) => {
+  const rows = buildVariantCustomizationMediaInsertRows(persistedVariants, submittedVariants)
+  if (rows.length > 0) {
+    await db.insert(productVariantCustomizationMedia).values(rows)
+  }
+}
+
 export const deriveCustomizationCanvas = (
-  submittedVariants: Array<{ media: Array<{ assetId: string }> }>,
+  submittedVariants: Array<{ customizationMedia?: { assetId: string } | null }>,
   assetsById: Map<string, typeof productAssets.$inferSelect>
 ) => {
   for (const variant of submittedVariants) {
-    for (const media of variant.media) {
-      const asset = assetsById.get(media.assetId)
-      if (asset?.widthPx && asset?.heightPx) {
-        return {
-          canvasWidthPx: asset.widthPx,
-          canvasHeightPx: asset.heightPx
-        }
+    const assetId = variant.customizationMedia?.assetId
+    const asset = assetId ? assetsById.get(assetId) : null
+    if (asset?.widthPx && asset?.heightPx) {
+      return {
+        canvasWidthPx: asset.widthPx,
+        canvasHeightPx: asset.heightPx
       }
     }
   }
@@ -1701,28 +1793,26 @@ export const validateCustomizationPublishReadiness = ({
   assetsById: Map<string, typeof productAssets.$inferSelect>
 }) => {
   for (const variant of submittedVariants) {
-    if (variant.media.length === 0) {
-      return 'Each variant needs at least one image before publish'
+    if (!variant.customizationMedia?.assetId) {
+      return 'Each variant needs Customization Media before publish'
     }
   }
 
   const derivedCanvas = deriveCustomizationCanvas(submittedVariants, assetsById)
   if (!derivedCanvas.canvasWidthPx || !derivedCanvas.canvasHeightPx) {
-    return 'Customization requires at least one valid variant image before publish'
+    return 'Customization requires at least one valid Customization Media asset before publish'
   }
 
   for (const variant of submittedVariants) {
-    for (const media of variant.media) {
-      const asset = assetsById.get(media.assetId)
-      if (!asset?.widthPx || !asset?.heightPx) {
-        return 'Customization requires valid image dimensions for every variant image'
-      }
-      if (
-        asset.widthPx !== derivedCanvas.canvasWidthPx ||
-        asset.heightPx !== derivedCanvas.canvasHeightPx
-      ) {
-        return 'All variant images must share the same size before publish'
-      }
+    const asset = assetsById.get(variant.customizationMedia!.assetId)
+    if (!asset?.widthPx || !asset?.heightPx) {
+      return 'Customization requires valid dimensions for every Customization Media asset'
+    }
+    if (
+      asset.widthPx !== derivedCanvas.canvasWidthPx ||
+      asset.heightPx !== derivedCanvas.canvasHeightPx
+    ) {
+      return 'All Customization Media assets must share the same size before publish'
     }
   }
 
@@ -1819,21 +1909,19 @@ export const validatePublishable = (product: NonNullable<Awaited<ReturnType<type
   }
 
   if (product.customization?.enabled) {
-    const firstMedia = product.variants.flatMap((variant) => variant.media)[0]
+    const firstMedia = product.variants.find((variant) => variant.customizationMedia)?.customizationMedia
 
     if (!firstMedia?.widthPx || !firstMedia?.heightPx) {
-      return 'Customization requires at least one valid variant image before publish'
+      return 'Customization requires Customization Media for every variant before publish'
     }
 
     for (const variant of product.variants) {
-      if (variant.media.length === 0) {
-        return 'Each variant needs at least one image before publish'
+      if (!variant.customizationMedia) {
+        return 'Each variant needs Customization Media before publish'
       }
 
-      for (const media of variant.media) {
-        if (media.widthPx !== firstMedia.widthPx || media.heightPx !== firstMedia.heightPx) {
-          return 'All variant images must share the same size before publish'
-        }
+      if (variant.customizationMedia.widthPx !== firstMedia.widthPx || variant.customizationMedia.heightPx !== firstMedia.heightPx) {
+        return 'All Customization Media assets must share the same size before publish'
       }
     }
 
@@ -2064,7 +2152,10 @@ export const productsRoute = new Hono<AppEnv>()
     const allAssetIds = [
       ...new Set(
         normalizedInput.variants.flatMap((variant) =>
-          variant.media.map((media) => media.assetId)
+          [
+            ...variant.media.map((media) => media.assetId),
+            ...(variant.customizationMedia?.assetId ? [variant.customizationMedia.assetId] : [])
+          ]
         )
       )
     ]
@@ -2122,9 +2213,15 @@ export const productsRoute = new Hono<AppEnv>()
       await upsertTranslations(db, 'product', String(insertedProduct.id), 'description', parsed.output.details.description)
     }
 
-    if (parsed.output.organization.categoryIds && parsed.output.organization.categoryIds.length > 0) {
+    let categoryIds = [...new Set(parsed.output.organization.categoryIds ?? [])]
+    if (parsed.output.customization?.enabled) {
+      const customizationCategory = await ensureCustomizationCategory(db)
+      categoryIds = [...new Set([...categoryIds, customizationCategory.id])]
+    }
+
+    if (categoryIds.length > 0) {
       await db.insert(productCategoryLinks).values(
-        [...new Set(parsed.output.organization.categoryIds)].map((categoryId) => ({
+        categoryIds.map((categoryId) => ({
           productId: insertedProduct.id,
           categoryId
         }))
@@ -2200,6 +2297,7 @@ export const productsRoute = new Hono<AppEnv>()
     }
 
     await insertVariantMedia(db, persistedProduct.variants, normalizedInput.variants)
+    await insertVariantCustomizationMedia(db, persistedProduct.variants, normalizedInput.variants)
 
     if (parsed.output.customization?.enabled) {
       const customizationRow = buildProductCustomizationInsert({
@@ -2365,13 +2463,24 @@ export const productsRoute = new Hono<AppEnv>()
       .where(eq(products.id, current.id))
 
     if (parsed.output.categoryIds !== undefined) {
+      const currentCustomization = await db
+        .select({ enabled: productCustomizations.enabled })
+        .from(productCustomizations)
+        .where(eq(productCustomizations.productId, current.id))
+        .get()
+      let categoryIds = [...new Set(parsed.output.categoryIds)]
+      if (currentCustomization?.enabled) {
+        const customizationCategory = await ensureCustomizationCategory(db)
+        categoryIds = [...new Set([...categoryIds, customizationCategory.id])]
+      }
+
       await db
         .delete(productCategoryLinks)
         .where(eq(productCategoryLinks.productId, current.id))
 
-      if (parsed.output.categoryIds.length > 0) {
+      if (categoryIds.length > 0) {
         await db.insert(productCategoryLinks).values(
-          [...new Set(parsed.output.categoryIds)].map((categoryId) => ({
+          categoryIds.map((categoryId) => ({
             productId: current.id,
             categoryId
           }))
@@ -2966,7 +3075,12 @@ export const productsRoute = new Hono<AppEnv>()
       return jsonError(c, selectionError.status, selectionError.error)
     }
 
-    const assetIds = [...new Set((parsed.output.media ?? []).map((item) => item.assetId))]
+    const assetIds = [
+      ...new Set([
+        ...(parsed.output.media ?? []).map((item) => item.assetId),
+        ...(parsed.output.customizationMedia?.assetId ? [parsed.output.customizationMedia.assetId] : [])
+      ])
+    ]
     const missingAssets = await ensureVariantAssetIdsExist(db, assetIds)
     if (missingAssets) {
       return jsonError(c, missingAssets.status, missingAssets.error)
@@ -2976,8 +3090,20 @@ export const productsRoute = new Hono<AppEnv>()
       return jsonError(c, 409, 'Every variant must have a price before publish')
     }
 
-    if (product.status === 'published' && product.customization?.enabled && assetIds.length === 0) {
-      return jsonError(c, 409, 'Each variant needs at least one image before publish')
+    if (product.status === 'published' && product.customization?.enabled && !parsed.output.customizationMedia?.assetId) {
+      return jsonError(c, 409, 'Each variant needs Customization Media before publish')
+    }
+
+    if (product.status === 'published' && product.customization?.enabled) {
+      const nextAsset = await loadProductAssetsById(db, [parsed.output.customizationMedia!.assetId])
+      const dimensions = nextAsset.get(parsed.output.customizationMedia!.assetId)
+      const expected = product.variants.find((item) => item.customizationMedia)?.customizationMedia
+      if (!dimensions?.widthPx || !dimensions.heightPx) {
+        return jsonError(c, 409, 'Customization Media must have valid dimensions before publish')
+      }
+      if (expected && (dimensions.widthPx !== expected.widthPx || dimensions.heightPx !== expected.heightPx)) {
+        return jsonError(c, 409, 'Customization Media must match the existing canvas size before publish')
+      }
     }
 
     const insertedVariant = await db
@@ -3015,14 +3141,22 @@ export const productsRoute = new Hono<AppEnv>()
       )
     }
 
-    if (assetIds.length > 0) {
+    const galleryAssetIds = [...new Set((parsed.output.media ?? []).map((item) => item.assetId))]
+    if (galleryAssetIds.length > 0) {
       await db.insert(productVariantMedia).values(
-        assetIds.map((assetId, index) => ({
+        galleryAssetIds.map((assetId, index) => ({
           variantId: insertedVariant.id,
           assetId,
           position: index
         }))
       )
+    }
+
+    if (parsed.output.customizationMedia?.assetId) {
+      await db.insert(productVariantCustomizationMedia).values({
+        variantId: insertedVariant.id,
+        assetId: parsed.output.customizationMedia.assetId
+      })
     }
 
     await replaceVariantAttributes(
@@ -3155,7 +3289,22 @@ export const productsRoute = new Hono<AppEnv>()
     await db
       .delete(productVariantMedia)
       .where(eq(productVariantMedia.variantId, variant.id))
+    const customizationAsset = variant.customizationMedia
+      ? await db
+          .select()
+          .from(productAssets)
+          .where(eq(productAssets.id, variant.customizationMedia.id))
+          .get()
+      : null
+    await db
+      .delete(productVariantCustomizationMedia)
+      .where(eq(productVariantCustomizationMedia.variantId, variant.id))
     await db.delete(productVariants).where(eq(productVariants.id, variant.id))
+
+    if (customizationAsset) {
+      await c.env.CUSTOMIZATION_ASSETS.delete(customizationAsset.objectKey)
+      await db.delete(productAssets).where(eq(productAssets.id, customizationAsset.id))
+    }
 
     if (variant.isDefault) {
       const remainingVariants = await db
@@ -3184,6 +3333,96 @@ export const productsRoute = new Hono<AppEnv>()
     }
 
     await updateProductTimestamp(db, product.id)
+
+    const nextProduct = await readProduct(c, db, product.id)
+    return c.json({ item: nextProduct }, 200)
+  })
+  .put('/:id/variants/:variantId/customization-media', async (c) => {
+    const params = parseParams(c, variantParamsSchema)
+    if (!params.success) {
+      return params.response
+    }
+
+    const parsed = await parseJson(c, variantCustomizationMediaSchema)
+    if (!parsed.success) {
+      return parsed.response
+    }
+
+    const db = getDb(c.env)
+    const product = await readProduct(c, db, params.output.id)
+    if (!product) {
+      return jsonError(c, 404, 'Product not found')
+    }
+    if (!product.customization?.enabled) {
+      return jsonError(c, 409, 'Customization is disabled for this product')
+    }
+
+    const variant = product.variants.find((item) => item.id === params.output.variantId)
+    if (!variant) {
+      return jsonError(c, 404, 'Variant not found')
+    }
+
+    const asset = await db
+      .select()
+      .from(productAssets)
+      .where(eq(productAssets.id, parsed.output.assetId))
+      .get()
+    if (!asset) {
+      return jsonError(c, 404, 'Customization Media asset not found')
+    }
+    if (!asset.widthPx || !asset.heightPx) {
+      return jsonError(c, 422, 'Customization Media must have valid dimensions')
+    }
+
+    const otherCanvas = product.variants.find(
+      (item) => item.id !== variant.id && item.customizationMedia
+    )?.customizationMedia
+    if (
+      otherCanvas &&
+      (asset.widthPx !== otherCanvas.widthPx || asset.heightPx !== otherCanvas.heightPx)
+    ) {
+      return jsonError(c, 409, 'Customization Media must match the existing canvas size')
+    }
+
+    if (product.status === 'published') {
+      const candidate = {
+        ...product,
+        variants: product.variants.map((item) =>
+          item.id === variant.id
+            ? { ...item, customizationMedia: asset }
+            : item
+        )
+      }
+      const publishError = validatePublishable(
+        candidate as NonNullable<Awaited<ReturnType<typeof readProduct>>>
+      )
+      if (publishError) {
+        return jsonError(c, 409, publishError)
+      }
+    }
+
+    const previousAssetId = variant.customizationMedia?.id ?? null
+    await db
+      .delete(productVariantCustomizationMedia)
+      .where(eq(productVariantCustomizationMedia.variantId, variant.id))
+    await db.insert(productVariantCustomizationMedia).values({
+      variantId: variant.id,
+      assetId: asset.id,
+      updatedAt: nowIso()
+    })
+    await updateProductTimestamp(db, product.id)
+
+    if (previousAssetId && previousAssetId !== asset.id) {
+      const previousAsset = await db
+        .select()
+        .from(productAssets)
+        .where(eq(productAssets.id, previousAssetId))
+        .get()
+      if (previousAsset) {
+        await c.env.CUSTOMIZATION_ASSETS.delete(previousAsset.objectKey)
+        await db.delete(productAssets).where(eq(productAssets.id, previousAsset.id))
+      }
+    }
 
     const nextProduct = await readProduct(c, db, product.id)
     return c.json({ item: nextProduct }, 200)
@@ -3319,7 +3558,10 @@ export const productsRoute = new Hono<AppEnv>()
     const allAssetIds = [
       ...new Set(
         parsed.output.items.flatMap((variant) =>
-          (variant.media ?? []).map((media) => media.assetId)
+          [
+            ...(variant.media ?? []).map((media) => media.assetId),
+            ...(variant.customizationMedia?.assetId ? [variant.customizationMedia.assetId] : [])
+          ]
         )
       )
     ]
@@ -3369,7 +3611,7 @@ export const productsRoute = new Hono<AppEnv>()
     let derivedCanvasHeightPx: number | null = null
 
     if (parsed.output.enabled) {
-      const firstMedia = product.variants.flatMap((variant) => variant.media)[0]
+      const firstMedia = product.variants.find((variant) => variant.customizationMedia)?.customizationMedia
       if (firstMedia?.widthPx && firstMedia?.heightPx) {
         derivedCanvasWidthPx = firstMedia.widthPx
         derivedCanvasHeightPx = firstMedia.heightPx
@@ -3409,6 +3651,24 @@ export const productsRoute = new Hono<AppEnv>()
     await db.delete(productCustomizations).where(eq(productCustomizations.productId, product.id))
 
     if (parsed.output.enabled) {
+      const customizationCategory = await ensureCustomizationCategory(db)
+      const linkedCategory = await db
+        .select({ categoryId: productCategoryLinks.categoryId })
+        .from(productCategoryLinks)
+        .where(
+          and(
+            eq(productCategoryLinks.productId, product.id),
+            eq(productCategoryLinks.categoryId, customizationCategory.id)
+          )
+        )
+        .get()
+      if (!linkedCategory) {
+        await db.insert(productCategoryLinks).values({
+          productId: product.id,
+          categoryId: customizationCategory.id,
+        })
+      }
+
       await persistCustomizationTranslations(db, parsed.output)
 
       await db.insert(productCustomizations).values({
@@ -3421,6 +3681,24 @@ export const productsRoute = new Hono<AppEnv>()
         createdAt: nowIso(),
         updatedAt: nowIso()
       })
+    }
+
+    if (!parsed.output.enabled) {
+      const customizationCategory = await db
+        .select({ id: productCategories.id })
+        .from(productCategories)
+        .where(eq(productCategories.handle, CUSTOMIZATION_CATEGORY_HANDLE))
+        .get()
+      if (customizationCategory) {
+        await db
+          .delete(productCategoryLinks)
+          .where(
+            and(
+              eq(productCategoryLinks.productId, product.id),
+              eq(productCategoryLinks.categoryId, customizationCategory.id)
+            )
+          )
+      }
     }
 
     await db

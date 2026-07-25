@@ -35,7 +35,7 @@ export function CreateProductCustomization({
         <div>
           <Heading level="h2">Customization</Heading>
           <Text size="small" className="mt-1 text-ui-fg-subtle">
-            Embedded product-create mode. Preview backgrounds come from created variant images and are not persisted as customization assets.
+            Embedded product-create mode. Preview backgrounds come from each variant's staged Customization Media.
           </Text>
         </div>
         <div className="text-right">

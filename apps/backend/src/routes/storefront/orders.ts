@@ -26,6 +26,7 @@ import {
   buildCustomizationValueSummaries,
   maskPhone,
   normalizePhoneForLookup,
+  parseBackgroundSnapshot,
   parseCustomizationSnapshot,
   parseDifferentShippingAddress,
   parseOrderAddress,
@@ -343,6 +344,7 @@ async function validateAndBuildItemSnapshot(
     title: product.title,
     handle: product.handle,
     status: product.status,
+    thumbnail: backgroundSnapshot?.previewUrl ?? null,
   };
 
   const variantSnapshot = {
@@ -405,7 +407,29 @@ function buildLookupOrderResponse(order: OrderRow, items: OrderItemRow[]) {
       items: items.map((item) => {
         const productSnapshot = parseProductSnapshot(item.productSnapshotJson);
         const variantSnapshot = parseVariantSnapshot(item.variantSnapshotJson);
+        const backgroundSnapshot = parseBackgroundSnapshot(item.backgroundSnapshotJson);
         const customizationSnapshot = parseCustomizationSnapshot(item.customizationSnapshotJson);
+        const customizationPreview = customizationSnapshot
+          ? {
+              values: customizationSnapshot.values,
+              template: {
+                id: `order_item_${item.id}`,
+                productId: String(productSnapshot?.id ?? item.productId),
+                name: productSnapshot?.title ?? "Purchased product",
+                revision: 1,
+                status: "published" as const,
+                background: backgroundSnapshot
+                  ? {
+                      ...backgroundSnapshot,
+                      widthPx: backgroundSnapshot.widthPx ?? customizationSnapshot.templateSnapshot.canvasWidthPx ?? 900,
+                      heightPx: backgroundSnapshot.heightPx ?? customizationSnapshot.templateSnapshot.canvasHeightPx ?? 900,
+                    }
+                  : null,
+                layers: customizationSnapshot.templateSnapshot.layers,
+                formFields: customizationSnapshot.templateSnapshot.formFields,
+              },
+            }
+          : null;
 
         return {
           quantity: item.quantity,
@@ -413,6 +437,8 @@ function buildLookupOrderResponse(order: OrderRow, items: OrderItemRow[]) {
           lineSubtotalAmount: item.lineSubtotalAmount,
           productTitle: productSnapshot?.title ?? "Unknown product",
           productHandle: productSnapshot?.handle ?? null,
+          previewImageUrl: productSnapshot?.thumbnail ?? backgroundSnapshot?.previewUrl ?? null,
+          customizationPreview,
           variantTitle: variantSnapshot?.title ?? "Unknown variant",
           sku: variantSnapshot?.sku ?? null,
           customizationValues: buildCustomizationValueSummaries(customizationSnapshot),

@@ -188,6 +188,7 @@ export function reconcileVariantRows(
       attributes: current?.attributes ?? [],
       allowBackorder: current?.allowBackorder ?? false,
       media: current?.media ?? [],
+      customizationMedia: current?.customizationMedia ?? null,
       shouldCreate: current?.shouldCreate ?? true,
     } satisfies ProductVariant;
   });
@@ -210,6 +211,7 @@ function getEffectiveVariantRows(
     inventory: normalizedInventory,
     attributes: variant.attributes ?? [],
     allowBackorder: false,
+    customizationMedia: variant.customizationMedia ?? null,
     shouldCreate: true,
   }));
 }
@@ -334,6 +336,7 @@ export function buildVariantPreview(values: CreateProductFormValues) {
         attributes: [],
         allowBackorder: false,
         media: [],
+        customizationMedia: null,
         shouldCreate: true,
       },
     ];
@@ -350,6 +353,7 @@ export function buildVariantPreview(values: CreateProductFormValues) {
     attributes: [],
     allowBackorder: false,
     media: [],
+    customizationMedia: null,
     shouldCreate: true,
   }));
 }

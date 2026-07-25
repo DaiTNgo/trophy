@@ -10,9 +10,11 @@ import {
 } from "./create-product-helpers";
 
 const buildVariant = ({
-  media,
+  media = [],
+  customizationMedia = null,
 }: {
-  media: ProductVariant["media"];
+  media?: ProductVariant["media"];
+  customizationMedia?: ProductVariant["customizationMedia"];
 }): ProductVariant => ({
   id: "variant_1",
   title: "Default",
@@ -23,11 +25,12 @@ const buildVariant = ({
   attributes: [],
   allowBackorder: false,
   media,
+  customizationMedia,
   shouldCreate: true,
 });
 
 describe("create product helpers", () => {
-  it("blocks customization tab when a created variant has no image", () => {
+  it("blocks customization tab when a created variant has no customization media", () => {
     const result = getCustomizationTabRequirement({
       customizationEnabled: true,
       createdVariantRows: [buildVariant({ media: [] })],
@@ -35,17 +38,16 @@ describe("create product helpers", () => {
 
     expect(result).toEqual({
       ready: false,
-      message: "Upload at least one image for every created variant before opening Customization.",
+      message: "Upload Customization Media for every created variant before opening Customization.",
     });
   });
 
-  it("blocks customization tab when created variant image dimensions differ", () => {
+  it("blocks customization tab when customization media dimensions differ", () => {
     const result = getCustomizationTabRequirement({
       customizationEnabled: true,
       createdVariantRows: [
         buildVariant({
-          media: [
-            {
+          customizationMedia: {
               id: "asset_1",
               fileName: "a.png",
               mimeType: "image/png",
@@ -53,13 +55,11 @@ describe("create product helpers", () => {
               heightPx: 900,
               byteSize: 10,
               contentUrl: "/a.png",
-            },
-          ],
+          },
         }),
         {
           ...buildVariant({
-            media: [
-              {
+            customizationMedia: {
                 id: "asset_2",
                 fileName: "b.png",
                 mimeType: "image/png",
@@ -67,8 +67,7 @@ describe("create product helpers", () => {
                 heightPx: 900,
                 byteSize: 10,
                 contentUrl: "/b.png",
-              },
-            ],
+            },
           }),
           id: "variant_2",
         },
@@ -77,15 +76,14 @@ describe("create product helpers", () => {
 
     expect(result).toEqual({
       ready: false,
-      message: "All created variant images must share the same dimensions before opening Customization.",
+      message: "All Customization Media assets must share the same dimensions before opening Customization.",
     });
   });
 
   it("switches preview background based on selected asset id", () => {
     const backgrounds = getPreviewBackgrounds([
       buildVariant({
-        media: [
-          {
+        customizationMedia: {
             id: "asset_1",
             fileName: "a.png",
             mimeType: "image/png",
@@ -93,8 +91,11 @@ describe("create product helpers", () => {
             heightPx: 900,
             byteSize: 10,
             contentUrl: "/a.png",
-          },
-          {
+        },
+      }),
+      {
+        ...buildVariant({
+          customizationMedia: {
             id: "asset_2",
             fileName: "b.png",
             mimeType: "image/png",
@@ -103,8 +104,9 @@ describe("create product helpers", () => {
             byteSize: 10,
             contentUrl: "/b.png",
           },
-        ],
-      }),
+        }),
+        id: "variant_2",
+      },
     ]);
 
     expect(resolveSelectedPreviewBackground({ backgrounds, selectedAssetId: "asset_2" })?.assetId).toBe("asset_2");

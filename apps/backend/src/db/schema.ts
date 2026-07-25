@@ -231,6 +231,21 @@ export const productVariantMedia = sqliteTable(
   ],
 );
 
+export const productVariantCustomizationMedia = sqliteTable(
+  "product_variant_customization_media",
+  {
+    variantId: integer("variant_id").notNull(),
+    assetId: text("asset_id").notNull().unique(),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+    updatedAt: text("updated_at")
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [primaryKey({ columns: [table.variantId] })],
+);
+
 export const productCustomizations = sqliteTable(
   "product_customizations",
   {

@@ -12,6 +12,7 @@ import type { AppEnv } from '../../lib/env'
 import { jsonError, parseJson } from '../../lib/validation'
 import { localizedString, localizedNullableText } from '../../lib/locale'
 import { hydrateTranslations, upsertTranslations } from '../../lib/catalog-translation'
+import { isCustomizationCategory } from '../../lib/customization-category'
 
 const trimmedString = (min = 1, max = 255) =>
   v.pipe(v.string(), v.trim(), v.minLength(min), v.maxLength(max))
@@ -270,7 +271,12 @@ export const productMetadataRoute = new Hono<AppEnv>()
       ]
     )
 
-    return c.json({ categories: hydratedItems }, 200)
+    return c.json({
+      categories: hydratedItems.map((category) => ({
+        ...category,
+        isSystem: isCustomizationCategory(category.handle),
+      })),
+    }, 200)
   })
   .post('/categories', async (c) => {
     const parsed = await parseJson(c, createCategorySchema)
@@ -344,6 +350,16 @@ export const productMetadataRoute = new Hono<AppEnv>()
       return jsonError(c, 404, 'Category not found')
     }
 
+    if (isCustomizationCategory(existing.handle)) {
+      if (
+        parsed.output.name !== undefined ||
+        parsed.output.handle !== undefined ||
+        parsed.output.description !== undefined
+      ) {
+        return jsonError(c, 409, 'Customization category name, handle, and description cannot be changed')
+      }
+    }
+
     const updates: Partial<typeof productCategories.$inferInsert> = {}
     if (parsed.output.name !== undefined) updates.name = parsed.output.name.vi
     if (parsed.output.description !== undefined) {
@@ -407,13 +423,17 @@ export const productMetadataRoute = new Hono<AppEnv>()
 
     const db = getDb(c.env)
     const existing = await db
-      .select({ id: productCategories.id })
+      .select({ id: productCategories.id, handle: productCategories.handle })
       .from(productCategories)
       .where(eq(productCategories.id, id))
       .get()
 
     if (!existing) {
       return jsonError(c, 404, 'Category not found')
+    }
+
+    if (isCustomizationCategory(existing.handle)) {
+      return jsonError(c, 409, 'Customization category cannot be deleted')
     }
 
     await db.delete(productCategories).where(eq(productCategories.id, id)).run()

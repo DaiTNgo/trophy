@@ -150,6 +150,7 @@ export function ProductDetailOrganize({ product, mutate }: ProductDetailOrganize
                     options={categories.map((cat) => ({
                       value: String(cat.id),
                       label: cat.label,
+                      locked: Boolean(product.customization?.enabled && cat.isSystem),
                     }))}
                     onChange={(vals) => setCategoryIds(vals.map(Number))}
                   />

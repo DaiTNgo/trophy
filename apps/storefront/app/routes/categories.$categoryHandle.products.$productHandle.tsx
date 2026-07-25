@@ -219,7 +219,6 @@ export default function ProductDetail() {
           productTitle: getLocalized(product.title, locale),
           customization,
           selectedVariant: selectedCustomizationVariant,
-          selectedMedia,
         })
         : null,
     [customization, product.id, product.title, locale, selectedCustomizationVariant, selectedMedia],
