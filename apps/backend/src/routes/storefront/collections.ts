@@ -8,6 +8,7 @@ import {
   productCategoryLinks,
   productCollections,
   productCustomizations,
+  productMedia,
   orderItems,
   productVariantMedia,
   productVariantCustomizationMedia,
@@ -88,7 +89,7 @@ async function loadListingPage(
 
   const productIds = items.map((item) => item.id)
 
-  const [categoryRows, variantRows, variantMediaRows, variantCustomizationMediaRows, customizationRows] = await Promise.all([
+  const [categoryRows, productMediaRows, variantRows, variantMediaRows, variantCustomizationMediaRows, customizationRows] = await Promise.all([
     productIds.length > 0
       ? db
           .select({
@@ -103,6 +104,17 @@ async function loadListingPage(
           )
           .where(inArray(productCategoryLinks.productId, productIds))
       : Promise.resolve([] as Array<{ productId: number; categoryId: number; name: string }>),
+    productIds.length > 0
+      ? db
+          .select({
+            productId: productMedia.productId,
+            url: productMedia.url,
+            position: productMedia.position
+          })
+          .from(productMedia)
+          .where(inArray(productMedia.productId, productIds))
+          .orderBy(asc(productMedia.productId), asc(productMedia.position), asc(productMedia.id))
+      : Promise.resolve([] as Array<{ productId: number; url: string; position: number }>),
     productIds.length > 0
       ? db
           .select()
@@ -173,6 +185,13 @@ async function loadListingPage(
     variantsByProductId.set(row.productId, current)
   }
 
+  const productMediaByProductId = new Map<number, Array<{ url: string; position: number }>>()
+  for (const row of productMediaRows) {
+    const current = productMediaByProductId.get(row.productId) ?? []
+    current.push(row)
+    productMediaByProductId.set(row.productId, current)
+  }
+
   const variantMediaByVariantId = new Map<
     number,
     (typeof variantMediaRows)[number][]
@@ -200,7 +219,8 @@ async function loadListingPage(
       variantsByProductId.get(item.id) ?? [],
       variantMediaByVariantId,
       customizationByProductId.get(item.id)?.enabled ?? false,
-      variantCustomizationMediaByVariantId
+      variantCustomizationMediaByVariantId,
+      productMediaByProductId.get(item.id) ?? []
     )
   )
 

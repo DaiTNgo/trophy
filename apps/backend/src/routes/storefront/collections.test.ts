@@ -104,6 +104,7 @@ describe("GET /api/storefront/collections/:handle/products", () => {
       ],
       { total: 2 },
       [],
+      [],
       [
         { id: 81, productId: 8, isDefault: true, priceAmount: 10000, position: 0 },
         { id: 101, productId: 10, isDefault: true, priceAmount: 12000, position: 0 },
@@ -139,6 +140,7 @@ describe("GET /api/storefront/collections/:handle/products", () => {
       ],
       { total: 3 },
       [],
+      [],
       [
         { id: 71, productId: 7, isDefault: true, priceAmount: 10000, position: 0 },
         { id: 91, productId: 9, isDefault: true, priceAmount: 12000, position: 0 },
@@ -167,5 +169,30 @@ describe("GET /api/storefront/collections/:handle/products", () => {
       expect.objectContaining({ handle: "fallback-cup", customizable: true }),
     ]);
     expect(body).toMatchObject({ page: 1, limit: 3, total: 3 });
+  });
+
+  it("uses the first product media as the best-seller thumbnail", async () => {
+    const queuedDb = createQueuedDb([
+      undefined,
+      [{ id: 10 }],
+      { total: 1 },
+      [{ id: 10, title: "Media Cup", subtitle: null, handle: "media-cup", status: "published" }],
+      { total: 1 },
+      [],
+      [{ productId: 10, url: "/api/assets/products/product-media/content", position: 0 }],
+      [{ id: 101, productId: 10, isDefault: true, priceAmount: 12000, position: 0 }],
+      [],
+      [],
+      [],
+    ]);
+    (dbClient.getDb as any).mockReturnValue(queuedDb);
+
+    const res = await storefrontCollectionsRoute.request(
+      "/best-sellers/products?customizable=false&limit=1"
+    );
+
+    expect(res.status).toBe(200);
+    const body = await res.json() as any;
+    expect(body.items[0].thumbnail).toBe("http://localhost/api/assets/products/product-media/content");
   });
 });
