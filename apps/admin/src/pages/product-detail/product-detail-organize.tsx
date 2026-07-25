@@ -5,7 +5,6 @@ import { CategoryMultiSelect } from "../../components/ui/medusa/category-multise
 import type { CatalogProduct } from "../../types";
 import { updateProductOrganization } from "../../lib/products-client";
 import { fetchProductMetadata, type ProductMetadataItem } from "../../lib/product-metadata-client";
-import { InlineError } from "../../components/ui/medusa/inline-error";
 
 type ProductDetailOrganizeProps = {
   product: CatalogProduct;
@@ -23,11 +22,9 @@ export function ProductDetailOrganize({ product, mutate }: ProductDetailOrganize
   const [collections, setCollections] = useState<ProductMetadataItem[]>([]);
   const [categories, setCategories] = useState<ProductMetadataItem[]>([]);
   const [metaLoading, setMetaLoading] = useState(false);
-  const [metaError, setMetaError] = useState<string | null>(null);
 
   // Submit state
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   // Fetch metadata once when the drawer opens
   useEffect(() => {
@@ -36,24 +33,23 @@ export function ProductDetailOrganize({ product, mutate }: ProductDetailOrganize
     // Reset form to current product state
     setCollectionId(product.collectionId);
     setCategoryIds(product.categoryIds ?? []);
-    setError(null);
 
     setMetaLoading(true);
-    setMetaError(null);
     fetchProductMetadata()
       .then((meta) => {
         setCollections(meta.collections);
         setCategories(meta.categories);
       })
       .catch((err: unknown) => {
-        setMetaError(err instanceof Error ? err.message : "Failed to load options");
+        toast.error("Product organization options could not be loaded", {
+          description: `${err instanceof Error ? err.message : "Failed to load collections and categories."} Close and reopen the editor, then try again.`,
+        });
       })
       .finally(() => setMetaLoading(false));
   }, [open, product.collectionId, product.categoryIds]);
 
   const handleSave = async () => {
     setIsSubmitting(true);
-    setError(null);
     try {
       await updateProductOrganization(product.id, {
         collectionId: collectionId ?? null,
@@ -63,8 +59,9 @@ export function ProductDetailOrganize({ product, mutate }: ProductDetailOrganize
       setOpen(false);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to save organization";
-      setError(message);
-      toast.error(message);
+      toast.error("Product organization could not be saved", {
+        description: `${message} Review the collection and category selections, then try again.`,
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -101,9 +98,6 @@ export function ProductDetailOrganize({ product, mutate }: ProductDetailOrganize
               <Drawer.Title>Edit Organization</Drawer.Title>
             </Drawer.Header>
             <Drawer.Body className="flex flex-col gap-y-6 overflow-y-auto">
-              {error && <InlineError message={error} />}
-              {metaError && <InlineError message={metaError} />}
-
               {/* Collection */}
               <div className="flex flex-col gap-y-2">
                 <Label>Collection</Label>

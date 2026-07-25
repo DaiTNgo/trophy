@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Badge, Button, Container, Drawer, IconButton, Heading, Text, DropdownMenu, toast } from "@medusajs/ui";
 import { MoreHorizontal, X } from "lucide-react";
-import { InlineError } from "../../components/ui/medusa/inline-error";
 import {
   LocalizedTextField,
   createLocalizedText,
@@ -35,7 +34,6 @@ export function ProductDetailOptions({ product, mutate }: ProductDetailOptionsPr
   const [optionTitleLocale, setOptionTitleLocale] = useState<AdminLocale>("vi");
   const [optionValues, setOptionValues] = useState<Array<{ id: number | null; valueTranslations: LocalizedTextValue }>>([]);
   const [valueDraft, setValueDraft] = useState("");
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState<Record<string, boolean>>({});
 
@@ -49,7 +47,6 @@ export function ProductDetailOptions({ product, mutate }: ProductDetailOptionsPr
     setOptionTitleTranslations(titleTranslations);
     setOptionValues(option.values.map((v) => ({ id: Number(v.id), valueTranslations: v.valueTranslations ?? createLocalizedText(v.value) })));
     setValueDraft("");
-    setErrorMsg(null);
     setModalOpen(true);
   }
 
@@ -58,7 +55,6 @@ export function ProductDetailOptions({ product, mutate }: ProductDetailOptionsPr
     setOptionTitleTranslations(createLocalizedText(""));
     setOptionValues([]);
     setValueDraft("");
-    setErrorMsg(null);
     setModalOpen(true);
   }
 
@@ -83,14 +79,14 @@ export function ProductDetailOptions({ product, mutate }: ProductDetailOptionsPr
 
   async function handleSaveOption() {
     setIsSaving(true);
-    setErrorMsg(null);
 
     const trimmedTitleVi = optionTitleTranslations.vi.trim();
     const trimmedTitleEn = optionTitleTranslations.en.trim();
     if (!trimmedTitleVi) {
       const message = "Vietnamese option title is required.";
-      setErrorMsg(message);
-      toast.error(message);
+      toast.error("Option could not be saved", {
+        description: `${message} Enter a Vietnamese option title and at least one value, then try again.`,
+      });
       setIsSaving(false);
       return;
     }
@@ -106,8 +102,9 @@ export function ProductDetailOptions({ product, mutate }: ProductDetailOptionsPr
 
     if (finalValues.length === 0) {
       const message = "At least one variation value is required.";
-      setErrorMsg(message);
-      toast.error(message);
+      toast.error("Option could not be saved", {
+        description: `${message} Add at least one variation value, then try again.`,
+      });
       setIsSaving(false);
       return;
     }
@@ -260,7 +257,6 @@ export function ProductDetailOptions({ product, mutate }: ProductDetailOptionsPr
           </Drawer.Header>
           <Drawer.Body className="p-4 overflow-y-auto">
             <div className="flex flex-col gap-y-4">
-              {errorMsg && <InlineError message={errorMsg} />}
 
               <div className="rounded-xl border border-ui-border-base p-4">
                 <div className="grid gap-4 grid-cols-[84px_minmax(0,1fr)]">

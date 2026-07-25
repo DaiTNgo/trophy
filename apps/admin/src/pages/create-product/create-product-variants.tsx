@@ -1,15 +1,7 @@
-import {
-  Button,
-  DropdownMenu,
-  Input,
-  Switch,
-  Table,
-  Text,
-} from "@medusajs/ui";
+import { Button, DropdownMenu, Input, Switch, Table, Text } from "@medusajs/ui";
 import { Adjustments } from "@medusajs/icons";
 import { ExternalLink, Loader2, Trash2, Upload } from "lucide-react";
 import { MediaPreview } from "../../components/ui/media-preview";
-import { InlineError } from "../../components/ui/medusa/inline-error";
 import {
   buildVariantSignature,
   type useCreateProduct,
@@ -22,9 +14,6 @@ type CreateProductVariantsProps = {
 export function CreateProductVariants({ state }: CreateProductVariantsProps) {
   const {
     values,
-    errors,
-    customizationTabError,
-    variantMediaError,
     showColumns,
     setShowColumns,
     effectiveVariantRows,
@@ -77,16 +66,6 @@ export function CreateProductVariants({ state }: CreateProductVariantsProps) {
               ))}
             </DropdownMenu.Content>
           </DropdownMenu>
-        </div>
-
-        <div className="space-y-2 px-2">
-          {errors.variants ? <InlineError message={errors.variants} /> : null}
-          {customizationTabError ? (
-            <InlineError message={customizationTabError} />
-          ) : null}
-          {variantMediaError ? (
-            <InlineError message={variantMediaError} />
-          ) : null}
         </div>
 
         {values.customizationEnabled ? (
@@ -198,7 +177,9 @@ export function CreateProductVariants({ state }: CreateProductVariantsProps) {
                           {values.customizationEnabled ? (
                             <input
                               ref={(element) => {
-                                customizationFileInputRefs.current[variantSignature] = element;
+                                customizationFileInputRefs.current[
+                                  variantSignature
+                                ] = element;
                               }}
                               type="file"
                               accept="image/png,image/jpeg,image/webp,application/pdf"
@@ -215,26 +196,42 @@ export function CreateProductVariants({ state }: CreateProductVariantsProps) {
                           <div className="min-w-[240px] space-y-3">
                             {values.customizationEnabled ? (
                               <div className="rounded-lg border border-ui-border-base p-3">
-                                <Text size="small" weight="plus">Customization Media</Text>
+                                <Text size="small" weight="plus">
+                                  Customization Media
+                                </Text>
                                 {variant.customizationMedia ? (
                                   <div className="mt-2 flex items-center gap-3">
                                     <MediaPreview
-                                      src={variant.customizationMedia.contentUrl}
-                                      mimeType={variant.customizationMedia.mimeType}
+                                      src={
+                                        variant.customizationMedia.contentUrl
+                                      }
+                                      mimeType={
+                                        variant.customizationMedia.mimeType
+                                      }
                                       alt={variant.customizationMedia.fileName}
                                       className="h-16 w-16 rounded border object-contain"
                                     />
                                     <div className="min-w-0 flex-1">
-                                      <Text size="small" className="line-clamp-1">
+                                      <Text
+                                        size="small"
+                                        className="line-clamp-1"
+                                      >
                                         {variant.customizationMedia.fileName}
                                       </Text>
-                                      <Text size="small" className="text-ui-fg-subtle">
-                                        {variant.customizationMedia.widthPx}x{variant.customizationMedia.heightPx}
+                                      <Text
+                                        size="small"
+                                        className="text-ui-fg-subtle"
+                                      >
+                                        {variant.customizationMedia.widthPx}x
+                                        {variant.customizationMedia.heightPx}
                                       </Text>
                                     </div>
                                   </div>
                                 ) : (
-                                  <Text size="small" className="mt-2 text-ui-fg-subtle">
+                                  <Text
+                                    size="small"
+                                    className="mt-2 text-ui-fg-subtle"
+                                  >
                                     No customization canvas yet.
                                   </Text>
                                 )}
@@ -244,9 +241,17 @@ export function CreateProductVariants({ state }: CreateProductVariantsProps) {
                                   size="small"
                                   className="mt-3"
                                   disabled={isUploading || isSubmittingMedia}
-                                  onClick={() => customizationFileInputRefs.current[variantSignature]?.click()}
+                                  onClick={() =>
+                                    customizationFileInputRefs.current[
+                                      variantSignature
+                                    ]?.click()
+                                  }
                                 >
-                                  {isUploading ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
+                                  {isUploading ? (
+                                    <Loader2 className="size-4 animate-spin" />
+                                  ) : (
+                                    <Upload className="size-4" />
+                                  )}
                                   {isUploading
                                     ? "Uploading..."
                                     : variant.customizationMedia

@@ -11,14 +11,17 @@ import {
 } from "@medusajs/ui";
 import { X } from "lucide-react";
 import {
-  InlineError,
   LocalizedTextField,
   createLocalizedText,
   getMissingLocalizedTextLocales,
 } from "../../components/ui/medusa";
 import { buildVariantSignature } from "./use-create-product";
 import { hasEmbeddedCustomizationDraft } from "../create-product-helpers";
-import type { AdminLocale, LocalizedTextValue, ProductOptionValueDefinition } from "../../types";
+import type {
+  AdminLocale,
+  LocalizedTextValue,
+  ProductOptionValueDefinition,
+} from "../../types";
 import type { useCreateProduct } from "./use-create-product";
 
 type CreateProductDetailsProps = {
@@ -26,16 +29,19 @@ type CreateProductDetailsProps = {
 };
 
 export function CreateProductDetails({ state }: CreateProductDetailsProps) {
-  const [optionTitleLocales, setOptionTitleLocales] = useState<Record<string, AdminLocale>>({});
+  const [optionTitleLocales, setOptionTitleLocales] = useState<
+    Record<string, AdminLocale>
+  >({});
   const [titleLocale, setTitleLocale] = useState<AdminLocale>("vi");
   const [subtitleLocale, setSubtitleLocale] = useState<AdminLocale>("vi");
   const [descriptionLocale, setDescriptionLocale] = useState<AdminLocale>("vi");
-  const [attributeLocales, setAttributeLocales] = useState<Record<number, { key: AdminLocale, value: AdminLocale }>>({});
+  const [attributeLocales, setAttributeLocales] = useState<
+    Record<number, { key: AdminLocale; value: AdminLocale }>
+  >({});
 
   const {
     values,
     setValue,
-    errors,
     embeddedCustomization,
     attributes,
     addAttributeRow,
@@ -63,11 +69,17 @@ export function CreateProductDetails({ state }: CreateProductDetailsProps) {
     setOptionTitleLocales((current) => ({ ...current, [optionId]: locale }));
   }
 
-  function getOptionValueTranslations(value: ProductOptionValueDefinition): LocalizedTextValue {
+  function getOptionValueTranslations(
+    value: ProductOptionValueDefinition,
+  ): LocalizedTextValue {
     return value.valueTranslations ?? createLocalizedText(value.value);
   }
 
-  function setAttributeLocale(index: number, field: "key" | "value", locale: AdminLocale) {
+  function setAttributeLocale(
+    index: number,
+    field: "key" | "value",
+    locale: AdminLocale,
+  ) {
     setAttributeLocales((current) => ({
       ...current,
       [index]: {
@@ -98,14 +110,12 @@ export function CreateProductDetails({ state }: CreateProductDetailsProps) {
             placeholder={{ vi: "Ao khoac mua dong", en: "Winter jacket" }}
             requiredLocales={["vi"]}
           />
-          {errors.title ? (
-            <Text size="small" className="text-rose-700">
-              {errors.title}
-            </Text>
-          ) : null}
         </div>
         <div className="space-y-2">
-          <Label htmlFor="product-subtitle" className="flex items-center gap-x-1">
+          <Label
+            htmlFor="product-subtitle"
+            className="flex items-center gap-x-1"
+          >
             Subtitle
             <Text as="span" size="small" className="text-ui-fg-muted">
               (Optional)
@@ -140,20 +150,17 @@ export function CreateProductDetails({ state }: CreateProductDetailsProps) {
               placeholder="winter-jacket"
             />
           </div>
-          {errors.handle ? (
-            <Text size="small" className="text-rose-700">
-              {errors.handle}
-            </Text>
-          ) : (
-            <Text size="small" className="text-ui-fg-subtle">
-              Leave blank to generate it from the title.
-            </Text>
-          )}
+          <Text size="small" className="text-ui-fg-subtle">
+            Leave blank to generate it from the title.
+          </Text>
         </div>
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="product-description" className="flex items-center gap-x-1">
+        <Label
+          htmlFor="product-description"
+          className="flex items-center gap-x-1"
+        >
           Description
           <Text as="span" size="small" className="text-ui-fg-muted">
             (Optional)
@@ -165,7 +172,10 @@ export function CreateProductDetails({ state }: CreateProductDetailsProps) {
           locale={descriptionLocale}
           onLocaleChange={setDescriptionLocale}
           onChange={(value) => setValue("description", value)}
-          placeholder={{ vi: "Một chiếc áo ấm áp", en: "A warm and cozy jacket" }}
+          placeholder={{
+            vi: "Một chiếc áo ấm áp",
+            en: "A warm and cozy jacket",
+          }}
           requiredLocales={[]}
           multiline
         />
@@ -214,15 +224,14 @@ export function CreateProductDetails({ state }: CreateProductDetailsProps) {
         </div>
         <div className="space-y-3">
           {attributes.map((attribute, index) => (
-            <div
-              key={index}
-              className="grid gap-3 md:grid-cols-[1fr_1fr_auto]"
-            >
+            <div key={index} className="grid gap-3 md:grid-cols-[1fr_1fr_auto]">
               <LocalizedTextField
                 id={`attribute-key-${index}`}
                 value={attribute.key}
                 locale={attributeLocales[index]?.key ?? "vi"}
-                onLocaleChange={(locale) => setAttributeLocale(index, "key", locale)}
+                onLocaleChange={(locale) =>
+                  setAttributeLocale(index, "key", locale)
+                }
                 onChange={(value) => updateAttribute(index, "key", value)}
                 placeholder={{ vi: "Chất liệu", en: "Material" }}
               />
@@ -230,7 +239,9 @@ export function CreateProductDetails({ state }: CreateProductDetailsProps) {
                 id={`attribute-value-${index}`}
                 value={attribute.value}
                 locale={attributeLocales[index]?.value ?? "vi"}
-                onLocaleChange={(locale) => setAttributeLocale(index, "value", locale)}
+                onLocaleChange={(locale) =>
+                  setAttributeLocale(index, "value", locale)
+                }
                 onChange={(value) => updateAttribute(index, "value", value)}
                 placeholder={{ vi: "Cotton", en: "Cotton blend" }}
               />
@@ -244,9 +255,6 @@ export function CreateProductDetails({ state }: CreateProductDetailsProps) {
               </Button>
             </div>
           ))}
-          {errors.attributes ? (
-            <InlineError message={errors.attributes} />
-          ) : null}
         </div>
       </div>
 
@@ -306,134 +314,149 @@ export function CreateProductDetails({ state }: CreateProductDetailsProps) {
           <div className="space-y-4">
             {optionDefinitions.map((option) => {
               const optionTitleLocale = getOptionTitleLocale(option.id);
-              const optionTitleTranslations = option.titleTranslations ?? createLocalizedText(option.title);
+              const optionTitleTranslations =
+                option.titleTranslations ?? createLocalizedText(option.title);
 
               return (
-              <div
-                key={option.id}
-                className="rounded-xl border border-ui-border-base p-4"
-              >
-                <div className="grid gap-4 lg:grid-cols-[84px_minmax(0,1fr)_32px]">
-                  <div className="space-y-6 pt-2">
-                    <Text weight="plus" size="small">
-                      Title
-                    </Text>
-                    <Text weight="plus" size="small">
-                      Values
-                    </Text>
-                  </div>
-                  <div className="space-y-3">
-                    <LocalizedTextField
-                      id={`option-${option.id}-title`}
-                      value={optionTitleTranslations}
-                      locale={optionTitleLocale}
-                      onLocaleChange={(locale) => setOptionTitleLocale(option.id, locale)}
-                      onChange={(translations) =>
-                        updateOptionTitleTranslation(
-                          option.id,
-                          optionTitleLocale,
-                          translations[optionTitleLocale],
-                        )
-                      }
-                      placeholder={{
-                        vi: "Mau sac",
-                        en: "Color",
-                      }}
-                    />
-                    <div className="rounded-md border border-ui-border-base bg-ui-bg-field px-3 py-2 shadow-buttons-neutral">
-                      <div className="flex flex-wrap gap-2">
-                        {option.values.map((value) => {
-                          const valueTranslations = getOptionValueTranslations(value);
-                          const missingLocales = getMissingLocalizedTextLocales(valueTranslations);
+                <div
+                  key={option.id}
+                  className="rounded-xl border border-ui-border-base p-4"
+                >
+                  <div className="grid gap-4 lg:grid-cols-[84px_minmax(0,1fr)_32px]">
+                    <div className="space-y-6 pt-2">
+                      <Text weight="plus" size="small">
+                        Title
+                      </Text>
+                      <Text weight="plus" size="small">
+                        Values
+                      </Text>
+                    </div>
+                    <div className="space-y-3">
+                      <LocalizedTextField
+                        id={`option-${option.id}-title`}
+                        value={optionTitleTranslations}
+                        locale={optionTitleLocale}
+                        onLocaleChange={(locale) =>
+                          setOptionTitleLocale(option.id, locale)
+                        }
+                        onChange={(translations) =>
+                          updateOptionTitleTranslation(
+                            option.id,
+                            optionTitleLocale,
+                            translations[optionTitleLocale],
+                          )
+                        }
+                        placeholder={{
+                          vi: "Mau sac",
+                          en: "Color",
+                        }}
+                      />
+                      <div className="rounded-md border border-ui-border-base bg-ui-bg-field px-3 py-2 shadow-buttons-neutral">
+                        <div className="flex flex-wrap gap-2">
+                          {option.values.map((value) => {
+                            const valueTranslations =
+                              getOptionValueTranslations(value);
+                            const missingLocales =
+                              getMissingLocalizedTextLocales(valueTranslations);
 
-                          return (
-                          <Badge
-                            key={value.id}
-                            size="xsmall"
-                            color={missingLocales.length > 0 ? "orange" : "blue"}
-                            className="gap-x-1.5 py-1"
-                          >
-                            <input
-                              value={valueTranslations.vi}
-                              onChange={(event) =>
-                                updateOptionValueTranslation(option.id, value.id, {
-                                  ...valueTranslations,
-                                  vi: event.target.value,
-                                })
-                              }
-                              className="min-w-[2ch] max-w-[16ch] bg-transparent text-xs outline-none placeholder:text-ui-fg-muted"
-                              style={{ width: `${Math.max(valueTranslations.vi.length, 2)}ch` }}
-                              placeholder="__"
-                              aria-label="Vietnamese option value"
-                            />
-                            <span className="text-ui-fg-muted">/</span>
-                            <input
-                              value={valueTranslations.en}
-                              onChange={(event) =>
-                                updateOptionValueTranslation(option.id, value.id, {
-                                  ...valueTranslations,
-                                  en: event.target.value,
-                                })
-                              }
-                              className="min-w-[2ch] max-w-[16ch] bg-transparent text-xs outline-none placeholder:text-ui-fg-muted"
-                              style={{ width: `${Math.max(valueTranslations.en.length, 2)}ch` }}
-                              placeholder="__"
-                              aria-label="English option value"
-                            />
-                            <button
-                              type="button"
-                              className="inline-flex"
-                              onClick={() =>
-                                removeOptionValue(option.id, value.id)
-                              }
-                              aria-label="Remove option value"
-                            >
-                              <X className="size-3" />
-                            </button>
-                          </Badge>
-                          );
-                        })}
-                        <input
-                          value={optionValueDrafts[option.id] ?? ""}
-                          onChange={(event) =>
-                            setOptionDraftValue(option.id, event.target.value)
-                          }
-                          onBlur={() => appendOptionValue(option.id)}
-                          onKeyDown={(event) => {
-                            if (event.key === "Enter" || event.key === ",") {
-                              event.preventDefault();
-                              appendOptionValue(option.id, "vi");
+                            return (
+                              <Badge
+                                key={value.id}
+                                size="xsmall"
+                                color={
+                                  missingLocales.length > 0 ? "orange" : "blue"
+                                }
+                                className="gap-x-1.5 py-1"
+                              >
+                                <input
+                                  value={valueTranslations.vi}
+                                  onChange={(event) =>
+                                    updateOptionValueTranslation(
+                                      option.id,
+                                      value.id,
+                                      {
+                                        ...valueTranslations,
+                                        vi: event.target.value,
+                                      },
+                                    )
+                                  }
+                                  className="min-w-[2ch] max-w-[16ch] bg-transparent text-xs outline-none placeholder:text-ui-fg-muted"
+                                  style={{
+                                    width: `${Math.max(valueTranslations.vi.length, 2)}ch`,
+                                  }}
+                                  placeholder="__"
+                                  aria-label="Vietnamese option value"
+                                />
+                                <span className="text-ui-fg-muted">/</span>
+                                <input
+                                  value={valueTranslations.en}
+                                  onChange={(event) =>
+                                    updateOptionValueTranslation(
+                                      option.id,
+                                      value.id,
+                                      {
+                                        ...valueTranslations,
+                                        en: event.target.value,
+                                      },
+                                    )
+                                  }
+                                  className="min-w-[2ch] max-w-[16ch] bg-transparent text-xs outline-none placeholder:text-ui-fg-muted"
+                                  style={{
+                                    width: `${Math.max(valueTranslations.en.length, 2)}ch`,
+                                  }}
+                                  placeholder="__"
+                                  aria-label="English option value"
+                                />
+                                <button
+                                  type="button"
+                                  className="inline-flex"
+                                  onClick={() =>
+                                    removeOptionValue(option.id, value.id)
+                                  }
+                                  aria-label="Remove option value"
+                                >
+                                  <X className="size-3" />
+                                </button>
+                              </Badge>
+                            );
+                          })}
+                          <input
+                            value={optionValueDrafts[option.id] ?? ""}
+                            onChange={(event) =>
+                              setOptionDraftValue(option.id, event.target.value)
                             }
-                          }}
-                          className="min-w-[180px] flex-1 border-0 bg-transparent text-sm outline-none placeholder:text-ui-fg-muted"
-                          placeholder={
-                            option.values.length > 0
-                              ? "Add another value"
-                              : "Red, Blue, Green"
-                          }
-                        />
+                            onBlur={() => appendOptionValue(option.id)}
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter" || event.key === ",") {
+                                event.preventDefault();
+                                appendOptionValue(option.id, "vi");
+                              }
+                            }}
+                            className="min-w-[180px] flex-1 border-0 bg-transparent text-sm outline-none placeholder:text-ui-fg-muted"
+                            placeholder={
+                              option.values.length > 0
+                                ? "Add another value"
+                                : "Red, Blue, Green"
+                            }
+                          />
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <div className="flex justify-end pt-1">
-                    <button
-                      type="button"
-                      onClick={() => removeOptionDefinition(option.id)}
-                      className="text-ui-fg-muted transition hover:text-ui-fg-base"
-                      aria-label="Remove option"
-                    >
-                      <X className="size-5" />
-                    </button>
+                    <div className="flex justify-end pt-1">
+                      <button
+                        type="button"
+                        onClick={() => removeOptionDefinition(option.id)}
+                        className="text-ui-fg-muted transition hover:text-ui-fg-base"
+                        aria-label="Remove option"
+                      >
+                        <X className="size-5" />
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
               );
             })}
           </div>
-
-          {errors.optionDefinitions ? (
-            <InlineError message={errors.optionDefinitions} />
-          ) : null}
 
           <div>
             <Heading level="h3">Product variants</Heading>

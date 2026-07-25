@@ -26,7 +26,6 @@ import {
 } from "lucide-react";
 import { DropdownMenu } from "@medusajs/ui";
 import { MediaPreview } from "../../components/ui/media-preview";
-import { InlineError } from "../../components/ui/medusa/inline-error";
 import {
   LocalizedTextField,
   createLocalizedText,
@@ -129,9 +128,6 @@ export function ProductDetailVariants({ product, mutate }: ProductDetailVariants
   const [variantTitleLocale, setVariantTitleLocale] = useState<AdminLocale>("vi");
   const [variantAttributeLocale, setVariantAttributeLocale] = useState<AdminLocale>("vi");
 
-  const [priceError, setPriceError] = useState<string | null>(null);
-  const [stockError, setStockError] = useState<string | null>(null);
-  const [variantError, setVariantError] = useState<string | null>(null);
 
   const [isSavingPrices, setIsSavingPrices] = useState(false);
   const [isSavingStock, setIsSavingStock] = useState(false);
@@ -149,7 +145,6 @@ export function ProductDetailVariants({ product, mutate }: ProductDetailVariants
         priceAmount: variant.price > 0 ? String(variant.price) : "",
       })),
     );
-    setPriceError(null);
     setPriceOpen(true);
   }
 
@@ -161,7 +156,6 @@ export function ProductDetailVariants({ product, mutate }: ProductDetailVariants
         inventoryQuantity: String(variant.inventory),
       })),
     );
-    setStockError(null);
     setStockOpen(true);
   }
 
@@ -169,7 +163,6 @@ export function ProductDetailVariants({ product, mutate }: ProductDetailVariants
     setVariantForm(buildVariantForm(product, variant));
     setVariantTitleLocale("vi");
     setVariantAttributeLocale("vi");
-    setVariantError(null);
     setVariantOpen(true);
   }
 
@@ -190,7 +183,6 @@ export function ProductDetailVariants({ product, mutate }: ProductDetailVariants
 
   async function savePrices() {
     setIsSavingPrices(true);
-    setPriceError(null);
 
     try {
       await updateProductVariantPrices(
@@ -204,8 +196,9 @@ export function ProductDetailVariants({ product, mutate }: ProductDetailVariants
       setPriceOpen(false);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to save price changes.";
-      setPriceError(message);
-      toast.error(message);
+      toast.error("Variant prices could not be saved", {
+        description: `${message} Enter a valid non-negative price for each variant, then try again.`,
+      });
     } finally {
       setIsSavingPrices(false);
     }
@@ -213,7 +206,6 @@ export function ProductDetailVariants({ product, mutate }: ProductDetailVariants
 
   async function saveStock() {
     setIsSavingStock(true);
-    setStockError(null);
 
     try {
       await updateProductVariantStock(
@@ -227,8 +219,9 @@ export function ProductDetailVariants({ product, mutate }: ProductDetailVariants
       setStockOpen(false);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to save stock changes.";
-      setStockError(message);
-      toast.error(message);
+      toast.error("Variant stock could not be saved", {
+        description: `${message} Enter a whole number greater than or equal to zero for each variant, then try again.`,
+      });
     } finally {
       setIsSavingStock(false);
     }
@@ -236,7 +229,6 @@ export function ProductDetailVariants({ product, mutate }: ProductDetailVariants
 
   async function saveVariant() {
     setIsSavingVariant(true);
-    setVariantError(null);
 
     try {
       if (!variantForm.titleTranslations.vi.trim()) {
@@ -330,8 +322,9 @@ export function ProductDetailVariants({ product, mutate }: ProductDetailVariants
       setVariantOpen(false);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to save variant details.";
-      setVariantError(message);
-      toast.error(message);
+      toast.error("Variant details could not be saved", {
+        description: `${message} Complete the variant title, option values, attributes, price, and inventory fields, then try again.`,
+      });
     } finally {
       setIsSavingVariant(false);
     }
@@ -343,7 +336,6 @@ export function ProductDetailVariants({ product, mutate }: ProductDetailVariants
     }
 
     setIsUploadingVariantMedia(true);
-    setVariantError(null);
 
     try {
       const uploadedAssets = await Promise.all(
@@ -370,8 +362,9 @@ export function ProductDetailVariants({ product, mutate }: ProductDetailVariants
       }));
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to upload variant media.";
-      setVariantError(message);
-      toast.error(message);
+      toast.error("Variant media could not be uploaded", {
+        description: `${message} Choose a supported image or PDF file and try again.`,
+      });
     } finally {
       setIsUploadingVariantMedia(false);
     }
@@ -382,7 +375,6 @@ export function ProductDetailVariants({ product, mutate }: ProductDetailVariants
     if (!file) return;
 
     setIsUploadingVariantMedia(true);
-    setVariantError(null);
     try {
       let fileToUpload = file;
       if (file.type === "application/pdf") {
@@ -400,8 +392,9 @@ export function ProductDetailVariants({ product, mutate }: ProductDetailVariants
       }));
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to upload customization media.";
-      setVariantError(message);
-      toast.error(message);
+      toast.error("Customization media could not be uploaded", {
+        description: `${message} Choose a supported image or PDF file and try again.`,
+      });
     } finally {
       setIsUploadingVariantMedia(false);
     }
@@ -417,8 +410,9 @@ export function ProductDetailVariants({ product, mutate }: ProductDetailVariants
       await mutate();
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to delete variant.";
-      setVariantError(message);
-      toast.error(message);
+      toast.error("Variant could not be deleted", {
+        description: `${message} Refresh the product and try again.`,
+      });
     }
   }
 
@@ -564,7 +558,6 @@ export function ProductDetailVariants({ product, mutate }: ProductDetailVariants
             <Drawer.Title>Edit prices</Drawer.Title>
           </Drawer.Header>
           <Drawer.Body className="flex flex-col gap-y-4 overflow-y-auto">
-            {priceError ? <InlineError message={priceError} /> : null}
             {priceRows.map((row, index) => (
               <div key={row.id} className="grid gap-3 md:grid-cols-[1fr_180px]">
                 <div className="flex items-center">
@@ -606,7 +599,6 @@ export function ProductDetailVariants({ product, mutate }: ProductDetailVariants
             <Drawer.Title>Edit stock</Drawer.Title>
           </Drawer.Header>
           <Drawer.Body className="flex flex-col gap-y-4 overflow-y-auto">
-            {stockError ? <InlineError message={stockError} /> : null}
             {stockRows.map((row, index) => (
               <div key={row.id} className="grid gap-3 md:grid-cols-[1fr_180px]">
                 <div className="flex items-center">
@@ -650,7 +642,6 @@ export function ProductDetailVariants({ product, mutate }: ProductDetailVariants
           </FocusModal.Header>
           <FocusModal.Body className="overflow-y-auto px-6 py-8">
             <div className="mx-auto flex w-full max-w-[760px] flex-col gap-8">
-              {variantError ? <InlineError message={variantError} /> : null}
 
               <section className="space-y-4">
                 <div>

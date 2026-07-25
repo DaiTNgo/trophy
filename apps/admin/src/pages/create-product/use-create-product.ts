@@ -13,10 +13,16 @@ import {
   resolveSelectedPreviewBackground,
   type EmbeddedCustomizationDraft,
 } from "../create-product-helpers";
-import { fetchProductMetadata, type ProductMetadataSnapshot } from "../../lib/product-metadata-client";
+import {
+  fetchProductMetadata,
+  type ProductMetadataSnapshot,
+} from "../../lib/product-metadata-client";
 import { convertPdfToImageFile } from "../../lib/pdf-preview";
 import { uploadProductVariantMedia } from "../../lib/product-assets-client";
-import { createFullProduct, mapApiProductToCatalogProduct } from "../../lib/products-client";
+import {
+  createFullProduct,
+  mapApiProductToCatalogProduct,
+} from "../../lib/products-client";
 import {
   createEmptyOptionDefinition,
   createOptionValueDefinition,
@@ -39,7 +45,11 @@ import type {
   LocalizedTextValue,
 } from "../../types";
 
-export type CreateProductStep = "details" | "organize" | "variants" | "customization";
+export type CreateProductStep =
+  | "details"
+  | "organize"
+  | "variants"
+  | "customization";
 
 export const defaultCreateProductValues: CreateProductFormValues = {
   title: { vi: "", en: "" },
@@ -59,21 +69,62 @@ export const defaultCreateProductValues: CreateProductFormValues = {
   optionValuesTwo: "",
 };
 
-export function buildVariantSignature(options: { option: string; value: string }[]) {
+export function buildVariantSignature(
+  options: { option: string; value: string }[],
+) {
   if (options.length === 0) {
     return "__default__";
   }
-  return options
-    .map((option) => `${option.option}:${option.value}`)
-    .join("|");
+  return options.map((option) => `${option.option}:${option.value}`).join("|");
 }
 
 function hasLocalizedTextValue(value: LocalizedTextValue) {
   return Object.values(value).some((localeValue) => localeValue.trim() !== "");
 }
 
-function getFirstErrorMessage(errors: CreateProductErrors) {
-  return Object.values(errors).find((message): message is string => Boolean(message)) ?? "Unable to save product.";
+const validationErrorGuidance: Partial<
+  Record<keyof CreateProductErrors, string>
+> = {
+  title: "Enter a Vietnamese product title in Details.",
+  handle:
+    "Use a different handle in Details, or leave it blank to generate one from the title.",
+  attributes:
+    "In Details, complete both the name and value for every attribute row, or remove empty rows.",
+  optionDefinitions:
+    "In Details, add a product option with a title and at least one unique value.",
+  variants:
+    "Open Variants, select at least one variant to create, and fix the variant values shown in the table.",
+  publish:
+    "Open Variants and make sure every created variant has a positive price and valid options before publishing.",
+  form: "Review the current step for missing required information.",
+};
+
+function getValidationToastDescription(errors: CreateProductErrors) {
+  const sections: Record<string, string> = {
+    title: "Details",
+    handle: "Details",
+    attributes: "Details",
+    optionDefinitions: "Details",
+    variants: "Variants",
+    publish: "Variants",
+    form: "Product",
+  };
+
+  return Object.entries(errors)
+    .filter((entry): entry is [keyof CreateProductErrors, string] =>
+      Boolean(entry[1]),
+    )
+    .map(
+      ([key, message]) =>
+        `${sections[key] ?? "Product"}: ${message} ${validationErrorGuidance[key] ?? "Review this section and try again."}`,
+    )
+    .join("\n");
+}
+
+function showValidationErrorToast(errors: CreateProductErrors) {
+  toast.error("Product cannot be saved yet", {
+    description: getValidationToastDescription(errors),
+  });
 }
 
 export function useCreateProduct() {
@@ -85,21 +136,22 @@ export function useCreateProduct() {
     collections: [],
     categories: [],
   });
-  const [metadataError, setMetadataError] = useState<string | null>(null);
   const [isLoadingMetadata, setIsLoadingMetadata] = useState(true);
   const [values, setValues] = useState<CreateProductFormValues>(
     defaultCreateProductValues,
   );
   const [selectedCollectionId, setSelectedCollectionId] = useState<string>("");
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
-  const [selectedPreviewAssetId, setSelectedPreviewAssetId] = useState<string | null>(null);
-  const [embeddedCustomization, setEmbeddedCustomization] = useState<EmbeddedCustomizationDraft>(
-    () => createEmptyEmbeddedCustomizationDraft(),
-  );
+  const [selectedPreviewAssetId, setSelectedPreviewAssetId] = useState<
+    string | null
+  >(null);
+  const [embeddedCustomization, setEmbeddedCustomization] =
+    useState<EmbeddedCustomizationDraft>(() =>
+      createEmptyEmbeddedCustomizationDraft(),
+    );
   const [attributes, setAttributes] = useState<ProductAttribute[]>([
     { key: { vi: "", en: "" }, value: { vi: "", en: "" } },
   ]);
-  const [errors, setErrors] = useState<CreateProductErrors>({});
   const [optionDefinitions, setOptionDefinitions] = useState<
     ProductOptionDefinition[]
   >([]);
@@ -109,12 +161,6 @@ export function useCreateProduct() {
   const [activeStep, setActiveStep] = useState<CreateProductStep>("details");
   const [variantRows, setVariantRows] = useState<ProductVariant[]>(() =>
     reconcileVariantRows([], defaultCreateProductValues, []),
-  );
-  const [variantMediaError, setVariantMediaError] = useState<string | null>(
-    null,
-  );
-  const [customizationTabError, setCustomizationTabError] = useState<string | null>(
-    null,
   );
   const [processingVariantKeys, setProcessingVariantKeys] = useState<string[]>(
     [],
@@ -127,7 +173,9 @@ export function useCreateProduct() {
   } | null>(null);
 
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
-  const customizationFileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const customizationFileInputRefs = useRef<
+    Record<string, HTMLInputElement | null>
+  >({});
   const [showColumns, setShowColumns] = useState({
     sku: true,
     media: true,
@@ -155,20 +203,21 @@ export function useCreateProduct() {
 
   const createdVariantRows = useMemo(
     () => effectiveVariantRows.filter((variant) => variant.shouldCreate),
-    [effectiveVariantRows]
+    [effectiveVariantRows],
   );
 
   const previewBackgrounds = useMemo(
     () => getPreviewBackgrounds(createdVariantRows),
-    [createdVariantRows]
+    [createdVariantRows],
   );
 
   const selectedPreviewBackground = useMemo(
-    () => resolveSelectedPreviewBackground({
-      backgrounds: previewBackgrounds,
-      selectedAssetId: selectedPreviewAssetId,
-    }),
-    [previewBackgrounds, selectedPreviewAssetId]
+    () =>
+      resolveSelectedPreviewBackground({
+        backgrounds: previewBackgrounds,
+        selectedAssetId: selectedPreviewAssetId,
+      }),
+    [previewBackgrounds, selectedPreviewAssetId],
   );
 
   const dynamicFonts = fonts.map((font) => ({
@@ -187,7 +236,8 @@ export function useCreateProduct() {
 
   const embeddedEditor = useEmbeddedProductCustomizationEditor({
     productTitle: values.title.vi,
-    productId: values.handle.trim() || slugify(values.title.vi || "new-product"),
+    productId:
+      values.handle.trim() || slugify(values.title.vi || "new-product"),
     background: selectedPreviewBackground,
     draft: embeddedCustomization,
     onDraftChange: setEmbeddedCustomization,
@@ -198,8 +248,6 @@ export function useCreateProduct() {
 
     async function loadMetadata() {
       setIsLoadingMetadata(true);
-      setMetadataError(null);
-
       try {
         const nextMetadata = await fetchProductMetadata();
         if (!active) {
@@ -210,9 +258,9 @@ export function useCreateProduct() {
         if (!active) {
           return;
         }
-        setMetadataError(
-          error instanceof Error ? error.message : "Unable to load product metadata.",
-        );
+        toast.error("Product organization is unavailable", {
+          description: `${error instanceof Error ? error.message : "Unable to load collections and categories."} Refresh the page and try again before saving the product.`,
+        });
       } finally {
         if (active) {
           setIsLoadingMetadata(false);
@@ -235,7 +283,12 @@ export function useCreateProduct() {
       return;
     }
 
-    if (!selectedPreviewAssetId || !previewBackgrounds.some((asset) => asset.assetId === selectedPreviewAssetId)) {
+    if (
+      !selectedPreviewAssetId ||
+      !previewBackgrounds.some(
+        (asset) => asset.assetId === selectedPreviewAssetId,
+      )
+    ) {
       setSelectedPreviewAssetId(previewBackgrounds[0].assetId);
     }
   }, [previewBackgrounds, selectedPreviewAssetId]);
@@ -251,12 +304,6 @@ export function useCreateProduct() {
       setActiveStep("variants");
     }
   }, [activeStep, values.customizationEnabled]);
-
-  useEffect(() => {
-    if (customizationTabRequirement.ready) {
-      setCustomizationTabError(null);
-    }
-  }, [customizationTabRequirement.ready]);
 
   useEffect(() => {
     if (!values.customizationEnabled || !customizationTabRequirement.ready) {
@@ -282,7 +329,11 @@ export function useCreateProduct() {
         canvasHeightPx: current.canvasHeightPx ?? firstMedia.heightPx,
       };
     });
-  }, [createdVariantRows, customizationTabRequirement.ready, values.customizationEnabled]);
+  }, [
+    createdVariantRows,
+    customizationTabRequirement.ready,
+    values.customizationEnabled,
+  ]);
 
   const pendingBlobUrls = useRef(new Set<string>());
 
@@ -322,17 +373,16 @@ export function useCreateProduct() {
   }
 
   function addAttributeRow() {
-    setAttributes((current) => [...current, { key: { vi: "", en: "" }, value: { vi: "", en: "" } }]);
+    setAttributes((current) => [
+      ...current,
+      { key: { vi: "", en: "" }, value: { vi: "", en: "" } },
+    ]);
   }
 
   function removeAttributeRow(index: number) {
     setAttributes((current) =>
       current.filter((_, currentIndex) => currentIndex !== index),
     );
-  }
-
-  function clearErrors() {
-    setErrors({});
   }
 
   function getStepErrors(
@@ -355,14 +405,14 @@ export function useCreateProduct() {
 
   function goToStep(step: CreateProductStep) {
     if (step === "customization" && !customizationTabRequirement.ready) {
-      setCustomizationTabError(customizationTabRequirement.message);
+      toast.error("Customization cannot be opened yet", {
+        description: `${customizationTabRequirement.message} Return to Variants and complete the required media setup, then try again.`,
+      });
       setActiveStep("variants");
       return;
     }
 
-    setCustomizationTabError(null);
     setActiveStep(step);
-    clearErrors();
   }
 
   function continueToNextStep() {
@@ -377,7 +427,7 @@ export function useCreateProduct() {
     const scopedErrors = getStepErrors(activeStep, validationErrors);
 
     if (Object.keys(scopedErrors).length > 0) {
-      setErrors(scopedErrors);
+      showValidationErrorToast(scopedErrors);
       return;
     }
 
@@ -387,13 +437,13 @@ export function useCreateProduct() {
     }
 
     if (nextStep === "customization" && !customizationTabRequirement.ready) {
-      setCustomizationTabError(customizationTabRequirement.message);
+      toast.error("Customization cannot be opened yet", {
+        description: `${customizationTabRequirement.message} Return to Variants and complete the required media setup, then try again.`,
+      });
       setActiveStep("variants");
       return;
     }
 
-    setCustomizationTabError(null);
-    clearErrors();
     setActiveStep(nextStep);
   }
 
@@ -408,12 +458,10 @@ export function useCreateProduct() {
     });
 
     if (Object.keys(nextErrors).length > 0) {
-      setErrors(nextErrors);
-      toast.error(getFirstErrorMessage(nextErrors));
+      showValidationErrorToast(nextErrors);
       return;
     }
 
-    setVariantMediaError(null);
     setIsSubmittingMedia(true);
 
     try {
@@ -422,12 +470,22 @@ export function useCreateProduct() {
         optionDefinitions,
       )
         .map((option) => ({
-          title: option.titleTranslations ?? { vi: option.title.trim(), en: "" },
-          values: option.values.filter(v => v.value.trim() !== "").map((value) => ({
-            value: value.valueTranslations ?? { vi: value.value.trim(), en: "" }
-          })),
+          title: option.titleTranslations ?? {
+            vi: option.title.trim(),
+            en: "",
+          },
+          values: option.values
+            .filter((v) => v.value.trim() !== "")
+            .map((value) => ({
+              value: value.valueTranslations ?? {
+                vi: value.value.trim(),
+                en: "",
+              },
+            })),
         }))
-        .filter((option) => option.title.vi.trim() !== "" && option.values.length > 0);
+        .filter(
+          (option) => option.title.vi.trim() !== "" && option.values.length > 0,
+        );
       const submittedOptions =
         enabledOptionDefinitions.length > 0
           ? enabledOptionDefinitions
@@ -459,12 +517,19 @@ export function useCreateProduct() {
                 };
               }
 
-              const uploaded = await uploadProductVariantMedia(media.file, media.widthPx, media.heightPx);
+              const uploaded = await uploadProductVariantMedia(
+                media.file,
+                media.widthPx,
+                media.heightPx,
+              );
               return uploaded;
             }),
           );
           let uploadedCustomizationMedia = variant.customizationMedia;
-          if (uploadedCustomizationMedia?.isPending && uploadedCustomizationMedia.file) {
+          if (
+            uploadedCustomizationMedia?.isPending &&
+            uploadedCustomizationMedia.file
+          ) {
             uploadedCustomizationMedia = await uploadProductVariantMedia(
               uploadedCustomizationMedia.file,
               uploadedCustomizationMedia.widthPx,
@@ -485,8 +550,13 @@ export function useCreateProduct() {
         .map((variant, index) => ({
           title: variant.title,
           sku: variant.sku.trim() || null,
-          priceAmount: Number.isFinite(variant.price) && variant.price > 0 ? variant.price : null,
-          inventoryQuantity: Number.isFinite(variant.inventory) ? variant.inventory : 0,
+          priceAmount:
+            Number.isFinite(variant.price) && variant.price > 0
+              ? variant.price
+              : null,
+          inventoryQuantity: Number.isFinite(variant.inventory)
+            ? variant.inventory
+            : 0,
           allowBackorder: variant.allowBackorder,
           isDefault: index === 0,
           optionValues: variant.options.map((option) => ({
@@ -501,19 +571,29 @@ export function useCreateProduct() {
       const submittedDetails = {
         title: values.title,
         handle: values.handle.trim() || null,
-        ...(hasLocalizedTextValue(values.subtitle) ? { subtitle: values.subtitle } : {}),
-        ...(hasLocalizedTextValue(values.description) ? { description: values.description } : {}),
+        ...(hasLocalizedTextValue(values.subtitle)
+          ? { subtitle: values.subtitle }
+          : {}),
+        ...(hasLocalizedTextValue(values.description)
+          ? { description: values.description }
+          : {}),
       };
 
       const createdProduct = await createFullProduct({
         mode,
         details: submittedDetails,
         organization: {
-          collectionId: selectedCollectionId ? Number(selectedCollectionId) : null,
+          collectionId: selectedCollectionId
+            ? Number(selectedCollectionId)
+            : null,
           categoryIds: selectedCategoryIds.map((id) => Number(id)),
         },
         attributes: attributes
-          .filter((attribute) => attribute.key.vi.trim() !== "" && attribute.value.vi.trim() !== "")
+          .filter(
+            (attribute) =>
+              attribute.key.vi.trim() !== "" &&
+              attribute.value.vi.trim() !== "",
+          )
           .map((attribute) => ({
             name: attribute.key,
             value: attribute.value,
@@ -527,9 +607,10 @@ export function useCreateProduct() {
         }),
       });
 
-      const nextProduct = createProduct(mapApiProductToCatalogProduct(createdProduct));
+      const nextProduct = createProduct(
+        mapApiProductToCatalogProduct(createdProduct),
+      );
 
-      setErrors({});
       startTransition(() => {
         navigate("/products", {
           replace: true,
@@ -539,11 +620,13 @@ export function useCreateProduct() {
         });
       });
     } catch (error) {
-      const message = error instanceof Error
-        ? error.message
-        : "Unable to upload variant media during save.";
-      setVariantMediaError(message);
-      toast.error(message);
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Unable to upload variant media during save.";
+      toast.error("Product could not be saved", {
+        description: `${message} Check the product details and uploaded media, then try saving again. Your current form values are still here.`,
+      });
     } finally {
       setIsSubmittingMedia(false);
     }
@@ -583,7 +666,11 @@ export function useCreateProduct() {
     );
   }
 
-  function updateOptionTitleTranslation(optionId: string, locale: AdminLocale, nextValue: string) {
+  function updateOptionTitleTranslation(
+    optionId: string,
+    locale: AdminLocale,
+    nextValue: string,
+  ) {
     setOptionDefinitions((current) =>
       current.map((option) => {
         if (option.id !== optionId) {
@@ -627,14 +714,19 @@ export function useCreateProduct() {
 
         const existing = new Set(
           option.values.map((value) => {
-            const translations = value.valueTranslations ?? { vi: value.value, en: "" };
+            const translations = value.valueTranslations ?? {
+              vi: value.value,
+              en: "",
+            };
             return (translations[locale] || value.value).toLowerCase();
           }),
         );
         const appended = nextValues
           .filter((value) => !existing.has(value.toLowerCase()))
           .map((value) => {
-            const nextValue = createOptionValueDefinition(locale === "vi" ? value : "");
+            const nextValue = createOptionValueDefinition(
+              locale === "vi" ? value : "",
+            );
             return {
               ...nextValue,
               value: locale === "vi" ? value : "",
@@ -753,14 +845,22 @@ export function useCreateProduct() {
       return;
     }
 
-    setVariantMediaError(null);
     setProcessingVariantKeys((current) => [...current, variantSignature]);
 
     try {
       const stagedAssets = await Promise.all(
         Array.from(files).map(async (file) => {
-          if (!["image/png", "image/jpeg", "image/webp", "application/pdf"].includes(file.type)) {
-            throw new Error("Only PNG, JPEG, WebP, and PDF product assets are supported.");
+          if (
+            ![
+              "image/png",
+              "image/jpeg",
+              "image/webp",
+              "application/pdf",
+            ].includes(file.type)
+          ) {
+            throw new Error(
+              "Only PNG, JPEG, WebP, and PDF product assets are supported.",
+            );
           }
 
           let fileToProcess = file;
@@ -805,11 +905,9 @@ export function useCreateProduct() {
         ...stagedAssets,
       ]);
     } catch (error) {
-      setVariantMediaError(
-        error instanceof Error
-          ? error.message
-          : "Unable to upload variant media.",
-      );
+      toast.error("Variant media could not be uploaded", {
+        description: `${error instanceof Error ? error.message : "Unable to upload variant media."} Choose a supported PNG, JPEG, WebP, or PDF file and try again.`,
+      });
     } finally {
       setProcessingVariantKeys((current) =>
         current.filter((key) => key !== variantSignature),
@@ -824,30 +922,51 @@ export function useCreateProduct() {
     const file = files?.[0];
     if (!file) return;
 
-    setVariantMediaError(null);
     setProcessingVariantKeys((current) => [...current, variantSignature]);
 
     try {
-      if (!["image/png", "image/jpeg", "image/webp", "application/pdf"].includes(file.type)) {
-        throw new Error("Only PNG, JPEG, WebP, and PDF product assets are supported.");
+      if (
+        !["image/png", "image/jpeg", "image/webp", "application/pdf"].includes(
+          file.type,
+        )
+      ) {
+        throw new Error(
+          "Only PNG, JPEG, WebP, and PDF product assets are supported.",
+        );
       }
-      const fileToProcess = file.type === "application/pdf" ? await convertPdfToImageFile(file) : file;
+      const fileToProcess =
+        file.type === "application/pdf"
+          ? await convertPdfToImageFile(file)
+          : file;
       const objectUrl = URL.createObjectURL(fileToProcess);
-      const dimensions = await new Promise<{ width: number; height: number }>((resolve, reject) => {
-        const image = new Image();
-        image.onload = () => resolve({ width: image.naturalWidth, height: image.naturalHeight });
-        image.onerror = () => reject(new Error("Unable to read image dimensions."));
-        image.src = objectUrl;
-      });
+      const dimensions = await new Promise<{ width: number; height: number }>(
+        (resolve, reject) => {
+          const image = new Image();
+          image.onload = () =>
+            resolve({ width: image.naturalWidth, height: image.naturalHeight });
+          image.onerror = () =>
+            reject(new Error("Unable to read image dimensions."));
+          image.src = objectUrl;
+        },
+      );
       const expected = effectiveVariantRows.find(
-        (variant) => buildVariantSignature(variant.options) !== variantSignature && variant.customizationMedia,
+        (variant) =>
+          buildVariantSignature(variant.options) !== variantSignature &&
+          variant.customizationMedia,
       )?.customizationMedia;
-      if (expected && (expected.widthPx !== dimensions.width || expected.heightPx !== dimensions.height)) {
+      if (
+        expected &&
+        (expected.widthPx !== dimensions.width ||
+          expected.heightPx !== dimensions.height)
+      ) {
         URL.revokeObjectURL(objectUrl);
-        throw new Error(`Customization Media must be ${expected.widthPx} x ${expected.heightPx} px.`);
+        throw new Error(
+          `Customization Media must be ${expected.widthPx} x ${expected.heightPx} px.`,
+        );
       }
       const previous = effectiveVariantRows.find(
-        (variant) => buildVariantSignature(variant.options) === variantSignature,
+        (variant) =>
+          buildVariantSignature(variant.options) === variantSignature,
       )?.customizationMedia;
       if (previous?.isPending) URL.revokeObjectURL(previous.contentUrl);
       updateVariantCustomizationMedia(variantSignature, {
@@ -862,9 +981,13 @@ export function useCreateProduct() {
         isPending: true,
       });
     } catch (error) {
-      setVariantMediaError(error instanceof Error ? error.message : "Unable to upload Customization Media.");
+      toast.error("Customization Media could not be uploaded", {
+        description: `${error instanceof Error ? error.message : "Unable to upload Customization Media."} Upload one image for every created variant and keep all dimensions identical.`,
+      });
     } finally {
-      setProcessingVariantKeys((current) => current.filter((key) => key !== variantSignature));
+      setProcessingVariantKeys((current) =>
+        current.filter((key) => key !== variantSignature),
+      );
     }
   }
 
@@ -872,8 +995,6 @@ export function useCreateProduct() {
     variantSignature: string,
     assetId: string,
   ) {
-    setVariantMediaError(null);
-
     try {
       updateVariantMedia(variantSignature, (currentMedia) => {
         const target = currentMedia.find((asset) => asset.id === assetId);
@@ -884,11 +1005,9 @@ export function useCreateProduct() {
         return currentMedia.filter((asset) => asset.id !== assetId);
       });
     } catch (error) {
-      setVariantMediaError(
-        error instanceof Error
-          ? error.message
-          : "Unable to delete variant media.",
-      );
+      toast.error("Variant media could not be removed", {
+        description: `${error instanceof Error ? error.message : "Unable to delete variant media."} Try removing the file again, then save the product.`,
+      });
     }
   }
 
@@ -947,7 +1066,6 @@ export function useCreateProduct() {
   return {
     // State
     metadata,
-    metadataError,
     isLoadingMetadata,
     values,
     selectedCollectionId,
@@ -955,20 +1073,17 @@ export function useCreateProduct() {
     selectedPreviewAssetId,
     embeddedCustomization,
     attributes,
-    errors,
     optionDefinitions,
     optionValueDrafts,
     activeStep,
     variantRows,
-    variantMediaError,
-    customizationTabError,
     processingVariantKeys,
     isSubmittingMedia,
     variantGallery,
     fileInputRefs,
     customizationFileInputRefs,
     showColumns,
-    
+
     // Computed
     stepOrder,
     activeStepIndex,
@@ -981,7 +1096,7 @@ export function useCreateProduct() {
     dynamicFonts,
     customizationTabRequirement,
     embeddedEditor,
-    
+
     // Actions
     setValues,
     setValue,
@@ -993,8 +1108,6 @@ export function useCreateProduct() {
     updateAttribute,
     addAttributeRow,
     removeAttributeRow,
-    setErrors,
-    clearErrors,
     setOptionDefinitions,
     addOptionDefinition,
     removeOptionDefinition,
@@ -1018,7 +1131,6 @@ export function useCreateProduct() {
     handleVariantMediaUpload,
     handleCustomizationMediaUpload,
     handleDeleteVariantMedia,
-    setVariantMediaError,
     setProcessingVariantKeys,
     setIsSubmittingMedia,
     setVariantGallery,

@@ -5,7 +5,6 @@ import type { CatalogProduct } from "../../types";
 import { updateProductMedia } from "../../lib/products-client";
 import { uploadProductVariantMedia } from "../../lib/product-assets-client";
 import { MediaPreview } from "../../components/ui/media-preview";
-import { InlineError } from "../../components/ui/medusa/inline-error";
 import { convertPdfToImageFile } from "../../lib/pdf-preview";
 
 const MAX_THUMBNAIL_COUNT = 10;
@@ -138,7 +137,6 @@ export function ProductDetailThumbnail({ product, mutate }: ProductDetailThumbna
   const [open, setOpen] = useState(false);
   const [thumbnails, setThumbnails] = useState<ThumbnailItem[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [selectedIndexes, setSelectedIndexes] = useState<number[]>([]);
   const [thumbnailIndex, setThumbnailIndex] = useState<number>(0);
   const [galleryOpen, setGalleryOpen] = useState(false);
@@ -210,7 +208,6 @@ export function ProductDetailThumbnail({ product, mutate }: ProductDetailThumbna
           mimeType: media.mimeType,
         }))
       );
-      setError(null);
     } else {
       // Cleanup Object URLs on close
       thumbnails.forEach(t => {
@@ -230,7 +227,6 @@ export function ProductDetailThumbnail({ product, mutate }: ProductDetailThumbna
     if (files.length === 0) return;
     if (thumbnails.length >= MAX_THUMBNAIL_COUNT) return;
 
-    setError(null);
 
     try {
       const availableSlots = MAX_THUMBNAIL_COUNT - thumbnails.length;
@@ -252,7 +248,9 @@ export function ProductDetailThumbnail({ product, mutate }: ProductDetailThumbna
 
       setThumbnails((prev) => [...prev, ...nextThumbnails]);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load file preview");
+      toast.error("Media preview could not be loaded", {
+        description: `${err instanceof Error ? err.message : "Failed to load file preview."} Choose another PNG, JPEG, WebP, or PDF file and try again.`,
+      });
     } finally {
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
@@ -295,7 +293,6 @@ export function ProductDetailThumbnail({ product, mutate }: ProductDetailThumbna
 
   const handleSave = async () => {
     setIsSubmitting(true);
-    setError(null);
     try {
       // Step 1: Upload any pending files
       const uploadPromises = thumbnails.map(async (t) => {
@@ -324,8 +321,9 @@ export function ProductDetailThumbnail({ product, mutate }: ProductDetailThumbna
       setOpen(false);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to save thumbnails";
-      setError(message);
-      toast.error(message);
+      toast.error("Product media could not be saved", {
+        description: `${message} Check the uploaded files and try saving the media again.`,
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -356,7 +354,6 @@ export function ProductDetailThumbnail({ product, mutate }: ProductDetailThumbna
                 <div className="flex flex-1 overflow-hidden">
                   {/* Left Column - Gallery */}
                   <div className="flex-1 overflow-y-auto p-6 flex flex-col">
-                    {error && <InlineError message={error} />}
                     
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                       {thumbnails.map((thumb, index) => {

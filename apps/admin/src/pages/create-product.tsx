@@ -1,11 +1,19 @@
-import { Button, FocusModal, ProgressTabs, Text, usePrompt } from "@medusajs/ui";
+import {
+  Button,
+  FocusModal,
+  ProgressTabs,
+  Text,
+  usePrompt,
+} from "@medusajs/ui";
 import { useEffect } from "react";
 import { useBlocker, useNavigate } from "react-router";
 import { slugify } from "../lib/utils";
 import { ProductsListPage } from "./products-list";
-import { InlineError } from "../components/ui/medusa/inline-error";
 
-import { useCreateProduct, type CreateProductStep } from "./create-product/use-create-product";
+import {
+  useCreateProduct,
+  type CreateProductStep,
+} from "./create-product/use-create-product";
 import { CreateProductDetails } from "./create-product/create-product-details";
 import { CreateProductOrganize } from "./create-product/create-product-organize";
 import { CreateProductVariants } from "./create-product/create-product-variants";
@@ -17,13 +25,12 @@ export function CreateProductPage() {
   const state = useCreateProduct();
   const blocker = useBlocker(true);
   const prompt = usePrompt();
-  
+
   const {
     activeStep,
     goToStep,
     stepOrder,
     activeStepIndex,
-    errors,
     values,
     effectiveVariantRows,
     publishReady,
@@ -49,7 +56,8 @@ export function CreateProductPage() {
 
     prompt({
       title: "Discard changes?",
-      description: "Are you sure you want to leave? You will lose any unsaved progress.",
+      description:
+        "Are you sure you want to leave? You will lose any unsaved progress.",
       variant: "confirmation",
       confirmText: "Discard",
       cancelText: "Stay",
@@ -108,11 +116,6 @@ export function CreateProductPage() {
 
             <FocusModal.Body className="overflow-y-auto flex flex-col">
               <div className="flex-1 flex flex-col min-h-0">
-                {errors.form ? <InlineError message={errors.form} /> : null}
-                {errors.publish ? (
-                  <InlineError message={errors.publish} />
-                ) : null}
-
                 <ProgressTabs.Content
                   value="details"
                   className="outline-none px-6 py-6"
@@ -201,7 +204,6 @@ export function CreateProductPage() {
       </FocusModal>
 
       <VariantGallery state={state} />
-
     </>
   );
 }
