@@ -24,7 +24,6 @@ const MAX_ZOOM = 2;
 const ZOOM_STEP = 0.1;
 const FIT_PADDING_PX = 64;
 
-type CanvasMode = "edit" | "view";
 type PanState = { x: number; y: number };
 
 export function EditorCanvas({
@@ -62,7 +61,6 @@ export function EditorCanvas({
   onCloseVectorShape: () => void;
   onCancelDraw: () => void;
 }) {
-  const [mode, setMode] = useState<CanvasMode>("edit");
   const [zoom, setZoom] = useState(0.72);
   const [pan, setPan] = useState<PanState>({ x: 0, y: 0 });
   const [zoomInput, setZoomInput] = useState("72");
@@ -115,13 +113,12 @@ export function EditorCanvas({
   }
 
   function startViewportPan(event: React.PointerEvent) {
-    if (mode !== "view") return;
     viewportDrag.current = { x: event.clientX, y: event.clientY, pan };
     event.currentTarget.setPointerCapture(event.pointerId);
   }
 
   function moveViewportPan(event: React.PointerEvent) {
-    if (!viewportDrag.current || mode !== "view") return;
+    if (!viewportDrag.current) return;
     setPan({
       x: viewportDrag.current.pan.x + event.clientX - viewportDrag.current.x,
       y: viewportDrag.current.pan.y + event.clientY - viewportDrag.current.y,
@@ -131,18 +128,6 @@ export function EditorCanvas({
   return (
     <main className="flex min-h-0 flex-col bg-ui-bg-subtle">
       <div className="flex h-12 items-center justify-between border-b border-ui-border-base bg-ui-bg-base px-4">
-        <div className="inline-flex rounded-md border border-ui-border-base bg-ui-bg-subtle p-0.5">
-          {(["edit", "view"] as const).map((entry) => (
-            <button
-              key={entry}
-              type="button"
-              onClick={() => setMode(entry)}
-              className={`rounded px-3 py-1 text-sm font-medium capitalize ${mode === entry ? "bg-ui-bg-base text-ui-fg-base shadow-sm" : "text-ui-fg-muted"}`}
-            >
-              {entry}
-            </button>
-          ))}
-        </div>
         <div className="flex items-center gap-2">
           <button type="button" onClick={() => setCommittedZoom(zoom - ZOOM_STEP)} className="rounded border border-ui-border-base px-2 py-1 text-sm">-</button>
           <input
@@ -168,8 +153,10 @@ export function EditorCanvas({
       <FontLoader layers={template.layers} dynamicFonts={dynamicFonts} />
       <div
         ref={workspaceRef}
-        className={`relative min-h-0 flex-1 overflow-hidden ${mode === "view" ? "cursor-grab active:cursor-grabbing" : "cursor-default"}`}
-        onPointerDown={startViewportPan}
+        className="relative min-h-0 flex-1 overflow-hidden cursor-grab active:cursor-grabbing"
+        onPointerDown={(event) => {
+          if (event.target === event.currentTarget) startViewportPan(event);
+        }}
         onPointerMove={moveViewportPan}
         onPointerUp={() => {
           viewportDrag.current = null;
@@ -180,7 +167,7 @@ export function EditorCanvas({
       >
         <div
           ref={canvasRef}
-          className={`absolute left-1/2 top-1/2 bg-white shadow-lg ${mode === "view" ? "pointer-events-none" : ""} ${isDrawing ? "cursor-crosshair" : ""}`}
+          className={`absolute left-1/2 top-1/2 bg-white shadow-lg ${isDrawing ? "cursor-crosshair" : ""}`}
           style={{
             width: background.widthPx,
             height: background.heightPx,
@@ -197,7 +184,13 @@ export function EditorCanvas({
               event.currentTarget.setPointerCapture(event.pointerId);
               return;
             }
-            if (mode === "edit" && event.target === event.currentTarget) onSelectLayer("");
+            if (event.target === event.currentTarget) {
+              event.stopPropagation();
+              onSelectLayer("");
+              onPathEditingLayerChange("");
+              onSelectVectorPoint("");
+              startViewportPan(event);
+            }
           }}
           onPointerMove={(event) => {
             if (isDrawing && drawDragRef.current) {
@@ -252,7 +245,6 @@ export function EditorCanvas({
           }}
           onDoubleClick={(event) => {
             if (isDrawing) return;
-            if (mode !== "edit") return;
             const layer = template.layers.find((entry) => entry.id === pathEditingLayerId);
             if (!layer || layer.type !== "text" || layer.text.path.type !== "custom") return;
             const bounds = event.currentTarget.getBoundingClientRect();
@@ -338,7 +330,7 @@ export function EditorCanvas({
               selected={selectedLayerId === layer.id && !isDrawing}
               pathEditing={pathEditingLayerId === layer.id}
               selectedVectorPointId={selectedVectorPointId}
-              editing={mode === "edit" && !isDrawing}
+              editing={!isDrawing}
               dynamicFonts={dynamicFonts}
               onSelect={() => onSelectLayer(layer.id)}
               onEditPath={() => onPathEditingLayerChange(layer.id)}
@@ -407,8 +399,10 @@ function CanvasLayer({
   const top = layer.type === "text" ? layer.geometry.yRatio * background.heightPx - h / 2 : rect.yPx;
   const drag = useRef<{ x: number; y: number; xPx: number; yPx: number; widthPx: number; heightPx: number } | null>(null);
   function startDrag(event: React.PointerEvent) {
-    if (!editing || layer.locked) return;
+    if (!editing) return;
     onSelect();
+    event.stopPropagation();
+    if (layer.locked) return;
     drag.current = {
       x: event.clientX,
       y: event.clientY,
