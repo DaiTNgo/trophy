@@ -52,16 +52,16 @@ export function BestSellersSection({
   const displayProducts = products.slice(0, 8);
 
   return (
-    <section className="overflow-hidden bg-surface-base py-14 md:py-20">
+    <section className="overflow-hidden bg-surface-base py-10 md:py-14">
       <Container>
         {/* Header row */}
         <div className="relative mb-8 flex items-end justify-center md:mb-10 reveal active">
           <div className="max-w-3xl text-center">
-            <h2 className="font-heading text-[30px] leading-none md:text-[40px] font-bold uppercase text-brand-strong">
+            <h2 className="font-heading text-headline-md md:text-headline-lg font-bold uppercase text-brand-strong">
               {title ?? (locale === "en" ? "Best Selling Products" : "Sản phẩm bán chạy nhất")}
             </h2>
             {subtitle ? (
-              <p className="mx-auto mt-4 max-w-2xl font-body text-[15px] leading-7 text-text-muted">
+              <p className="mx-auto mt-4 max-w-2xl font-body-md text-body-md text-text-muted">
                 {subtitle}
               </p>
             ) : null}

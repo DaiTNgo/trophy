@@ -76,32 +76,42 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       {/* 4. Shop by product type */}
       <CategoriesSection categories={categories} locale={locale} />
 
-      {/* 5. Best-selling customizable products */}
-      <BestSellersSection
-        products={customizableBestSellers}
-        locale={locale}
-        title={locale === "en" ? "Top Customizable Products" : "Top sản phẩm tùy chỉnh bán chạy"}
-        subtitle={
-          locale === "en"
-            ? "Personalize names, logos, award titles, and event messages before production."
-            : "Cá nhân hóa tên, logo, hạng mục giải thưởng và thông điệp trước khi sản xuất."
-        }
-      />
 
-      {/* 6. Best-selling standard products */}
+
+      {/* 5. Best-selling standard products */}
       <BestSellersSection
         products={standardBestSellers}
         locale={locale}
-        title={locale === "en" ? "Best Selling Products" : "Sản phẩm bán chạy"}
+        title={
+          locale === "en"
+            ? "Our Most-Loved Recognition Pieces"
+            : "Những Dấu Ấn Vinh Danh Được Yêu Thích Nhất"
+        }
         subtitle={
           locale === "en"
-            ? "Fast-moving award products for teams, events, and corporate recognition."
-            : "Những mẫu bán tốt cho đội nhóm, sự kiện và vinh danh doanh nghiệp."
+            ? "Trophies and commemorative pieces chosen to celebrate effort, honor achievement, and make meaningful moments last."
+            : "Các mẫu cúp và kỷ niệm chương được lựa chọn để tôn vinh nỗ lực, ghi dấu thành tựu và làm nên những khoảnh khắc đáng nhớ."
         }
       />
 
-      {/* 7. Customization story */}
+      {/* 6. Customization story */}
       <CustomizationFeatureSection />
+
+      {/* 7. Best-selling customizable products */}
+      <BestSellersSection
+        products={customizableBestSellers}
+        locale={locale}
+        title={
+          locale === "en"
+            ? "Create an Award That Feels Uniquely Yours"
+            : "Tạo Nên Phần Thưởng Mang Dấu Ấn Riêng"
+        }
+        subtitle={
+          locale === "en"
+            ? "Personalize names, logos, and messages so every award tells the story of the person it celebrates."
+            : "Cá nhân hóa tên, logo và thông điệp để mỗi phần thưởng thể hiện trọn vẹn câu chuyện của người được vinh danh."
+        }
+      />
 
       {/* 8. Shop by occasion */}
       {/*<ShopByOccasionSection />*/}

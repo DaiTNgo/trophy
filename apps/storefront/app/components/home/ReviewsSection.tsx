@@ -53,7 +53,7 @@ const SHADOW_COLORS = [
 
 export function ReviewsSection() {
   return (
-    <section className="relative py-24 md:py-32 overflow-hidden bg-surface-base">
+    <section className="relative py-16 md:py-20 overflow-hidden bg-surface-base">
 
       <div className="relative max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop">
         <div className="text-center mb-16 md:mb-20 reveal active">

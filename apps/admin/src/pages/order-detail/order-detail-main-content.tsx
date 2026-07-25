@@ -52,6 +52,8 @@ export function OrderDetailMainContent({
   updatingAction,
   onUpdateStatus,
   onPreviewItemChange,
+  onMarkItemReady,
+  onMarkItemPendingReview,
 }: {
   order: AdminOrderDetail;
   updatingAction: string | null;
@@ -61,6 +63,8 @@ export function OrderDetailMainContent({
     actionId: string,
   ) => Promise<void>;
   onPreviewItemChange: (item: OrderDetailItem) => void;
+  onMarkItemReady: (itemId: number, actionId: string) => Promise<void>;
+  onMarkItemPendingReview: (itemId: number, actionId: string) => Promise<void>;
 }) {
   const paidAmount = getPaidAmount(order);
   const outstandingAmount = getOutstandingAmount(order);
@@ -178,7 +182,7 @@ export function OrderDetailMainContent({
                     ))}
                   </div>
                   {item.customization.preview ? (
-                    <div className="mt-3 border-t border-ui-border-base pt-3">
+                    <div className="mt-3 flex flex-wrap gap-2 border-t border-ui-border-base pt-3">
                       <Button
                         variant="secondary"
                         size="small"
@@ -186,6 +190,35 @@ export function OrderDetailMainContent({
                       >
                         Preview
                       </Button>
+                      {item.productionStatus === "pending_review" ? (
+                        <Button
+                          variant="primary"
+                          size="small"
+                          disabled={Boolean(updatingAction)}
+                          onClick={() =>
+                            void onMarkItemReady(
+                              item.id,
+                              `production-ready-${item.id}`,
+                            )
+                          }
+                        >
+                          Mark ready
+                        </Button>
+                      ) : item.productionStatus === "ready" ? (
+                        <Button
+                          variant="secondary"
+                          size="small"
+                          disabled={Boolean(updatingAction)}
+                          onClick={() =>
+                            void onMarkItemPendingReview(
+                              item.id,
+                              `production-pending-${item.id}`,
+                            )
+                          }
+                        >
+                          Mark pending
+                        </Button>
+                      ) : null}
                     </div>
                   ) : null}
                 </div>

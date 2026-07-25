@@ -28,7 +28,7 @@ const PRODUCT_IMAGE = "/images/home/customization-workspace.jpg";
 
 export function CustomizationFeatureSection() {
   return (
-    <section className="py-24 px-4 md:px-margin-desktop bg-surface-container-low">
+    <section className="px-4 py-16 md:px-margin-desktop md:py-20 bg-surface-container-low">
       <div className="max-w-container-max mx-auto">
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-12 xl:gap-16 items-center">
           {/* Image */}

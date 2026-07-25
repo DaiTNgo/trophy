@@ -37,7 +37,7 @@ export function CategoriesSection({ categories, locale = "vi" }: ShopByProductSe
   const featuredCategories = categories.slice(0, 4);
 
   return (
-    <section className="bg-surface-base py-18 md:py-24">
+    <section className="bg-surface-base pt-4 md:pt-6">
       <Container>
         <div className="grid grid-cols-2 gap-5 sm:gap-8 lg:grid-cols-4">
           {featuredCategories.map((cat, index) => {

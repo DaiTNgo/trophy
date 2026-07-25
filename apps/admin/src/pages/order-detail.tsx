@@ -31,7 +31,12 @@ export function OrderDetailPage() {
     updatingAction,
     updateOrderStatus,
     markItemReadyForProduction,
+    markItemPendingReview,
   } = useOrderDetail(orderNumber);
+
+  const activePreviewItem = previewItem
+    ? order?.items.find((item) => item.id === previewItem.id) ?? previewItem
+    : null;
 
   if (order === undefined) {
     return (
@@ -99,19 +104,22 @@ export function OrderDetailPage() {
             updatingAction={updatingAction}
             onUpdateStatus={updateOrderStatus}
             onPreviewItemChange={setPreviewItem}
+            onMarkItemReady={markItemReadyForProduction}
+            onMarkItemPendingReview={markItemPendingReview}
           />
         </div>
 
         <OrderDetailSidebar
           order={order}
-          isUpdating={Boolean(updatingAction)}
-          onMarkItemReady={markItemReadyForProduction}
         />
       </div>
-      {previewItem ? (
+      {activePreviewItem ? (
         <OrderCustomizationPreviewModal
           order={order}
-          item={previewItem}
+          item={activePreviewItem}
+          isUpdating={Boolean(updatingAction)}
+          onMarkItemReady={markItemReadyForProduction}
+          onMarkItemPendingReview={markItemPendingReview}
           onClose={() => setPreviewItem(null)}
         />
       ) : null}

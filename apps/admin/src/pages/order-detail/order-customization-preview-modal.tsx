@@ -154,10 +154,16 @@ async function fetchUploadBytes(previewUrl: string) {
 export function OrderCustomizationPreviewModal({
   order,
   item,
+  isUpdating,
+  onMarkItemReady,
+  onMarkItemPendingReview,
   onClose,
 }: {
   order: AdminOrderDetail;
   item: OrderDetailItem;
+  isUpdating: boolean;
+  onMarkItemReady: (itemId: number, actionId: string) => Promise<void>;
+  onMarkItemPendingReview: (itemId: number, actionId: string) => Promise<void>;
   onClose: () => void;
 }) {
   const template = buildOrderItemCustomizationTemplate(order, item);
@@ -290,11 +296,34 @@ export function OrderCustomizationPreviewModal({
             <FocusModal.Description className="sr-only">
               Read-only preview of the frozen order customization snapshot.
             </FocusModal.Description>
-            <FocusModal.Close asChild>
-              <Button variant="secondary" size="small">
-                Close
-              </Button>
-            </FocusModal.Close>
+            <div className="flex items-center gap-2">
+              {item.productionStatus === "pending_review" ? (
+                <Button
+                  variant="primary"
+                  size="small"
+                  disabled={isUpdating}
+                  onClick={() =>
+                    void onMarkItemReady(item.id, `production-ready-${item.id}`)
+                  }
+                >
+                  Mark ready
+                </Button>
+              ) : item.productionStatus === "ready" ? (
+                <Button
+                  variant="secondary"
+                  size="small"
+                  disabled={isUpdating}
+                  onClick={() =>
+                    void onMarkItemPendingReview(
+                      item.id,
+                      `production-pending-${item.id}`,
+                    )
+                  }
+                >
+                  Mark pending
+                </Button>
+              ) : null}
+            </div>
           </div>
         </FocusModal.Header>
         <FocusModal.Body className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-6 py-6 xl:overflow-hidden">

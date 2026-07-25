@@ -30,12 +30,8 @@ function DisabledActionHint() {
 
 export function OrderDetailSidebar({
   order,
-  isUpdating,
-  onMarkItemReady,
 }: {
   order: AdminOrderDetail;
-  isUpdating: boolean;
-  onMarkItemReady: (itemId: number, actionId: string) => Promise<void>;
 }) {
   const hasProductionReviewItems = order.items.some(
     (item) => item.customization?.values.length,
@@ -183,21 +179,6 @@ export function OrderDetailSidebar({
                 <StatusBadge color={getBadgeColor(item.productionStatus)}>
                   {formatStatusLabel(item.productionStatus)}
                 </StatusBadge>
-                {item.productionStatus === "pending_review" ? (
-                  <Button
-                    variant="secondary"
-                    size="small"
-                    disabled={isUpdating}
-                    onClick={() =>
-                      void onMarkItemReady(
-                        item.id,
-                        `production-ready-${item.id}`,
-                      )
-                    }
-                  >
-                    Mark ready
-                  </Button>
-                ) : null}
               </div>
             ))}
           </div>

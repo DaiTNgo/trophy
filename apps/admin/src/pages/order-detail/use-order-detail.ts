@@ -103,11 +103,40 @@ export function useOrderDetail(orderNumber: string | undefined) {
     [order],
   );
 
+  const markItemPendingReview = useCallback(
+    async (itemId: number, actionId: string) => {
+      if (!order) return;
+
+      setUpdatingAction(actionId);
+      try {
+        const nextOrder = await updateAdminOrderItemProductionStatus(
+          order.orderNumber,
+          itemId,
+          {
+            productionStatus: "pending_review",
+          },
+        );
+        setOrder(nextOrder);
+        toast.success("Item marked as pending review");
+      } catch (updateError) {
+        toast.error(
+          updateError instanceof Error
+            ? updateError.message
+            : "Failed to update production status",
+        );
+      } finally {
+        setUpdatingAction(null);
+      }
+    },
+    [order],
+  );
+
   return {
     order,
     error,
     updatingAction,
     updateOrderStatus,
     markItemReadyForProduction,
+    markItemPendingReview,
   };
 }

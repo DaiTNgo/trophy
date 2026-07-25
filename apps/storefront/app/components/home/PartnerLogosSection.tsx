@@ -31,7 +31,7 @@ export function PartnerLogosSection() {
   const slides = [...PARTNER_LOGOS, ...PARTNER_LOGOS, ...PARTNER_LOGOS];
 
   return (
-    <section className="py-16 md:py-24 bg-surface overflow-hidden">
+    <section className="py-12 md:py-16 bg-surface overflow-hidden">
       <div className="mx-auto max-w-container-max px-margin-mobile md:px-margin-desktop">
         <div className="mb-10 text-center reveal active">
           <p className="mb-3 font-label-md text-label-md uppercase tracking-[0.35em] text-brand-accent">

@@ -51,6 +51,43 @@
   --color-indicator-support: var(--indicator-support);
   --color-indicator-price: var(--indicator-price);
   --color-indicator-rating: var(--indicator-rating);
+
+  /* IBM-inspired universal type scale: Tailwind v4 typography tokens. */
+  --text-display-xl: 4.75rem;
+  --text-display-xl--line-height: 5.375rem;
+  --text-display-lg-mobile: 3rem;
+  --text-display-lg-mobile--line-height: 3.5rem;
+  --text-display-lg: 4.25rem;
+  --text-display-lg--line-height: 4.875rem;
+  --text-display-md: 3.75rem;
+  --text-display-md--line-height: 4.375rem;
+  --text-display-sm: 3.375rem;
+  --text-display-sm--line-height: 4rem;
+  --text-headline-lg: 2.625rem;
+  --text-headline-lg--line-height: 3.125rem;
+  --text-headline-md: 2rem;
+  --text-headline-md--line-height: 2.5rem;
+  --text-headline-sm: 1.75rem;
+  --text-headline-sm--line-height: 2.25rem;
+  --text-title-lg: 1.5rem;
+  --text-title-lg--line-height: 1.75rem;
+  --text-title-md: 1.25rem;
+  --text-title-md--line-height: 1.625rem;
+  --text-title-sm: 1.125rem;
+  --text-title-sm--line-height: 1.5rem;
+  --text-body-lg: 1.125rem;
+  --text-body-lg--line-height: 1.5rem;
+  --text-body-md: 1rem;
+  --text-body-md--line-height: 1.375rem;
+  --text-body-sm: 0.875rem;
+  --text-body-sm--line-height: 1.25rem;
+  --text-label-lg: 0.875rem;
+  --text-label-lg--line-height: 1.25rem;
+  --text-label-md: 0.75rem;
+  --text-label-md--line-height: 1rem;
+  --text-label-sm: 0.6875rem;
+  --text-label-sm--line-height: 1rem;
+
 }
 
 /* ── Light Mode (TrophySmack brand) ────────────────────────────────── */
@@ -135,6 +172,8 @@ body {
   min-height: 100%;
   margin: 0;
   font-family: "Inter", sans-serif;
+  font-size: 1rem;
+  line-height: 1.375;
   background-color: var(--surface-base);
   color: var(--text-base);
   scroll-behavior: smooth;
