@@ -95,6 +95,27 @@ describe("cart helpers", () => {
     expect(mergedAgain[1]?.quantity).toBe(1);
   });
 
+  it("creates an independent line for a cart line revision even when values are unchanged", () => {
+    const customized = makeInput({
+      customizationValues: { text_1: { text: "Alice" } },
+      customizationSummary: [{ fieldId: "text_1", label: "Name", valueSummary: "Alice" }],
+      display: {
+        ...makeInput().display,
+        customizable: true,
+        requiresCustomization: true,
+      },
+    });
+    const source = { ...customized, id: "line-1", quantity: 2 };
+
+    const next = addCartLine([source], { ...customized, quantity: 1 }, () => "line-2", {
+      forceSeparate: true,
+    });
+
+    expect(next).toHaveLength(2);
+    expect(next[0]?.quantity).toBe(2);
+    expect(next[1]).toMatchObject({ id: "line-2", quantity: 1, customizationValues: customized.customizationValues });
+  });
+
   it("keeps different selected clipart assets as separate customized cart lines", () => {
     const clipartA = makeInput({
       customizationValues: {

@@ -108,6 +108,7 @@ export type ProductVariant = {
   attributes: ProductAttribute[];
   allowBackorder: boolean;
   media: ProductVariantMedia[];
+  customizationMedia: ProductVariantMedia | null;
   shouldCreate: boolean;
 };
 

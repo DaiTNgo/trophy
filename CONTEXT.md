@@ -173,7 +173,7 @@ The product customization layer's approved subset of clipart assets from one cli
 _Avoid_: whole category selection, global icon library, shopper icon search
 
 **Customization Template**:
-The admin-defined configuration for a customizable product, including editable layers, form fields, and visual placement rules. Its background images are derived from the product's variant images rather than stored as independent customization data.
+The admin-defined configuration for a customizable product, including editable layers, form fields, and visual placement rules. Its background choices come from the variants' independently stored Customization Media rather than from Gallery Media.
 _Avoid_: customization config, editor setup
 
 **Embedded Product Customization**:
@@ -181,11 +181,11 @@ A customization template edited inside the product creation flow and saved throu
 _Avoid_: standalone template, separate customization publish
 
 **Background Choice**:
-A product image option used by admins as the fixed canvas behind a customization template while designing and checking layer placement. Background choices for the same template must share the same pixel dimensions so layer positions render consistently.
+A customization background selected by an admin for use as the fixed canvas while designing and checking a customization template. It is stored independently from a variant's Gallery Media; every variant of a published customizable product has exactly one Background Choice, and Background Choices for the same template share the same pixel dimensions.
 _Avoid_: shopper background choice, preview image
 
 **Default Background Choice**:
-The background choice initially selected for a customizable product. By default, this is the first image from the product's created variants.
+The Background Choice initially shown to an admin while editing a customization template. By default, it is the Customization Background of the first created variant.
 _Avoid_: primary image, fallback background
 
 **Selected Variant Background**:
@@ -193,15 +193,23 @@ The background image used in the shopper-facing customization preview. It comes 
 _Avoid_: shopper-selected background, customization background option
 
 **Customization-Ready Variant**:
-A product variant that can support shopper-facing customization because it has at least one background image.
+A product variant that can support shopper-facing customization because it has exactly one Customization Background.
 _Avoid_: valid variant, completed variant
 
 **Background Size Contract**:
-The rule that all variant images for a customizable product must have identical pixel width and height, allowing one customization template to render consistently across every variant background.
+The rule that all Customization Backgrounds for a customizable product must have identical pixel width and height, allowing one customization template to render consistently across every variant background.
 _Avoid_: same-size warning, image dimension hint
 
+**Customization Background**:
+The one independently uploaded asset owned by a variant and explicitly designated as its Background Choice for shopper customization. It is not Gallery Media, cannot be shared with another variant, and only Customization Backgrounds are subject to the Background Size Contract.
+_Avoid_: gallery image, all variant media, upload background
+
+**Product Reference Media**:
+Gallery Media shown to shoppers as product examples or past-work references, but not used as a customization canvas.
+_Avoid_: customization background, canvas media
+
 **Customization Publish Readiness**:
-The product-level condition that a customizable product must satisfy before it can be published, including complete variant backgrounds, matching image dimensions, and a valid customization editor model.
+The product-level condition that a customizable product must satisfy before it can be published, including one Customization Background for every variant, matching background dimensions, and a valid customization editor model. Draft products may be incomplete but cannot open the customization editor until its required backgrounds are available.
 _Avoid_: template publish validation, customization status
 
 **Shopper Text Field**:
@@ -253,8 +261,16 @@ A cart line that has a concrete variant, a positive quantity, and all required c
 _Avoid_: incomplete cart item, draft order item, partially customized cart line
 
 **Cart Line Merge**:
-The storefront rule for combining shopper selections in the browser cart. Non-customized selections merge by product and variant, while customized selections merge only when product, variant, and customization values are identical.
+The storefront rule for combining shopper selections in the browser cart. Ordinary non-customized selections merge by product and variant, while ordinary customized selections merge only when product, variant, and customization values are identical; a Cart Line Revision always remains independent.
 _Avoid_: always merge by SKU, never merge customized items, merge by product only
+
+**Cart Line Revision**:
+A shopper-initiated copy of any customized cart line, including one that is no longer checkout-ready, opened as a normal product-detail session with its selected variant and customization values restored. It starts at quantity one, and adding it always creates a distinct, independent cart line so the shopper can keep, compare, or remove either choice; if its source is no longer in the browser cart, the product detail session falls back to default product state.
+_Avoid_: cart line edit, replace cart line, mutate cart line
+
+**Cart Line Revision Revalidation**:
+The recovery rule for a cart line revision when the current catalog or customization template no longer supports restored data. Compatible values are retained, invalid selections must be corrected before the revision can be added, and the source cart line remains unchanged.
+_Avoid_: silently discard invalid value, rewrite original cart line, preserve obsolete selection
 
 **Different Shipping Address**:
 A checkout choice where the recipient and delivery address differ from the shopper's primary contact details. It keeps order contact information separate from fulfillment delivery information.

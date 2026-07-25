@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { productAssets } from "../../db/schema";
 import {
   buildProductCustomizationInsert,
+  buildVariantCustomizationMediaInsertRows,
   buildVariantMediaInsertRows,
   validateCustomizationPublishReadiness,
   validatePublishable,
@@ -90,6 +91,7 @@ const buildPublishableProduct = (
         createdAt: "2026-07-03T00:00:00.000Z",
         updatedAt: "2026-07-03T00:00:00.000Z",
         media: [],
+        customizationMedia: null,
         attributes: [],
         optionValueIds: [100],
         optionValues: [
@@ -146,7 +148,7 @@ describe("product full-create helpers", () => {
     expect(row).toBeNull();
   });
 
-  it("rejects publish when a variant has no image", () => {
+  it("rejects publish when a variant has no customization media", () => {
     const result = validateCustomizationPublishReadiness({
       customization: baseCustomization,
       submittedVariants: [
@@ -157,15 +159,16 @@ describe("product full-create helpers", () => {
           isDefault: true,
           optionValues: [],
           media: [],
+          customizationMedia: null,
         },
       ],
       assetsById: new Map(),
     });
 
-    expect(result).toBe("Each variant needs at least one image before publish");
+    expect(result).toBe("Each variant needs Customization Media before publish");
   });
 
-  it("rejects publish when variant image dimensions differ", () => {
+  it("rejects publish when customization media dimensions differ", () => {
     const result = validateCustomizationPublishReadiness({
       customization: baseCustomization,
       submittedVariants: [
@@ -175,7 +178,8 @@ describe("product full-create helpers", () => {
           priceAmount: 1000,
           isDefault: true,
           optionValues: [],
-          media: [{ assetId: "asset_red" }],
+          media: [],
+          customizationMedia: { assetId: "asset_red" },
         },
         {
           title: "Blue",
@@ -183,7 +187,8 @@ describe("product full-create helpers", () => {
           priceAmount: 1000,
           isDefault: false,
           optionValues: [],
-          media: [{ assetId: "asset_blue" }],
+          media: [],
+          customizationMedia: { assetId: "asset_blue" },
         },
       ],
       assetsById: buildAssetsMap(
@@ -192,7 +197,7 @@ describe("product full-create helpers", () => {
       ),
     });
 
-    expect(result).toBe("All variant images must share the same size before publish");
+    expect(result).toBe("All Customization Media assets must share the same size before publish");
   });
 
   it("rejects publish when the customization model is invalid", () => {
@@ -208,7 +213,8 @@ describe("product full-create helpers", () => {
           priceAmount: 1000,
           isDefault: true,
           optionValues: [],
-          media: [{ assetId: "asset_red" }],
+          media: [],
+          customizationMedia: { assetId: "asset_red" },
         },
       ],
       assetsById: buildAssetsMap(
@@ -230,6 +236,7 @@ describe("product full-create helpers", () => {
           isDefault: true,
           optionValues: [],
           media: [{ assetId: "asset_red_1" }, { assetId: "asset_red_2" }],
+          customizationMedia: { assetId: "asset_red_1" },
         },
       ],
       assetsById: buildAssetsMap(
@@ -305,6 +312,15 @@ describe("product full-create helpers", () => {
               contentUrl: "/api/assets/products/asset_red_1/content",
             },
           ],
+          customizationMedia: {
+            id: "asset_red_1",
+            fileName: "asset_red_1.png",
+            mimeType: "image/png",
+            widthPx: 1200,
+            heightPx: 900,
+            byteSize: 1024,
+            contentUrl: "/api/assets/products/asset_red_1/content",
+          },
           attributes: [],
           optionValueIds: [100],
           optionValues: [
@@ -346,5 +362,17 @@ describe("product full-create helpers", () => {
       { variantId: 11, assetId: "asset_b", position: 1 },
       { variantId: 12, assetId: "asset_c", position: 0 },
     ]);
+  });
+
+  it("stores one customization asset per variant without adding it to the gallery rows", () => {
+    expect(
+      buildVariantCustomizationMediaInsertRows(
+        [{ id: 11 }, { id: 12 }],
+        [
+          { customizationMedia: { assetId: "canvas_a" } },
+          { customizationMedia: null },
+        ],
+      ),
+    ).toEqual([{ variantId: 11, assetId: "canvas_a" }]);
   });
 });

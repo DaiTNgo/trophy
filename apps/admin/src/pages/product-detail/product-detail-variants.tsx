@@ -36,6 +36,7 @@ import {
   deleteProductVariant,
   updateProductVariantDetails,
   updateProductVariantMedia,
+  updateProductVariantCustomizationMedia,
   updateProductVariantPrices,
   updateProductVariantStock,
 } from "../../lib/products-client";
@@ -58,6 +59,7 @@ type VariantFormState = {
   optionSelections: Record<string, string>;
   attributes: ProductAttribute[];
   media: MediaDraft[];
+  customizationMedia: MediaDraft | null;
 };
 
 type MediaDraft = {
@@ -96,6 +98,14 @@ function buildVariantForm(product: CatalogProduct, variant?: CatalogProduct["var
     optionSelections,
     attributes,
     media: variant ? buildMediaDraft(variant) : [],
+    customizationMedia: variant?.customizationMedia
+      ? {
+          assetId: variant.customizationMedia.id,
+          url: variant.customizationMedia.contentUrl,
+          mimeType: variant.customizationMedia.mimeType,
+          fileName: variant.customizationMedia.fileName,
+        }
+      : null,
   };
 }
 
@@ -129,6 +139,7 @@ export function ProductDetailVariants({ product, mutate }: ProductDetailVariants
   const [isUploadingVariantMedia, setIsUploadingVariantMedia] = useState(false);
 
   const variantMediaInputRef = useRef<HTMLInputElement | null>(null);
+  const variantCustomizationMediaInputRef = useRef<HTMLInputElement | null>(null);
 
   function openPrices() {
     setPriceRows(
@@ -289,6 +300,13 @@ export function ProductDetailVariants({ product, mutate }: ProductDetailVariants
         await updateProductVariantPrices(product.id, [{ id: variantForm.id, priceAmount }]);
         await updateProductVariantStock(product.id, [{ id: variantForm.id, inventoryQuantity }]);
         await updateProductVariantMedia(product.id, variantForm.id, media);
+        if (variantForm.customizationMedia) {
+          await updateProductVariantCustomizationMedia(
+            product.id,
+            variantForm.id,
+            variantForm.customizationMedia.assetId,
+          );
+        }
       } else {
         await createProductVariant(product.id, {
           title: {
@@ -302,6 +320,9 @@ export function ProductDetailVariants({ product, mutate }: ProductDetailVariants
           optionValueIds,
           attributes: normalizedAttributes,
           media,
+          customizationMedia: variantForm.customizationMedia
+            ? { assetId: variantForm.customizationMedia.assetId }
+            : null,
         });
       }
 
@@ -349,6 +370,36 @@ export function ProductDetailVariants({ product, mutate }: ProductDetailVariants
       }));
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to upload variant media.";
+      setVariantError(message);
+      toast.error(message);
+    } finally {
+      setIsUploadingVariantMedia(false);
+    }
+  }
+
+  async function handleCustomizationMediaUpload(fileList: FileList | null) {
+    const file = fileList?.[0];
+    if (!file) return;
+
+    setIsUploadingVariantMedia(true);
+    setVariantError(null);
+    try {
+      let fileToUpload = file;
+      if (file.type === "application/pdf") {
+        fileToUpload = await convertPdfToImageFile(file);
+      }
+      const asset = await uploadProductVariantMedia(fileToUpload);
+      setVariantForm((current) => ({
+        ...current,
+        customizationMedia: {
+          assetId: asset.id,
+          url: asset.contentUrl,
+          mimeType: asset.mimeType,
+          fileName: asset.fileName,
+        },
+      }));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to upload customization media.";
       setVariantError(message);
       toast.error(message);
     } finally {
@@ -641,6 +692,58 @@ export function ProductDetailVariants({ product, mutate }: ProductDetailVariants
                   </div>
                 </div>
               </section>
+
+              {product.customization?.enabled ? (
+                <section className="space-y-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <Heading level="h3" className="text-base font-medium">
+                        Customization Media
+                      </Heading>
+                      <Text size="small" className="text-ui-fg-subtle">
+                        This separate image is the customization canvas for this variant.
+                      </Text>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="small"
+                      onClick={() => variantCustomizationMediaInputRef.current?.click()}
+                      isLoading={isUploadingVariantMedia}
+                    >
+                      <ImagePlus className="h-4 w-4" />
+                      {variantForm.customizationMedia ? "Replace customization media" : "Upload customization media"}
+                    </Button>
+                  </div>
+                  <input
+                    ref={variantCustomizationMediaInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,application/pdf"
+                    className="hidden"
+                    onChange={(event) => {
+                      void handleCustomizationMediaUpload(event.target.files);
+                      event.target.value = "";
+                    }}
+                  />
+                  {variantForm.customizationMedia ? (
+                    <div className="flex items-center gap-3 rounded-lg border border-ui-border-base p-3">
+                      <MediaPreview
+                        src={variantForm.customizationMedia.url}
+                        mimeType={variantForm.customizationMedia.mimeType}
+                        alt={variantForm.customizationMedia.fileName}
+                        className="h-20 w-20 rounded border object-contain"
+                      />
+                      <Text size="small" className="line-clamp-2">
+                        {variantForm.customizationMedia.fileName}
+                      </Text>
+                    </div>
+                  ) : (
+                    <div className="rounded-lg border border-dashed border-ui-border-base bg-ui-bg-subtle px-4 py-6 text-center">
+                      <Text size="small" className="text-ui-fg-subtle">No customization canvas uploaded.</Text>
+                    </div>
+                  )}
+                </section>
+              ) : null}
 
               <section className="space-y-4">
                 <div>

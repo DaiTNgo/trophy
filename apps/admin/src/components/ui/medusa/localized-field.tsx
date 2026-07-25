@@ -91,6 +91,7 @@ type LocalizedTextFieldProps = {
   multiline?: boolean;
   rows?: number;
   className?: string;
+  disabled?: boolean;
 };
 
 export function LocalizedTextField({
@@ -106,6 +107,7 @@ export function LocalizedTextField({
   multiline = false,
   rows = 4,
   className,
+  disabled = false,
 }: LocalizedTextFieldProps) {
   const missingLocales = getMissingLocalizedTextLocales(value, requiredLocales);
   const fieldId = `${id}-${locale}`;
@@ -135,6 +137,7 @@ export function LocalizedTextField({
             onChange={(event) => handleValueChange(event.target.value)}
             placeholder={placeholder?.[locale]}
             rows={rows}
+            disabled={disabled}
             className="pr-24"
           />
           <LanguageSwitch
@@ -152,6 +155,7 @@ export function LocalizedTextField({
             value={value[locale]}
             onChange={(event) => handleValueChange(event.target.value)}
             placeholder={placeholder?.[locale]}
+            disabled={disabled}
             className="min-w-0 flex-1 bg-transparent px-3 py-1.5 text-sm outline-none placeholder:text-ui-fg-muted"
           />
           <div className="flex h-full items-center border-l border-ui-border-base px-1">

@@ -184,6 +184,7 @@ export function ProductCustomizationPreview({
   resolveFontUrl,
   resolveStaticFontUrl,
   onImageValueChange,
+  onFullscreenChange,
 }: {
   template: CustomizationTemplate;
   values: CustomizationFormValues;
@@ -195,6 +196,7 @@ export function ProductCustomizationPreview({
   resolveFontUrl?: ResolveCustomizationFontUrl;
   resolveStaticFontUrl?: ResolveCustomizationStaticFontUrl;
   onImageValueChange?: (fieldId: string, value: ImageShapeFieldValue) => void;
+  onFullscreenChange?: (open: boolean) => void;
 }) {
   const design = useMemo(
     () =>
@@ -237,6 +239,13 @@ export function ProductCustomizationPreview({
   const [zoom, setZoom] = useState(0.72);
   const [pan, setPan] = useState<PanState>({ x: 0, y: 0 });
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const setFullscreen = useCallback(
+    (open: boolean) => {
+      onFullscreenChange?.(open);
+      setIsFullscreen(open);
+    },
+    [onFullscreenChange],
+  );
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const viewportDrag = useRef<{ x: number; y: number; pan: PanState } | null>(
     null,
@@ -417,8 +426,8 @@ export function ProductCustomizationPreview({
     <div
       className={cn(
         "relative mx-auto flex h-[min(72vh,740px)] min-h-[520px] w-full flex-col overflow-hidden rounded-lg border border-outline-variant bg-surface-container-low",
-        isFullscreen && "h-full min-h-0 max-h-full max-w-[1600px] rounded-xl",
         className,
+        isFullscreen && "h-full min-h-0 max-h-full w-full max-w-none rounded-none",
       )}
       data-selected-variant-id={selectedVariantId ?? ""}
       data-preview-background-url={background?.previewUrl ?? ""}
@@ -454,31 +463,18 @@ export function ProductCustomizationPreview({
             transform: `translate(calc(-50% + ${pan.x}px), calc(-50% + ${pan.y}px))`,
           }}
           onPointerDown={(event) => {
-            if (readOnly) {
-              event.stopPropagation();
-              startCanvasPan(event);
-              return;
-            }
+            if (readOnly) return;
             if (event.target === event.currentTarget)
               setSelectedImageFieldId("");
           }}
           onPointerMove={(event) => {
-            if (readOnly) {
-              event.stopPropagation();
-              moveCanvasPan(event);
-            }
+            if (readOnly) return;
           }}
           onPointerUp={(event) => {
-            if (readOnly) {
-              event.stopPropagation();
-              finishCanvasPan(event);
-            }
+            if (readOnly) return;
           }}
           onPointerCancel={(event) => {
-            if (readOnly) {
-              event.stopPropagation();
-              finishCanvasPan(event);
-            }
+            if (readOnly) return;
           }}
         >
           {background ? (
@@ -652,7 +648,7 @@ export function ProductCustomizationPreview({
             <div className="pointer-events-auto flex items-center gap-1.5 rounded-md border border-outline-variant bg-white/95 p-1 shadow-lg backdrop-blur">
               <CanvasAction
                 label="Open fullscreen preview"
-                onClick={() => setIsFullscreen(true)}
+                onClick={() => setFullscreen(true)}
               >
                 <Fullscreen className="size-3.5" />
               </CanvasAction>
@@ -678,7 +674,7 @@ export function ProductCustomizationPreview({
             <div className="pointer-events-auto flex items-center gap-1.5 rounded-md border border-outline-variant bg-white/95 p-1 shadow-lg backdrop-blur">
               <CanvasAction
                 label="Open fullscreen preview"
-                onClick={() => setIsFullscreen(true)}
+                onClick={() => setFullscreen(true)}
               >
                 <Fullscreen className="size-3.5" />
               </CanvasAction>
@@ -709,7 +705,7 @@ export function ProductCustomizationPreview({
   }
 
   const fullscreenOverlay = (
-    <div className="fixed inset-0 z-[2147483647] bg-black/70 p-3 backdrop-blur-sm sm:p-5">
+    <div className="fixed inset-0 z-[2147483647] bg-black/70 p-0 backdrop-blur-sm">
       <div className="absolute right-4 top-4 z-[121]">
         <Button
           variant="outline"
@@ -717,12 +713,12 @@ export function ProductCustomizationPreview({
           className="border-white/20 bg-white/95 text-on-surface shadow-lg"
           aria-label="Close fullscreen preview"
           title="Close fullscreen preview"
-          onClick={() => setIsFullscreen(false)}
+          onClick={() => setFullscreen(false)}
         >
           <X className="size-4" />
         </Button>
       </div>
-      <div className="flex h-full items-center justify-center">
+      <div className="flex h-full w-full items-center justify-center">
         {previewFrame}
       </div>
     </div>

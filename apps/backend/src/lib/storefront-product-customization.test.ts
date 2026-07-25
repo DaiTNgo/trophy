@@ -28,6 +28,14 @@ const redVariant: StorefrontProductVariant = {
       heightPx: 900,
     },
   ],
+  customizationMedia: {
+    assetId: "asset-red",
+    contentUrl: "https://example.test/red.png",
+    fileName: "red.png",
+    mimeType: "image/png",
+    widthPx: 1200,
+    heightPx: 900,
+  },
 };
 
 const blueVariant: StorefrontProductVariant = {
@@ -43,10 +51,18 @@ const blueVariant: StorefrontProductVariant = {
       heightPx: 900,
     },
   ],
+  customizationMedia: {
+    assetId: "asset-blue",
+    contentUrl: "https://example.test/blue.png",
+    fileName: "blue.png",
+    mimeType: "image/png",
+    widthPx: 1200,
+    heightPx: 900,
+  },
 };
 
 describe("storefront product customization helpers", () => {
-  it("uses the selected variant first media as the preview background", () => {
+  it("uses the selected variant customization media as the preview background", () => {
     const redTemplate = buildProductCustomizationTemplate({
       productId: 42,
       productTitle: "Fixture Trophy",

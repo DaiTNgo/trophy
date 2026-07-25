@@ -13,6 +13,14 @@ export function getCategoryProductPath(
   return `${getCategoryPath(categoryHandle)}/products/${encodeURIComponent(productHandle)}`;
 }
 
+export function getCategoryProductRedirectPath(
+  categoryHandle: string,
+  productHandle: string,
+  search = "",
+) {
+  return `${getCategoryProductPath(categoryHandle, productHandle)}${search}`;
+}
+
 export function getProductPath({
   productHandle,
   categoryHandle,

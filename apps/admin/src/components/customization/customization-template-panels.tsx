@@ -745,7 +745,7 @@ function EmbeddedBackgroundPanel({
     <div className="space-y-4">
       <div>
         <Heading level="h3" className="text-sm font-semibold text-ui-fg-base">Background</Heading>
-        <Text size="small" className="mt-1 text-ui-fg-muted">Choose a variant image for preview placement checks. This does not save a customization background asset.</Text>
+        <Text size="small" className="mt-1 text-ui-fg-muted">Choose a variant Customization Media asset for preview placement checks.</Text>
       </div>
       {template.background ? (
         <div className="space-y-3">

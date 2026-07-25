@@ -154,10 +154,6 @@ function EditorContent({ product, productId, mutate }: { product: CatalogProduct
         <FocusModal.Header>
           <div className="flex w-full items-center justify-between">
             <div className="flex items-center gap-x-4">
-              <Button variant="secondary" size="small" onClick={() => navigate(`/products/${product.id}`)}>
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to Product
-              </Button>
               <h2 className="text-sm font-medium">Customization Editor: {product.title?.vi || product.title?.en}</h2>
             </div>
             <div className="flex items-center gap-x-2">
@@ -240,4 +236,3 @@ function EditorContent({ product, productId, mutate }: { product: CatalogProduct
     </FocusModal>
   );
 }
-

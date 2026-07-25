@@ -47,26 +47,25 @@ export const getCustomizationTabRequirement = ({
     };
   }
 
-  const firstMedia = createdVariantRows[0]?.media[0];
+  const firstMedia = createdVariantRows[0]?.customizationMedia;
 
   for (const variant of createdVariantRows) {
-    if (variant.media.length === 0) {
+    if (!variant.customizationMedia) {
       return {
         ready: false,
-        message: "Upload at least one image for every created variant before opening Customization.",
+        message: "Upload Customization Media for every created variant before opening Customization.",
       };
     }
 
-    for (const media of variant.media) {
-      if (
-        firstMedia &&
-        (media.widthPx !== firstMedia.widthPx || media.heightPx !== firstMedia.heightPx)
-      ) {
-        return {
-          ready: false,
-          message: "All created variant images must share the same dimensions before opening Customization.",
-        };
-      }
+    if (
+      firstMedia &&
+      (variant.customizationMedia.widthPx !== firstMedia.widthPx ||
+        variant.customizationMedia.heightPx !== firstMedia.heightPx)
+    ) {
+      return {
+        ready: false,
+        message: "All Customization Media assets must share the same dimensions before opening Customization.",
+      };
     }
   }
 
@@ -74,7 +73,9 @@ export const getCustomizationTabRequirement = ({
 };
 
 export const getPreviewBackgrounds = (createdVariantRows: ProductVariant[]) =>
-  createdVariantRows.flatMap((variant) => variant.media.map((asset) => toPreviewBackgroundAsset(asset)));
+  createdVariantRows.flatMap((variant) =>
+    variant.customizationMedia ? [toPreviewBackgroundAsset(variant.customizationMedia)] : [],
+  );
 
 export const resolveSelectedPreviewBackground = ({
   backgrounds,

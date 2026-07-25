@@ -21,6 +21,7 @@ import {
   productOptions,
   productOptionValues,
   productVariantMedia,
+  productVariantCustomizationMedia,
   productVariantOptionValues,
   productVariants,
   products
@@ -267,7 +268,7 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
 
     const productIds = items.map((item) => item.id)
 
-    const [categoryRows, variantRows, variantMediaRows, customizationRows] = await Promise.all([
+    const [categoryRows, variantRows, variantMediaRows, variantCustomizationMediaRows, customizationRows] = await Promise.all([
       productIds.length > 0
         ? db
             .select({
@@ -304,7 +305,7 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
               asc(productVariantMedia.variantId),
               asc(productVariantMedia.position),
               asc(productVariantMedia.assetId)
-            )
+          )
         : Promise.resolve(
             [] as Array<{
               variantId: number
@@ -313,6 +314,17 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
               productId: number
             }>
           ),
+      productIds.length > 0
+        ? db
+            .select({
+              variantId: productVariantCustomizationMedia.variantId,
+              assetId: productVariantCustomizationMedia.assetId,
+              productId: productVariants.productId
+            })
+            .from(productVariantCustomizationMedia)
+            .innerJoin(productVariants, eq(productVariantCustomizationMedia.variantId, productVariants.id))
+            .where(inArray(productVariants.productId, productIds))
+        : Promise.resolve([] as Array<{ variantId: number; assetId: string; productId: number }>),
       productIds.length > 0
         ? db
             .select({
@@ -328,10 +340,14 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
       number,
       (typeof variantMediaRows)[number][]
     >()
+    const variantCustomizationMediaByVariantId = new Map<number, { assetId: string }>()
     for (const row of variantMediaRows) {
       const current = variantMediaByVariantId.get(row.variantId) ?? []
       current.push(row)
       variantMediaByVariantId.set(row.variantId, current)
+    }
+    for (const row of variantCustomizationMediaRows) {
+      variantCustomizationMediaByVariantId.set(row.variantId, row)
     }
 
     const customizationByProductId = new Map(
@@ -363,7 +379,8 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
         categoriesByProductId.get(item.id) ?? [],
         variantsByProductId.get(item.id) ?? [],
         variantMediaByVariantId,
-        customizationByProductId.get(item.id)?.enabled ?? false
+        customizationByProductId.get(item.id)?.enabled ?? false,
+        variantCustomizationMediaByVariantId
       )
     )
 
@@ -409,6 +426,7 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
       optionRows,
       variantRows,
       variantMediaRows,
+      variantCustomizationMediaRows,
       customizationRow
     ] = await Promise.all([
       db
@@ -464,6 +482,25 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
           asc(productVariantMedia.assetId)
         ),
       db
+        .select({
+          variantId: productVariantCustomizationMedia.variantId,
+          assetId: productVariantCustomizationMedia.assetId,
+          fileName: productAssets.fileName,
+          mimeType: productAssets.mimeType,
+          widthPx: productAssets.widthPx,
+          heightPx: productAssets.heightPx,
+          byteSize: productAssets.byteSize
+        })
+        .from(productVariantCustomizationMedia)
+        .innerJoin(productAssets, eq(productVariantCustomizationMedia.assetId, productAssets.id))
+        .where(
+          sql`${productVariantCustomizationMedia.variantId} in (
+          select ${productVariants.id}
+          from ${productVariants}
+          where ${productVariants.productId} = ${product.id}
+        )`
+        ),
+      db
         .select()
         .from(productCustomizations)
         .where(eq(productCustomizations.productId, product.id))
@@ -513,6 +550,7 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
       number,
       (typeof variantMediaRows)[number][]
     >()
+    const variantCustomizationMediaByVariantId = new Map<number, (typeof variantCustomizationMediaRows)[number]>()
 
     for (const vo of variantOptionRows) {
       const current = variantOptionIdsMap.get(vo.variantId) ?? []
@@ -524,6 +562,9 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
       const current = variantMediaByVariantId.get(vm.variantId) ?? []
       current.push(vm)
       variantMediaByVariantId.set(vm.variantId, current)
+    }
+    for (const customizationMedia of variantCustomizationMediaRows) {
+      variantCustomizationMediaByVariantId.set(customizationMedia.variantId, customizationMedia)
     }
 
     let customization: any = null;
@@ -645,6 +686,21 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
             position: m.position,
             contentUrl: toAbsoluteAssetUrl(c, `/api/assets/products/${m.assetId}/content`) as string
           })),
+          customizationMedia: (() => {
+            const m = variantCustomizationMediaByVariantId.get(variant.id)
+            return m
+              ? {
+                  id: m.assetId,
+                  assetId: m.assetId,
+                  fileName: m.fileName,
+                  mimeType: m.mimeType,
+                  widthPx: m.widthPx,
+                  heightPx: m.heightPx,
+                  byteSize: m.byteSize,
+                  contentUrl: toAbsoluteAssetUrl(c, `/api/assets/products/${m.assetId}/content`) as string
+                }
+              : null
+          })(),
           optionValues: ovIds
             .map((ovId) => {
               const ov = optionValueById.get(ovId)
@@ -684,7 +740,8 @@ export function buildListingItem(
   categories: string[],
   variants: Array<{ id: number; isDefault: boolean; priceAmount: number | null }>,
   variantMediaByVariantId: Map<number, Array<{ assetId: string }>>,
-  customizationEnabled: boolean
+  customizationEnabled: boolean,
+  variantCustomizationMediaByVariantId: Map<number, { assetId: string }> = new Map()
 ) {
   const prices = variants
     .map((v) => v.priceAmount)
@@ -701,12 +758,27 @@ export function buildListingItem(
     if (defaultMedia.length > 0) {
       thumbnail = toAbsoluteAssetUrl(c, `/api/assets/products/${defaultMedia[0].assetId}/content`) as string
     }
+    if (!thumbnail) {
+      const customizationMedia = variantCustomizationMediaByVariantId.get(defaultVariant.id)
+      if (customizationMedia) {
+        thumbnail = toAbsoluteAssetUrl(c, `/api/assets/products/${customizationMedia.assetId}/content`) as string
+      }
+    }
   }
   if (!thumbnail) {
     for (const variant of variants) {
       const media = variantMediaByVariantId.get(variant.id) ?? []
       if (media.length > 0) {
         thumbnail = toAbsoluteAssetUrl(c, `/api/assets/products/${media[0].assetId}/content`) as string
+        break
+      }
+    }
+  }
+  if (!thumbnail) {
+    for (const variant of variants) {
+      const customizationMedia = variantCustomizationMediaByVariantId.get(variant.id)
+      if (customizationMedia) {
+        thumbnail = toAbsoluteAssetUrl(c, `/api/assets/products/${customizationMedia.assetId}/content`) as string
         break
       }
     }

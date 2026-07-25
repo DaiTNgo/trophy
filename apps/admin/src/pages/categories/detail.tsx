@@ -33,6 +33,7 @@ export function CategoryDetailPage() {
   const [name, setName] = useState<LocalizedTextValue>(() => createEmptyLocalizedText());
   const [nameLocale, setNameLocale] = useState<AdminLocale>("vi");
   const [handle, setHandle] = useState("");
+  const [isSystem, setIsSystem] = useState(false);
   const [description, setDescription] = useState<LocalizedTextValue>(() => createEmptyLocalizedText());
   const [descriptionLocale, setDescriptionLocale] = useState<AdminLocale>("vi");
   const [imageUrl, setImageUrl] = useState("");
@@ -77,6 +78,7 @@ export function CategoryDetailPage() {
           if (current) {
             setName(current.name?.vi ? { vi: current.name.vi, en: current.name.en ?? "" } : createEmptyLocalizedText());
             setHandle(current.handle || "");
+            setIsSystem(Boolean(current.isSystem));
             setDescription(current.description?.vi ? { vi: current.description.vi, en: current.description.en ?? "" } : createEmptyLocalizedText());
             setImageUrl(current.imageUrl || "");
             setPreviewUrl(current.imageUrl || "");
@@ -169,12 +171,14 @@ export function CategoryDetailPage() {
         finalImageUrl = media.contentUrl;
       }
 
-      const payload: any = { 
-        name: { vi: name.vi, en: name.en || undefined }, 
-        handle: handle || null, 
-        description: description.vi ? { vi: description.vi, en: description.en || undefined } : null,
-        imageUrl: finalImageUrl || null 
-      };
+      const payload: any = isSystem
+        ? { imageUrl: finalImageUrl || null }
+        : {
+            name: { vi: name.vi, en: name.en || undefined },
+            handle: handle || null,
+            description: description.vi ? { vi: description.vi, en: description.en || undefined } : null,
+            imageUrl: finalImageUrl || null,
+          };
       
       const res = await backendFetch(
         `/api/admin/product-metadata/categories${isNew ? "" : `/${id}`}`,
@@ -258,10 +262,12 @@ export function CategoryDetailPage() {
                           <Pencil className="mr-2 h-4 w-4" />
                           Edit Category
                         </DropdownMenu.Item>
-                        <DropdownMenu.Item onClick={handleDelete} className="text-ui-fg-danger">
-                          <Trash className="mr-2 h-4 w-4" />
-                          Delete Category
-                        </DropdownMenu.Item>
+                        {!isSystem ? (
+                          <DropdownMenu.Item onClick={handleDelete} className="text-ui-fg-danger">
+                            <Trash className="mr-2 h-4 w-4" />
+                            Delete Category
+                          </DropdownMenu.Item>
+                        ) : null}
                       </DropdownMenu.Content>
                     </DropdownMenu>
                   </div>
@@ -471,6 +477,11 @@ export function CategoryDetailPage() {
                 <Heading>Edit Category</Heading>
               </Drawer.Header>
               <Drawer.Body className="p-4 flex flex-col gap-y-6">
+                {isSystem ? (
+                  <Text size="small" className="rounded-md border border-ui-border-base bg-ui-bg-subtle p-3 text-ui-fg-subtle">
+                    This is the system Customization category. Only its image and ranking can be changed.
+                  </Text>
+                ) : null}
                 <div className="flex flex-col gap-y-2">
                   <Label htmlFor="edit-name" className="text-ui-fg-base">
                     Title
@@ -484,6 +495,7 @@ export function CategoryDetailPage() {
                     placeholder={{ vi: "Tieu de", en: "Title" }}
                     helperText="Vietnamese is required. English is optional."
                     requiredLocales={["vi"]}
+                    disabled={isSystem}
                   />
                 </div>
 
@@ -505,6 +517,7 @@ export function CategoryDetailPage() {
                       onChange={(e) => setHandle(e.target.value)}
                       placeholder="sweatshirts"
                       className="rounded-l-none"
+                      disabled={isSystem}
                     />
                   </div>
                 </div>
@@ -527,6 +540,7 @@ export function CategoryDetailPage() {
                     requiredLocales={[]}
                     multiline
                     rows={4}
+                    disabled={isSystem}
                   />
                 </div>
 

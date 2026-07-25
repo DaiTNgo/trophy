@@ -23,6 +23,7 @@ import {
 } from "../lib/recently-viewed";
 import { RecentlyViewedProducts } from "../components/cart/RecentlyViewedProducts";
 import { getGenericProductPath } from "../lib/storefront-paths";
+import { canReviseCartLine, getCartLineRevisionPath } from "../lib/cart-revision";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -209,6 +210,13 @@ export default function Cart() {
                         </div>
                       </div>
                     )}
+                    {canReviseCartLine(line) ? (
+                      <Button asChild variant="outline" size="sm" className="mt-4">
+                        <Link to={getCartLineRevisionPath(display.handle ?? line.display.productHandle, line.id)}>
+                          Review &amp; edit
+                        </Link>
+                      </Button>
+                    ) : null}
                     {!valid && reason ? (
                       <p className="mt-3 text-sm text-red-500">
                         {reasonLabel(reason)}

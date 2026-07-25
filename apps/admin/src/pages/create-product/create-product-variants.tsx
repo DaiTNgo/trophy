@@ -31,7 +31,9 @@ export function CreateProductVariants({ state }: CreateProductVariantsProps) {
     processingVariantKeys,
     isSubmittingMedia,
     fileInputRefs,
+    customizationFileInputRefs,
     handleVariantMediaUpload,
+    handleCustomizationMediaUpload,
     handleDeleteVariantMedia,
     openVariantGallery,
     updateVariantRow,
@@ -193,7 +195,66 @@ export function CreateProductVariants({ state }: CreateProductVariantsProps) {
                               event.target.value = "";
                             }}
                           />
+                          {values.customizationEnabled ? (
+                            <input
+                              ref={(element) => {
+                                customizationFileInputRefs.current[variantSignature] = element;
+                              }}
+                              type="file"
+                              accept="image/png,image/jpeg,image/webp,application/pdf"
+                              className="hidden"
+                              onChange={(event) => {
+                                void handleCustomizationMediaUpload(
+                                  variantSignature,
+                                  event.target.files,
+                                );
+                                event.target.value = "";
+                              }}
+                            />
+                          ) : null}
                           <div className="min-w-[240px] space-y-3">
+                            {values.customizationEnabled ? (
+                              <div className="rounded-lg border border-ui-border-base p-3">
+                                <Text size="small" weight="plus">Customization Media</Text>
+                                {variant.customizationMedia ? (
+                                  <div className="mt-2 flex items-center gap-3">
+                                    <MediaPreview
+                                      src={variant.customizationMedia.contentUrl}
+                                      mimeType={variant.customizationMedia.mimeType}
+                                      alt={variant.customizationMedia.fileName}
+                                      className="h-16 w-16 rounded border object-contain"
+                                    />
+                                    <div className="min-w-0 flex-1">
+                                      <Text size="small" className="line-clamp-1">
+                                        {variant.customizationMedia.fileName}
+                                      </Text>
+                                      <Text size="small" className="text-ui-fg-subtle">
+                                        {variant.customizationMedia.widthPx}x{variant.customizationMedia.heightPx}
+                                      </Text>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <Text size="small" className="mt-2 text-ui-fg-subtle">
+                                    No customization canvas yet.
+                                  </Text>
+                                )}
+                                <Button
+                                  type="button"
+                                  variant="secondary"
+                                  size="small"
+                                  className="mt-3"
+                                  disabled={isUploading || isSubmittingMedia}
+                                  onClick={() => customizationFileInputRefs.current[variantSignature]?.click()}
+                                >
+                                  {isUploading ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
+                                  {isUploading
+                                    ? "Uploading..."
+                                    : variant.customizationMedia
+                                      ? "Replace customization media"
+                                      : "Upload customization media"}
+                                </Button>
+                              </div>
+                            ) : null}
                             <Button
                               type="button"
                               variant="secondary"

@@ -10,6 +10,7 @@ import {
   productCustomizations,
   orderItems,
   productVariantMedia,
+  productVariantCustomizationMedia,
   productVariants,
   products
 } from '../../db/schema'
@@ -87,7 +88,7 @@ async function loadListingPage(
 
   const productIds = items.map((item) => item.id)
 
-  const [categoryRows, variantRows, variantMediaRows, customizationRows] = await Promise.all([
+  const [categoryRows, variantRows, variantMediaRows, variantCustomizationMediaRows, customizationRows] = await Promise.all([
     productIds.length > 0
       ? db
           .select({
@@ -136,6 +137,17 @@ async function loadListingPage(
     productIds.length > 0
       ? db
           .select({
+            variantId: productVariantCustomizationMedia.variantId,
+            assetId: productVariantCustomizationMedia.assetId,
+            productId: productVariants.productId
+          })
+          .from(productVariantCustomizationMedia)
+          .innerJoin(productVariants, eq(productVariantCustomizationMedia.variantId, productVariants.id))
+          .where(inArray(productVariants.productId, productIds))
+      : Promise.resolve([] as Array<{ variantId: number; assetId: string; productId: number }>),
+    productIds.length > 0
+      ? db
+          .select({
             productId: productCustomizations.productId,
             enabled: productCustomizations.enabled
           })
@@ -171,6 +183,11 @@ async function loadListingPage(
     variantMediaByVariantId.set(row.variantId, current)
   }
 
+  const variantCustomizationMediaByVariantId = new Map<number, { assetId: string }>()
+  for (const row of variantCustomizationMediaRows) {
+    variantCustomizationMediaByVariantId.set(row.variantId, row)
+  }
+
   const customizationByProductId = new Map(
     customizationRows.map((row) => [row.productId, row])
   )
@@ -182,7 +199,8 @@ async function loadListingPage(
       categoriesByProductId.get(item.id) ?? [],
       variantsByProductId.get(item.id) ?? [],
       variantMediaByVariantId,
-      customizationByProductId.get(item.id)?.enabled ?? false
+      customizationByProductId.get(item.id)?.enabled ?? false,
+      variantCustomizationMediaByVariantId
     )
   )
 

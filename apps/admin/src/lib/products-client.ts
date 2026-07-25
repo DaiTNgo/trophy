@@ -42,6 +42,15 @@ type ApiProduct = {
       byteSize: number;
       contentUrl: string;
     }>;
+    customizationMedia: {
+      id: string;
+      fileName: string;
+      mimeType: string;
+      widthPx: number;
+      heightPx: number;
+      byteSize: number;
+      contentUrl: string;
+    } | null;
     optionValueIds: number[];
   }>;
   customization: {
@@ -94,6 +103,7 @@ type CreateFullProductPayload = {
     optionValues: Array<{ optionTitle: string; value: string }>;
     attributes?: Array<{ name: LocalizedInput; value: LocalizedInput; unit?: string | null }>;
     media: Array<{ assetId: string }>;
+    customizationMedia?: { assetId: string } | null;
   }>;
   customization?: {
     enabled: boolean;
@@ -365,6 +375,7 @@ export async function updateProductVariants(id: string, items: Array<{
   isDefault?: boolean;
   optionValueIds: number[];
   media?: Array<{ assetId: string }>;
+  customizationMedia?: { assetId: string } | null;
 }>) {
   const response = await backendFetch(`/api/admin/products/${id}/variants`, {
     method: "PUT",
@@ -391,6 +402,7 @@ export async function createProductVariant(
     optionValueIds: number[];
     attributes?: Array<{ name: LocalizedInput; value: LocalizedInput; unit?: string | null }>;
     media?: Array<{ assetId: string }>;
+    customizationMedia?: { assetId: string } | null;
   },
 ) {
   const response = await backendFetch(`/api/admin/products/${id}/variants`, {
@@ -500,6 +512,27 @@ export async function updateProductVariantMedia(
   return body.item as ApiProduct;
 }
 
+export async function updateProductVariantCustomizationMedia(
+  id: string,
+  variantId: number,
+  assetId: string,
+) {
+  const response = await backendFetch(
+    `/api/admin/products/${id}/variants/${variantId}/customization-media`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ assetId }),
+    },
+  );
+  if (!response.ok) {
+    const err = await response.json().catch(() => null);
+    throw new Error(err?.error || "Failed to update customization media.");
+  }
+  const body = await response.json();
+  return body.item as ApiProduct;
+}
+
 export async function updateProductMedia(id: string, items: Array<{ url: string }>) {
   const response = await backendFetch(`/api/admin/products/${id}/media`, {
     method: "PUT",
@@ -588,6 +621,17 @@ export function mapApiProductToCatalogProduct(product: Partial<ApiProduct> & Pic
       byteSize: asset.byteSize,
       contentUrl: asset.contentUrl,
     })),
+    customizationMedia: variant.customizationMedia
+      ? {
+          id: variant.customizationMedia.id,
+          fileName: variant.customizationMedia.fileName,
+          mimeType: variant.customizationMedia.mimeType,
+          widthPx: variant.customizationMedia.widthPx,
+          heightPx: variant.customizationMedia.heightPx,
+          byteSize: variant.customizationMedia.byteSize,
+          contentUrl: variant.customizationMedia.contentUrl,
+        }
+      : null,
     shouldCreate: true,
   }));
 

@@ -7,6 +7,7 @@ import {
   removeCartLine,
   serializeCartLines,
   updateCartLineQuantity,
+  type AddCartLineOptions,
   type AddCartLineInput,
   type CartCustomizationSummary,
   type CartLine,
@@ -16,7 +17,7 @@ type CartContextValue = {
   lines: CartLine[];
   isReady: boolean;
   itemCount: number;
-  addLine: (input: AddCartLineInput) => void;
+  addLine: (input: AddCartLineInput, options?: AddCartLineOptions) => void;
   updateQuantity: (lineId: string, quantity: number) => void;
   removeLine: (lineId: string) => void;
   clearCart: () => void;
@@ -45,8 +46,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
     lines,
     isReady,
     itemCount: getCartItemCount(lines),
-    addLine(input) {
-      setLines((current) => addCartLine(current, input, () => crypto.randomUUID()));
+    addLine(input, options) {
+      setLines((current) => addCartLine(current, input, () => crypto.randomUUID(), options));
     },
     updateQuantity(lineId, quantity) {
       setLines((current) => updateCartLineQuantity(current, lineId, quantity));

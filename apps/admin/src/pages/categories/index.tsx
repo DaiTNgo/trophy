@@ -23,6 +23,7 @@ type Category = {
   handle: string;
   parentId: number | null;
   imageUrl: string | null;
+  isSystem?: boolean;
 };
 
 export function CategoriesListPage() {
@@ -119,6 +120,9 @@ export function CategoriesListPage() {
                         className="text-ui-fg-interactive hover:text-ui-fg-interactive-hover font-medium"
                       >
                         {category.name.vi}
+                        {category.isSystem ? (
+                          <StatusBadge color="blue" className="ml-2">System</StatusBadge>
+                        ) : null}
                       </Link>
                     </Table.Cell>
                     <Table.Cell>

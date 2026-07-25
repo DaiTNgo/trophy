@@ -11,7 +11,7 @@ import {
   ProductCustomizationPreview,
 } from "@trophy/customization-react";
 import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
-import { useLoaderData } from "react-router";
+import { useLoaderData, useSearchParams } from "react-router";
 import { ChevronDown, ChevronUp, Minus, Plus } from "lucide-react";
 import { validateCustomizationValues } from "@trophy/customization";
 import { ProductBreadcrumbs } from "../components/product/ProductBreadcrumbs";
@@ -43,6 +43,7 @@ import { getLocale } from "../i18n.server";
 import { withStorefrontLoaderLog } from "../lib/observability";
 import Container from "@/components/container";
 import { QuantityInput } from "../components/ui/quantity-input";
+import { CART_LINE_REVISION_PARAM, resolveCartLineRevision } from "../lib/cart-revision";
 
 export async function loader({ params, request, context }: Route.LoaderArgs) {
   return withStorefrontLoaderLog("category-product-detail", request, async () => {
@@ -73,11 +74,13 @@ export function meta({ loaderData }: Route.MetaArgs) {
 
 export default function ProductDetail() {
   const { product, dynamicFonts, locale, activeCategory } = useLoaderData<typeof loader>();
-  const { addLine } = useCart();
+  const { addLine, isReady: isCartReady, lines } = useCart();
+  const [searchParams] = useSearchParams();
   const previewSectionRef = useRef<HTMLDivElement | null>(null);
   const mobilePreviewSentinelRef = useRef<HTMLDivElement | null>(null);
   const mobilePreviewShellRef = useRef<HTMLDivElement | null>(null);
   const recordedRecentlyViewedProductId = useRef<number | null>(null);
+  const appliedCartLineRevisionId = useRef<string | null>(null);
   const defaultVariantId =
     product.variants.find((variant) => variant.isDefault && variant.priceAmount !== null)?.id ??
     product.variants.find((variant) => variant.priceAmount !== null)?.id ??
@@ -95,6 +98,10 @@ export default function ProductDetail() {
   const [isMobilePreviewAutoRestoreArmed, setIsMobilePreviewAutoRestoreArmed] = useState(false);
   const [mobileHiddenShellHeight, setMobileHiddenShellHeight] = useState<number | null>(null);
   const [isMobilePreviewSticky, setIsMobilePreviewSticky] = useState(false);
+  const [isCartLineRevision, setIsCartLineRevision] = useState(false);
+  const [revisionNotice, setRevisionNotice] = useState("");
+  const [hasInvalidRevisionVariant, setHasInvalidRevisionVariant] = useState(false);
+  const cartLineRevisionId = searchParams.get(CART_LINE_REVISION_PARAM);
 
   const selectedVariant =
     product.variants.find((variant) => variant.id === selectedVariantId) ??
@@ -212,7 +219,6 @@ export default function ProductDetail() {
           productTitle: getLocalized(product.title, locale),
           customization,
           selectedVariant: selectedCustomizationVariant,
-          selectedMedia,
         })
         : null,
     [customization, product.id, product.title, locale, selectedCustomizationVariant, selectedMedia],
@@ -226,6 +232,47 @@ export default function ProductDetail() {
     if (!customizationTemplate) return;
     setCustomizationValues((current) => mergeCustomizationValues(customizationTemplate, current));
   }, [customizationTemplate]);
+
+  useEffect(() => {
+    if (!isCartReady || appliedCartLineRevisionId.current === cartLineRevisionId) {
+      return;
+    }
+
+    appliedCartLineRevisionId.current = cartLineRevisionId;
+    setRevisionNotice("");
+    setHasInvalidRevisionVariant(false);
+    setIsCartLineRevision(false);
+    if (!cartLineRevisionId) {
+      return;
+    }
+
+    const revision = resolveCartLineRevision({
+      lines,
+      cartLineId: cartLineRevisionId,
+      productId: product.id,
+      variantIds: product.variants.map((variant) => variant.id),
+    });
+    if (!revision.line) {
+      setRevisionNotice("Your saved customization could not be restored. Please customize this product again.");
+      return;
+    }
+
+    if (revision.status === "restored") {
+      setSelectedVariantId(revision.line.variantId);
+    } else {
+      setHasInvalidRevisionVariant(true);
+      setRevisionNotice("The saved variant is no longer available. Choose a current variant before adding to cart.");
+    }
+
+    if (customizationTemplate && revision.line.customizationValues) {
+      setCustomizationValues(mergeCustomizationValues(
+        customizationTemplate,
+        revision.line.customizationValues as CustomizationFormValues,
+      ));
+    }
+    setQuantity(1);
+    setIsCartLineRevision(true);
+  }, [cartLineRevisionId, customizationTemplate, isCartReady, lines, product.id, product.variants]);
 
   const customizationValidation = useMemo(
     () => customizationTemplate ? validateCustomizationValues({ template: customizationTemplate, values: customizationValues }) : null,
@@ -302,7 +349,10 @@ export default function ProductDetail() {
               data-option-value-id={value.id}
               data-selected={selected}
               onClick={() => {
-                if (nextVariant) setSelectedVariantId(nextVariant.id);
+                if (nextVariant) {
+                  setSelectedVariantId(nextVariant.id);
+                  setHasInvalidRevisionVariant(false);
+                }
               }}
               className={`h-10 rounded border px-3 text-left text-sm font-medium transition ${selected
                 ? "border-brand-strong bg-white text-text-base ring-2 ring-brand-strong/15"
@@ -334,11 +384,14 @@ export default function ProductDetail() {
     selectedVariant.priceAmount === null ||
     quantity < 1 ||
     Boolean(uploadingFieldId) ||
+    hasInvalidRevisionVariant ||
     Boolean(customizationTemplate && customizationValidation && !customizationValidation.valid);
 
   const addToCartMessage = selectedVariant
     ? selectedVariant.priceAmount === null
       ? "This variant uses Contact Price and cannot be added to cart."
+      : hasInvalidRevisionVariant
+        ? "Choose a current variant before adding this item to cart."
       : customizationTemplate && customizationValidation && !customizationValidation.valid
         ? "Complete the required customization fields before adding this item to cart."
         : cartMessage
@@ -396,7 +449,7 @@ export default function ProductDetail() {
         requiresCustomization: Boolean(customizationTemplate),
         isContactPrice: selectedVariant.priceAmount === null,
       },
-    });
+    }, { forceSeparate: isCartLineRevision });
     setCartMessage("Added to cart. You can keep browsing or open the cart.");
   }
 
@@ -460,6 +513,11 @@ export default function ProductDetail() {
       <Container
         className="py-8"
       >
+        {revisionNotice ? (
+          <p className="mb-5 border border-border-subtle bg-surface-subtle px-4 py-3 text-sm text-text-base" role="status">
+            {revisionNotice}
+          </p>
+        ) : null}
         <div ref={previewSectionRef} className="h-0" aria-hidden />
         {customizationTemplate ? (
           <>
