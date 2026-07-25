@@ -294,4 +294,44 @@ describe("sanitizeShopperCustomization", () => {
     ]);
     expect((imageLayer as any).clipartAssets).toHaveLength(1);
   });
+
+  it("preserves polygon geometry while sanitizing shopper customization", () => {
+    const imageLayer = DEFAULT_TEMPLATE.layers.find(
+      (layer) => layer.type === "image_shape",
+    );
+    if (!imageLayer || imageLayer.type !== "image_shape") {
+      throw new Error("Missing image shape fixture");
+    }
+
+    const polygonShape = {
+      type: "vector" as const,
+      lockAspectRatio: false,
+      vectorPath: {
+        closed: true,
+        points: [
+          { id: "top", type: "corner" as const, xRatio: 0.5, yRatio: 0, cornerRadius: 0.08 },
+          { id: "right", type: "corner" as const, xRatio: 1, yRatio: 1 },
+          { id: "left", type: "corner" as const, xRatio: 0, yRatio: 1 },
+        ],
+      },
+    };
+
+    const customization: ProductCustomization = {
+      productId: "1",
+      enabled: true,
+      canvasWidthPx: 1200,
+      canvasHeightPx: 900,
+      layers: [
+        {
+          ...imageLayer,
+          shape: polygonShape,
+        },
+      ],
+      formFields: [],
+    };
+
+    const result = sanitizeShopperCustomization(customization);
+    const resultLayer = result.layers[0];
+    expect(resultLayer && resultLayer.type === "image_shape" ? resultLayer.shape : null).toEqual(polygonShape);
+  });
 });

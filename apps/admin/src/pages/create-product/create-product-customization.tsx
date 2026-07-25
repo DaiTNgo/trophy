@@ -93,11 +93,13 @@ export function CreateProductCustomization({
           template={embeddedEditor.template}
           selectedLayerId={embeddedEditor.selectedLayerId}
           pathEditingLayerId={embeddedEditor.pathEditingLayerId}
+          selectedVectorPointId={embeddedEditor.selectedVectorPointId}
           isDrawing={embeddedEditor.isDrawing}
           pendingVectorPoints={embeddedEditor.pendingVectorPoints}
           dynamicFonts={dynamicFonts}
           onSelectLayer={embeddedEditor.setSelectedLayerId}
           onPathEditingLayerChange={embeddedEditor.setPathEditingLayerId}
+          onSelectVectorPoint={embeddedEditor.setSelectedVectorPointId}
           onUpdateLayer={embeddedEditor.updateLayer}
           onUploadBackground={() => {}}
           onAddVectorPoint={embeddedEditor.addVectorPoint}
@@ -110,6 +112,7 @@ export function CreateProductCustomization({
             template={embeddedEditor.template}
             selectedLayer={embeddedEditor.selectedLayer}
             pathEditingLayerId={embeddedEditor.pathEditingLayerId}
+            selectedVectorPointId={embeddedEditor.selectedVectorPointId}
             onUpdateLayer={embeddedEditor.updateLayer}
             onPathEditingLayerChange={embeddedEditor.setPathEditingLayerId}
             onUpdateTemplate={embeddedEditor.updateTemplate}

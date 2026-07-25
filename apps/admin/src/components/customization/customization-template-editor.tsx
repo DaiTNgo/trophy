@@ -31,11 +31,13 @@ export function EditorCanvas({
   template,
   selectedLayerId,
   pathEditingLayerId,
+  selectedVectorPointId,
   isDrawing,
   pendingVectorPoints,
   dynamicFonts = [],
   onSelectLayer,
   onPathEditingLayerChange,
+  onSelectVectorPoint,
   onUpdateLayer,
   onUploadBackground,
   onAddVectorPoint,
@@ -46,11 +48,13 @@ export function EditorCanvas({
   template: CustomizationTemplate;
   selectedLayerId: string;
   pathEditingLayerId: string;
+  selectedVectorPointId: string | null;
   isDrawing: boolean;
   pendingVectorPoints: VectorPoint[];
   dynamicFonts?: import("@trophy/customization").DynamicFontFamily[];
   onSelectLayer: (layerId: string) => void;
   onPathEditingLayerChange: (layerId: string) => void;
+  onSelectVectorPoint: (pointId: string) => void;
   onUpdateLayer: (layerId: string, updater: (layer: CustomizationLayer) => CustomizationLayer) => void;
   onUploadBackground: (background: BackgroundAsset, file?: File) => void;
   onAddVectorPoint: (point: VectorPoint) => void;
@@ -333,10 +337,12 @@ export function EditorCanvas({
               zoom={zoom}
               selected={selectedLayerId === layer.id && !isDrawing}
               pathEditing={pathEditingLayerId === layer.id}
+              selectedVectorPointId={selectedVectorPointId}
               editing={mode === "edit" && !isDrawing}
               dynamicFonts={dynamicFonts}
               onSelect={() => onSelectLayer(layer.id)}
               onEditPath={() => onPathEditingLayerChange(layer.id)}
+              onSelectVectorPoint={onSelectVectorPoint}
               onUpdate={(updater) => onUpdateLayer(layer.id, updater)}
             />
           ))}
@@ -373,10 +379,12 @@ function CanvasLayer({
   zoom,
   selected,
   pathEditing,
+  selectedVectorPointId,
   editing,
   dynamicFonts = [],
   onSelect,
   onEditPath,
+  onSelectVectorPoint,
   onUpdate,
 }: {
   layer: CustomizationLayer;
@@ -384,10 +392,12 @@ function CanvasLayer({
   zoom: number;
   selected: boolean;
   pathEditing: boolean;
+  selectedVectorPointId: string | null;
   editing: boolean;
   dynamicFonts?: DynamicFontFamily[];
   onSelect: () => void;
   onEditPath: () => void;
+  onSelectVectorPoint: (pointId: string) => void;
   onUpdate: (updater: (layer: CustomizationLayer) => CustomizationLayer) => void;
 }) {
   const rect = layerGeometryToPixels({ geometry: layer.geometry, background });
@@ -475,7 +485,7 @@ function CanvasLayer({
       ) : null}
       {editing && selected && layer.type === "text" && layer.text.path.type === "closed_ellipse" ? <ClosedEllipsePathOverlay layer={layer} onUpdate={onUpdate} /> : null}
       {editing && selected && pathEditing && layer.type === "image_shape" && layer.shape.type === "vector" && layer.shape.vectorPath ? (
-        <VectorPointOverlay layer={layer} onUpdate={onUpdate} />
+        <VectorPointOverlay layer={layer} selectedPointId={selectedVectorPointId} onSelectPoint={onSelectVectorPoint} onUpdate={onUpdate} />
       ) : null}
       {editing && selected && !layer.locked ? <ResizeHandles layer={layer} background={background} zoom={zoom} onUpdate={onUpdate} /> : null}
     </div>
@@ -661,14 +671,17 @@ function PathHandle({
 
 function VectorPointOverlay({
   layer,
+  selectedPointId,
+  onSelectPoint,
   onUpdate,
 }: {
   layer: ImageShapeEditorLayer;
+  selectedPointId: string | null;
+  onSelectPoint: (pointId: string) => void;
   onUpdate: (updater: (layer: CustomizationLayer) => CustomizationLayer) => void;
 }) {
   const vectorPath = layer.shape.vectorPath;
   if (!vectorPath) return null;
-  const [selectedPointId, setSelectedPointId] = useState<string | null>(null);
   const [hoverPoint, setHoverPoint] = useState<{ xRatio: number; yRatio: number; afterIndex: number } | null>(null);
   const points = vectorPath.points;
   const selectedPoint = points.find((p) => p.id === selectedPointId) ?? null;
@@ -732,7 +745,7 @@ function VectorPointOverlay({
         : current,
     );
     setHoverPoint(null);
-    setSelectedPointId(newPoint.id);
+    onSelectPoint(newPoint.id);
   }
 
   return (
@@ -836,7 +849,7 @@ function VectorPointOverlay({
           key={point.id}
           point={point}
           isSelected={selectedPointId === point.id}
-          onSelect={() => setSelectedPointId(point.id)}
+          onSelect={() => onSelectPoint(point.id)}
           onDrag={(xRatio, yRatio) => {
             onUpdate((current) =>
               current.type === "image_shape" && current.shape.vectorPath

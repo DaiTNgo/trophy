@@ -743,6 +743,7 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
       customization
     }
 
+    c.header('Cache-Control', 'no-store')
     return c.json({ item: detail }, 200)
   })
 

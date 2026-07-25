@@ -47,6 +47,7 @@ export function useProductCustomizationEditor(
   const [flash, setFlash] = useState("");
   const [previewOpen, setPreviewOpen] = useState(false);
   const [pathEditingLayerId, setPathEditingLayerId] = useState("");
+  const [selectedVectorPointId, setSelectedVectorPointId] = useState<string | null>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [pendingVectorPoints, setPendingVectorPoints] = useState<VectorPoint[]>([]);
   const [previewValues, setPreviewValues] = useState<CustomizationFormValues>(() =>
@@ -362,6 +363,7 @@ export function useProductCustomizationEditor(
     flash,
     previewOpen,
     pathEditingLayerId,
+    selectedVectorPointId,
     previewValues,
     deleted,
     selectedLayer,
@@ -371,6 +373,7 @@ export function useProductCustomizationEditor(
     setActiveTab,
     setPreviewOpen,
     setPathEditingLayerId,
+    setSelectedVectorPointId,
     updateTemplate,
     updateLayer,
     updateField,
