@@ -45,13 +45,85 @@ export type DynamicFontFamily = {
   boldItalicAssetId: string | null;
 };
 
+export type FontStyleCapabilities = {
+  usable: boolean;
+  bold: boolean;
+  italic: boolean;
+  boldItalic: boolean;
+};
+
+export const getFontStyleCapabilities = (
+  fontFamily: string,
+  dynamicFonts: DynamicFontFamily[] = [],
+): FontStyleCapabilities => {
+  const dynamicFont = dynamicFonts.find((font) => font.id === fontFamily);
+  if (dynamicFont) {
+    return {
+      usable: Boolean(dynamicFont.regularAssetId),
+      bold: Boolean(dynamicFont.boldAssetId),
+      italic: Boolean(dynamicFont.italicAssetId),
+      boldItalic: Boolean(dynamicFont.boldItalicAssetId),
+    };
+  }
+
+  const family = FONT_FAMILIES[fontFamily];
+  if (!family) {
+    return { usable: false, bold: false, italic: false, boldItalic: false };
+  }
+  return {
+    usable: Boolean(family.regular),
+    bold: Boolean(family.bold),
+    italic: Boolean(family.italic),
+    boldItalic: Boolean(family.boldItalic),
+  };
+};
+
+export const isUsableFontFamily = (fontFamily: string, dynamicFonts: DynamicFontFamily[] = []) =>
+  getFontStyleCapabilities(fontFamily, dynamicFonts).usable;
+
+export const getUsableFontOptions = (
+  options: ChoiceOption[],
+  dynamicFonts: DynamicFontFamily[] = [],
+) => options.filter((option) => isUsableFontFamily(option.value, dynamicFonts));
+
+export const hasAvailableFontFormat = (
+  fontFamilyIds: string[],
+  dynamicFonts: DynamicFontFamily[] = [],
+) =>
+  fontFamilyIds.some((fontFamily) => {
+    const capabilities = getFontStyleCapabilities(fontFamily, dynamicFonts);
+    return capabilities.usable && (capabilities.bold || capabilities.italic);
+  });
+
+export const normalizeFontStyle = ({
+  fontFamily,
+  isBold,
+  isItalic,
+  dynamicFonts = [],
+}: {
+  fontFamily: string;
+  isBold: boolean;
+  isItalic: boolean;
+  dynamicFonts?: DynamicFontFamily[];
+}) => {
+  const capabilities = getFontStyleCapabilities(fontFamily, dynamicFonts);
+  if (isBold && isItalic) {
+    if (capabilities.boldItalic) return { isBold: true, isItalic: true };
+    if (capabilities.bold) return { isBold: true, isItalic: false };
+    if (capabilities.italic) return { isBold: false, isItalic: true };
+  }
+  if (isBold && capabilities.bold) return { isBold: true, isItalic: false };
+  if (isItalic && capabilities.italic) return { isBold: false, isItalic: true };
+  return { isBold: false, isItalic: false };
+};
+
 export const resolveFontVariant = (
   fontFamily: string, 
   isBold: boolean, 
   isItalic: boolean,
   dynamicFonts: DynamicFontFamily[] = []
 ) => {
-  const dynamicFont = dynamicFonts.find(f => f.id === fontFamily);
+  const dynamicFont = dynamicFonts.find((font) => font.id === fontFamily);
   if (dynamicFont) {
     if (isBold && isItalic && dynamicFont.boldItalicAssetId) return dynamicFont.boldItalicAssetId;
     if (isBold && dynamicFont.boldAssetId) return dynamicFont.boldAssetId;

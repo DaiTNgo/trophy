@@ -4,20 +4,21 @@ import { HeroSection } from "../components/home/HeroSection";
 import { QuoteTicker } from "../components/home/QuoteTicker";
 import { CustomizationFeatureSection } from "../components/home/ManufacturerSection";
 import { NewsletterSection } from "../components/home/NewsletterSection";
+import { PartnerLogosSection } from "../components/home/PartnerLogosSection";
 import { ProofRow } from "../components/home/ProofRow";
 import { ReviewsSection } from "../components/home/ReviewsSection";
 import { SeoIntroSection } from "../components/home/SeoIntroSection";
 import { ShopByOccasionSection } from "../components/home/ShopByOccasionSection";
 import { useScrollReveal } from "../hooks/useScrollReveal";
 import {
-    fetchStorefrontCategories,
-    fetchStorefrontCollectionProducts,
+  fetchStorefrontCategories,
+  fetchStorefrontCollectionProducts,
 } from "../lib/api";
-import { getLocaleFromRequest } from "../lib/locale";
+import { getLocale } from "../i18n.server";
 import { withStorefrontLoaderLog } from "../lib/observability";
 import type { Route } from "./+types/home";
 
-export function meta({}: Route.MetaArgs) {
+export function meta({ }: Route.MetaArgs) {
   return [
     { title: "PHÙNG THỊ - Cúp Vinh Danh & Kỷ Niệm Chương Cao Cấp" },
     {
@@ -28,9 +29,9 @@ export function meta({}: Route.MetaArgs) {
   ];
 }
 
-export async function loader({ request }: Route.LoaderArgs) {
+export async function loader({ request, context }: Route.LoaderArgs) {
   return withStorefrontLoaderLog("home", request, async () => {
-    const locale = getLocaleFromRequest(request);
+    const locale = getLocale(context);
     const [categories, customizableBestSellersData, standardBestSellersData] = await Promise.all([
       fetchStorefrontCategories(locale).catch(() => []),
       fetchStorefrontCollectionProducts("best-sellers", {
@@ -70,39 +71,47 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       <QuoteTicker />
 
       {/* 3. Production proof claims */}
-      <ProofRow />
+      {/*<ProofRow />*/}
 
       {/* 4. Shop by product type */}
       <CategoriesSection categories={categories} locale={locale} />
 
-      {/* 5. Best-selling customizable products */}
-      <BestSellersSection
-        products={customizableBestSellers}
-        locale={locale}
-        title={locale === "en" ? "Top Customizable Products" : "Top sản phẩm tùy chỉnh bán chạy"}
-        subtitle={
-          locale === "en"
-            ? "Personalize names, logos, award titles, and event messages before production."
-            : "Cá nhân hóa tên, logo, hạng mục giải thưởng và thông điệp trước khi sản xuất."
-        }
-      />
 
 
-
-      {/* 6. Best-selling standard products */}
+      {/* 5. Best-selling standard products */}
       <BestSellersSection
         products={standardBestSellers}
         locale={locale}
-        title={locale === "en" ? "Best Selling Products" : "Sản phẩm bán chạy"}
+        title={
+          locale === "en"
+            ? "Our Most-Loved Recognition Pieces"
+            : "Những Dấu Ấn Vinh Danh Được Yêu Thích Nhất"
+        }
         subtitle={
           locale === "en"
-            ? "Fast-moving award products for teams, events, and corporate recognition."
-            : "Những mẫu bán tốt cho đội nhóm, sự kiện và vinh danh doanh nghiệp."
+            ? "Trophies and commemorative pieces chosen to celebrate effort, honor achievement, and make meaningful moments last."
+            : "Các mẫu cúp và kỷ niệm chương được lựa chọn để tôn vinh nỗ lực, ghi dấu thành tựu và làm nên những khoảnh khắc đáng nhớ."
         }
       />
 
-      {/* 7. Customization story */}
+      {/* 6. Customization story */}
       <CustomizationFeatureSection />
+
+      {/* 7. Best-selling customizable products */}
+      <BestSellersSection
+        products={customizableBestSellers}
+        locale={locale}
+        title={
+          locale === "en"
+            ? "Create an Award That Feels Uniquely Yours"
+            : "Tạo Nên Phần Thưởng Mang Dấu Ấn Riêng"
+        }
+        subtitle={
+          locale === "en"
+            ? "Personalize names, logos, and messages so every award tells the story of the person it celebrates."
+            : "Cá nhân hóa tên, logo và thông điệp để mỗi phần thưởng thể hiện trọn vẹn câu chuyện của người được vinh danh."
+        }
+      />
 
       {/* 8. Shop by occasion */}
       {/*<ShopByOccasionSection />*/}
@@ -113,7 +122,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       {/* 10. SEO intro text */}
       <SeoIntroSection />
 
-      {/* 11. Newsletter */}
+      {/* 11. Partner logos */}
+      <PartnerLogosSection />
+
+      {/* 12. Newsletter */}
       <NewsletterSection />
     </div>
   );

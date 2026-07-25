@@ -2,11 +2,17 @@ import {
   buildDesignFromForm,
   FONT_FILES,
   getImageShapeClipartCategoryMode,
+  getFontStyleCapabilities,
+  getUsableFontOptions,
   getOrderedFormFields,
   getTextPathRenderAttributes,
   getTextPathSvgD,
   layerGeometryToPixels,
+  normalizeFontStyle,
+  resolveFormat,
+  resolveFontVariant,
   validateCustomizationValues,
+  vectorPointsToCssPolygon,
   vectorPointsToSvgPathD,
   type CustomizationFieldValue,
   type CustomizationFormField,
@@ -75,9 +81,11 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default: "bg-accent text-accent-foreground shadow hover:bg-accent/90",
-        outline: "border border-outline bg-white text-on-surface shadow-sm hover:border-accent hover:bg-accent/10",
+        outline:
+          "border border-outline bg-white text-on-surface shadow-sm hover:border-accent hover:bg-accent/10",
         ghost: "text-on-surface hover:bg-surface-container-low",
-        destructive: "bg-destructive text-white shadow-sm hover:bg-destructive/90",
+        destructive:
+          "bg-destructive text-white shadow-sm hover:bg-destructive/90",
       },
       size: {
         default: "h-9 px-4 py-2",
@@ -95,7 +103,13 @@ const buttonVariants = cva(
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> &
   VariantProps<typeof buttonVariants>;
 
-function Button({ className, variant, size, type = "button", ...props }: ButtonProps) {
+function Button({
+  className,
+  variant,
+  size,
+  type = "button",
+  ...props
+}: ButtonProps) {
   return (
     <button
       type={type}
@@ -134,12 +148,17 @@ function getFreeImageRect({
   const safeSourceHeight = Math.max(1, sourceHeightPx);
   const safeFrameWidth = Math.max(1, frameWidthPx);
   const safeFrameHeight = Math.max(1, frameHeightPx);
-  const baseCoverScale = Math.max(safeFrameWidth / safeSourceWidth, safeFrameHeight / safeSourceHeight);
+  const baseCoverScale = Math.max(
+    safeFrameWidth / safeSourceWidth,
+    safeFrameHeight / safeSourceHeight,
+  );
   const scale = freeImageScale(cropScale);
   const widthPx = safeSourceWidth * baseCoverScale * scale;
   const heightPx = safeSourceHeight * baseCoverScale * scale;
-  const centerXPx = safeFrameWidth / 2 + freeCropOffset(cropXRatio) * safeFrameWidth;
-  const centerYPx = safeFrameHeight / 2 + freeCropOffset(cropYRatio) * safeFrameHeight;
+  const centerXPx =
+    safeFrameWidth / 2 + freeCropOffset(cropXRatio) * safeFrameWidth;
+  const centerYPx =
+    safeFrameHeight / 2 + freeCropOffset(cropYRatio) * safeFrameHeight;
 
   return {
     xPx: centerXPx - widthPx / 2,
@@ -178,8 +197,38 @@ export function ProductCustomizationPreview({
   onImageValueChange?: (fieldId: string, value: ImageShapeFieldValue) => void;
 }) {
   const design = useMemo(
-    () => buildDesignFromForm({ template, values, designId: "storefront_product_preview", dynamicFonts }),
+    () =>
+      buildDesignFromForm({
+        template,
+        values,
+        designId: "storefront_product_preview",
+        dynamicFonts,
+      }),
     [dynamicFonts, template, values],
+  );
+  const fontPreviewIds = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          template.layers.flatMap((layer) => {
+            if (layer.type !== "text") return [];
+            const { fontPolicy } = layer.text;
+            const families =
+              fontPolicy.mode === "fixed"
+                ? [fontPolicy.fontId]
+                : [
+                    fontPolicy.defaultFontId,
+                    ...fontPolicy.options.map((option) => option.value),
+                  ];
+            return families
+              .map((fontFamily) =>
+                resolveFontVariant(fontFamily, false, false, dynamicFonts),
+              )
+              .filter(Boolean);
+          }),
+        ),
+      ),
+    [dynamicFonts, template.layers],
   );
 
   const background = template.background;
@@ -189,37 +238,63 @@ export function ProductCustomizationPreview({
   const [pan, setPan] = useState<PanState>({ x: 0, y: 0 });
   const [isFullscreen, setIsFullscreen] = useState(false);
   const viewportRef = useRef<HTMLDivElement | null>(null);
-  const viewportDrag = useRef<{ x: number; y: number; pan: PanState } | null>(null);
-  const activePointers = useRef<Map<number, { x: number; y: number }>>(new Map());
+  const viewportDrag = useRef<{ x: number; y: number; pan: PanState } | null>(
+    null,
+  );
+  const activePointers = useRef<Map<number, { x: number; y: number }>>(
+    new Map(),
+  );
   const initialPinchDist = useRef<number | null>(null);
   const initialPinchZoom = useRef(zoom);
   const scale = zoom;
-  const fieldsByLayerId = new Map(template.formFields.map((field) => [field.layerId, field]));
+  const fieldsByLayerId = new Map(
+    template.formFields.map((field) => [field.layerId, field]),
+  );
   const editableImageFields = useMemo(() => {
     return template.formFields
       .map((field) => {
         const value = values[field.id];
-        if (!value || typeof value !== "object" || !("assetId" in value)) return null;
-        const layer = template.layers.find((entry) => entry.id === field.layerId);
+        if (!value || typeof value !== "object" || !("assetId" in value))
+          return null;
+        const layer = template.layers.find(
+          (entry) => entry.id === field.layerId,
+        );
         if (!layer || layer.type !== "image_shape") return null;
         return { field, value };
       })
-      .filter((entry): entry is { field: CustomizationFormField; value: ImageShapeFieldValue } => entry !== null);
+      .filter(
+        (
+          entry,
+        ): entry is {
+          field: CustomizationFormField;
+          value: ImageShapeFieldValue;
+        } => entry !== null,
+      );
   }, [template.formFields, template.layers, values]);
   const [selectedImageFieldId, setSelectedImageFieldId] = useState("");
   const selectedImageField =
-    editableImageFields.find((entry) => entry.field.id === selectedImageFieldId) ?? null;
+    editableImageFields.find(
+      (entry) => entry.field.id === selectedImageFieldId,
+    ) ?? null;
   const isCanvasPanMode = readOnly || !selectedImageField;
 
   useEffect(() => {
-    if (!selectedImageFieldId || editableImageFields.some((entry) => entry.field.id === selectedImageFieldId)) {
+    if (
+      !selectedImageFieldId ||
+      editableImageFields.some(
+        (entry) => entry.field.id === selectedImageFieldId,
+      )
+    ) {
       return;
     }
     setSelectedImageFieldId("");
   }, [editableImageFields, selectedImageFieldId]);
 
   const setCommittedZoom = useCallback((nextZoom: number) => {
-    const clamped = Math.min(MAX_PREVIEW_ZOOM, Math.max(MIN_PREVIEW_ZOOM, nextZoom));
+    const clamped = Math.min(
+      MAX_PREVIEW_ZOOM,
+      Math.max(MIN_PREVIEW_ZOOM, nextZoom),
+    );
     setZoom(clamped);
   }, []);
 
@@ -228,7 +303,9 @@ export function ProductCustomizationPreview({
     const bounds = viewportRef.current.getBoundingClientRect();
     const availableWidth = Math.max(1, bounds.width - FIT_PADDING_PX);
     const availableHeight = Math.max(1, bounds.height - FIT_PADDING_PX);
-    setCommittedZoom(Math.min(availableWidth / width, availableHeight / height));
+    setCommittedZoom(
+      Math.min(availableWidth / width, availableHeight / height),
+    );
     setPan({ x: 0, y: 0 });
   }, [height, setCommittedZoom, width]);
 
@@ -254,10 +331,86 @@ export function ProductCustomizationPreview({
   }
 
   function adjustSelectedImage(
-    patch: Partial<Pick<ImageShapeFieldValue, "cropScale" | "cropXRatio" | "cropYRatio" | "cropRotationDeg">>,
+    patch: Partial<
+      Pick<
+        ImageShapeFieldValue,
+        "cropScale" | "cropXRatio" | "cropYRatio" | "cropRotationDeg"
+      >
+    >,
   ) {
     if (!selectedImageField) return;
-    updateImageValue(selectedImageField.field.id, { ...selectedImageField.value, ...patch });
+    updateImageValue(selectedImageField.field.id, {
+      ...selectedImageField.value,
+      ...patch,
+    });
+  }
+
+  function startCanvasPan(event: ReactPointerEvent<HTMLDivElement>) {
+    const shouldPanCanvas =
+      readOnly || !selectedImageField || event.target === event.currentTarget;
+    if (!shouldPanCanvas) return;
+    if (
+      !readOnly &&
+      event.target === event.currentTarget &&
+      selectedImageField
+    ) {
+      setSelectedImageFieldId("");
+    }
+    activePointers.current.set(event.pointerId, {
+      x: event.clientX,
+      y: event.clientY,
+    });
+    if (activePointers.current.size === 1) {
+      viewportDrag.current = { x: event.clientX, y: event.clientY, pan };
+    } else if (activePointers.current.size === 2) {
+      const points = Array.from(activePointers.current.values());
+      initialPinchDist.current = Math.hypot(
+        points[0].x - points[1].x,
+        points[0].y - points[1].y,
+      );
+      initialPinchZoom.current = zoom;
+    }
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+
+  function moveCanvasPan(event: ReactPointerEvent<HTMLDivElement>) {
+    if (!isCanvasPanMode) return;
+    if (activePointers.current.has(event.pointerId)) {
+      activePointers.current.set(event.pointerId, {
+        x: event.clientX,
+        y: event.clientY,
+      });
+    }
+
+    if (
+      activePointers.current.size === 2 &&
+      initialPinchDist.current !== null
+    ) {
+      const points = Array.from(activePointers.current.values());
+      const dist = Math.hypot(
+        points[0].x - points[1].x,
+        points[0].y - points[1].y,
+      );
+      setCommittedZoom(
+        initialPinchZoom.current * (dist / initialPinchDist.current),
+      );
+    } else if (activePointers.current.size === 1 && viewportDrag.current) {
+      setPan({
+        x: viewportDrag.current.pan.x + event.clientX - viewportDrag.current.x,
+        y: viewportDrag.current.pan.y + event.clientY - viewportDrag.current.y,
+      });
+    }
+  }
+
+  function finishCanvasPan(event: ReactPointerEvent<HTMLDivElement>) {
+    activePointers.current.delete(event.pointerId);
+    if (activePointers.current.size < 2) initialPinchDist.current = null;
+    if (activePointers.current.size === 1) {
+      const point = Array.from(activePointers.current.values())[0];
+      viewportDrag.current = { x: point.x, y: point.y, pan };
+    } else if (activePointers.current.size === 0) {
+      viewportDrag.current = null;
+    }
   }
 
   const previewFrame = (
@@ -272,6 +425,7 @@ export function ProductCustomizationPreview({
     >
       <FontLoader
         layers={design.layers}
+        fontIds={fontPreviewIds}
         dynamicFonts={dynamicFonts}
         resolveFontUrl={resolveFontUrl}
         resolveStaticFontUrl={resolveStaticFontUrl}
@@ -283,54 +437,10 @@ export function ProductCustomizationPreview({
           isCanvasPanMode ? "cursor-grab active:cursor-grabbing" : ""
         }`}
         style={{ touchAction: isCanvasPanMode ? "none" : "auto" }}
-        onPointerDown={(event) => {
-          const shouldPanCanvas = readOnly || !selectedImageField || event.target === event.currentTarget;
-          if (!shouldPanCanvas) return;
-          if (!readOnly && event.target === event.currentTarget && selectedImageField) {
-            setSelectedImageFieldId("");
-          }
-          activePointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
-          if (activePointers.current.size === 1) {
-            viewportDrag.current = { x: event.clientX, y: event.clientY, pan };
-          } else if (activePointers.current.size === 2) {
-            const points = Array.from(activePointers.current.values());
-            initialPinchDist.current = Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y);
-            initialPinchZoom.current = zoom;
-          }
-          event.currentTarget.setPointerCapture(event.pointerId);
-        }}
-        onPointerMove={(event) => {
-          if (!isCanvasPanMode) return;
-          if (activePointers.current.has(event.pointerId)) {
-            activePointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
-          }
-
-          if (activePointers.current.size === 2 && initialPinchDist.current !== null) {
-            const points = Array.from(activePointers.current.values());
-            const dist = Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y);
-            setCommittedZoom(initialPinchZoom.current * (dist / initialPinchDist.current));
-          } else if (activePointers.current.size === 1 && viewportDrag.current) {
-            setPan({
-              x: viewportDrag.current.pan.x + event.clientX - viewportDrag.current.x,
-              y: viewportDrag.current.pan.y + event.clientY - viewportDrag.current.y,
-            });
-          }
-        }}
-        onPointerUp={(event) => {
-          activePointers.current.delete(event.pointerId);
-          if (activePointers.current.size < 2) initialPinchDist.current = null;
-          if (activePointers.current.size === 1) {
-            const point = Array.from(activePointers.current.values())[0];
-            viewportDrag.current = { x: point.x, y: point.y, pan };
-          } else if (activePointers.current.size === 0) {
-            viewportDrag.current = null;
-          }
-        }}
-        onPointerCancel={(event) => {
-          activePointers.current.delete(event.pointerId);
-          if (activePointers.current.size < 2) initialPinchDist.current = null;
-          if (activePointers.current.size === 0) viewportDrag.current = null;
-        }}
+        onPointerDown={startCanvasPan}
+        onPointerMove={moveCanvasPan}
+        onPointerUp={finishCanvasPan}
+        onPointerCancel={finishCanvasPan}
       >
         <div
           style={{
@@ -344,12 +454,39 @@ export function ProductCustomizationPreview({
             transform: `translate(calc(-50% + ${pan.x}px), calc(-50% + ${pan.y}px))`,
           }}
           onPointerDown={(event) => {
-            if (!readOnly && event.target === event.currentTarget) setSelectedImageFieldId("");
+            if (readOnly) {
+              event.stopPropagation();
+              startCanvasPan(event);
+              return;
+            }
+            if (event.target === event.currentTarget)
+              setSelectedImageFieldId("");
+          }}
+          onPointerMove={(event) => {
+            if (readOnly) {
+              event.stopPropagation();
+              moveCanvasPan(event);
+            }
+          }}
+          onPointerUp={(event) => {
+            if (readOnly) {
+              event.stopPropagation();
+              finishCanvasPan(event);
+            }
+          }}
+          onPointerCancel={(event) => {
+            if (readOnly) {
+              event.stopPropagation();
+              finishCanvasPan(event);
+            }
           }}
         >
           {background ? (
             <img
-              src={resolveAssetUrl?.(background.previewUrl) ?? background.previewUrl}
+              src={
+                resolveAssetUrl?.(background.previewUrl) ??
+                background.previewUrl
+              }
               alt=""
               data-preview-background-image=""
               draggable={false}
@@ -364,45 +501,69 @@ export function ProductCustomizationPreview({
               }}
             />
           ) : (
-            <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "#f5f5f5", fontSize: "14px", color: "#717171" }}>
+            <div
+              style={{
+                position: "absolute",
+                inset: 0,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                backgroundColor: "#f5f5f5",
+                fontSize: "14px",
+                color: "#717171",
+              }}
+            >
               Variant image unavailable
             </div>
           )}
-          {[...design.layers].sort((a, b) => a.zIndex - b.zIndex).map((layer) => {
-            if (layer.type === "text") {
+          {[...design.layers]
+            .sort((a, b) => a.zIndex - b.zIndex)
+            .map((layer) => {
+              if (layer.type === "text") {
+                return (
+                  <PreviewText
+                    key={layer.id}
+                    layer={layer}
+                    width={width}
+                    height={height}
+                    scale={scale}
+                  />
+                );
+              }
+              const field = fieldsByLayerId.get(layer.layerId);
+              const fieldValue = field ? values[field.id] : null;
+              const uploadValue =
+                fieldValue &&
+                typeof fieldValue === "object" &&
+                "assetId" in fieldValue
+                  ? fieldValue
+                  : null;
               return (
-                <PreviewText
+                <PreviewImageShape
                   key={layer.id}
                   layer={layer}
                   width={width}
                   height={height}
                   scale={scale}
+                  interactive={!readOnly}
+                  resolveAssetUrl={resolveAssetUrl}
+                  value={uploadValue}
+                  onChange={
+                    field && uploadValue && onImageValueChange
+                      ? (nextValue) => updateImageValue(field.id, nextValue)
+                      : undefined
+                  }
+                  selected={Boolean(
+                    field && selectedImageField?.field.id === field.id,
+                  )}
+                  onSelect={
+                    !readOnly && field && uploadValue
+                      ? () => setSelectedImageFieldId(field.id)
+                      : undefined
+                  }
                 />
               );
-            }
-            const field = fieldsByLayerId.get(layer.layerId);
-            const fieldValue = field ? values[field.id] : null;
-            const uploadValue = fieldValue && typeof fieldValue === "object" && "assetId" in fieldValue
-              ? fieldValue
-              : null;
-            return (
-              <PreviewImageShape
-                key={layer.id}
-                layer={layer}
-                width={width}
-                height={height}
-                scale={scale}
-                interactive={!readOnly}
-                resolveAssetUrl={resolveAssetUrl}
-                value={uploadValue}
-                onChange={field && uploadValue && onImageValueChange
-                  ? (nextValue) => updateImageValue(field.id, nextValue)
-                  : undefined}
-                selected={Boolean(field && selectedImageField?.field.id === field.id)}
-                onSelect={!readOnly && field && uploadValue ? () => setSelectedImageFieldId(field.id) : undefined}
-              />
-            );
-          })}
+            })}
         </div>
         {!readOnly && selectedImageField ? (
           <div className="pointer-events-none absolute inset-x-3 bottom-3 z-20 flex items-end justify-between gap-3 sm:inset-x-4 sm:bottom-4">
@@ -411,44 +572,79 @@ export function ProductCustomizationPreview({
                 label="Zoom out image"
                 onClick={() =>
                   adjustSelectedImage({
-                    cropScale: Math.max(MIN_FREE_IMAGE_SCALE, (selectedImageField.value.cropScale ?? 1) / 1.1),
-                  })}
+                    cropScale: Math.max(
+                      MIN_FREE_IMAGE_SCALE,
+                      (selectedImageField.value.cropScale ?? 1) / 1.1,
+                    ),
+                  })
+                }
               >
                 <Minus className="size-3.5" />
               </CanvasAction>
               <CanvasAction
                 label="Zoom in image"
-                onClick={() => adjustSelectedImage({ cropScale: (selectedImageField.value.cropScale ?? 1) * 1.1 })}
+                onClick={() =>
+                  adjustSelectedImage({
+                    cropScale: (selectedImageField.value.cropScale ?? 1) * 1.1,
+                  })
+                }
               >
                 <Plus className="size-3.5" />
               </CanvasAction>
               <CanvasAction
                 label="Move image left"
-                onClick={() => adjustSelectedImage({ cropXRatio: (selectedImageField.value.cropXRatio ?? 0) - 0.05 })}
+                onClick={() =>
+                  adjustSelectedImage({
+                    cropXRatio:
+                      (selectedImageField.value.cropXRatio ?? 0) - 0.05,
+                  })
+                }
               >
                 <ArrowLeft className="size-3.5" />
               </CanvasAction>
               <CanvasAction
                 label="Move image right"
-                onClick={() => adjustSelectedImage({ cropXRatio: (selectedImageField.value.cropXRatio ?? 0) + 0.05 })}
+                onClick={() =>
+                  adjustSelectedImage({
+                    cropXRatio:
+                      (selectedImageField.value.cropXRatio ?? 0) + 0.05,
+                  })
+                }
               >
                 <ArrowRight className="size-3.5" />
               </CanvasAction>
               <CanvasAction
                 label="Move image up"
-                onClick={() => adjustSelectedImage({ cropYRatio: (selectedImageField.value.cropYRatio ?? 0) - 0.05 })}
+                onClick={() =>
+                  adjustSelectedImage({
+                    cropYRatio:
+                      (selectedImageField.value.cropYRatio ?? 0) - 0.05,
+                  })
+                }
               >
                 <ArrowUp className="size-3.5" />
               </CanvasAction>
               <CanvasAction
                 label="Move image down"
-                onClick={() => adjustSelectedImage({ cropYRatio: (selectedImageField.value.cropYRatio ?? 0) + 0.05 })}
+                onClick={() =>
+                  adjustSelectedImage({
+                    cropYRatio:
+                      (selectedImageField.value.cropYRatio ?? 0) + 0.05,
+                  })
+                }
               >
                 <ArrowDown className="size-3.5" />
               </CanvasAction>
               <CanvasAction
                 label="Reset image"
-                onClick={() => adjustSelectedImage({ cropScale: 1, cropXRatio: 0, cropYRatio: 0, cropRotationDeg: 0 })}
+                onClick={() =>
+                  adjustSelectedImage({
+                    cropScale: 1,
+                    cropXRatio: 0,
+                    cropYRatio: 0,
+                    cropRotationDeg: 0,
+                  })
+                }
               >
                 <RotateCcw className="size-3.5" />
               </CanvasAction>
@@ -460,10 +656,16 @@ export function ProductCustomizationPreview({
               >
                 <Fullscreen className="size-3.5" />
               </CanvasAction>
-              <CanvasAction label="Zoom out" onClick={() => setCommittedZoom(zoom - PREVIEW_ZOOM_STEP)}>
+              <CanvasAction
+                label="Zoom out"
+                onClick={() => setCommittedZoom(zoom - PREVIEW_ZOOM_STEP)}
+              >
                 <Minus className="size-3.5" />
               </CanvasAction>
-              <CanvasAction label="Zoom in" onClick={() => setCommittedZoom(zoom + PREVIEW_ZOOM_STEP)}>
+              <CanvasAction
+                label="Zoom in"
+                onClick={() => setCommittedZoom(zoom + PREVIEW_ZOOM_STEP)}
+              >
                 <Plus className="size-3.5" />
               </CanvasAction>
               <CanvasAction label="Fit canvas" onClick={fitToView}>
@@ -480,10 +682,16 @@ export function ProductCustomizationPreview({
               >
                 <Fullscreen className="size-3.5" />
               </CanvasAction>
-              <CanvasAction label="Zoom out" onClick={() => setCommittedZoom(zoom - PREVIEW_ZOOM_STEP)}>
+              <CanvasAction
+                label="Zoom out"
+                onClick={() => setCommittedZoom(zoom - PREVIEW_ZOOM_STEP)}
+              >
                 <Minus className="size-3.5" />
               </CanvasAction>
-              <CanvasAction label="Zoom in" onClick={() => setCommittedZoom(zoom + PREVIEW_ZOOM_STEP)}>
+              <CanvasAction
+                label="Zoom in"
+                onClick={() => setCommittedZoom(zoom + PREVIEW_ZOOM_STEP)}
+              >
                 <Plus className="size-3.5" />
               </CanvasAction>
               <CanvasAction label="Fit canvas" onClick={fitToView}>
@@ -617,12 +825,14 @@ export function ProductCustomizationForm({
   const orderedFields = getOrderedFormFields(template);
 
   return (
-      <div className="divide-y divide-outline-variant">
+    <div className="divide-y divide-outline-variant">
       {activeMessage ? (
         <p className="px-0 py-3 text-sm text-destructive">{activeMessage}</p>
       ) : null}
       {orderedFields.map((field, index) => {
-        const layer = template.layers.find((entry) => entry.id === field.layerId);
+        const layer = template.layers.find(
+          (entry) => entry.id === field.layerId,
+        );
         if (!layer) return null;
         return (
           <FormField
@@ -631,7 +841,10 @@ export function ProductCustomizationForm({
             layer={layer}
             stepNumber={index + 1}
             value={values[field.id]}
-            issue={validation.issues.find((issue) => issue.fieldId === field.id)?.message}
+            issue={
+              validation.issues.find((issue) => issue.fieldId === field.id)
+                ?.message
+            }
             uploading={uploadingFieldId === field.id}
             dynamicFonts={dynamicFonts}
             resolveAssetUrl={resolveAssetUrl}
@@ -707,68 +920,73 @@ export {
 
 function FontLoader({
   layers,
+  fontIds: additionalFontIds = [],
   dynamicFonts = [],
   resolveFontUrl,
   resolveStaticFontUrl,
 }: {
   layers: RuntimeLayer[];
+  fontIds?: string[];
   dynamicFonts?: DynamicFontFamily[];
   resolveFontUrl?: ResolveCustomizationFontUrl;
   resolveStaticFontUrl?: ResolveCustomizationStaticFontUrl;
 }) {
-  const fontFamilies = Array.from(
+  const fontIds = Array.from(
     new Set(
       layers
-        .filter((layer): layer is Extract<RuntimeLayer, { type: "text" }> => layer.type === "text" && !!layer.fontId)
-        .map((layer) => layer.fontId),
+        .filter(
+          (layer): layer is Extract<RuntimeLayer, { type: "text" }> =>
+            layer.type === "text" && !!layer.fontId,
+        )
+        .map((layer) => layer.fontId)
+        .concat(additionalFontIds),
     ),
+  );
+  const dynamicFontAssetIds = new Set(
+    dynamicFonts
+      .flatMap((font) => [
+        font.regularAssetId,
+        font.boldAssetId,
+        font.italicAssetId,
+        font.boldItalicAssetId,
+      ])
+      .filter((assetId): assetId is string => Boolean(assetId)),
   );
 
   return (
     <>
-      {fontFamilies.flatMap((familyId) => {
-        const dynamicFont = dynamicFonts.find((font) => font.id === familyId);
-        if (!dynamicFont) {
-          return ["regular", "bold", "italic", "bold-italic"].map((weight) => {
-            const variantId = `${familyId}-${weight}`;
-            const file = FONT_FILES[variantId];
-            if (!file) return null;
-            return (
-              <style
-                key={variantId}
-                dangerouslySetInnerHTML={{
-                  __html: `
-                    @font-face {
-                      font-family: '${variantId}';
-                      src: url('${resolveStaticFontUrl?.(file) ?? `/fonts/${file}`}') format('truetype');
-                    }
-                  `,
-                }}
-              />
-            );
-          });
-        }
-
-        return [
-          dynamicFont.regularAssetId,
-          dynamicFont.boldAssetId,
-          dynamicFont.italicAssetId,
-          dynamicFont.boldItalicAssetId,
-        ]
-          .filter((assetId): assetId is string => Boolean(assetId))
-          .map((assetId) => (
+      {fontIds.map((fontId) => {
+        if (dynamicFontAssetIds.has(fontId)) {
+          return (
             <style
-              key={assetId}
+              key={fontId}
               dangerouslySetInnerHTML={{
                 __html: `
                   @font-face {
-                    font-family: '${assetId}';
-                    src: url('${resolveFontUrl?.(assetId) ?? assetId}') format('truetype');
+                    font-family: '${fontId}';
+                    src: url('${resolveFontUrl?.(fontId) ?? fontId}') format('truetype');
                   }
                 `,
               }}
             />
-          ));
+          );
+        }
+
+        const file = FONT_FILES[fontId];
+        if (!file) return null;
+        return (
+          <style
+            key={fontId}
+            dangerouslySetInnerHTML={{
+              __html: `
+                @font-face {
+                  font-family: '${fontId}';
+                  src: url('${resolveStaticFontUrl?.(file) ?? `/fonts/${file}`}') format('truetype');
+                }
+              `,
+            }}
+          />
+        );
       })}
     </>
   );
@@ -788,7 +1006,10 @@ function PreviewText({
   const closedTextPath = layer.path.type === "closed_ellipse";
   const layerWidthPx = layer.geometry.widthRatio * width;
   const layerHeightPx = closedTextPath
-    ? Math.max(1, (layer.geometry.heightRatio ?? layer.geometry.widthRatio) * height)
+    ? Math.max(
+        1,
+        (layer.geometry.heightRatio ?? layer.geometry.widthRatio) * height,
+      )
     : layer.fontSizePt * Math.max(1, layer.text.split("\n").length) * 1.35;
   const left = (layer.geometry.xRatio * width - layerWidthPx / 2) * scale;
   const top = (layer.geometry.yRatio * height - layerHeightPx / 2) * scale;
@@ -796,7 +1017,9 @@ function PreviewText({
   if (layer.path.type !== "straight") {
     const pathId = `storefront_product_text_path_${layer.id}`;
     const textWidthPx = layer.text.length * layer.fontSizePt * 0.55;
-    const wordCount = layer.text.trim() ? layer.text.trim().split(/\s+/).length : 0;
+    const wordCount = layer.text.trim()
+      ? layer.text.trim().split(/\s+/).length
+      : 0;
     const pathAttrs = getTextPathRenderAttributes({
       path: layer.path,
       align: layer.align,
@@ -810,7 +1033,11 @@ function PreviewText({
       pathAttrs.pathStartAngleDeg != null
         ? { ...layer.path, startAngleDeg: pathAttrs.pathStartAngleDeg }
         : layer.path;
-    const pathD = getTextPathSvgD({ path: renderPath, widthPx: layerWidthPx, heightPx: layerHeightPx });
+    const pathD = getTextPathSvgD({
+      path: renderPath,
+      widthPx: layerWidthPx,
+      heightPx: layerHeightPx,
+    });
 
     return (
       <svg
@@ -841,7 +1068,11 @@ function PreviewText({
           wordSpacing={pathAttrs.wordSpacingPx ?? 0}
         >
           <textPath href={`#${pathId}`} startOffset={pathAttrs.startOffset}>
-            {pathAttrs.dy ? <tspan dy={pathAttrs.dy}>{layer.text}</tspan> : layer.text}
+            {pathAttrs.dy ? (
+              <tspan dy={pathAttrs.dy}>{layer.text}</tspan>
+            ) : (
+              layer.text
+            )}
           </textPath>
         </text>
       </svg>
@@ -895,7 +1126,10 @@ function PreviewImageShape({
   selected?: boolean;
   onSelect?: () => void;
 }) {
-  const rect = layerGeometryToPixels({ geometry: layer.geometry, background: { widthPx: width, heightPx: height } });
+  const rect = layerGeometryToPixels({
+    geometry: layer.geometry,
+    background: { widthPx: width, heightPx: height },
+  });
   const imageRect = getFreeImageRect({
     sourceWidthPx: value?.sourceWidthPx ?? layer.sourceWidthPx,
     sourceHeightPx: value?.sourceHeightPx ?? layer.sourceHeightPx,
@@ -906,19 +1140,37 @@ function PreviewImageShape({
     cropYRatio: value?.cropYRatio ?? layer.cropYRatio,
   });
   const editable = Boolean(value && onChange);
-  const clipPath = cssShapeClip(layer.shape.type, layer.id);
+  const clipPath =
+    layer.shape.type === "vector" && layer.shape.vectorPath
+      ? (vectorPointsToCssPolygon(
+          layer.shape.vectorPath.points,
+          layer.shape.vectorPath.closed,
+        ) ?? cssShapeClip(layer.shape.type, layer.id))
+      : cssShapeClip(layer.shape.type, layer.id);
 
-  function updateFromImageRect(next: { centerXPx: number; centerYPx: number; widthPx: number }) {
+  function updateFromImageRect(next: {
+    centerXPx: number;
+    centerYPx: number;
+    widthPx: number;
+  }) {
     if (!value || !onChange) return;
     onChange({
       ...value,
-      cropScale: Math.max(MIN_FREE_IMAGE_SCALE, (next.widthPx / imageRect.widthPx) * imageRect.cropScale),
-      cropXRatio: (next.centerXPx - rect.widthPx / 2) / Math.max(1, rect.widthPx),
-      cropYRatio: (next.centerYPx - rect.heightPx / 2) / Math.max(1, rect.heightPx),
+      cropScale: Math.max(
+        MIN_FREE_IMAGE_SCALE,
+        (next.widthPx / imageRect.widthPx) * imageRect.cropScale,
+      ),
+      cropXRatio:
+        (next.centerXPx - rect.widthPx / 2) / Math.max(1, rect.widthPx),
+      cropYRatio:
+        (next.centerYPx - rect.heightPx / 2) / Math.max(1, rect.heightPx),
     });
   }
 
-  function startResize(event: ReactPointerEvent<HTMLButtonElement>, corner: ResizeCorner) {
+  function startResize(
+    event: ReactPointerEvent<HTMLButtonElement>,
+    corner: ResizeCorner,
+  ) {
     if (!editable || !value) return;
     event.preventDefault();
     event.stopPropagation();
@@ -939,14 +1191,23 @@ function PreviewImageShape({
       y: corner === "nw" || corner === "ne" ? top : bottom,
     };
     const vector = { x: moving.x - fixed.x, y: moving.y - fixed.y };
-    const vectorLengthSq = Math.max(1, vector.x * vector.x + vector.y * vector.y);
+    const vectorLengthSq = Math.max(
+      1,
+      vector.x * vector.x + vector.y * vector.y,
+    );
     event.currentTarget.setPointerCapture(event.pointerId);
 
     function move(pointer: PointerEvent) {
       const dx = (pointer.clientX - startX) / scale;
       const dy = (pointer.clientY - startY) / scale;
-      const nextVector = { x: moving.x + dx - fixed.x, y: moving.y + dy - fixed.y };
-      const nextScale = Math.max(MIN_FREE_IMAGE_SCALE, (nextVector.x * vector.x + nextVector.y * vector.y) / vectorLengthSq);
+      const nextVector = {
+        x: moving.x + dx - fixed.x,
+        y: moving.y + dy - fixed.y,
+      };
+      const nextScale = Math.max(
+        MIN_FREE_IMAGE_SCALE,
+        (nextVector.x * vector.x + nextVector.y * vector.y) / vectorLengthSq,
+      );
       updateFromImageRect({
         centerXPx: fixed.x + (vector.x * nextScale) / 2,
         centerYPx: fixed.y + (vector.y * nextScale) / 2,
@@ -980,14 +1241,19 @@ function PreviewImageShape({
         event.preventDefault();
         event.stopPropagation();
         onSelect?.();
-        const nextCropScale = Math.max(MIN_FREE_IMAGE_SCALE, imageRect.cropScale * (event.deltaY < 0 ? 1.06 : 1 / 1.06));
+        const nextCropScale = Math.max(
+          MIN_FREE_IMAGE_SCALE,
+          imageRect.cropScale * (event.deltaY < 0 ? 1.06 : 1 / 1.06),
+        );
         const bounds = event.currentTarget.getBoundingClientRect();
         const pointerXPx = (event.clientX - bounds.left) / scale;
         const pointerYPx = (event.clientY - bounds.top) / scale;
         const scaleRatio = nextCropScale / imageRect.cropScale;
         updateFromImageRect({
-          centerXPx: pointerXPx - (pointerXPx - imageRect.centerXPx) * scaleRatio,
-          centerYPx: pointerYPx - (pointerYPx - imageRect.centerYPx) * scaleRatio,
+          centerXPx:
+            pointerXPx - (pointerXPx - imageRect.centerXPx) * scaleRatio,
+          centerYPx:
+            pointerYPx - (pointerYPx - imageRect.centerYPx) * scaleRatio,
           widthPx: imageRect.widthPx * scaleRatio,
         });
       }}
@@ -997,8 +1263,9 @@ function PreviewImageShape({
           position: "absolute",
           inset: 0,
           overflow: "hidden",
+          WebkitClipPath: clipPath,
           cursor: editable && selected ? "move" : "default",
-          clipPath 
+          clipPath,
         }}
         onPointerDown={(event) => {
           if (!interactive || !editable || !value || !onChange) return;
@@ -1040,7 +1307,11 @@ function PreviewImageShape({
         }}
       >
         <img
-          src={resolveAssetUrl?.(value?.previewUrl ?? layer.previewUrl) ?? value?.previewUrl ?? layer.previewUrl}
+          src={
+            resolveAssetUrl?.(value?.previewUrl ?? layer.previewUrl) ??
+            value?.previewUrl ??
+            layer.previewUrl
+          }
           alt=""
           draggable={false}
           style={{
@@ -1066,10 +1337,19 @@ function PreviewImageShape({
               aria-label={`Resize image ${corner}`}
               className="absolute z-10 flex size-10 items-center justify-center md:size-6"
               style={{
-                left: (corner === "nw" || corner === "sw" ? imageRect.xPx : imageRect.xPx + imageRect.widthPx) * scale,
-                top: (corner === "nw" || corner === "ne" ? imageRect.yPx : imageRect.yPx + imageRect.heightPx) * scale,
+                left:
+                  (corner === "nw" || corner === "sw"
+                    ? imageRect.xPx
+                    : imageRect.xPx + imageRect.widthPx) * scale,
+                top:
+                  (corner === "nw" || corner === "ne"
+                    ? imageRect.yPx
+                    : imageRect.yPx + imageRect.heightPx) * scale,
                 transform: "translate(-50%, -50%)",
-                cursor: corner === "nw" || corner === "se" ? "nwse-resize" : "nesw-resize",
+                cursor:
+                  corner === "nw" || corner === "se"
+                    ? "nwse-resize"
+                    : "nesw-resize",
                 touchAction: "none",
               }}
               onPointerDown={(event) => startResize(event, corner)}
@@ -1100,6 +1380,7 @@ function FormField({
   value,
   issue,
   uploading,
+  dynamicFonts = [],
   resolveAssetUrl,
   onChange,
   onUpload,
@@ -1115,24 +1396,37 @@ function FormField({
   onChange: (value: CustomizationFieldValue) => void;
   onUpload: (file: File) => void;
 }) {
-  const imageLayer = layer.type === "image_shape" ? (layer as ImageShapeEditorLayer) : null;
+  const imageLayer =
+    layer.type === "image_shape" ? (layer as ImageShapeEditorLayer) : null;
   return (
     <section className="py-4">
       {/* Step header */}
       <div className="mb-3">
         <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-accent">
-          STEP {stepNumber}{field.helpText ? (
-            <span className="ml-2 text-[11px] font-normal normal-case tracking-normal text-on-surface-variant">{field.helpText}</span>
+          STEP {stepNumber}
+          {field.helpText ? (
+            <span className="ml-2 text-[11px] font-normal normal-case tracking-normal text-on-surface-variant">
+              {field.helpText}
+            </span>
           ) : null}
         </p>
         <label className="mt-0.5 block text-sm font-semibold text-on-surface">
-          {field.label}{field.required ? (
-            <span className="ml-1 text-destructive" aria-hidden>*</span>
+          {field.label}
+          {field.required ? (
+            <span className="ml-1 text-destructive" aria-hidden>
+              *
+            </span>
           ) : null}
         </label>
       </div>
       {layer.type === "text" ? (
-        <TextField field={field} layer={layer} value={value} onChange={onChange} />
+        <TextField
+          field={field}
+          layer={layer}
+          value={value}
+          dynamicFonts={dynamicFonts}
+          onChange={onChange}
+        />
       ) : (
         <ImageField
           layer={imageLayer}
@@ -1143,7 +1437,9 @@ function FormField({
           onUpload={onUpload}
         />
       )}
-      {issue ? <p className="mt-2 text-xs font-medium text-destructive">{issue}</p> : null}
+      {issue ? (
+        <p className="mt-2 text-xs font-medium text-destructive">{issue}</p>
+      ) : null}
     </section>
   );
 }
@@ -1152,91 +1448,232 @@ function TextField({
   field,
   layer,
   value,
+  dynamicFonts = [],
   onChange,
 }: {
   field: CustomizationFormField;
   layer: Extract<CustomizationLayer, { type: "text" }>;
   value: CustomizationFieldValue | undefined;
+  dynamicFonts?: DynamicFontFamily[];
   onChange: (value: TextFieldValue) => void;
 }) {
   const textValue = value && "text" in value ? value : { text: "" };
   const pathText = layer.text.path.type !== "straight";
+  const fontPolicy = layer.text.fontPolicy;
+  const availableFontOptions =
+    fontPolicy.mode === "shopper_selectable"
+      ? getUsableFontOptions(fontPolicy.options, dynamicFonts)
+      : [];
+  const selectedFontId =
+    fontPolicy.mode === "shopper_selectable"
+      ? (availableFontOptions.find(
+          (option) => option.value === textValue.fontId,
+        )?.value ??
+        availableFontOptions[0]?.value ??
+        fontPolicy.defaultFontId)
+      : fontPolicy.fontId;
+  const selectedFontCapabilities = getFontStyleCapabilities(
+    selectedFontId,
+    dynamicFonts,
+  );
+  const requestedFormat = resolveFormat(layer.text.formatPolicy, textValue);
+  const normalizedStyle = normalizeFontStyle({
+    fontFamily: selectedFontId,
+    isBold: requestedFormat.isBold,
+    isItalic: requestedFormat.isItalic,
+    dynamicFonts,
+  });
+
+  useEffect(() => {
+    if (
+      textValue.fontId === selectedFontId &&
+      textValue.isBold === normalizedStyle.isBold &&
+      textValue.isItalic === normalizedStyle.isItalic
+    ) {
+      return;
+    }
+    onChange({ ...textValue, fontId: selectedFontId, ...normalizedStyle });
+  }, [
+    normalizedStyle.isBold,
+    normalizedStyle.isItalic,
+    onChange,
+    selectedFontId,
+    textValue,
+  ]);
 
   return (
     <div className="space-y-4">
+      <style>{`
+        .trophy-customization-text-input::selection {
+          color: #ffffff;
+          background-color: #288ab6;
+        }
+        .trophy-customization-text-input::-moz-selection {
+          color: #ffffff;
+          background-color: #288ab6;
+        }
+      `}</style>
       <input
         type="text"
         value={pathText ? textValue.text : textValue.text.replace(/\n/g, " ")}
-        placeholder={field.placeholder ?? "Letter limit varies, refer to preview to confirm your text is correct"}
+        placeholder={
+          field.placeholder ??
+          "Letter limit varies, refer to preview to confirm your text is correct"
+        }
         onChange={(event) =>
           onChange({
             ...textValue,
             text: event.target.value,
           })
         }
-        className="h-10 w-full rounded border border-outline bg-white px-3 text-sm text-on-surface outline-none transition focus:border-accent focus:ring-1 focus:ring-accent/30"
+        className="trophy-customization-text-input h-10 w-full rounded border border-outline bg-white px-3 text-sm text-on-surface outline-none transition focus:border-accent focus:ring-1 focus:ring-accent/30"
       />
-      {layer.text.colorPolicy.mode === "shopper_selectable" ? (
-        (() => {
-          const colorPolicy = layer.text.colorPolicy;
-          return (
-            <div className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-[0.1em] text-on-surface-variant">
-                Text Color
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {colorPolicy.options.map((option) => {
-                  const selected = (textValue.color ?? colorPolicy.defaultColor) === option.value;
-                  return (
-                    <button
-                      key={option.value}
-                      type="button"
-                      title={option.label}
-                      onClick={() => onChange({ ...textValue, color: option.value })}
-                      className={`size-8 rounded-full border-2 transition ${
-                        selected
-                          ? "border-accent ring-2 ring-accent/40 ring-offset-1"
-                          : "border-white shadow-[0_0_0_1.5px_rgba(0,0,0,0.18)] hover:ring-2 hover:ring-accent/30"
-                      }`}
-                      style={{ backgroundColor: option.value }}
-                    />
-                  );
-                })}
+      {layer.text.colorPolicy.mode === "shopper_selectable"
+        ? (() => {
+            const colorPolicy = layer.text.colorPolicy;
+            return (
+              <div className="space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-[0.1em] text-on-surface-variant">
+                  Text Color
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {colorPolicy.options.map((option) => {
+                    const selected =
+                      (textValue.color ?? colorPolicy.defaultColor) ===
+                      option.value;
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        title={option.label}
+                        onClick={() =>
+                          onChange({ ...textValue, color: option.value })
+                        }
+                        className={`size-8 rounded-full border-2 transition ${
+                          selected
+                            ? "border-accent ring-2 ring-accent/40 ring-offset-1"
+                            : "border-white shadow-[0_0_0_1.5px_rgba(0,0,0,0.18)] hover:ring-2 hover:ring-accent/30"
+                        }`}
+                        style={{ backgroundColor: option.value }}
+                      />
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          );
-        })()
+            );
+          })()
+        : null}
+      {fontPolicy.mode === "shopper_selectable" &&
+      availableFontOptions.length > 1 ? (
+        <div className="space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-[0.1em] text-on-surface-variant">
+            Font
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {availableFontOptions.map((option) => {
+              const selected = selectedFontId === option.value;
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  title={option.label}
+                  onClick={() => {
+                    const nextStyle = normalizeFontStyle({
+                      fontFamily: option.value,
+                      isBold: normalizedStyle.isBold,
+                      isItalic: normalizedStyle.isItalic,
+                      dynamicFonts,
+                    });
+                    onChange({
+                      ...textValue,
+                      fontId: option.value,
+                      ...nextStyle,
+                    });
+                  }}
+                  className={`flex h-9 items-center justify-center rounded border px-3 text-sm transition ${
+                    selected
+                      ? "border-accent bg-accent/10 text-accent font-semibold"
+                      : "border-outline bg-white text-on-surface hover:border-accent"
+                  }`}
+                  style={{
+                    fontFamily: resolveFontVariant(
+                      option.value,
+                      false,
+                      false,
+                      dynamicFonts,
+                    ),
+                  }}
+                >
+                  {option.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
       ) : null}
-      {layer.text.fontPolicy.mode === "shopper_selectable" ? (
-        (() => {
-          const fontPolicy = layer.text.fontPolicy;
-          return (
-            <div className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-[0.1em] text-on-surface-variant">Font</p>
-              <div className="flex flex-wrap gap-2">
-                {fontPolicy.options.map((option) => {
-                  const selected = (textValue.fontId ?? fontPolicy.defaultFontId) === option.value;
-                  return (
-                    <button
-                      key={option.value}
-                      type="button"
-                      title={option.label}
-                      onClick={() => onChange({ ...textValue, fontId: option.value })}
-                      className={`flex h-9 items-center justify-center rounded border px-3 text-sm transition ${
-                        selected
-                          ? "border-accent bg-accent/10 text-accent font-semibold"
-                          : "border-outline bg-white text-on-surface hover:border-accent"
-                      }`}
-                      style={{ fontFamily: option.value }}
-                    >
-                      {option.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })()
+      {layer.text.formatPolicy.mode === "shopper_selectable" &&
+      (selectedFontCapabilities.bold || selectedFontCapabilities.italic) ? (
+        <div className="space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-[0.1em] text-on-surface-variant">
+            Format
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {selectedFontCapabilities.bold ? (
+              <button
+                type="button"
+                aria-pressed={normalizedStyle.isBold}
+                onClick={() => {
+                  const nextBold = !normalizedStyle.isBold;
+                  const nextStyle = normalizeFontStyle({
+                    fontFamily: selectedFontId,
+                    isBold: nextBold,
+                    isItalic: normalizedStyle.isItalic,
+                    dynamicFonts,
+                  });
+                  onChange({
+                    ...textValue,
+                    fontId: selectedFontId,
+                    ...nextStyle,
+                  });
+                }}
+                className={`flex h-9 w-9 items-center justify-center rounded border text-sm font-bold transition ${
+                  normalizedStyle.isBold
+                    ? "border-accent bg-accent/10 text-accent"
+                    : "border-outline bg-white text-on-surface hover:border-accent"
+                }`}
+              >
+                B
+              </button>
+            ) : null}
+            {selectedFontCapabilities.italic ? (
+              <button
+                type="button"
+                aria-pressed={normalizedStyle.isItalic}
+                onClick={() => {
+                  const nextItalic = !normalizedStyle.isItalic;
+                  const nextStyle = normalizeFontStyle({
+                    fontFamily: selectedFontId,
+                    isBold: normalizedStyle.isBold,
+                    isItalic: nextItalic,
+                    dynamicFonts,
+                  });
+                  onChange({
+                    ...textValue,
+                    fontId: selectedFontId,
+                    ...nextStyle,
+                  });
+                }}
+                className={`flex h-9 w-9 items-center justify-center rounded border text-sm italic transition ${
+                  normalizedStyle.isItalic
+                    ? "border-accent bg-accent/10 text-accent"
+                    : "border-outline bg-white text-on-surface hover:border-accent"
+                }`}
+              >
+                I
+              </button>
+            ) : null}
+          </div>
+        </div>
       ) : null}
     </div>
   );
@@ -1258,29 +1695,41 @@ function ImageField({
   onUpload: (file: File) => void;
 }) {
   const sourcePolicy = layer?.sourcePolicy ?? "upload_only";
-  const clipartCategoryMode = layer ? getImageShapeClipartCategoryMode(layer) : "fixed";
-  const uploaded = value && typeof value === "object" && "assetId" in value ? value : null;
+  const clipartCategoryMode = layer
+    ? getImageShapeClipartCategoryMode(layer)
+    : "fixed";
+  const uploaded =
+    value && typeof value === "object" && "assetId" in value ? value : null;
   const clipartValue =
-    value && typeof value === "object" && "source" in value && value.source === "clipart" ? value : null;
-  const scopedClipartCategories =
-    !layer
-      ? []
-      : clipartCategoryMode === "allow_list"
-        ? (layer.allowedClipartCategories ?? [])
-        : layer.clipartCategory
-          ? [layer.clipartCategory]
-          : [];
+    value &&
+    typeof value === "object" &&
+    "source" in value &&
+    value.source === "clipart"
+      ? value
+      : null;
+  const scopedClipartCategories = !layer
+    ? []
+    : clipartCategoryMode === "allow_list"
+      ? (layer.allowedClipartCategories ?? [])
+      : layer.clipartCategory
+        ? [layer.clipartCategory]
+        : [];
   const initialCategoryId =
     clipartValue?.categoryId ??
-    (clipartCategoryMode === "fixed" ? layer?.clipartCategory?.id : scopedClipartCategories[0]?.id) ??
+    (clipartCategoryMode === "fixed"
+      ? layer?.clipartCategory?.id
+      : scopedClipartCategories[0]?.id) ??
     "";
-  const [selectedCategoryId, setSelectedCategoryId] = useState(initialCategoryId);
+  const [selectedCategoryId, setSelectedCategoryId] =
+    useState(initialCategoryId);
   useEffect(() => {
     setSelectedCategoryId((current) => {
       if (clipartCategoryMode === "fixed") {
         return layer?.clipartCategory?.id ?? "";
       }
-      const allowedIds = new Set(scopedClipartCategories.map((category) => category.id));
+      const allowedIds = new Set(
+        scopedClipartCategories.map((category) => category.id),
+      );
       if (current && allowedIds.has(current)) {
         return current;
       }
@@ -1289,19 +1738,34 @@ function ImageField({
       }
       return scopedClipartCategories[0]?.id ?? "";
     });
-  }, [clipartCategoryMode, layer?.clipartCategory?.id, clipartValue?.categoryId, layer?.id, scopedClipartCategories]);
-  const scopedCategoryIds = new Set(scopedClipartCategories.map((category) => category.id));
+  }, [
+    clipartCategoryMode,
+    layer?.clipartCategory?.id,
+    clipartValue?.categoryId,
+    layer?.id,
+    scopedClipartCategories,
+  ]);
+  const scopedCategoryIds = new Set(
+    scopedClipartCategories.map((category) => category.id),
+  );
   const activeCategoryId =
     clipartCategoryMode === "fixed"
-      ? layer?.clipartCategory?.id ?? ""
+      ? (layer?.clipartCategory?.id ?? "")
       : selectedCategoryId || scopedClipartCategories[0]?.id || "";
-  const availableClipartAssets = (layer?.clipartAssets ?? []).filter((asset) => {
-    if (!asset.active || !scopedCategoryIds.has(asset.categoryId)) return false;
-    if (!activeCategoryId) return true;
-    return asset.categoryId === activeCategoryId;
-  });
+  const availableClipartAssets = (layer?.clipartAssets ?? []).filter(
+    (asset) => {
+      if (!asset.active || !scopedCategoryIds.has(asset.categoryId))
+        return false;
+      if (!activeCategoryId) return true;
+      return asset.categoryId === activeCategoryId;
+    },
+  );
   const currentSource =
-    sourcePolicy === "clipart_category_only" ? "clipart" : clipartValue ? "clipart" : "upload";
+    sourcePolicy === "clipart_category_only"
+      ? "clipart"
+      : clipartValue
+        ? "clipart"
+        : "upload";
 
   const uploadSection = (
     <div className="space-y-2.5">
@@ -1366,9 +1830,12 @@ function ImageField({
 
   const clipartSection = (
     <div className="space-y-3">
-      {clipartCategoryMode === "allow_list" && scopedClipartCategories.length > 0 ? (
+      {clipartCategoryMode === "allow_list" &&
+      scopedClipartCategories.length > 0 ? (
         <div className="space-y-1.5">
-          <p className="text-xs font-semibold uppercase tracking-[0.1em] text-on-surface-variant">Category</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.1em] text-on-surface-variant">
+            Category
+          </p>
           <select
             value={activeCategoryId}
             onChange={(event) => setSelectedCategoryId(event.target.value)}
@@ -1382,7 +1849,9 @@ function ImageField({
           </select>
         </div>
       ) : clipartCategoryMode === "fixed" && layer?.clipartCategory?.name ? (
-        <p className="text-xs font-semibold text-on-surface-variant">{layer.clipartCategory.name}</p>
+        <p className="text-xs font-semibold text-on-surface-variant">
+          {layer.clipartCategory.name}
+        </p>
       ) : null}
       {/* Dense 6-col icon grid */}
       <div className="grid grid-cols-6 gap-1.5">
@@ -1416,7 +1885,9 @@ function ImageField({
               }`}
             >
               <img
-                src={resolveAssetUrl?.(clipart.previewUrl) ?? clipart.previewUrl}
+                src={
+                  resolveAssetUrl?.(clipart.previewUrl) ?? clipart.previewUrl
+                }
                 alt={clipart.name}
                 className="h-10 w-10 object-contain"
               />
@@ -1441,7 +1912,8 @@ function ImageField({
     <div className="space-y-3">
       {sourcePolicy === "upload_only" ? uploadSection : null}
       {sourcePolicy === "clipart_category_only" ? clipartSection : null}
-      {sourcePolicy === "upload_or_clipart_category" && layer?.presentation === "source_select" ? (
+      {sourcePolicy === "upload_or_clipart_category" &&
+      layer?.presentation === "source_select" ? (
         <>
           <div className="flex gap-1 rounded border border-outline bg-surface-container p-0.5">
             <button
@@ -1488,14 +1960,19 @@ function ImageField({
           {currentSource === "clipart" ? clipartSection : uploadSection}
         </>
       ) : null}
-      {sourcePolicy === "upload_or_clipart_category" && layer?.presentation === "side_by_side" ? (
+      {sourcePolicy === "upload_or_clipart_category" &&
+      layer?.presentation === "side_by_side" ? (
         <div className="space-y-4">
           <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.1em] text-on-surface-variant">Clipart</p>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.1em] text-on-surface-variant">
+              Clipart
+            </p>
             {clipartSection}
           </div>
           <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.1em] text-on-surface-variant">Upload image</p>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.1em] text-on-surface-variant">
+              Upload image
+            </p>
             {uploadSection}
           </div>
         </div>
@@ -1523,10 +2000,23 @@ function ShapeClipPaths({ layers }: { layers?: RuntimeLayer[] }) {
           <path d="M 0.5 0.85 C 0.1 0.55 0 0.25 0.25 0.12 C 0.4 0 0.5 0.16 0.5 0.28 C 0.5 0.16 0.6 0 0.75 0.12 C 1 0.25 0.9 0.55 0.5 0.85 Z" />
         </clipPath>
         {layers?.map((layer) => {
-          if (layer.type === "image_shape" && layer.shape.type === "vector" && layer.shape.vectorPath) {
+          if (
+            layer.type === "image_shape" &&
+            layer.shape.type === "vector" &&
+            layer.shape.vectorPath
+          ) {
             return (
-              <clipPath key={layer.id} id={`clip-vector-${layer.id}`} clipPathUnits="objectBoundingBox">
-                <path d={vectorPointsToSvgPathD(layer.shape.vectorPath.points, layer.shape.vectorPath.closed)} />
+              <clipPath
+                key={layer.id}
+                id={`clip-vector-${layer.id}`}
+                clipPathUnits="objectBoundingBox"
+              >
+                <path
+                  d={vectorPointsToSvgPathD(
+                    layer.shape.vectorPath.points,
+                    layer.shape.vectorPath.closed,
+                  )}
+                />
               </clipPath>
             );
           }

@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import {
   isRouteErrorResponse,
   Links,
@@ -37,9 +38,14 @@ export const links: Route.LinksFunction = () => [
 
 
 export function Layout({ children }: { children: React.ReactNode }) {
-  // Get the locale from the loader
   const { locale } = useLoaderData<typeof loader>();
   const { i18n } = useTranslation();
+
+  useEffect(() => {
+    if (i18n.language !== locale) {
+      i18n.changeLanguage(locale);
+    }
+  }, [locale, i18n]);
 
   return (
     <html lang={locale} dir={i18n.dir()}>

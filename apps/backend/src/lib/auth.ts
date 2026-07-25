@@ -3,13 +3,18 @@ import { drizzleAdapter } from 'better-auth/adapters/drizzle'
 import { admin } from 'better-auth/plugins/admin'
 import { username } from 'better-auth/plugins/username'
 import { bearer } from 'better-auth/plugins'
-import { adminAc, userAc } from 'better-auth/plugins/admin/access'
+import { defaultAc, userAc } from 'better-auth/plugins/admin/access'
 import { getDb } from '../db/client'
 import * as schema from '../db/schema'
 import type { AppBindings } from './env'
 import { getAppCorsOrigins } from './cors'
 
 export const AUTH_BASE_PATH = '/api/admin/auth'
+
+const superAdminAc = defaultAc.newRole({
+  user: ["set-password"],
+  session: []
+})
 
 const DEFAULT_AUTH_BASE_URL = 'http://localhost:8787'
 
@@ -67,7 +72,7 @@ export function getAuth(bindings: AppBindings) {
         defaultRole: 'admin',
         adminRoles: ['super-admin', 'admin'],
         roles: {
-          'super-admin': adminAc,
+          'super-admin': superAdminAc,
           admin: userAc
         },
         bannedUserMessage: 'This admin account has been disabled.'

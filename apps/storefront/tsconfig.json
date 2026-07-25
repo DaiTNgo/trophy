@@ -7,7 +7,6 @@
   "compilerOptions": {
     "baseUrl": ".",
     "checkJs": true,
-    "ignoreDeprecations": "6.0",
     "verbatimModuleSyntax": true,
     "skipLibCheck": true,
     "strict": true,

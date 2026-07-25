@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router";
 import {
   Button,
@@ -9,7 +9,7 @@ import {
 } from "@medusajs/ui";
 import { InlineError } from "../components/ui/medusa/inline-error";
 import { SuccessMessage } from "../components/ui/medusa/success-message";
-import { bootstrapFirstAdmin } from "../lib/auth-client";
+import { bootstrapFirstAdmin, getOnboardingStatus } from "../lib/auth-client";
 import { validateOnboarding } from "../lib/validation";
 import type { OnboardingFormValues, OnboardingFormErrors } from "../types";
 
@@ -22,6 +22,36 @@ export function OnboardingPage() {
   const [errors, setErrors] = useState<OnboardingFormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+
+    void getOnboardingStatus()
+      .then((status) => {
+        if (active && !status.canCreateSuperAdmin) {
+          navigate("/login", { replace: true });
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setErrors({ form: "Unable to load onboarding status." });
+        }
+      })
+      .finally(() => {
+        if (active) {
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [navigate]);
+
+  if (isLoading) {
+    return null;
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

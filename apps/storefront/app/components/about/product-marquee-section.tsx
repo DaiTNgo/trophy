@@ -35,11 +35,14 @@ const ROW_2 = [
   { src: "/images/about/marquee/cup-kl15.png", name: "Cúp Hợp Kim KL15" },
 ];
 
+import { useTranslation } from "react-i18next";
+
 export function ProductMarqueeSection() {
+  const { t } = useTranslation("about");
   return (
     <section
       className="relative overflow-hidden bg-white"
-      aria-label="Sản phẩm của chúng tôi"
+      aria-label={t("products_label")}
     >
       <div
         className="bg-surface-dark px-margin-mobile py-20 md:px-margin-desktop"
@@ -50,11 +53,11 @@ export function ProductMarqueeSection() {
       >
         <div className="mx-auto max-w-container-max text-center">
           <h2 className="mb-4 font-heading text-[36px] uppercase leading-10 text-white md:text-[44px]">
-            Khắc ghi thành tựu — Tôn vinh đẳng cấp
+            {t("hero_title")}
           </h2>
           <div className="mx-auto mb-6 h-[3px] w-16 bg-brand-accent" />
           <p className="mx-auto max-w-2xl font-body-lg text-body-lg leading-relaxed text-white/80">
-            Hơn 600,000 giải thưởng đã trao tay — mỗi chiếc là một câu chuyện
+            {t("hero_subtitle")}
           </p>
         </div>
       </div>

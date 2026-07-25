@@ -12,10 +12,16 @@ import {
   getTextPathRenderAttributes,
   getTextPathSvgD,
   getVisibleLayers,
+  getFontStyleCapabilities,
+  getUsableFontOptions,
+  hasAvailableFontFormat,
+  isUsableFontFamily,
   layerGeometryToPixels,
+  normalizeFontStyle,
   normalizeTextPath,
   pixelRectToLayerGeometry,
   validateCustomizationValues,
+  vectorPointsToCssPolygon,
   validateProductCustomizationForPublish,
   validateTemplateForPublish,
   type CustomizationClipartAsset,
@@ -191,6 +197,88 @@ describe("editor-model customization", () => {
     expect(buildDesignFromForm({ template: hiddenTemplate, values }).layers.map((layer) => layer.layerId)).not.toContain(
       "curved_name",
     );
+  });
+});
+
+describe("dynamic font capabilities", () => {
+  const dynamicFonts = [
+    {
+      id: "inter",
+      name: "Inter",
+      regularAssetId: "font_inter_regular",
+      boldAssetId: "font_inter_bold",
+      italicAssetId: null,
+      boldItalicAssetId: null,
+    },
+    {
+      id: "missing-regular",
+      name: "Missing regular",
+      regularAssetId: null,
+      boldAssetId: "font_missing_bold",
+      italicAssetId: null,
+      boldItalicAssetId: null,
+    },
+  ];
+
+  it("exposes only the uploaded style variants for a dynamic family", () => {
+    expect(getFontStyleCapabilities("inter", dynamicFonts)).toEqual({
+      usable: true,
+      bold: true,
+      italic: false,
+      boldItalic: false,
+    });
+    expect(isUsableFontFamily("inter", dynamicFonts)).toBe(true);
+    expect(isUsableFontFamily("missing-regular", dynamicFonts)).toBe(false);
+    expect(
+      getUsableFontOptions(
+        [
+          { value: "inter", label: "Inter" },
+          { value: "missing-regular", label: "Missing regular" },
+        ],
+        dynamicFonts,
+      ),
+    ).toEqual([{ value: "inter", label: "Inter" }]);
+  });
+
+  it("normalizes unsupported shopper styles to an uploaded variant", () => {
+    expect(normalizeFontStyle({ fontFamily: "inter", isBold: true, isItalic: true, dynamicFonts })).toEqual({
+      isBold: true,
+      isItalic: false,
+    });
+    expect(normalizeFontStyle({ fontFamily: "inter", isBold: false, isItalic: true, dynamicFonts })).toEqual({
+      isBold: false,
+      isItalic: false,
+    });
+    expect(hasAvailableFontFormat(["missing-regular"], dynamicFonts)).toBe(false);
+    expect(hasAvailableFontFormat(["inter"], dynamicFonts)).toBe(true);
+  });
+});
+
+describe("vector CSS clipping", () => {
+  it("creates an inline polygon clip path for closed corner-only vectors", () => {
+    expect(
+      vectorPointsToCssPolygon(
+        [
+          { id: "top", type: "corner", xRatio: 0.5, yRatio: 0 },
+          { id: "right", type: "corner", xRatio: 1, yRatio: 1 },
+          { id: "left", type: "corner", xRatio: 0, yRatio: 1 },
+        ],
+        true,
+      ),
+    ).toBe("polygon(50.0000% 0.0000%, 100.0000% 100.0000%, 0.0000% 100.0000%)");
+  });
+
+  it("keeps SVG clipping for curved or open vectors", () => {
+    expect(
+      vectorPointsToCssPolygon(
+        [
+          { id: "start", type: "smooth", xRatio: 0, yRatio: 0 },
+          { id: "right", type: "corner", xRatio: 1, yRatio: 0 },
+          { id: "bottom", type: "corner", xRatio: 0.5, yRatio: 1 },
+        ],
+        true,
+      ),
+    ).toBeNull();
   });
 });
 

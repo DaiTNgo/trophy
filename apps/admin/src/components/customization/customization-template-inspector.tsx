@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   DEFAULT_FONT_FAMILY_OPTIONS,
   DEFAULT_TEXT_COLOR_OPTIONS,
+  hasAvailableFontFormat,
   layerGeometryToPixels,
   pixelRectToLayerGeometry,
   type CustomizationLayer,
@@ -74,16 +75,26 @@ function TextInspector({
   onUpdate: (updater: (layer: CustomizationLayer) => CustomizationLayer) => void;
 }) {
   const isClosedPath = layer.text.path.type === "closed_ellipse";
-  const { colors, fonts } = useBrandAssets();
+  const { colors, fonts, isLoading } = useBrandAssets();
 
   // Map dynamic fonts/colors to the expected Select options format
   const dynamicColorOptions = [
     ...DEFAULT_TEXT_COLOR_OPTIONS,
     ...colors.map(c => ({ value: c.hexCode, label: c.name }))
   ];
+  const dynamicFonts = fonts.map((font) => ({
+    id: font.id,
+    name: font.name,
+    regularAssetId: font.regularAssetId ?? null,
+    boldAssetId: font.boldAssetId ?? null,
+    italicAssetId: font.italicAssetId ?? null,
+    boldItalicAssetId: font.boldItalicAssetId ?? null,
+  }));
   const dynamicFontOptions = [
     ...DEFAULT_FONT_FAMILY_OPTIONS,
-    ...fonts.map(f => ({ value: f.id, label: f.name }))
+    ...fonts
+      .filter((font) => Boolean(font.regularAssetId))
+      .map((font) => ({ value: font.id, label: font.name })),
   ];
 
   return (
@@ -109,7 +120,14 @@ function TextInspector({
           <Input type="number" value={String(layer.text.maxFontSizePt)} onChange={(e) => updateText(onUpdate, { maxFontSizePt: Number(e.target.value) })} />
         </div>
       </div>
-      <TextStyleControls layer={layer} onUpdate={onUpdate} colorOptions={dynamicColorOptions} fontOptions={dynamicFontOptions} />
+      <TextStyleControls
+        layer={layer}
+        onUpdate={onUpdate}
+        colorOptions={dynamicColorOptions}
+        fontOptions={dynamicFontOptions}
+        dynamicFonts={dynamicFonts}
+        fontCapabilitiesLoaded={!isLoading}
+      />
       <TextPathControls layer={layer} pathEditing={pathEditing} onPathEditingChange={onPathEditingChange} onUpdate={onUpdate} />
     </div>
   );
@@ -376,14 +394,41 @@ function TextStyleControls({
   layer, 
   onUpdate,
   colorOptions = DEFAULT_TEXT_COLOR_OPTIONS,
-  fontOptions = DEFAULT_FONT_FAMILY_OPTIONS
+  fontOptions = DEFAULT_FONT_FAMILY_OPTIONS,
+  dynamicFonts = [],
+  fontCapabilitiesLoaded = false,
 }: { 
   layer: TextEditorLayer; 
   onUpdate: (updater: (layer: CustomizationLayer) => CustomizationLayer) => void;
   colorOptions?: { value: string; label: string }[];
   fontOptions?: { value: string; label: string }[];
+  dynamicFonts?: import("@trophy/customization").DynamicFontFamily[];
+  fontCapabilitiesLoaded?: boolean;
 }) {
   const [pendingColor, setPendingColor] = useState("#2563eb");
+  const allowedFontIds =
+    layer.text.fontPolicy.mode === "fixed"
+      ? [layer.text.fontPolicy.fontId]
+      : layer.text.fontPolicy.options.map((option) => option.value);
+  const supportsFormat = hasAvailableFontFormat(allowedFontIds, dynamicFonts);
+
+  useEffect(() => {
+    if (!fontCapabilitiesLoaded || supportsFormat) return;
+    if (
+      layer.text.formatPolicy.mode === "fixed" &&
+      !layer.text.formatPolicy.isBold &&
+      !layer.text.formatPolicy.isItalic
+    ) {
+      return;
+    }
+    onUpdate((current) => ({
+      ...current,
+      text: {
+        ...(current as TextEditorLayer).text,
+        formatPolicy: { mode: "fixed", isBold: false, isItalic: false },
+      },
+    }));
+  }, [fontCapabilitiesLoaded, layer.text.formatPolicy, onUpdate, supportsFormat]);
 
   return (
     <div className="space-y-4">
@@ -522,7 +567,7 @@ function TextStyleControls({
           </div>
         )}
       </div>
-      <div className="space-y-2 pt-2 border-t border-ui-border-base">
+      {supportsFormat ? <div className="space-y-2 pt-2 border-t border-ui-border-base">
         <div className="space-y-1">
           <Label size="small" weight="plus" className="text-ui-fg-subtle">Format policy</Label>
           <Select value={layer.text.formatPolicy.mode} onValueChange={(mode) => updateText(onUpdate, { formatPolicy: mode === "fixed" ? { mode: "fixed", isBold: false, isItalic: false } : { mode: "shopper_selectable", defaultBold: false, defaultItalic: false } })}>
@@ -540,7 +585,7 @@ function TextStyleControls({
            <label className="flex items-center gap-1.5 text-sm font-medium italic"><input type="checkbox" checked={layer.text.formatPolicy.mode === "fixed" ? layer.text.formatPolicy.isItalic : layer.text.formatPolicy.defaultItalic} onChange={(e) => updateText(onUpdate, { formatPolicy: { ...layer.text.formatPolicy, ...(layer.text.formatPolicy.mode === "fixed" ? { isItalic: e.target.checked } : { defaultItalic: e.target.checked }) } as any })} className="rounded" /> I</label>
         </div>
         {layer.text.formatPolicy.mode === "shopper_selectable" && <p className="text-[10px] text-ui-fg-muted">Checkboxes set the default state for shoppers.</p>}
-      </div>
+      </div> : null}
       <div className="space-y-2 pt-2 border-t border-ui-border-base">
         <div className="space-y-1">
           <Label size="small" weight="plus" className="text-ui-fg-subtle">Align policy</Label>

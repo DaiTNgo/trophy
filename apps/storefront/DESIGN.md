@@ -51,43 +51,43 @@ colors:
 typography:
   display-lg:
     fontFamily: Koulen
-    fontSize: 72px
+    fontSize: 68px
     fontWeight: '400'
-    lineHeight: 72px
+    lineHeight: 78px
     letterSpacing: 0.04em
   display-lg-mobile:
     fontFamily: Koulen
     fontSize: 48px
     fontWeight: '400'
-    lineHeight: 48px
+    lineHeight: 56px
     letterSpacing: 0.04em
   headline-lg:
     fontFamily: Koulen
-    fontSize: 40px
+    fontSize: 42px
     fontWeight: '400'
-    lineHeight: 44px
+    lineHeight: 50px
     letterSpacing: 0.02em
   headline-md:
     fontFamily: Koulen
     fontSize: 32px
     fontWeight: '400'
-    lineHeight: 36px
+    lineHeight: 40px
     letterSpacing: 0.02em
   body-lg:
     fontFamily: Open Sans
     fontSize: 18px
     fontWeight: '400'
-    lineHeight: 28px
+    lineHeight: 24px
   body-md:
     fontFamily: Open Sans
     fontSize: 16px
     fontWeight: '400'
-    lineHeight: 24px
+    lineHeight: 22px
   label-md:
     fontFamily: Open Sans
-    fontSize: 14px
+    fontSize: 12px
     fontWeight: '600'
-    lineHeight: 20px
+    lineHeight: 16px
     letterSpacing: 0.05em
 rounded:
   sm: 0.25rem
@@ -127,6 +127,18 @@ The typography strategy creates a stark contrast between "The Achievement" and "
 **Open Sans** is the functional counterpart. It handles forms, product details, navigation, and supporting copy with a practical ecommerce tone.
 
 For mobile devices, display sizes scale down aggressively to maintain impact without breaking layout constraints. Supporting labels should stay bold and compact rather than airy or editorial.
+
+The storefront uses the IBM Design Language universal type-scale principle: each semantic role has one approved font size and line-height pair, and components should use the role token instead of ad-hoc pixel values or `leading-relaxed`. The canonical scale lives in the `@theme` block of `app/app.css`, which is the native Tailwind CSS v4 configuration format. Existing Tailwind classes receive the scale without component changes.
+
+| Role | Size / line-height | Use |
+| --- | --- | --- |
+| Display | 76/86, 68/78, 60/70, 54/64 | Hero and campaign statements |
+| Headline | 42/50, 32/40, 28/36 | Page and section headings |
+| Title | 24/28, 20/26, 18/24 | Product and panel headings |
+| Body | 18/24, 16/22, 14/20 | Descriptions, forms, supporting copy |
+| Label | 14/20, 12/16 | Navigation, metadata, compact controls |
+
+This is adapted from [IBM's type scale](https://www.ibm.com/design/language/typography/type-scale/). IBM's 95% adjusted scale is for Chinese, Japanese, Korean, Thai, Devanagari, and Arabic; Vietnamese stays on the default Latin scale.
 
 ## Layout & Spacing
 The design system employs a **Retail Conversion Grid** for product detail pages: generous media on the left, dense merchandising and CTA stack on the right.

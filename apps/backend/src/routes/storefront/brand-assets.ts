@@ -14,18 +14,19 @@ export const storefrontBrandAssetsRoute = new Hono<AppEnv>()
     const fonts = await db.select().from(fontFamilies).orderBy(fontFamilies.createdAt);
     return c.json({ fonts });
   })
-  .get("/fonts/file/:filename", async (c) => {
-    const filename = c.req.param("filename");
-    const key = `fonts/${filename}`;
+  .get("/fonts/file/:assetId", async (c) => {
+    const assetId = c.req.param("assetId");
+    const key = `fonts/${assetId}.ttf`;
     const object = await c.env.CUSTOMIZATION_ASSETS.get(key);
     
     if (!object) {
-      return c.notFound();
+      return c.json({ error: "Font file not found" }, 404);
     }
 
     const headers = new Headers();
     object.writeHttpMetadata(headers);
     headers.set("etag", object.httpEtag);
+    headers.set("cache-control", "private, max-age=31536000, immutable");
     
     return new Response(object.body as unknown as ReadableStream, { headers });
   });

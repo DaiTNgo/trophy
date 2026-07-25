@@ -18,8 +18,14 @@ import {
 import { InlineError } from "../components/ui/medusa/inline-error";
 import { SuccessMessage } from "../components/ui/medusa/success-message";
 import { useAuth } from "../hooks/use-auth";
-import { authClient, createAdminAccount } from "../lib/auth-client";
-import { isSuperAdmin, getAuthErrorMessage } from "../lib/auth-utils";
+import {
+  createAdminAccount,
+  disableAdminAccount,
+  listAdminAccounts,
+  reactivateAdminAccount,
+  resetAdminAccountPassword,
+} from "../lib/auth-client";
+import { isSuperAdmin } from "../lib/auth-utils";
 import { validateTeamInvite } from "../lib/validation";
 import type { AdminUserRecord, TeamInviteFormValues, TeamInviteFormErrors } from "../types";
 
@@ -78,22 +84,14 @@ export function TeamPage() {
     setIsLoading(true);
     setError(null);
 
-    const { data, error: nextError } = await authClient.admin.listUsers({
-      query: {
-        limit: 100,
-        sortBy: "name",
-        sortDirection: "asc",
-      },
-    });
-
-    if (nextError) {
-      setError(getAuthErrorMessage(nextError, "Unable to load admin accounts."));
+    try {
+      const accounts = await listAdminAccounts();
+      setUsers(accounts as AdminUserRecord[]);
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : "Unable to load admin accounts.");
+    } finally {
       setIsLoading(false);
-      return;
     }
-
-    setUsers((data?.users ?? []) as AdminUserRecord[]);
-    setIsLoading(false);
   }
 
   useEffect(() => {
@@ -129,37 +127,18 @@ export function TeamPage() {
   async function handleBanToggle(account: AdminUserRecord) {
     setActionMessage(null);
 
-    if (account.id === auth.user?.id) {
-      setError("Use another admin account to disable this account.");
-      return;
-    }
-
-    if (account.banned) {
-      const { error: nextError } = await authClient.admin.unbanUser({
-        userId: account.id,
-      });
-
-      if (nextError) {
-        setError(getAuthErrorMessage(nextError, "Unable to reactivate this account."));
-        return;
+    try {
+      if (account.banned) {
+        await reactivateAdminAccount(account.id);
+        setActionMessage(`Reactivated ${account.username ?? account.name}.`);
+      } else {
+        await disableAdminAccount(account.id);
+        setActionMessage(`Disabled ${account.username ?? account.name} and revoked its sessions.`);
       }
-
-      setActionMessage(`Reactivated ${account.username ?? account.name}.`);
-    } else {
-      const { error: nextError } = await authClient.admin.banUser({
-        userId: account.id,
-        banReason: "Disabled by admin",
-      });
-
-      if (nextError) {
-        setError(getAuthErrorMessage(nextError, "Unable to disable this account."));
-        return;
-      }
-
-      setActionMessage(`Disabled ${account.username ?? account.name} and revoked its sessions.`);
+      await loadUsers();
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : "Unable to update this account.");
     }
-
-    await loadUsers();
   }
 
   async function handleResetPassword(account: AdminUserRecord) {
@@ -170,32 +149,16 @@ export function TeamPage() {
     }
 
     setActionMessage(null);
-    const { error: nextError } = await authClient.admin.setUserPassword({
-      userId: account.id,
-      newPassword: nextPassword,
-    });
-
-    if (nextError) {
-      setError(getAuthErrorMessage(nextError, "Unable to reset this password."));
-      return;
-    }
-
-    const revokeResult = await authClient.admin.revokeUserSessions({
-      userId: account.id,
-    });
-
-    if (revokeResult.error) {
-      setError(
-        getAuthErrorMessage(revokeResult.error, "Password changed, but session revocation failed."),
+    try {
+      await resetAdminAccountPassword(account.id, nextPassword);
+      setResetPasswordByUserId((current) => ({ ...current, [account.id]: "" }));
+      setActionMessage(
+        `Password reset for ${account.username ?? account.name}. Existing sessions were revoked.`,
       );
-      return;
+      await loadUsers();
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : "Unable to reset this password.");
     }
-
-    setResetPasswordByUserId((current) => ({ ...current, [account.id]: "" }));
-    setActionMessage(
-      `Password reset for ${account.username ?? account.name}. Existing sessions were revoked.`,
-    );
-    await loadUsers();
   }
 
   return (

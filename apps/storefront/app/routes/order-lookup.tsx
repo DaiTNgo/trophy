@@ -4,8 +4,9 @@ import type { Route } from "./+types/order-lookup";
 import { lookupStorefrontOrder } from "../lib/api";
 import { getGenericProductPath } from "../lib/storefront-paths";
 import { formatCurrency } from "../lib/utils";
+import Container from "@/components/container";
 
-export function meta({}: Route.MetaArgs) {
+export function meta({ }: Route.MetaArgs) {
   return [
     { title: "Tra Cứu Đơn Hàng | Phùng Thị" },
     { name: "description", content: "Tra cứu đơn hàng bằng mã đơn và số điện thoại." },
@@ -38,8 +39,8 @@ export default function OrderLookupRoute() {
 
   return (
     <div className="min-h-screen bg-surface text-on-background">
-      <main className="mx-auto max-w-container-max px-margin-mobile py-12 md:px-margin-desktop">
-        <div className="grid gap-10 lg:grid-cols-[420px_minmax(0,1fr)]">
+      <Container className="py-8 md:py-10">
+        <main className="grid gap-10 lg:grid-cols-[420px_minmax(0,1fr)]">
           <section className="rounded-[28px] border border-outline bg-white p-8">
             <p className="text-sm uppercase tracking-wide text-on-surface-variant">Order lookup</p>
             <h1 className="mt-2 font-headline-lg text-[40px] uppercase text-on-surface">Tra cứu đơn hàng</h1>
@@ -160,8 +161,8 @@ export default function OrderLookupRoute() {
               </div>
             )}
           </section>
-        </div>
-      </main>
+        </main>
+      </Container>
     </div>
   );
 }

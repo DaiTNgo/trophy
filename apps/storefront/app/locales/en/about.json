@@ -1,0 +1,72 @@
+{
+  "meta_title": "About Us | Phùng Thị",
+  "meta_description": "Over 600,000 awards delivered. Vietnam's leading manufacturer of crystal trophies, commemorative medals, and honor gifts with 15+ years of experience.",
+
+  "hero_title": "Engrave Achievement — Honor Excellence",
+  "hero_subtitle": "Over 600,000 awards delivered — each one tells a story",
+
+  "products_label": "Our Products",
+  "products_title": "What We Make",
+  "products_desc": "6 main product lines — from crystal honor trophies to wooden honor boards. All produced in-house, no middlemen.",
+  "products_cta": "View All Products",
+
+  "process_label": "Production Process",
+  "process_title": "How We Make Our Products",
+  "process_desc": "From idea to delivery — a transparent 4-step process, you're in control at every stage.",
+
+  "materials_label": "Materials",
+  "materials_title": "Materials We Work With",
+
+  "values_label": "Core Values",
+  "values_title": "How We Work",
+  "values_desc": "More than just products — every order is a partnership, built on dedication, creativity, and responsibility.",
+
+  "clients_label": "Our Clients",
+  "clients_title": "Who We Serve",
+  "clients_desc": "From large corporations to small startups — Phùng Thị's products accompany every organization through memorable milestones.",
+
+  "cta_title_1": "Ready to Create",
+  "cta_title_2": "Your Award?",
+  "cta_button_products": "View Product Catalog",
+  "cta_button_contact": "Request a Quote",
+
+  "closing_line1": "Recognition Without Limits.",
+  "closing_line2": "Every Organization, Every Mission",
+  "closing_line3": "Phùng Thị Stands With You.",
+
+  "products_items": [
+    { "name": "Crystal Trophy", "material": "K9 Crystal", "category": "Honor Trophy" },
+    { "name": "Alloy Trophy with Wooden Base", "material": "Alloy + Wood", "category": "Honor Trophy" },
+    { "name": "Crystal Commemorative Medal", "material": "K9 Crystal", "category": "Commemorative Medals" },
+    { "name": "Crystal Clock", "material": "K9 Crystal", "category": "Event Gifts" },
+    { "name": "Premium Golf Trophy", "material": "Alloy", "category": "Sports Trophy" },
+    { "name": "Honor Board", "material": "Wood + Crystal", "category": "Honor Boards" }
+  ],
+
+  "process_steps": [
+    { "title": "Design", "body": "You can share your ideas or design directly on our website. We'll help you refine the artwork." },
+    { "title": "Approve", "body": "Review and approve the design before we begin production." },
+    { "title": "Craft", "body": "Crafted from K9 crystal, alloy or metal with laser engraving technology." },
+    { "title": "Deliver", "body": "Quality inspection, premium packaging, and nationwide delivery." }
+  ],
+
+  "materials_items": [
+    { "name": "K9 Crystal", "desc": "Transparent, sparkling, beautifully refracts light. Our flagship product line.", "use": "Honor trophies, commemorative medals, clocks" },
+    { "name": "Alloy", "desc": "Durable, oxidation-resistant, easily plated. Pairs perfectly with crystal and wood.", "use": "Sports trophies, mixed crystal trophies" },
+    { "name": "Plated Metal", "desc": "Luxurious gold, silver, and copper plating. Maintains luster over time.", "use": "Metal trophies, medals" },
+    { "name": "Natural Wood", "desc": "Natural wood base treated against warping. Adds prestige to every product.", "use": "Honor boards, trophy bases" }
+  ],
+
+  "values_items": [
+    { "title": "HANDCRAFTED EXCELLENCE", "body": "Every piece is made by skilled artisans — no soulless assembly line, no mass-produced lack of character." },
+    { "title": "LIMITLESS CREATIVITY", "body": "Logos, signatures, brand imagery — any idea can be engraved on crystal, alloy or metal." },
+    { "title": "COMPLETE PARTNERSHIP", "body": "From the first sketch to the product in your hands — the Phùng Thị team is always ready to support." }
+  ],
+
+  "clients_items": [
+    { "title": "CORPORATIONS & ENTERPRISES", "body": "Anniversaries, client conferences, employee appreciation. Comprehensive honor solutions for any scale." },
+    { "title": "SPORTS & TOURNAMENTS", "body": "From grassroots to professional tournaments — trophies, medals and commemoratives for every sport." },
+    { "title": "EVENTS & EDUCATION", "body": "Industry conferences, graduation ceremonies, academic competitions, cultural events — honoring every achievement." },
+    { "title": "START-UPS & SMES", "body": "Brand gifts, internal recognition. Personalized products with flexible budgets." }
+  ]
+}

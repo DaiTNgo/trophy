@@ -1,6 +1,6 @@
 export function SeoIntroSection() {
   return (
-    <section className="py-20 px-4 md:px-margin-desktop bg-surface border-t border-outline-variant">
+    <section className="px-4 py-14 md:px-margin-desktop md:py-16 bg-surface border-t border-outline-variant">
       <div className="max-w-3xl mx-auto">
         <h2 className="font-heading text-[28px] uppercase leading-tight text-on-surface mb-6">
           Xưởng sản xuất cúp và kỷ niệm chương cao cấp tại Việt Nam

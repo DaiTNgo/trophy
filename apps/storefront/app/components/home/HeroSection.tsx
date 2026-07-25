@@ -87,7 +87,7 @@ export function HeroSection() {
                         {slide.headline.map((line, j) => (
                           <span
                             key={line}
-                            className={`block text-[56px] leading-[1.15] md:text-[72px] ${j === slide.accentIndex ? "text-brand-accent" : ""}`}
+                            className={`block text-[32px] leading-[1.15] sm:text-[40px] md:text-[56px] lg:text-[72px] ${j === slide.accentIndex ? "text-brand-accent" : ""}`}
                           >
                             {line}
                           </span>
@@ -99,13 +99,13 @@ export function HeroSection() {
                       <div className="mb-10 flex flex-col items-start gap-3 sm:flex-row sm:gap-4">
                         <Link
                           to={slide.cta.to}
-                          className="rounded-lg bg-action-support px-8 py-4 text-center font-label-md text-label-md uppercase tracking-widest text-white transition-all duration-300 hover:bg-action-support-hover"
+                          className="rounded-lg border-2 border-transparent bg-action-support px-5 py-3 text-center font-label-md text-label-md uppercase tracking-widest text-white transition-all duration-300 hover:bg-action-support-hover md:px-8 md:py-4"
                         >
                           {slide.cta.label}
                         </Link>
                         <Link
                           to={slide.cta2.to}
-                          className="rounded-lg border-2 border-white/60 px-8 py-4 text-center font-label-md text-label-md uppercase tracking-widest text-white transition-all duration-300 hover:border-brand-accent hover:bg-white/10"
+                          className="rounded-lg border-2 border-white/60 px-5 py-3 text-center font-label-md text-label-md uppercase tracking-widest text-white transition-all duration-300 hover:border-brand-accent hover:bg-white/10 md:px-8 md:py-4"
                         >
                           {slide.cta2.label}
                         </Link>

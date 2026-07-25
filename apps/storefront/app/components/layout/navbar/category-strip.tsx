@@ -122,7 +122,9 @@ export function NavbarCategoryStrip({
 
           <div
             ref={categoryStripRef}
-            className="flex gap-4 overflow-x-auto scroll-smooth md:gap-8"
+            className={`flex gap-4 overflow-x-auto scroll-smooth md:gap-8 ${
+              hasCategoryStripControls ? "" : "justify-center"
+            }`}
             style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
           >
             {categories.map((cat) => {

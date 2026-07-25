@@ -28,6 +28,22 @@ export const adminBootstrapRoute = new Hono<AppEnv>();
 
 adminBootstrapRoute.post("/", async (c) => {
   const auth = getAuth(c.env);
+  const db = getDb(c.env);
+
+  const superAdmins = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(users.role, "super-admin"));
+
+  if (superAdmins.length >= 2) {
+    return c.json(
+      {
+        message: "Super-admin onboarding is closed.",
+        code: "SUPER_ADMIN_LIMIT_REACHED",
+      },
+      409,
+    );
+  }
 
   const body = await c.req.json().catch(() => null);
   const result = v.safeParse(bootstrapSchema, body);
@@ -57,7 +73,6 @@ adminBootstrapRoute.post("/", async (c) => {
       } as any,
     });
 
-    const db = getDb(c.env);
     await db
       .update(users)
       .set({ username: result.output.username })

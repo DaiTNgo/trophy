@@ -253,3 +253,17 @@ export const vectorPointsToSvgPathD = (points: VectorPoint[], closed: boolean) =
   }
   return parts.join(" ");
 };
+
+export const vectorPointsToCssPolygon = (points: VectorPoint[], closed: boolean) => {
+  if (
+    !closed ||
+    points.length < 3 ||
+    points.some((point) => point.inHandle || point.outHandle || point.type === "smooth")
+  ) {
+    return null;
+  }
+
+  return `polygon(${points
+    .map((point) => `${(point.xRatio * 100).toFixed(4)}% ${(point.yRatio * 100).toFixed(4)}%`)
+    .join(", ")})`;
+};

@@ -1,11 +1,8 @@
 import { Wrench, Eye, Gem, Truck } from "lucide-react";
 
-const ICON_STYLES = [
-  { bg: "#fef3c7", color: "#d97706" },
-  { bg: "#e0f2fe", color: "#0284c7" },
-  { bg: "#ede9fe", color: "#7c3aed" },
-  { bg: "#d1fae5", color: "#059669" },
-];
+const BLUE = { bg: "#e0f2fe", color: "#288ab6" };
+
+const ICON_STYLES = [BLUE, BLUE, BLUE, BLUE];
 
 const STEPS = [
   {
@@ -49,7 +46,7 @@ function Content({ stat, label, body }: { stat: string; label: string; body: str
   return (
     <div className="pt-1.5">
       <div className="flex items-baseline gap-3 mb-2 flex-wrap">
-        <span className="text-[36px] font-bold leading-none tracking-tight text-brand-accent">
+        <span className="text-[36px] font-bold leading-none tracking-tight text-brand-support">
           {stat}
         </span>
         <span className="text-[15px] font-semibold uppercase tracking-wide text-on-surface">

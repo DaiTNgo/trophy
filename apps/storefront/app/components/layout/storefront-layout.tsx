@@ -1,4 +1,4 @@
-import { Outlet, useLoaderData, useLocation } from "react-router";
+import { Outlet, useLoaderData, useLocation, type RouterContextProvider } from "react-router";
 import { Navbar } from "./Navbar";
 import { Footer } from "./Footer";
 import { ContactButtons } from "./contact-buttons";
@@ -8,13 +8,13 @@ import {
   type StorefrontCategory,
   type StorefrontCollection,
 } from "../../lib/api";
-import { getLocaleFromRequest } from "../../lib/locale";
+import { getLocale } from "../../i18n.server";
 import { withStorefrontLoaderLog } from "../../lib/observability";
 import { TrustBar } from "../home/TrustBar";
 
-export async function loader({ request }: { request: Request }) {
+export async function loader({ request, context }: { request: Request; context: RouterContextProvider }) {
   return withStorefrontLoaderLog("storefront-layout", request, async () => {
-    const locale = getLocaleFromRequest(request);
+    const locale = getLocale(context);
     const [categories, collections] = await Promise.all([
       fetchStorefrontCategories(locale).catch(() => [] as StorefrontCategory[]),
       fetchStorefrontCollections(locale).catch(() => [] as StorefrontCollection[]),
