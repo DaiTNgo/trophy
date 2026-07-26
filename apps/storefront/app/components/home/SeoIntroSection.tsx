@@ -1,30 +1,28 @@
-import { useTranslation } from "react-i18next";
-
 export function SeoIntroSection() {
-  const { t } = useTranslation("home");
-
   return (
-    <section className="relative py-24 md:py-32 overflow-hidden bg-surface-base">
-      <div className="absolute inset-0">
-        <img
-          src="/images/home/seo-bg.jpg"
-          alt=""
-          className="h-full w-full object-cover"
-          loading="lazy"
-        />
-        <div className="absolute inset-0 bg-gradient-to-r from-black/75 via-black/60 to-black/50" />
-      </div>
-
-      <div className="relative z-10 px-4 md:px-margin-desktop">
-        <div className="max-w-3xl mx-auto text-center">
-          <h2 className="font-heading text-[28px] md:text-[36px] uppercase leading-tight text-white mb-6">
-            {t("seo_heading")}
-          </h2>
-          <div className="space-y-4 font-body-lg text-body-lg text-white/80 leading-relaxed">
-            <p>{t("seo_para_1")}</p>
-            <p>{t("seo_para_2")}</p>
-            <p>{t("seo_para_3")}</p>
-          </div>
+    <section className="px-4 py-14 md:px-margin-desktop md:py-16 bg-surface border-t border-outline-variant">
+      <div className="max-w-3xl mx-auto">
+        <h2 className="font-heading text-[28px] uppercase leading-tight text-on-surface mb-6">
+          Xưởng sản xuất cúp và kỷ niệm chương cao cấp tại Việt Nam
+        </h2>
+        <div className="space-y-4 font-body-lg text-body-lg text-on-surface-variant leading-relaxed">
+          <p>
+            Phùng Thị chuyên sản xuất cúp vinh danh, kỷ niệm chương, huy
+            chương, bảng vinh danh và các sản phẩm trao giải theo yêu cầu.
+            Chúng tôi phục vụ doanh nghiệp, tổ chức giáo dục, liên đoàn thể
+            thao và các sự kiện trao giải trên toàn quốc.
+          </p>
+          <p>
+            Mỗi sản phẩm được làm riêng — khắc tên, logo, hạng mục giải thưởng
+            và thông điệp theo yêu cầu. Chúng tôi hỗ trợ tư vấn thiết kế và
+            gửi bản duyệt trước khi sản xuất để đảm bảo chất lượng đúng như kỳ
+            vọng.
+          </p>
+          <p>
+            Chất liệu đa dạng: pha lê, kim loại, gỗ và hợp kim cao cấp. Giao
+            hàng toàn quốc, đáp ứng đơn hàng số lượng lớn đúng tiến độ. Liên
+            hệ để được tư vấn miễn phí.
+          </p>
         </div>
       </div>
     </section>

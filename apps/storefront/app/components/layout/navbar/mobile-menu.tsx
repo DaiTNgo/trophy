@@ -1,4 +1,3 @@
-import { useTranslation } from "react-i18next";
 import { Link, useLocation } from "react-router";
 import { Package, X } from "lucide-react";
 import { backendAssetUrl } from "@/lib/api";
@@ -31,7 +30,6 @@ export function NavbarMobileMenu({
   collections,
   locale = "vi",
 }: NavbarMobileMenuProps) {
-  const { t } = useTranslation("layout");
   const { pathname } = useLocation();
   const activeCategoryHandle = getActiveCategoryHandle(pathname);
   const productMenuItems = categories.map((cat) => ({
@@ -50,7 +48,7 @@ export function NavbarMobileMenu({
   return (
     <Drawer open={isOpen} onOpenChange={onOpenChange}>
       <DrawerContent className="xl:hidden">
-        <DrawerTitle className="sr-only">{t("mobile_menu_title")}</DrawerTitle>
+        <DrawerTitle className="sr-only">Menu dieu huong</DrawerTitle>
         <div className="flex h-[70px] shrink-0 items-center justify-between border-b border-border-subtle px-6 text-brand-strong">
           <DrawerClose asChild>
             <Link to="/" className="shrink-0">
@@ -62,18 +60,19 @@ export function NavbarMobileMenu({
             </Link>
           </DrawerClose>
           <DrawerClose asChild>
-            <button className="p-2 -mr-2" aria-label={t("mobile_menu_close")}>
+            <button className="p-2 -mr-2" aria-label="Dong menu">
               <X className="h-7 w-7" />
             </button>
           </DrawerClose>
         </div>
         <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto overscroll-contain px-6 py-6 pb-20">
+          {/* SẢN PHẨM */}
           <details
             open={Boolean(activeCategoryHandle)}
             className="group border-b border-gray-100 pb-4 [&_summary::-webkit-details-marker]:hidden"
           >
             <summary className="flex cursor-pointer items-center justify-between text-[18px] font-medium uppercase tracking-wide text-brand-strong">
-              {t("mobile_menu_products")}
+              Sản phẩm
               <span className="transition duration-300 group-open:-rotate-180">
                 <svg
                   aria-hidden="true"
@@ -127,10 +126,11 @@ export function NavbarMobileMenu({
             </div>
           </details>
 
+          {/* CHỦ ĐỀ */}
           {themeMenuItems.length > 0 && (
             <details className="group border-b border-gray-100 pb-4 [&_summary::-webkit-details-marker]:hidden">
               <summary className="flex cursor-pointer items-center justify-between text-[18px] font-medium uppercase tracking-wide text-brand-strong">
-                {t("mobile_menu_themes")}
+                Chủ đề
                 <span className="transition duration-300 group-open:-rotate-180">
                   <svg
                     aria-hidden="true"
@@ -179,13 +179,22 @@ export function NavbarMobileMenu({
             </details>
           )}
 
+          {/* THÔNG TIN */}
           <div className="flex flex-col gap-5 pt-2">
+            <DrawerClose asChild>
+              <Link
+                to="/news"
+                className="text-[18px] font-medium uppercase tracking-wide text-brand-strong"
+              >
+                Tin tức
+              </Link>
+            </DrawerClose>
             <DrawerClose asChild>
               <Link
                 to="/contact"
                 className="text-[18px] font-medium uppercase tracking-wide text-brand-strong"
               >
-                {t("mobile_menu_contact")}
+                Liên hệ
               </Link>
             </DrawerClose>
             <DrawerClose asChild>
@@ -193,7 +202,7 @@ export function NavbarMobileMenu({
                 to="/about"
                 className="text-[18px] font-medium uppercase tracking-wide text-brand-strong"
               >
-                {t("mobile_menu_about")}
+                Về chúng tôi
               </Link>
             </DrawerClose>
             <DrawerClose asChild>
@@ -201,14 +210,14 @@ export function NavbarMobileMenu({
                 to="/order-lookup"
                 className="text-[18px] font-medium uppercase tracking-wide text-brand-strong"
               >
-                {t("mobile_menu_order_lookup")}
+                Tra cứu đơn hàng
               </Link>
             </DrawerClose>
           </div>
 
           <div className="flex items-center justify-between border-t border-gray-100 pt-2">
             <span className="text-[18px] font-medium uppercase tracking-wide text-brand-strong">
-              {t("mobile_menu_change_language")}
+              Đổi ngôn ngữ
             </span>
             <LanguageSwitcher />
           </div>
