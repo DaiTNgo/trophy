@@ -68,7 +68,7 @@ export function ContactButtons() {
           <button
             type="button"
             onClick={() => setOpen(!open)}
-            className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-accent shadow-lg transition-transform active:scale-90"
+            className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-support shadow-lg transition-transform active:scale-90"
             aria-label={open ? t("contact_fab_close") : t("contact_fab_open")}
           >
             {open ? (
