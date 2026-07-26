@@ -102,6 +102,10 @@
 
 # Current Session
 
+- 2026-07-26: The five oversized React entry surfaces retain stable public paths and delegate feature-local implementation. This is now a real section-level refactor for Inspector (canvas/text/image sections), Panels (blocks/layers/form/background sections), Variants (shared price/stock batch drawer), and Preview (props-only toolbar); Category Detail still needs its data hook plus create/detail view split. No behavior or contract changed. Admin build, shared check, storefront build, and diff check pass after the section refactors.
+
+- 2026-07-26: Product Detail Variants now has a real hook boundary: `use-product-detail-variants.ts` owns local UI state plus product-client save/upload/delete flows, while `product-detail-variants-feature.tsx` only composes the view. The component is 565 lines (from 936); the hook is 399 lines, and the shared batch drawer is 76 lines. Admin tests (12) and full `./init.sh` pass.
+
 - 2026-07-26: Added the shared storefront `Container` component to `apps/storefront/app/routes/order-confirmation.tsx`, preserving the existing confirmation page behavior. `pnpm --filter router-cf build` and `git diff --check` pass.
 
 - 2026-07-26: `./init.sh` passes end to end after clearing the admin build diagnostics. The fixes remove unused symbols in backend/admin code and use a browser-compilation-safe broad binding surface in `apps/backend/src/lib/env.ts` for Hono RPC types; Wrangler remains the deployment contract for concrete Cloudflare bindings.
