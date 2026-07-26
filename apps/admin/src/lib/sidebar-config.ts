@@ -1,5 +1,5 @@
 import type { ComponentType } from "react";
-import { Boxes, Package, Palette, Settings, ShoppingCart, Tag, Type, Users } from "lucide-react";
+import { Boxes, Package, Palette, Settings, ShoppingCart, Tag, Type, Users, Waypoints } from "lucide-react";
 
 export type SidebarNavItem = {
   label: string;
@@ -34,6 +34,12 @@ export const primarySidebarItems: SidebarNavItem[] = [
         to: "/categories",
         icon: Boxes,
         prefixes: ["/categories"],
+      },
+      {
+        label: "MISA Products",
+        to: "/misa-products",
+        icon: Waypoints,
+        prefixes: ["/misa-products"],
       },
     ],
   },

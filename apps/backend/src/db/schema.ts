@@ -202,6 +202,7 @@ export const productVariants = sqliteTable("product_variants", {
   productId: integer("product_id").notNull(),
   title: text("title").notNull(),
   sku: text("sku"),
+  misaProductId: integer("misa_product_id"),
   priceAmount: integer("price_amount"),
   inventoryQuantity: integer("inventory_quantity").notNull().default(0),
   allowBackorder: integer("allow_backorder", { mode: "boolean" }).notNull().default(false),
@@ -470,6 +471,12 @@ export const orders = sqliteTable("orders", {
   totalAmount: integer("total_amount").notNull(),
   currencyCode: text("currency_code").notNull().default("VND"),
   itemCount: integer("item_count").notNull(),
+  misaSyncStatus: text("misa_sync_status").notNull().default("pending"),
+  misaContactId: text("misa_contact_id"),
+  misaSaleOrderId: text("misa_sale_order_id"),
+  misaLastError: text("misa_last_error"),
+  misaAttemptCount: integer("misa_attempt_count").notNull().default(0),
+  misaSyncedAt: integer("misa_synced_at", { mode: "timestamp_ms" }),
   createdAt: integer("created_at", { mode: "timestamp_ms" })
     .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
     .notNull(),

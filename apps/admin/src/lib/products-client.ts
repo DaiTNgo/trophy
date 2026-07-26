@@ -1,6 +1,27 @@
 import type { CatalogProduct, LocalizedTextValue } from "../types";
 import { backendFetch } from "./fetch";
 
+export type MisaProduct = {
+  id: string | null;
+  product_code: string;
+  product_name: string;
+  product_category: string | null;
+  usage_unit: string | null;
+  unit_price: string | null;
+  inactive: boolean;
+};
+
+export async function fetchMisaProducts(params?: { q?: string; page?: number; pageSize?: number }) {
+  const query = new URLSearchParams();
+  if (params?.q?.trim()) query.set("q", params.q.trim());
+  if (params?.page !== undefined) query.set("page", String(params.page));
+  if (params?.pageSize !== undefined) query.set("pageSize", String(params.pageSize));
+  const response = await backendFetch(`/api/admin/misa/products?${query.toString()}`, { method: "GET" });
+  const body = await response.json().catch(() => null) as { items?: MisaProduct[]; error?: string } | null;
+  if (!response.ok || !body?.items) throw new Error(body?.error || "Unable to fetch MISA products.");
+  return body.items;
+}
+
 type LocalizedInput = string | { vi: string; en?: string | null };
 
 const toLocalized = (v: LocalizedInput | null | undefined): LocalizedTextValue => {
@@ -29,6 +50,7 @@ type ApiProduct = {
     id: number;
     title: LocalizedInput;
     sku: string | null;
+    misaProductId: number | null;
     priceAmount: number | null;
     inventoryQuantity: number;
     allowBackorder: boolean;
@@ -585,6 +607,13 @@ export async function archiveProduct(id: string) {
   if (!response.ok) throw new Error("Failed to archive product.");
   const body = await response.json();
   return body.item as ApiProduct;
+}
+
+export async function deleteProduct(id: string) {
+  const response = await backendFetch(`/api/admin/products/${id}`, { method: "DELETE" });
+  const body = await response.json().catch(() => null) as { error?: string } | null;
+  if (!response.ok) throw new Error(body?.error || "Failed to delete product.");
+  return body;
 }
 
 export function mapApiProductToCatalogProduct(product: Partial<ApiProduct> & Pick<ApiProduct, 'id' | 'title' | 'handle' | 'status' | 'updatedAt'>): CatalogProduct {

@@ -40,6 +40,7 @@
     }
   },
 	"vars": {
+		"MISA_API_BASE_URL": "https://crmconnect.misa.vn/api/v2",
 		"ADMIN_APP_ORIGIN": "https://trophy-admin.pages.dev",
 		"BETTER_AUTH_URL": "https://backend.dai-ngo.workers.dev",
 		"STOREFRONT_APP_ORIGIN": "https://storefront.dai-ngo.workers.dev",

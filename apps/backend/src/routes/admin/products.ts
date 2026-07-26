@@ -24,10 +24,19 @@ import {
   productVariantAttributes,
   productVariantOptionValues,
   productVariants,
-  products
+  products,
+  orderItems
 } from '../../db/schema'
 import type { AppEnv } from '../../lib/env'
 import { jsonError, parseJson, parseParams } from '../../lib/validation'
+import {
+  buildMisaCreateProductsPayload,
+  createMisaProducts,
+  deleteMisaProducts,
+  deleteMisaProductsByCodes,
+  findMisaProductsByCodes,
+  isMisaConfigured,
+} from '../../lib/misa'
 import { hydrateCustomization, persistCustomizationTranslations } from '../../lib/customization-translation'
 import {
   CUSTOMIZATION_CATEGORY_HANDLE,
@@ -3726,6 +3735,37 @@ export const productsRoute = new Hono<AppEnv>()
       return jsonError(c, 409, publishError)
     }
 
+    if (!isMisaConfigured(c.env)) {
+      return jsonError(c, 503, 'MISA integration is not configured')
+    }
+
+    let misaPayload
+    try {
+      misaPayload = buildMisaCreateProductsPayload(product)
+      await createMisaProducts(c.env, misaPayload)
+      const remoteProducts = await findMisaProductsByCodes(
+        c.env,
+        misaPayload.map((item) => item.product_code),
+      )
+      const idsByCode = new Map(
+        remoteProducts.flatMap((remote) => {
+          const id = remote.id ? Number(remote.id) : NaN
+          return Number.isInteger(id) && id > 0 ? [[remote.product_code, id] as const] : []
+        }),
+      )
+      for (const variant of product.variants) {
+        const code = variant.sku?.trim()
+        const misaProductId = code ? idsByCode.get(code) : undefined
+        if (misaProductId) {
+          await db.update(productVariants)
+            .set({ misaProductId })
+            .where(eq(productVariants.id, variant.id))
+        }
+      }
+    } catch (error) {
+      return jsonError(c, 502, error instanceof Error ? error.message : 'Unable to synchronize product with MISA')
+    }
+
     await db
       .update(products)
       .set({
@@ -3765,4 +3805,56 @@ export const productsRoute = new Hono<AppEnv>()
 
     const archivedProduct = await readProduct(c, db, current.id)
     return c.json({ item: archivedProduct }, 200)
+  })
+  .delete('/:id', async (c) => {
+    const params = parseParams(c, idParamsSchema)
+    if (!params.success) return params.response
+
+    const db = getDb(c.env)
+    const current = await db.select().from(products).where(eq(products.id, params.output.id)).get()
+    if (!current) return jsonError(c, 404, 'Product not found')
+
+    const ordered = await db.select({ id: orderItems.id }).from(orderItems).where(eq(orderItems.productId, current.id)).get()
+    if (ordered) return jsonError(c, 409, 'Product cannot be deleted because it is used by an order')
+
+    const product = await readProduct(c, db, current.id)
+    if (!product) return jsonError(c, 404, 'Product not found')
+    if (!isMisaConfigured(c.env)) return jsonError(c, 503, 'MISA integration is not configured')
+
+    const variants = product.variants
+    const codes = variants.map((variant) => variant.sku?.trim()).filter((value): value is string => Boolean(value))
+    try {
+      const storedIds = variants.map((variant) => variant.misaProductId).filter((value): value is number => typeof value === 'number' && Number.isInteger(value) && value > 0)
+      if (storedIds.length === codes.length) {
+        await deleteMisaProducts(c.env, storedIds)
+      } else {
+        await deleteMisaProductsByCodes(c.env, codes)
+      }
+    } catch (error) {
+      return jsonError(c, 502, error instanceof Error ? error.message : 'Unable to delete MISA products')
+    }
+
+    const optionRows = await db.select({ id: productOptions.id }).from(productOptions).where(eq(productOptions.productId, current.id))
+    const optionIds = optionRows.map((row) => row.id)
+    const valueRows = optionIds.length > 0
+      ? await db.select({ id: productOptionValues.id }).from(productOptionValues).where(inArray(productOptionValues.optionId, optionIds))
+      : []
+    const valueIds = valueRows.map((row) => row.id)
+    const variantIds = variants.map((variant) => variant.id)
+    if (variantIds.length > 0) {
+      await db.delete(productVariantOptionValues).where(inArray(productVariantOptionValues.variantId, variantIds))
+      await db.delete(productVariantAttributes).where(inArray(productVariantAttributes.variantId, variantIds))
+      await db.delete(productVariantMedia).where(inArray(productVariantMedia.variantId, variantIds))
+      await db.delete(productVariantCustomizationMedia).where(inArray(productVariantCustomizationMedia.variantId, variantIds))
+    }
+    if (valueIds.length > 0) await db.delete(productVariantOptionValues).where(inArray(productVariantOptionValues.optionValueId, valueIds))
+    if (optionIds.length > 0) await db.delete(productOptionValues).where(inArray(productOptionValues.optionId, optionIds))
+    await db.delete(productVariants).where(eq(productVariants.productId, current.id))
+    await db.delete(productOptions).where(eq(productOptions.productId, current.id))
+    await db.delete(productAttributes).where(eq(productAttributes.productId, current.id))
+    await db.delete(productMedia).where(eq(productMedia.productId, current.id))
+    await db.delete(productCustomizations).where(eq(productCustomizations.productId, current.id))
+    await db.delete(productCategoryLinks).where(eq(productCategoryLinks.productId, current.id))
+    await db.delete(products).where(eq(products.id, current.id))
+    return c.json({ deleted: true, id: current.id }, 200)
   })

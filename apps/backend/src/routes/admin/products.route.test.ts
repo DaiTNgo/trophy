@@ -4,7 +4,17 @@ vi.mock("../../db/client", () => ({
   getDb: vi.fn(),
 }));
 
+vi.mock("../../lib/misa", () => ({
+  buildMisaCreateProductsPayload: vi.fn(() => [{ product_code: "SKU-1", product_name: "Product", inactive: false }]),
+  createMisaProducts: vi.fn(async () => ({ created: [], existing: [] })),
+  findMisaProductsByCodes: vi.fn(async () => [{ id: "101", product_code: "SKU-1", product_name: "Product" }]),
+  deleteMisaProducts: vi.fn(async () => undefined),
+  deleteMisaProductsByCodes: vi.fn(async () => ({ deleted: [] })),
+  isMisaConfigured: vi.fn(() => true),
+}));
+
 import { getDb } from "../../db/client";
+import { createMisaProducts, findMisaProductsByCodes } from "../../lib/misa";
 import { productsRoute } from "./products";
 
 type MutationRecord = {
@@ -200,6 +210,41 @@ describe("admin products operation-specific routes", () => {
   beforeEach(() => {
     db = createMockDb();
     vi.mocked(getDb).mockReturnValue(db as never);
+  });
+
+  it("synchronizes MISA IDs before marking a product published", async () => {
+    const variant = {
+      id: 20,
+      productId: 1,
+      title: "Gold",
+      sku: "SKU-1",
+      priceAmount: 5000,
+      inventoryQuantity: 8,
+      allowBackorder: false,
+      isDefault: true,
+      position: 0,
+      createdAt: "2026-07-04T00:00:00.000Z",
+      updatedAt: "2026-07-04T00:00:00.000Z",
+    };
+    queueReadProduct(db, { id: 1, title: "Champion Cup", status: "draft" }, { variantRows: [variant] });
+    queueReadProduct(db, { id: 1, title: "Champion Cup", status: "published" }, { variantRows: [variant] });
+
+    const response = await productsRoute.request("/1/publish", { method: "POST" }, {
+      MISA_CLIENT_ID: "client",
+      MISA_CLIENT_SECRET: "secret",
+    } as never);
+
+    expect(response.status).toBe(200);
+    expect(createMisaProducts).toHaveBeenCalled();
+    expect(findMisaProductsByCodes).toHaveBeenCalledWith(expect.anything(), ["SKU-1"]);
+    expect(db.mutations).toContainEqual({ kind: "update", set: expect.objectContaining({ misaProductId: 101 }) });
+    expect(db.mutations).toContainEqual({ kind: "update", set: expect.objectContaining({ status: "published" }) });
+  });
+
+  it("rejects deleting a product referenced by an order", async () => {
+    db.getQueue.push({ id: 1, status: "published" }, { id: 55 });
+    const response = await productsRoute.request("/1", { method: "DELETE" }, { MISA_CLIENT_ID: "client", MISA_CLIENT_SECRET: "secret" } as never);
+    expect(response.status).toBe(409);
   });
 
   it("creates a product option without replacing the full option set", async () => {
