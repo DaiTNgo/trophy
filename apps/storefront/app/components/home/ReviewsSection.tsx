@@ -1,25 +1,6 @@
+import { Container } from "@/components/container";
+import { useTranslation } from "react-i18next";
 import { ShieldCheck, Eye, Clock } from "lucide-react";
-
-const GUARANTEES = [
-  {
-    icon: "ShieldCheck",
-    quote:
-      "Mỗi đơn hàng đều được kiểm tra chất lượng trước khi xuất xưởng. Nếu sản phẩm không đúng với bản thiết kế đã duyệt, chúng tôi sẽ làm lại miễn phí.",
-    role: "Cam kết chất lượng",
-  },
-  {
-    icon: "Eye",
-    quote:
-      "Bạn nhận được file thiết kế để duyệt trước khi sản xuất. Không có bất ngờ — những gì bạn duyệt là những gì bạn nhận được.",
-    role: "Quy trình duyệt thiết kế",
-  },
-  {
-    icon: "Clock",
-    quote:
-      "Chúng tôi tư vấn thời gian sản xuất thực tế từ đầu. Với đơn hàng số lượng lớn, chúng tôi cam kết tiến độ và thông báo sớm nếu có thay đổi.",
-    role: "Cam kết tiến độ",
-  },
-];
 
 const ICON_MAP: Record<string, React.ElementType> = {
   ShieldCheck,
@@ -52,22 +33,28 @@ const SHADOW_COLORS = [
 ];
 
 export function ReviewsSection() {
-  return (
-    <section className="relative py-16 md:py-20 overflow-hidden bg-surface-base">
+  const { t } = useTranslation("home");
+  const guarantees = t("guarantees", { returnObjects: true }) as {
+    role: string; quote: string;
+  }[];
 
-      <div className="relative max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop">
+  return (
+    <section className="relative py-24 md:py-32 overflow-hidden bg-surface-base">
+
+      <Container className="relative">
         <div className="text-center mb-16 md:mb-20 reveal active">
           <p className="mb-3 font-label-md text-label-md uppercase tracking-[0.35em] text-brand-accent">
-            Cam kết của chúng tôi
+            {t("reviews_eyebrow")}
           </p>
           <h2 className="font-heading text-[30px] md:text-[40px] uppercase leading-none text-on-surface">
-            Khách hàng chọn Trophy cho những cột mốc quan trọng
+            {t("reviews_title")}
           </h2>
         </div>
 
         <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-center md:pb-40" style={{ perspective: "1200px" }}>
-          {GUARANTEES.map((g, i) => {
-            const Icon = ICON_MAP[g.icon];
+          {guarantees.map((g, i) => {
+            const icons = [ShieldCheck, Eye, Clock];
+            const Icon = icons[i];
 
             return (
               <div
@@ -94,7 +81,7 @@ export function ReviewsSection() {
             );
           })}
         </div>
-      </div>
+      </Container>
       <style>{`
         .gs-card {
           transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
