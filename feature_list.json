@@ -1,5 +1,6 @@
 {
   "notes": "OpenSpec change state lives under openspec/changes/<change>/; use this file only as a repo-level fallback index for non-OpenSpec work.",
+  "customization_react_text_path_measurement_evidence": "2026-07-26: Fixed premature font-size reduction and trimming in customization previews. ProductCustomizationPreview and the admin EditorCanvas now measure rendered glyph widths with the browser Canvas API instead of the previous character-count estimate, and rebuild after configured fonts load. A fixed-size Imperial Script string that fits its 333px layer is no longer incorrectly trimmed. Verified with pnpm --filter @trophy/customization-react check, pnpm --filter customization test (35 tests), pnpm --filter router-cf build, and git diff --check. Admin build remains blocked by pre-existing auth-client/backend/shared-package diagnostics outside this editor file.",
   "storefront_customization_watermark_evidence": "2026-07-26: Added a storefront-only repeated diagonal `phùng thị` watermark to the shared ProductCustomizationPreview canvas. The overlay uses low-opacity white text with mix-blend-mode difference, remains visible in fullscreen, has pointer-events disabled, and is rendered outside customization data so admin previews, cart/order snapshots, and production artwork remain clean. Verified with pnpm --filter @trophy/customization-react check, pnpm --filter router-cf typecheck, pnpm --filter router-cf build, and git diff --check.",
   "storefront_home_thumbnail_evidence": "2026-07-25: Fixed storefront home best-seller thumbnails. The collection products loader now queries product_media and passes the ordered product-level media into buildListingItem, so /api/storefront/collections/best-sellers/products returns the same primary product thumbnail used by category listings before falling back to variant media. Added regression coverage; backend tests pass (116 tests), backend build and storefront build pass. Backend check reports only the existing four missing-media-id fixture errors.",
   "storefront_search_api_evidence": "2026-07-25: Replaced storefront navbar search mock data with the existing backend APIs. Product suggestions use GET /api/storefront/products?q with published catalog data, thumbnails, prices, and an 8-item limit; category suggestions use GET /api/storefront/categories and locale-aware client filtering. Preserved debounce, locale labels, routes, and stale-request cancellation. Verified with router-cf typecheck, build, and git diff --check; Wrangler's known sandbox-only debug-log EPERM appears but commands exit successfully.",
@@ -90,6 +91,14 @@
       "dependencies": ["feat-001", "feat-005"],
       "status": "done",
       "evidence": "Added `.github/workflows/storefront-ci-cd.yml` on 2026-07-10. Pull requests touching storefront/customization now run pnpm install, `pnpm --filter customization test`, `pnpm --filter customization check`, `pnpm --filter router-cf typecheck`, `pnpm --filter router-cf build`, then upload a Cloudflare Workers preview with `wrangler versions upload --preview-alias pr-<number>` and comment the preview URL back on the PR. Pushes to `main` for the same paths rerun checks and deploy production with Wrangler. Set `preview_urls: true` in `apps/storefront/wrangler.jsonc`. Verified locally with `ruby -e \"require 'yaml'; YAML.load_file('.github/workflows/storefront-ci-cd.yml')\"` and `./init.sh`."
+    },
+    {
+      "id": "feat-009",
+      "name": "Refactor oversized React component files",
+      "description": "Split tracked TSX component files larger than 550 lines into responsibility-focused modules.",
+      "dependencies": [],
+      "status": "in_progress",
+      "evidence": "2026-07-26: Split admin brand asset modals and order customization preview utilities into focused sibling modules. Remaining oversized files are recorded in progress.md."
     }
   ]
 }

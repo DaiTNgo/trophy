@@ -15,3 +15,8 @@
 ## Next step
 
 The change is fully implemented and verified. The next optional step is archiving the completed OpenSpec change.
+
+## Follow-up refactor (2026-07-26)
+
+- Split the category PDP route into a thin route surface, `use-product-detail-state.ts` for state/effects/cart/carousel orchestration, and focused product layout, option-group, and customization-purchase components. The existing carousel behavior and state ownership remain in storefront.
+- `pnpm --filter router-cf typecheck`, `pnpm --filter router-cf build`, and `git diff --check` pass. No storefront `.tsx` files remain above 500 lines.
