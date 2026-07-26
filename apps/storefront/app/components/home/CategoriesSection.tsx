@@ -1,11 +1,11 @@
 import { Link } from "react-router";
+import { useTranslation } from "react-i18next";
 import type { StorefrontCategory } from "../../lib/api";
 import { backendAssetUrl } from "../../lib/api";
 import { getCategoryPath } from "../../lib/storefront-paths";
 import { getLocalized } from "../../lib/translation";
 import Container from "../container";
 
-// Fallback images for categories that have no image set in the backend
 const FALLBACK_IMAGES = [
   "https://lh3.googleusercontent.com/aida-public/AB6AXuAgQAHozjknMXsuCTTnSblh7acqLFc9ojeTxxob7IBlmX0qt9tGfPPR88W1MN-oM7wGmvXNWbvcEFp8lFXeuxilObjL7GKKEUMDJu4eS6IlBSZT1iQMYN_hSTQbnRK8E0aJQ41BlDFDpLJMYjEoLhBm1EeZYaLe4U68gAIwomcdGJYzqLnANzgpMJKkepY7lK8JyRwQCSAYRCszCCG3eDReWxcRH3bvGaNamkzvYX-ShOEJX7CiZmhQBc4AohWK_uSReLwz81UEOOA",
   "https://lh3.googleusercontent.com/aida-public/AB6AXuCof9Ae0opSNU99rLeTsqWyS8aLCxkh1u3ZC0gk84FAm-6hSVR3vxxyAxBvlqz-6IRc3HOF7CON7FZA7SUKWrued2KBiZxJR8GQoDrO27UZPEXjGFQJ5yeU_gx6wlW1JCEpu3QyRECXvNSu4R9zf8H93yrHCF8LwtOFhxOK3jNBm6xMa1BUMF7zFHZXtm7wgqIS9WtpYHQXGwIIZYJQ5h3eQkw0qjv7vlkCmMjtuhb88TMYG8RYdiqGWEgE0dQyoyN4GuffoltSSNI",
@@ -13,19 +13,14 @@ const FALLBACK_IMAGES = [
   "https://lh3.googleusercontent.com/aida-public/AB6AXuA2FCfPdrQpja-rjExsQd6KNCCoZNzH36iGPwJeAxKKPWSY3cTmr3yqknJWs5OQp9TGFUFRfllZO986nIdrrrIc6FLfigAjaRSI0ZDysGNn5uw-VmvpAAfQhcZFBp283NNwYtkL8u0ESkyIamEFzYd81MRZn3QIBtIl9arsNepDYwtPr0kIEg_nFgQOV_0qN7ijkpD-TqXtHTrXqBHWr8L1AB7HFwPvY5JMbvFw1vaf6QNEV8HU4ww6hXGMH1CybcknWrJ06CDAEhU",
 ];
 
-// One-sentence descriptions per category slug — fallback to generic
-const CATEGORY_DESCRIPTIONS: Record<string, string> = {
-  "cup-vinh-danh": "Cho lễ trao giải, nội bộ công ty và sự kiện thành tích.",
-  "ky-niem-chuong": "Khắc tên, logo và nội dung theo yêu cầu.",
-  "huy-chuong": "Dành cho giải đấu thể thao, học sinh xuất sắc và sự kiện đặc biệt.",
-  "bang-vinh-danh": "Trưng bày trang trọng tại văn phòng và hội trường.",
-  "cup-the-thao": "Thiết kế năng động, phù hợp mọi môn thể thao.",
-  "san-pham-tuy-chinh": "Mẫu riêng theo yêu cầu — logo, hình ảnh, nội dung khắc.",
+const CATEGORY_DESC_KEYS: Record<string, string> = {
+  "cup-vinh-danh": "categories_desc_cup_vinh_danh",
+  "ky-niem-chuong": "categories_desc_ky_niem_chuong",
+  "huy-chuong": "categories_desc_huy_chuong",
+  "bang-vinh-danh": "categories_desc_bang_vinh_danh",
+  "cup-the-thao": "categories_desc_cup_the_thao",
+  "san-pham-tuy-chinh": "categories_desc_san_pham_tuy_chinh",
 };
-
-function getDescription(handle: string, description: string | null) {
-  return description || CATEGORY_DESCRIPTIONS[handle] || "Khám phá dòng sản phẩm đa dạng của chúng tôi.";
-}
 
 interface ShopByProductSectionProps {
   categories: StorefrontCategory[];
@@ -33,8 +28,15 @@ interface ShopByProductSectionProps {
 }
 
 export function CategoriesSection({ categories, locale = "vi" }: ShopByProductSectionProps) {
+  const { t } = useTranslation("home");
   if (categories.length === 0) return null;
   const featuredCategories = categories.slice(0, 4);
+
+  function getDescription(handle: string, description: string | null) {
+    if (description) return description;
+    const key = CATEGORY_DESC_KEYS[handle];
+    return key ? t(key) : t("categories_fallback_desc");
+  }
 
   return (
     <section className="bg-surface-base pt-4 md:pt-6">
@@ -75,7 +77,7 @@ export function CategoriesSection({ categories, locale = "vi" }: ShopByProductSe
                     </p>
                     <div className="mt-auto">
                       <span className="inline-block rounded-sm bg-action-support px-8 py-3 text-[14px] font-bold uppercase tracking-wider text-white transition-colors group-hover:bg-action-support-hover">
-                        {locale === "en" ? `Shop ${name}` : `Xem ${name}`}
+                        {t("categories_cta")} {name}
                       </span>
                     </div>
                   </div>
@@ -90,7 +92,7 @@ export function CategoriesSection({ categories, locale = "vi" }: ShopByProductSe
                       </p>
                       <div className="mt-auto pb-4 opacity-0">
                         <span className="inline-block rounded-sm bg-action-support px-8 py-3 text-[14px] font-bold uppercase tracking-wider text-white">
-                          {locale === "en" ? `Shop ${name}` : `Xem ${name}`}
+                          {t("categories_cta")} {name}
                         </span>
                       </div>
                     </div>

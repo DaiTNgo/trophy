@@ -1,11 +1,17 @@
 import { useState, useCallback, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { ProductCard } from "../shared/ProductCard";
 import type { StorefrontProductItem } from "../../lib/api";
 import { backendAssetUrl } from "../../lib/api";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { getLocalized } from "../../lib/translation";
 import Container from "../container";
-import { Carousel, CarouselContent, CarouselItem, type CarouselApi } from "../ui/carousel";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  type CarouselApi,
+} from "../ui/carousel";
 
 interface BestSellersSectionProps {
   products: StorefrontProductItem[];
@@ -20,9 +26,10 @@ export function BestSellersSection({
   title,
   subtitle,
 }: BestSellersSectionProps) {
+  const { t } = useTranslation("home");
   const [api, setApi] = useState<CarouselApi>();
   const [canScrollPrev, setCanScrollPrev] = useState(false);
-  const [canScrollNext, setCanScrollNext] = useState(true); // Default to true if multiple items
+  const [canScrollNext, setCanScrollNext] = useState(true);
 
   useEffect(() => {
     if (!api) {
@@ -48,17 +55,15 @@ export function BestSellersSection({
 
   if (products.length === 0) return null;
 
-  // Cap at 8 per spec
   const displayProducts = products.slice(0, 8);
 
   return (
     <section className="overflow-hidden bg-surface-base py-10 md:py-14">
       <Container>
-        {/* Header row */}
         <div className="relative mb-8 flex items-end justify-center md:mb-10 reveal active">
           <div className="max-w-3xl text-center">
-            <h2 className="font-heading text-headline-md md:text-headline-lg font-bold uppercase text-brand-strong">
-              {title ?? (locale === "en" ? "Best Selling Products" : "Sản phẩm bán chạy nhất")}
+            <h2 className="font-bold uppercase text-brand-strong text-headline-md md:text-headline-lg">
+              {title ?? t("best_sellers_default_title")}
             </h2>
             {subtitle ? (
               <p className="mx-auto mt-4 max-w-2xl font-body-md text-body-md text-text-muted">
@@ -86,24 +91,31 @@ export function BestSellersSection({
           </div>
         </div>
 
-        {/* Product Carousel */}
         <div className="relative">
-          <Carousel setApi={setApi} opts={{ align: "start", dragFree: true }} className="w-full">
+          <Carousel
+            setApi={setApi}
+            opts={{ align: "start", dragFree: true }}
+            className="w-full"
+          >
             <CarouselContent className="-ml-4">
               {displayProducts.map((product, index) => {
                 const imgSrc = product.thumbnail
                   ? backendAssetUrl(product.thumbnail)
                   : undefined;
-                // Mock reviews count based on UI examples: 266, 290, 393, 89
                 const mockReviews = [266, 290, 393, 89, 120, 85, 420, 150];
                 return (
-                  <CarouselItem key={product.id} className="basis-1/2 pl-4 md:basis-1/4">
+                  <CarouselItem
+                    key={product.id}
+                    className="basis-1/2 pl-4 md:basis-1/4"
+                  >
                     <ProductCard
                       {...product}
                       thumbnail={imgSrc}
                       title={getLocalized(product.title, locale)}
                       subtitle={getLocalized(product.subtitle, locale) || null}
-                      categorySummary={getLocalized(product.categorySummary, locale) || null}
+                      categorySummary={
+                        getLocalized(product.categorySummary, locale) || null
+                      }
                       imageAlt={getLocalized(product.title, locale)}
                       rating={5}
                       reviewsCount={mockReviews[index % mockReviews.length]}
@@ -116,7 +128,6 @@ export function BestSellersSection({
             </CarouselContent>
           </Carousel>
 
-          {/* Mobile navigation arrows overlaid on the carousel */}
           <div className="md:hidden absolute inset-y-0 left-0 flex items-center">
             <button
               aria-label="Previous"

@@ -1,0 +1,47 @@
+{
+  "meta_title": "Liên Hệ | Phùng Thị",
+  "meta_description": "Liên hệ với Phùng Thị để được tư vấn và báo giá các sản phẩm cúp, kỷ niệm chương và quà tặng.",
+
+  "label": "Liên hệ",
+  "heading": "Liên hệ với Phùng Thị",
+  "description": "Một số biến thể được báo giá thủ công theo số lượng, vật liệu hoặc yêu cầu sản xuất. Gửi thông tin cho đội ngũ Phùng Thị để nhận tư vấn và báo giá phù hợp.",
+
+  "hotline_label": "Hotline",
+  "hotline_value": "0816 999 296",
+  "hotline_desc": "Gọi trực tiếp để được tư vấn nhanh.",
+
+  "email_label": "Email",
+  "email_value": "Lienhe.phungthi@gmail.com",
+  "email_desc": "Gửi thông tin để nhận báo giá qua email.",
+
+  "messenger_label": "Messenger",
+  "messenger_value": "Phùng Thị",
+  "messenger_desc": "Nhắn tin trực tiếp trên Messenger.",
+
+  "zalo_label": "Zalo",
+  "zalo_value": "Zalo OA",
+  "zalo_desc": "Liên hệ qua Zalo để được hỗ trợ.",
+
+  "product_info_badge": "Biến thể bạn đang xem",
+  "variant_label": "Variant",
+  "sku_label": "SKU",
+
+  "form_heading": "Gửi yêu cầu",
+  "form_name_label": "Họ và tên",
+  "form_name_placeholder": "Nhập họ và tên",
+  "form_phone_label": "Số điện thoại",
+  "form_phone_placeholder": "Nhập số điện thoại",
+  "form_email_label": "Email",
+  "form_email_placeholder": "Nhập email",
+  "form_message_label": "Nội dung yêu cầu",
+  "form_message_placeholder": "Sản phẩm quan tâm, số lượng, yêu cầu cá nhân hóa...",
+  "form_submit": "Gửi yêu cầu",
+
+  "workshop_heading": "Xưởng sản xuất",
+  "region_north": "Miền Bắc",
+  "region_south": "Miền Nam",
+  "address_north": "Thôn 2, xã Hòa Lạc, TP. Hà Nội",
+  "address_south": "1264/47 Lê Đức Thọ, Phường 13, Gò Vấp, TP. HCM",
+
+  "back_link": "Quay lại sản phẩm"
+}

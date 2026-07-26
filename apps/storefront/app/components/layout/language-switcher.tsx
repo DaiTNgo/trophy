@@ -1,9 +1,8 @@
 import { Form, useLocation } from "react-router";
 import { useTranslation } from "react-i18next";
-import { Globe } from "lucide-react";
 
 export function LanguageSwitcher() {
-  const { i18n } = useTranslation();
+  const { i18n, t } = useTranslation();
   const { pathname, search } = useLocation();
 
   const toggleLanguage = i18n.language === "en" ? "vi" : "en";
@@ -16,7 +15,7 @@ export function LanguageSwitcher() {
       <button
         type="submit"
         className="relative flex h-10 w-10 items-center justify-center rounded-full text-brand-strong transition-colors hover:bg-surface-subtle hover:text-primary"
-        title="Change Language"
+        title={t("language_switcher_title")}
       >
         {label}
       </button>

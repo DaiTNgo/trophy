@@ -1,4 +1,5 @@
 import { Link } from "react-router";
+import { useTranslation } from "react-i18next";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import {
   Carousel,
@@ -12,37 +13,17 @@ import Autoplay from "embla-carousel-autoplay";
 import { useState, useEffect } from "react";
 import Container from "../container";
 
-const HERO_SLIDES = [
-  {
-    image: "/images/home/hero-1.webp",
-    eyebrow: "Phùng Thị",
-    headline: ["VINH DANH", "XỨNG TẦM", "THÀNH TỰU"],
-    accentIndex: 2,
-    body: "Cúp, kỷ niệm chương và giải thưởng tùy chỉnh cho doanh nghiệp, giải đấu và sự kiện.",
-    cta: { label: "Khám phá sản phẩm", to: "/products" },
-    cta2: { label: "Liên hệ tư vấn", to: "/contact" },
-  },
-  {
-    image: "/images/home/hero-2.jpg",
-    eyebrow: "Phùng Thị",
-    headline: ["HƠN 600,000", "GIẢI THƯỞNG", "ĐÃ TRAO TAY"],
-    accentIndex: 2,
-    body: "15+ năm kinh nghiệm — 2 xưởng sản xuất tại Hà Nội và TP. HCM. Sản phẩm đã góp mặt tại hàng nghìn sự kiện trên khắp cả nước.",
-    cta: { label: "Khám phá sản phẩm", to: "/products" },
-    cta2: { label: "Liên hệ tư vấn", to: "/contact" },
-  },
-  {
-    image: "/images/home/hero-3.png",
-    eyebrow: "Phùng Thị",
-    headline: ["THIẾT KẾ", "THEO YÊU CẦU", "CÁ NHÂN HÓA"],
-    accentIndex: 2,
-    body: "Từ ý tưởng đến sản phẩm hoàn thiện. Thiết kế riêng theo logo, thông điệp và phong cách của bạn.",
-    cta: { label: "Khám phá sản phẩm", to: "/products" },
-    cta2: { label: "Liên hệ tư vấn", to: "/contact" },
-  },
+const HERO_IMAGES = [
+  "/images/home/hero-1.webp",
+  "/images/home/hero-2.jpg",
+  "/images/home/hero-3.png",
 ];
 
 export function HeroSection() {
+  const { t } = useTranslation("home");
+  const slides = t("hero_slides", { returnObjects: true }) as {
+    eyebrow: string; headlines: string[]; body: string; cta: string; cta2: string;
+  }[];
   const [api, setApi] = useState<CarouselApi>();
   const [current, setCurrent] = useState(0);
 
@@ -61,13 +42,13 @@ export function HeroSection() {
         className="w-full"
       >
         <CarouselContent className="ml-0">
-          {HERO_SLIDES.map((slide, i) => (
+          {slides.map((slide, i) => (
             <CarouselItem key={i} className="pl-0">
               <div className="relative flex h-[75vh] w-full items-center overflow-hidden bg-surface-dark">
                 <div className="absolute inset-0 z-0">
                   <img
                     className="h-full w-full object-cover object-center"
-                    src={slide.image}
+                    src={HERO_IMAGES[i]}
                     alt=""
                     fetchPriority={i === 0 ? "high" : "low"}
                   />
@@ -84,10 +65,10 @@ export function HeroSection() {
                         </span>
                       </div>
                       <h1 className="mb-6 font-heading uppercase leading-none tracking-wide text-white">
-                        {slide.headline.map((line, j) => (
+                        {slide.headlines.map((line, j) => (
                           <span
                             key={line}
-                            className={`block text-[32px] leading-[1.15] sm:text-[40px] md:text-[56px] lg:text-[72px] ${j === slide.accentIndex ? "text-brand-accent" : ""}`}
+                            className={`block text-[32px] leading-[1.15] sm:text-[40px] md:text-[56px] lg:text-[72px] ${j === 2 ? "text-brand-accent" : ""}`}
                           >
                             {line}
                           </span>
@@ -98,16 +79,16 @@ export function HeroSection() {
                       </p>
                       <div className="mb-10 flex flex-col items-start gap-3 sm:flex-row sm:gap-4">
                         <Link
-                          to={slide.cta.to}
+                          to="/products"
                           className="rounded-lg border-2 border-transparent bg-action-support px-5 py-3 text-center font-label-md text-label-md uppercase tracking-widest text-white transition-all duration-300 hover:bg-action-support-hover md:px-8 md:py-4"
                         >
-                          {slide.cta.label}
+                          {slide.cta}
                         </Link>
                         <Link
-                          to={slide.cta2.to}
+                          to="/contact"
                           className="rounded-lg border-2 border-white/60 px-5 py-3 text-center font-label-md text-label-md uppercase tracking-widest text-white transition-all duration-300 hover:border-brand-accent hover:bg-white/10 md:px-8 md:py-4"
                         >
-                          {slide.cta2.label}
+                          {slide.cta2}
                         </Link>
                       </div>
 
@@ -120,7 +101,7 @@ export function HeroSection() {
         </CarouselContent>
 
         <div className="absolute bottom-6 left-1/2 z-30 flex -translate-x-1/2 gap-2">
-          {HERO_SLIDES.map((_, i) => (
+          {slides.map((_, i) => (
             <button
               key={i}
               onClick={() => api?.scrollTo(i)}

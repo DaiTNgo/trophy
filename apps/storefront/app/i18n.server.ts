@@ -6,10 +6,18 @@ import enCommon from "./locales/en/common.json";
 import viCommon from "./locales/vi/common.json";
 import enAbout from "./locales/en/about.json";
 import viAbout from "./locales/vi/about.json";
+import enHome from "./locales/en/home.json";
+import viHome from "./locales/vi/home.json";
+import enContact from "./locales/en/contact.json";
+import viContact from "./locales/vi/contact.json";
+import enLayout from "./locales/en/layout.json";
+import viLayout from "./locales/vi/layout.json";
+import enOrderLookup from "./locales/en/order-lookup.json";
+import viOrderLookup from "./locales/vi/order-lookup.json";
 
 const resources = {
-  en: { common: enCommon, about: enAbout },
-  vi: { common: viCommon, about: viAbout },
+  en: { common: enCommon, about: enAbout, home: enHome, contact: enContact, layout: enLayout, orderLookup: enOrderLookup },
+  vi: { common: viCommon, about: viAbout, home: viHome, contact: viContact, layout: viLayout, orderLookup: viOrderLookup },
 };
 
 export const localeCookie = createCookie("lng", {
