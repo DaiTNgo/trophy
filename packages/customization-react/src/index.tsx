@@ -78,6 +78,57 @@ const MAX_PREVIEW_ZOOM = 4;
 const PREVIEW_ZOOM_STEP = 0.1;
 const FIT_PADDING_PX = 56;
 
+function quoteFontFamily(fontId: string) {
+  return `"${fontId.replace(/["\\]/g, "\\$&")}"`;
+}
+
+function useBrowserTextMeasure(fontIds: string[]) {
+  const [fontRevision, setFontRevision] = useState(0);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  const measureText = useCallback(
+    (text: string, fontSizePt: number, fontId: string) => {
+      if (typeof document === "undefined") {
+        return text.length * fontSizePt * 0.55;
+      }
+
+      canvasRef.current ??= document.createElement("canvas");
+      const context = canvasRef.current.getContext("2d");
+      if (!context) return text.length * fontSizePt * 0.55;
+
+      context.font = `${fontSizePt}px ${quoteFontFamily(fontId)}`;
+      return context.measureText(text).width;
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (typeof document === "undefined" || !document.fonts) return;
+
+    let cancelled = false;
+    const refreshMeasurements = () => {
+      if (!cancelled) setFontRevision((revision) => revision + 1);
+    };
+    const loadFonts = async () => {
+      await Promise.all(
+        fontIds.map((fontId) =>
+          document.fonts.load(`16px ${quoteFontFamily(fontId)}`, "Aa"),
+        ),
+      );
+      refreshMeasurements();
+    };
+
+    void loadFonts();
+    document.fonts.addEventListener("loadingdone", refreshMeasurements);
+    return () => {
+      cancelled = true;
+      document.fonts.removeEventListener("loadingdone", refreshMeasurements);
+    };
+  }, [fontIds]);
+
+  return { measureText, fontRevision };
+}
+
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
@@ -205,16 +256,6 @@ export function ProductCustomizationPreview({
   onImageValueChange?: (fieldId: string, value: ImageShapeFieldValue) => void;
   onFullscreenChange?: (open: boolean) => void;
 }) {
-  const design = useMemo(
-    () =>
-      buildDesignFromForm({
-        template,
-        values,
-        designId: "storefront_product_preview",
-        dynamicFonts,
-      }),
-    [dynamicFonts, template, values],
-  );
   const fontPreviewIds = useMemo(
     () =>
       Array.from(
@@ -238,6 +279,18 @@ export function ProductCustomizationPreview({
         ),
       ),
     [dynamicFonts, template.layers],
+  );
+  const { measureText, fontRevision } = useBrowserTextMeasure(fontPreviewIds);
+  const design = useMemo(
+    () =>
+      buildDesignFromForm({
+        template,
+        values,
+        designId: "storefront_product_preview",
+        measureText,
+        dynamicFonts,
+      }),
+    [dynamicFonts, fontRevision, measureText, template, values],
   );
 
   const background = template.background;

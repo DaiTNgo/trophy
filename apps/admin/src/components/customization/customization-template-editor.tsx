@@ -26,6 +26,23 @@ const FIT_PADDING_PX = 64;
 
 type PanState = { x: number; y: number };
 
+let textMeasureCanvas: HTMLCanvasElement | null = null;
+
+function quoteFontFamily(fontId: string) {
+  return `"${fontId.replace(/["\\]/g, "\\$&")}"`;
+}
+
+function measureTextCanvas(text: string, fontSizePt: number, fontId: string) {
+  if (typeof document === "undefined") return text.length * fontSizePt * 0.55;
+
+  textMeasureCanvas ??= document.createElement("canvas");
+  const context = textMeasureCanvas.getContext("2d");
+  if (!context) return text.length * fontSizePt * 0.55;
+
+  context.font = `${fontSizePt}px ${quoteFontFamily(fontId)}`;
+  return context.measureText(text).width;
+}
+
 export function EditorCanvas({
   template,
   selectedLayerId,
@@ -64,6 +81,7 @@ export function EditorCanvas({
   const [zoom, setZoom] = useState(0.72);
   const [pan, setPan] = useState<PanState>({ x: 0, y: 0 });
   const [zoomInput, setZoomInput] = useState("72");
+  const [, setFontRevision] = useState(0);
   const workspaceRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const viewportDrag = useRef<{ x: number; y: number; pan: PanState } | null>(null);
@@ -91,6 +109,22 @@ export function EditorCanvas({
     if (!background) return;
     fitToView();
   }, [background?.previewUrl, background?.widthPx, background?.heightPx, fitToView]);
+
+  useEffect(() => {
+    if (typeof document === "undefined" || !document.fonts) return;
+
+    let cancelled = false;
+    const refreshMeasurements = () => {
+      if (!cancelled) setFontRevision((revision) => revision + 1);
+    };
+
+    void document.fonts.ready.then(refreshMeasurements);
+    document.fonts.addEventListener("loadingdone", refreshMeasurements);
+    return () => {
+      cancelled = true;
+      document.fonts.removeEventListener("loadingdone", refreshMeasurements);
+    };
+  }, [dynamicFonts]);
 
   if (!background) {
     return (
@@ -504,6 +538,7 @@ function EditorTextLayer({
     value: createDefaultTextValue(layer),
     availableWidthPx: widthPx,
     availableHeightPx: layer.text.path.type !== "straight" ? heightPx : undefined,
+    measure: measureTextCanvas,
     dynamicFonts,
   });
 

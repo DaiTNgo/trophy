@@ -644,6 +644,26 @@ describe("text fitting and paths", () => {
     expect(fitted.trimmed).toBe(false);
   });
 
+  it("keeps fixed-size text intact when its measured glyphs fit the layer", () => {
+    const fixedSizeLayer: TextEditorLayer = {
+      ...lineLayer,
+      text: {
+        ...lineLayer.text,
+        minFontSizePt: 26,
+        maxFontSizePt: 26,
+      },
+    };
+    const text = "123456789012345678901234";
+    const fitted = fitTextToLayer({
+      layer: fixedSizeLayer,
+      value: { text },
+      availableWidthPx: 333,
+      measure: (value, size) => value.length * size * 0.5,
+    });
+
+    expect(fitted).toMatchObject({ text, fontSizePt: 26, trimmed: false });
+  });
+
   it("normalizes closed ellipse text paths and fits against path length", () => {
     const path = normalizeTextPath({
       type: "closed_ellipse",
