@@ -14,9 +14,6 @@ import { localizedString, localizedNullableText } from '../../lib/locale'
 import { hydrateTranslations, upsertTranslations } from '../../lib/catalog-translation'
 import { isCustomizationCategory } from '../../lib/customization-category'
 
-const trimmedString = (min = 1, max = 255) =>
-  v.pipe(v.string(), v.trim(), v.minLength(min), v.maxLength(max))
-
 const nonNegativeInt = v.pipe(v.number(), v.integer(), v.minValue(0))
 
 const optionalHandle = v.optional(

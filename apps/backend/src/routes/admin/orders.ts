@@ -1,8 +1,12 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { Hono } from "hono";
 import * as v from "valibot";
 import { getDb } from "../../db/client";
-import { orderItems, orders } from "../../db/schema";
+import {
+  orderItems,
+  orders,
+  productVariantCustomizationMedia,
+} from "../../db/schema";
 import type { AppEnv } from "../../lib/env";
 import {
   buildCustomizationValueSummaries,
@@ -10,6 +14,7 @@ import {
   parseCustomizationSnapshot,
   parseDifferentShippingAddress,
   parseOrderAddress,
+  parseVatDetails,
   parseProductSnapshot,
   parseVariantSnapshot,
 } from "../../lib/order-utils";
@@ -46,9 +51,28 @@ type OrderStatusUpdateInput = v.InferOutput<typeof orderStatusUpdateSchema>;
 type OrderRow = typeof orders.$inferSelect;
 type OrderItemRow = typeof orderItems.$inferSelect;
 
-function serializeAdminOrderDetail(orderRow: OrderRow, itemRows: OrderItemRow[]) {
+function buildAssetContentUrl(baseUrl: string | null, assetId: string) {
+  const path = `/api/assets/products/${assetId}/content`;
+  if (!baseUrl) return path;
+
+  try {
+    const url = new URL(baseUrl);
+    url.pathname = path;
+    url.search = "";
+    return url.toString();
+  } catch {
+    return path;
+  }
+}
+
+function serializeAdminOrderDetail(
+  orderRow: OrderRow,
+  itemRows: OrderItemRow[],
+  customizationMediaByVariantId: Map<number, string>,
+) {
   const primaryAddress = parseOrderAddress(orderRow.primaryAddressJson);
   const shippingAddress = parseDifferentShippingAddress(orderRow.shippingAddressJson);
+  const vat = parseVatDetails(orderRow.vatDetailsJson);
 
   return {
     id: orderRow.id,
@@ -64,6 +88,8 @@ function serializeAdminOrderDetail(orderRow: OrderRow, itemRows: OrderItemRow[])
     },
     primaryAddress,
     shippingAddress,
+    notes: orderRow.notes,
+    vat,
     totals: {
       subtotalAmount: orderRow.subtotalAmount,
       totalAmount: orderRow.totalAmount,
@@ -77,6 +103,20 @@ function serializeAdminOrderDetail(orderRow: OrderRow, itemRows: OrderItemRow[])
       const variantSnapshot = parseVariantSnapshot(item.variantSnapshotJson);
       const backgroundSnapshot = parseBackgroundSnapshot(item.backgroundSnapshotJson);
       const customizationSnapshot = parseCustomizationSnapshot(item.customizationSnapshotJson);
+      const customizationAssetId = customizationSnapshot
+        ? customizationMediaByVariantId.get(variantSnapshot?.id ?? -1)
+        : undefined;
+      const background = customizationAssetId
+        ? {
+            assetId: customizationAssetId,
+            previewUrl: buildAssetContentUrl(
+              backgroundSnapshot?.previewUrl ?? null,
+              customizationAssetId,
+            ),
+            widthPx: backgroundSnapshot?.widthPx ?? null,
+            heightPx: backgroundSnapshot?.heightPx ?? null,
+          }
+        : backgroundSnapshot;
 
       return {
         id: item.id,
@@ -86,7 +126,7 @@ function serializeAdminOrderDetail(orderRow: OrderRow, itemRows: OrderItemRow[])
         productionStatus: item.productionStatus,
         product: productSnapshot,
         variant: variantSnapshot,
-        background: backgroundSnapshot,
+        background,
         customization: customizationSnapshot
           ? {
               values: buildCustomizationValueSummaries(customizationSnapshot),
@@ -115,7 +155,27 @@ async function getOrderDetail(db: ReturnType<typeof getDb>, orderNumber: string)
     .where(eq(orderItems.orderId, orderRow.id))
     .orderBy(orderItems.id);
 
-  return serializeAdminOrderDetail(orderRow, itemRows);
+  const variantIds = itemRows
+    .map((item) => parseVariantSnapshot(item.variantSnapshotJson)?.id)
+    .filter((id): id is number => typeof id === "number");
+  const customizationMediaRows = variantIds.length
+    ? await db
+        .select({
+          variantId: productVariantCustomizationMedia.variantId,
+          assetId: productVariantCustomizationMedia.assetId,
+        })
+        .from(productVariantCustomizationMedia)
+        .where(inArray(productVariantCustomizationMedia.variantId, variantIds))
+    : [];
+  const customizationMediaByVariantId = new Map(
+    customizationMediaRows.map((row) => [row.variantId, row.assetId]),
+  );
+
+  return serializeAdminOrderDetail(
+    orderRow,
+    itemRows,
+    customizationMediaByVariantId,
+  );
 }
 
 function hasStatusUpdate(input: OrderStatusUpdateInput) {

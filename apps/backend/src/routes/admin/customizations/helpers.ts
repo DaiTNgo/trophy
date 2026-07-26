@@ -10,10 +10,7 @@ import {
 import { desc, eq } from "drizzle-orm";
 import { getDb } from "../../../db/client";
 import {
-  customizationDesignRevisions,
-  customizationDesigns,
   customizationTemplateRevisions,
-  customizationTemplates,
 } from "../../../db/schema";
 
 export type StoredEditorModel = Pick<CustomizationTemplate, "background" | "layers" | "formFields">;

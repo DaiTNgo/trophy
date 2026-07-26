@@ -69,10 +69,6 @@ const storefrontListingQuerySchema = v.object({
   )
 })
 
-const handleQuerySchema = v.object({
-  locale: v.optional(localeSchema, DEFAULT_LOCALE)
-})
-
 const handleParamsSchema = v.object({
   handle: v.pipe(
     v.string(),
@@ -233,7 +229,6 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
     const db = getDb(c.env)
     const page = parsedQuery.output.page ?? 1
     const limit = parsedQuery.output.limit ?? 20
-    const locale = parsedQuery.output.locale ?? DEFAULT_LOCALE
     const offset = (page - 1) * limit
 
     const conditions = [eq(products.status, 'published')]
@@ -513,9 +508,6 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
     const db = getDb(c.env)
     const handle = parsed.output.handle
 
-    const parsedQuery = parseQuery(c.req.query(), handleQuerySchema)
-    const locale = parsedQuery.success ? (parsedQuery.output.locale ?? DEFAULT_LOCALE) : DEFAULT_LOCALE
-
     let product = await db
       .select()
       .from(products)
@@ -534,6 +526,7 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
       attributeRows,
       optionRows,
       variantRows,
+      productMediaRows,
       variantMediaRows,
       variantCustomizationMediaRows,
       customizationRow
@@ -565,6 +558,11 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
         .from(productVariants)
         .where(eq(productVariants.productId, product.id))
         .orderBy(asc(productVariants.position), asc(productVariants.id)),
+      db
+        .select()
+        .from(productMedia)
+        .where(eq(productMedia.productId, product.id))
+        .orderBy(asc(productMedia.position), asc(productMedia.id)),
       db
         .select({
           variantId: productVariantMedia.variantId,
@@ -765,6 +763,12 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
       subtitle: product.subtitle,
       handle: product.handle,
       description: product.description,
+      media: productMediaRows.map((media) => ({
+        id: media.id,
+        url: toAbsoluteAssetUrl(c, media.url) as string,
+        alt: media.alt,
+        position: media.position,
+      })),
       status: product.status,
       categories: resolvedCategories,
       attributes: resolvedAttributes,

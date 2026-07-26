@@ -28,9 +28,6 @@ import {
 } from '../../db/schema'
 import type { AppEnv } from '../../lib/env'
 import { jsonError, parseJson, parseParams } from '../../lib/validation'
-import {
-  parseStoredProductCustomizationModel
-} from './customizations/helpers'
 import { hydrateCustomization, persistCustomizationTranslations } from '../../lib/customization-translation'
 import {
   CUSTOMIZATION_CATEGORY_HANDLE,

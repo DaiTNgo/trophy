@@ -1,6 +1,7 @@
 import { and, eq, ne } from "drizzle-orm";
 import { verifyPassword } from "better-auth/crypto";
 import { Hono } from "hono";
+import { validator } from "hono/validator";
 import * as v from "valibot";
 import { getDb } from "../../db/client";
 import { accounts, sessions, users } from "../../db/schema";
@@ -17,17 +18,26 @@ const recoverSchema = v.object({
   ),
 });
 
-export const superAdminRoute = new Hono<AppEnv>().post("/recovery", async (c) => {
+export const superAdminRoute = new Hono<AppEnv>().post(
+  "/recovery",
+  validator("json", async (body, c) => {
+    const session = await getAdminSession(c.env, c.req.raw.headers);
+    if (!session?.user || (session.user as { role?: string }).role !== "super-admin") {
+      return c.json({ message: "Forbidden" }, 403);
+    }
+    const result = v.safeParse(recoverSchema, body);
+    if (!result.success) {
+      return c.json({ message: "Invalid payload.", issues: result.issues }, 400);
+    }
+    return result.output;
+  }),
+  async (c) => {
   const session = await getAdminSession(c.env, c.req.raw.headers);
   if (!session?.user || (session.user as { role?: string }).role !== "super-admin") {
     return c.json({ message: "Forbidden" }, 403);
   }
 
-  const body = await c.req.json().catch(() => null);
-  const parsed = v.safeParse(recoverSchema, body);
-  if (!parsed.success) {
-    return c.json({ message: "Invalid payload.", issues: parsed.issues }, 400);
-  }
+  const parsed = c.req.valid("json");
 
   const db = getDb(c.env);
   const credential = await db
@@ -36,7 +46,7 @@ export const superAdminRoute = new Hono<AppEnv>().post("/recovery", async (c) =>
     .where(and(eq(accounts.userId, session.user.id), eq(accounts.providerId, "credential")))
     .get();
 
-  if (!credential?.password || !(await verifyPassword({ hash: credential.password, password: parsed.output.currentPassword }))) {
+  if (!credential?.password || !(await verifyPassword({ hash: credential.password, password: parsed.currentPassword }))) {
     return c.json({ message: "Current password is incorrect." }, 400);
   }
 
@@ -51,10 +61,11 @@ export const superAdminRoute = new Hono<AppEnv>().post("/recovery", async (c) =>
 
   // @ts-ignore Better Auth exposes admin APIs at runtime for server-side use.
   await getAuth(c.env).api.setUserPassword({
-    body: { userId: targets[0].id, newPassword: parsed.output.newPassword },
+    body: { userId: targets[0].id, newPassword: parsed.newPassword },
     headers: c.req.raw.headers,
   });
   await db.delete(sessions).where(eq(sessions.userId, targets[0].id));
 
   return c.json({ recovered: true }, 200);
-});
+  },
+);

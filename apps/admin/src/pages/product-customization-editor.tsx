@@ -1,4 +1,4 @@
-import { ArrowLeft, Save } from "lucide-react";
+import { Save } from "lucide-react";
 import { useNavigate, useParams } from "react-router";
 import { Button, FocusModal } from "@medusajs/ui";
 import { useProductCustomizationEditor } from "../hooks/useProductCustomizationEditor";

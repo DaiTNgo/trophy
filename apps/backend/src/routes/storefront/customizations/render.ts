@@ -1,6 +1,5 @@
 import { getTextPathRenderAttributes, getTextPathSvgD, vectorPointsToSvgPathD } from "@trophy/customization";
 import type { CustomizationDesign, CustomizationTemplate } from "@trophy/customization";
-import { eq } from "drizzle-orm";
 
 const escapeXml = (value: string) =>
   value
@@ -93,30 +92,6 @@ const shapeClipSvg = ({
     return `<path d="${scaledD}" />`;
   }
   return `<rect x="${x}" y="${y}" width="${width}" height="${height}" />`;
-};
-
-const parseDataUrl = (value: string) => {
-  const match = /^data:(image\/(?:png|jpeg|svg\+xml));(?:charset=[^,]+,|base64,)?(.+)$/s.exec(value);
-  if (!match) return null;
-  const mimeType = match[1]!;
-  if (mimeType === "image/svg+xml") return null;
-  return {
-    mimeType,
-    bytes: Uint8Array.from(atob(match[2]!), (character) => character.charCodeAt(0)),
-  };
-};
-
-const readImageBytes = async (url: string) => {
-  const dataUrl = parseDataUrl(url);
-  if (dataUrl) return dataUrl;
-  const response = await fetch(url).catch(() => null);
-  if (!response?.ok) return null;
-  const mimeType = response.headers.get("content-type")?.split(";")[0] ?? "";
-  if (mimeType !== "image/png" && mimeType !== "image/jpeg") return null;
-  return {
-    mimeType,
-    bytes: new Uint8Array(await response.arrayBuffer()),
-  };
 };
 
 export const renderPreviewSvg = (template: CustomizationTemplate, design: CustomizationDesign) => {

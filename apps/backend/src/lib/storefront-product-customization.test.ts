@@ -20,6 +20,7 @@ const redVariant: StorefrontProductVariant = {
   title: "Red",
   media: [
     {
+      id: "media-red",
       assetId: "asset-red",
       contentUrl: "https://example.test/red.png",
       fileName: "red.png",
@@ -29,6 +30,7 @@ const redVariant: StorefrontProductVariant = {
     },
   ],
   customizationMedia: {
+    id: "media-red",
     assetId: "asset-red",
     contentUrl: "https://example.test/red.png",
     fileName: "red.png",
@@ -43,6 +45,7 @@ const blueVariant: StorefrontProductVariant = {
   title: "Blue",
   media: [
     {
+      id: "media-blue",
       assetId: "asset-blue",
       contentUrl: "https://example.test/blue.png",
       fileName: "blue.png",
@@ -52,6 +55,7 @@ const blueVariant: StorefrontProductVariant = {
     },
   ],
   customizationMedia: {
+    id: "media-blue",
     assetId: "asset-blue",
     contentUrl: "https://example.test/blue.png",
     fileName: "blue.png",

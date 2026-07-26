@@ -138,6 +138,47 @@ export function OrderDetailSidebar({
         </div>
       </Container>
 
+      {(order.notes || order.vat) && (
+        <Container className="p-0">
+          <div className="border-b border-ui-border-base px-6 py-4">
+            <Heading level="h2">Order information</Heading>
+          </div>
+          <div className="flex flex-col gap-y-5 p-6">
+            {order.notes ? (
+              <div className="flex flex-col gap-y-1">
+                <Text size="small" className="font-medium text-ui-fg-subtle">
+                  Customer note
+                </Text>
+                <Text size="small" className="whitespace-pre-wrap text-ui-fg-base">
+                  {order.notes}
+                </Text>
+              </div>
+            ) : null}
+            {order.vat ? (
+              <div className="flex flex-col gap-y-3">
+                <Text size="small" className="font-medium text-ui-fg-subtle">
+                  VAT invoice
+                </Text>
+                <div className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
+                  {[
+                    ["Invoice type", order.vat.type],
+                    ["Name", order.vat.name],
+                    ["Tax ID", order.vat.taxId],
+                    ["Email", order.vat.email],
+                    ["Billing address", order.vat.address],
+                  ].filter(([, value]) => value).map(([label, value]) => (
+                    <Text key={label} size="small" className="contents">
+                      <span className="text-ui-fg-subtle">{label}</span>
+                      <span className="break-words text-right text-ui-fg-base">{value}</span>
+                    </Text>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </Container>
+      )}
+
       {/* Production */}
       <Container className="p-0">
         <div className="flex items-center justify-between border-b border-ui-border-base px-6 py-4">

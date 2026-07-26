@@ -9,14 +9,16 @@ import {
   type CustomizationFormValues,
   type CustomizationTemplate,
 } from "@trophy/customization";
-import { getDb, type Database } from "../../db/client";
+import { getDb } from "../../db/client";
 import { hydrateAndResolveTranslations } from "../../lib/catalog-translation";
 import { hydrateAndResolveCustomization } from "../../lib/customization-translation";
 import { localeSchema, DEFAULT_LOCALE } from "../../lib/locale";
 import {
   orderItems,
   orders,
+  productMedia,
   productCustomizations,
+  productVariantCustomizationMedia,
   productVariantMedia,
   productVariants,
   products,
@@ -30,6 +32,7 @@ import {
   parseCustomizationSnapshot,
   parseDifferentShippingAddress,
   parseOrderAddress,
+  parseVatDetails,
   parseProductSnapshot,
   parseVariantSnapshot,
   type StoredCustomizationSnapshot,
@@ -80,6 +83,16 @@ const createOrderSchema = v.object({
     differentAddress: v.optional(differentShippingAddressSchema),
   }),
   items: v.pipe(v.array(orderItemInputSchema), v.minLength(1, "At least one item is required")),
+  notes: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(2000, "Order note is too long"))),
+  vat: v.optional(
+    v.object({
+      type: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(100))),
+      name: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(255))),
+      taxId: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(100))),
+      email: v.optional(v.pipe(v.string(), v.trim(), v.email("Invalid VAT email"), v.maxLength(255))),
+      address: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(1000))),
+    }),
+  ),
   locale: v.optional(localeSchema, DEFAULT_LOCALE),
 });
 
@@ -109,6 +122,8 @@ type DbType = ReturnType<typeof getDb>;
 type ProductRow = typeof products.$inferSelect;
 type VariantRow = typeof productVariants.$inferSelect;
 type VariantMediaRow = typeof productVariantMedia.$inferSelect;
+type VariantCustomizationMediaRow =
+  typeof productVariantCustomizationMedia.$inferSelect;
 type CustomizationRow = typeof productCustomizations.$inferSelect;
 type OrderRow = typeof orders.$inferSelect;
 type OrderItemRow = typeof orderItems.$inferSelect;
@@ -152,6 +167,18 @@ async function lookupVariantById(db: DbType, variantId: number): Promise<Variant
   return variant ?? null;
 }
 
+async function lookupProductFirstMedia(db: DbType, productId: number) {
+  const media = await db
+    .select()
+    .from(productMedia)
+    .where(eq(productMedia.productId, productId))
+    .orderBy(asc(productMedia.position), asc(productMedia.id))
+    .limit(1)
+    .get();
+
+  return media ?? null;
+}
+
 async function lookupVariantForProduct(
   db: DbType,
   variantId: number,
@@ -173,6 +200,19 @@ async function lookupVariantFirstMedia(db: DbType, variantId: number): Promise<V
     .where(eq(productVariantMedia.variantId, variantId))
     .orderBy(asc(productVariantMedia.position), asc(productVariantMedia.assetId))
     .limit(1)
+    .get();
+
+  return media ?? null;
+}
+
+async function lookupVariantCustomizationMedia(
+  db: DbType,
+  variantId: number,
+): Promise<VariantCustomizationMediaRow | null> {
+  const media = await db
+    .select()
+    .from(productVariantCustomizationMedia)
+    .where(eq(productVariantCustomizationMedia.variantId, variantId))
     .get();
 
   return media ?? null;
@@ -267,16 +307,19 @@ async function validateAndBuildItemSnapshot(
   }
 
   const firstMedia = await lookupVariantFirstMedia(db, item.variantId);
-  const backgroundSnapshot: BackgroundSnapshot | null = firstMedia
+  const customizationRow = await lookupProductCustomization(db, item.productId);
+  const customizationMedia = customizationRow?.enabled
+    ? await lookupVariantCustomizationMedia(db, item.variantId)
+    : null;
+  const backgroundAssetId = customizationMedia?.assetId ?? firstMedia?.assetId;
+  const backgroundSnapshot: BackgroundSnapshot | null = backgroundAssetId
     ? {
-        assetId: firstMedia.assetId,
-        previewUrl: toAbsoluteAssetUrl(c, `/api/assets/products/${firstMedia.assetId}/content`) as string,
+        assetId: backgroundAssetId,
+        previewUrl: toAbsoluteAssetUrl(c, `/api/assets/products/${backgroundAssetId}/content`) as string,
         widthPx: null,
         heightPx: null,
       }
     : null;
-
-  const customizationRow = await lookupProductCustomization(db, item.productId);
   const isCustomizable = customizationRow?.enabled === true;
 
   if (isCustomizable && !item.customization?.values) {
@@ -386,6 +429,7 @@ async function loadOrderWithItemsByNumber(db: DbType, orderNumber: string) {
 function buildLookupOrderResponse(order: OrderRow, items: OrderItemRow[]) {
   const primaryAddress = parseOrderAddress(order.primaryAddressJson);
   const shippingAddress = parseDifferentShippingAddress(order.shippingAddressJson);
+  const vat = parseVatDetails(order.vatDetailsJson);
 
   return {
     order: {
@@ -404,6 +448,8 @@ function buildLookupOrderResponse(order: OrderRow, items: OrderItemRow[]) {
       },
       primaryAddress,
       shippingAddress,
+      notes: order.notes,
+      vat,
       items: items.map((item) => {
         const productSnapshot = parseProductSnapshot(item.productSnapshotJson);
         const variantSnapshot = parseVariantSnapshot(item.variantSnapshotJson);
@@ -490,7 +536,13 @@ export const storefrontOrdersRoute = new Hono<AppEnv>()
         }
 
         const customization = await lookupProductCustomization(db, item.productId);
+        const productFirstMedia = await lookupProductFirstMedia(db, item.productId);
         const firstMedia = await lookupVariantFirstMedia(db, item.variantId);
+        const thumbnail = productFirstMedia
+          ? toAbsoluteAssetUrl(c, productFirstMedia.url) as string
+          : firstMedia
+            ? toAbsoluteAssetUrl(c, `/api/assets/products/${firstMedia.assetId}/content`) as string
+            : null;
 
         if (variant.priceAmount === null || variant.priceAmount === undefined) {
           return {
@@ -503,7 +555,7 @@ export const storefrontOrdersRoute = new Hono<AppEnv>()
               handle: product.handle,
               variantTitle: variant.title,
               sku: variant.sku,
-              thumbnail: firstMedia ? (toAbsoluteAssetUrl(c, `/api/assets/products/${firstMedia.assetId}/content`) as string) : null,
+              thumbnail,
               priceAmount: null,
               customizable: customization?.enabled === true,
               requiresCustomization: customization?.enabled === true,
@@ -522,7 +574,7 @@ export const storefrontOrdersRoute = new Hono<AppEnv>()
             handle: product.handle,
             variantTitle: variant.title,
             sku: variant.sku,
-            thumbnail: firstMedia ? (toAbsoluteAssetUrl(c, `/api/assets/products/${firstMedia.assetId}/content`) as string) : null,
+            thumbnail,
             priceAmount: variant.priceAmount,
             customizable: customization?.enabled === true,
             requiresCustomization: customization?.enabled === true,
@@ -634,6 +686,8 @@ export const storefrontOrdersRoute = new Hono<AppEnv>()
         customerName: input.customer.name,
         customerPhone: normalizedCustomerPhone,
         customerEmail: input.customer.email ?? null,
+        notes: input.notes || null,
+        vatDetailsJson: input.vat ? JSON.stringify(input.vat) : null,
         primaryAddressJson,
         shippingAddressJson,
         shipToDifferentAddress: input.shipping.shipToDifferentAddress,

@@ -81,6 +81,12 @@ export type StorefrontDetailResponse = {
     subtitle: LocalizedTextValue;
     handle: string;
     description: LocalizedTextValue;
+    media: Array<{
+      id: number;
+      url: string;
+      alt: string | null;
+      position: number;
+    }>;
     hasVariants: boolean;
     type: { id: number; value: LocalizedTextValue } | null;
     categories: Array<{ id: number; name: LocalizedTextValue; handle: string; parentId: number | null }>;
@@ -186,6 +192,10 @@ export async function fetchStorefrontProduct(handle: string, locale?: string): P
   const data: StorefrontDetailResponse = await res.json();
   return {
     ...data.item,
+    media: data.item.media.map((media) => ({
+      ...media,
+      url: backendAssetUrl(media.url),
+    })),
     variants: data.item.variants.map((variant) => ({
       ...variant,
       media: variant.media.map((media) => ({
@@ -311,6 +321,14 @@ export type StorefrontOrderRequest = {
         country: string;
       };
     };
+  };
+  notes?: string;
+  vat?: {
+    type?: string;
+    name?: string;
+    taxId?: string;
+    email?: string;
+    address?: string;
   };
   items: Array<{
     productId: number;

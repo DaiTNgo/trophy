@@ -81,6 +81,14 @@ describe("storefront orders route", () => {
       },
       shipToDifferentAddress: false,
     },
+    notes: "Please call before delivery.",
+    vat: {
+      type: "Company",
+      name: "Trophy Co.",
+      taxId: "0312345678",
+      email: "accounting@trophy.test",
+      address: "1 Nguyen Hue, Ho Chi Minh City",
+    },
     items: [
       {
         productId: 1,
@@ -113,6 +121,8 @@ describe("storefront orders route", () => {
     expect(db.valuesCalls[0]).toMatchObject({
       paymentMethod: "manual",
       customerPhone: "0123456789",
+      notes: "Please call before delivery.",
+      vatDetailsJson: JSON.stringify(validPayload.vat),
     });
   });
 
@@ -134,6 +144,7 @@ describe("storefront orders route", () => {
       { id: 1, title: "Champion Cup", handle: "champion-cup", status: "published" },
       { id: 10, productId: 1, title: "Gold", sku: "SKU-1", priceAmount: 5000 },
       { enabled: true },
+      null,
       { assetId: "asset-1", position: 0 },
     );
 
@@ -175,6 +186,7 @@ describe("storefront orders route", () => {
       { id: 1, title: "Champion Cup", handle: "champion-cup", status: "published" },
       { id: 10, productId: 1, title: "Gold", sku: "SKU-1", priceAmount: null },
       null,
+      null,
       { assetId: "asset-1", position: 0 },
     );
 
@@ -195,6 +207,27 @@ describe("storefront orders route", () => {
     expect(body.items[0]).toMatchObject({ valid: false, reason: "product_unavailable" });
     expect(body.items[1]).toMatchObject({ valid: false, reason: "variant_mismatch" });
     expect(body.items[2]).toMatchObject({ valid: false, reason: "contact_price" });
+  });
+
+  it("uses the first product media as the cart thumbnail before variant media", async () => {
+    db.getQueue.push(
+      { id: 1, title: "Champion Cup", handle: "champion-cup", status: "published" },
+      { id: 10, productId: 1, title: "Gold", sku: "SKU-1", priceAmount: 5000 },
+      { enabled: false },
+      { id: 50, productId: 1, url: "/api/assets/products/product-asset/content", position: 0 },
+      { assetId: "variant-asset", position: 0 },
+    );
+
+    const res = await storefrontOrdersRoute.request("/resolve", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ items: [{ productId: 1, variantId: 10 }] }),
+    });
+
+    expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toMatchObject({
+      items: [{ product: { thumbnail: "http://localhost/api/assets/products/product-asset/content" } }],
+    });
   });
 
   it("looks up an order by order number and matching phone", async () => {
@@ -445,7 +478,7 @@ describe("storefront orders route", () => {
         layersJson: JSON.stringify(iconLayers),
         formFieldsJson: JSON.stringify(DEFAULT_TEMPLATE.formFields),
       },
-      null,
+      { variantId: 10, assetId: "customization-asset-1" },
     );
     db.returningQueue.push([{ id: 123, createdAt: new Date("2026-07-05T00:00:00.000Z") }]);
 
@@ -483,8 +516,18 @@ describe("storefront orders route", () => {
 
     const orderItemInsert = db.valuesCalls.find(
       (value: any) => value && typeof value === "object" && "customizationSnapshotJson" in value,
-    ) as { customizationSnapshotJson: string } | undefined;
+    ) as
+      | {
+          backgroundSnapshotJson: string | null;
+          customizationSnapshotJson: string;
+        }
+      | undefined;
+    const backgroundSnapshot = orderItemInsert?.backgroundSnapshotJson
+      ? JSON.parse(orderItemInsert.backgroundSnapshotJson)
+      : null;
     const snapshot = orderItemInsert ? JSON.parse(orderItemInsert.customizationSnapshotJson) : null;
+
+    expect(backgroundSnapshot?.assetId).toBe("customization-asset-1");
 
     expect(snapshot?.values?.field_badge_shape).toMatchObject({
       source: "clipart",

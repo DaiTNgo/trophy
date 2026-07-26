@@ -140,6 +140,14 @@ describe("admin orders routes", () => {
       customerName: "John Doe",
       customerPhone: "0123456789",
       customerEmail: "john@example.com",
+      notes: "Please call before delivery.",
+      vatDetailsJson: JSON.stringify({
+        type: "Company",
+        name: "Trophy Co.",
+        taxId: "0312345678",
+        email: "accounting@trophy.test",
+        address: "1 Nguyen Hue, Ho Chi Minh City",
+      }),
       primaryAddressJson: JSON.stringify({ line1: "123 Main St", city: "HCM", country: "VN" }),
       shippingAddressJson: JSON.stringify({
         recipientName: "Jane Doe",
@@ -206,6 +214,14 @@ describe("admin orders routes", () => {
     expect(res.status).toBe(200);
     const body = (await res.json()) as any;
     expect(body.order.customer.phone).toBe("0123456789");
+    expect(body.order.notes).toBe("Please call before delivery.");
+    expect(body.order.vat).toEqual({
+      type: "Company",
+      name: "Trophy Co.",
+      taxId: "0312345678",
+      email: "accounting@trophy.test",
+      address: "1 Nguyen Hue, Ho Chi Minh City",
+    });
     expect(body.order.items[0].customization).toEqual({
       values: [{ fieldId: "text_1", label: "Name", valueSummary: "Alice" }],
       hasRenderedDesign: true,

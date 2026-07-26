@@ -1,11 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FileImage } from "lucide-react";
 import {
-  createDefaultTextValue,
-  fitTextToLayer,
   getVisibleLayers,
-  getTextPathRenderAttributes,
-  getTextPathSvgD,
   layerGeometryToPixels,
   pixelRectToLayerGeometry,
   vectorPointsToSvgPathD,
@@ -13,19 +9,22 @@ import {
   type CustomizationLayer,
   type CustomizationTemplate,
   type DynamicFontFamily,
-  type ImageShapeEditorLayer,
-  type TextEditorLayer,
   type VectorPoint,
 } from "@trophy/customization";
 import { BackgroundUpload, createId, cssShapeClip, ShapeClipPaths, FontLoader } from "./customization-template-ui";
-
+import { VectorPointOverlay } from "./customization-template-editor-vector";
+import {
+  ClosedEllipsePathOverlay,
+  EditorTextLayer,
+  PathPointOverlay,
+  ResizeHandles,
+} from "./customization-template-editor-text";
 const MIN_ZOOM = 0.05;
 const MAX_ZOOM = 2;
 const ZOOM_STEP = 0.1;
 const FIT_PADDING_PX = 64;
 
 type PanState = { x: number; y: number };
-
 export function EditorCanvas({
   template,
   selectedLayerId,
@@ -64,6 +63,7 @@ export function EditorCanvas({
   const [zoom, setZoom] = useState(0.72);
   const [pan, setPan] = useState<PanState>({ x: 0, y: 0 });
   const [zoomInput, setZoomInput] = useState("72");
+  const [, setFontRevision] = useState(0);
   const workspaceRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const viewportDrag = useRef<{ x: number; y: number; pan: PanState } | null>(null);
@@ -91,6 +91,22 @@ export function EditorCanvas({
     if (!background) return;
     fitToView();
   }, [background?.previewUrl, background?.widthPx, background?.heightPx, fitToView]);
+
+  useEffect(() => {
+    if (typeof document === "undefined" || !document.fonts) return;
+
+    let cancelled = false;
+    const refreshMeasurements = () => {
+      if (!cancelled) setFontRevision((revision) => revision + 1);
+    };
+
+    void document.fonts.ready.then(refreshMeasurements);
+    document.fonts.addEventListener("loadingdone", refreshMeasurements);
+    return () => {
+      cancelled = true;
+      document.fonts.removeEventListener("loadingdone", refreshMeasurements);
+    };
+  }, [dynamicFonts]);
 
   if (!background) {
     return (
@@ -486,694 +502,7 @@ function CanvasLayer({
   );
 }
 
-function EditorTextLayer({
-  layer,
-  widthPx,
-  heightPx,
-  pathEditing,
-  dynamicFonts = [],
-}: {
-  layer: TextEditorLayer;
-  widthPx: number;
-  heightPx: number;
-  pathEditing: boolean;
-  dynamicFonts?: DynamicFontFamily[];
-}) {
-  const fitted = fitTextToLayer({
-    layer,
-    value: createDefaultTextValue(layer),
-    availableWidthPx: widthPx,
-    availableHeightPx: layer.text.path.type !== "straight" ? heightPx : undefined,
-    dynamicFonts,
-  });
-
-  if (layer.text.path.type === "straight") {
-    return (
-      <div
-        className="pointer-events-none h-full w-full select-none overflow-hidden bg-teal-500/10"
-        style={{
-          display: "grid",
-          alignContent: "center",
-          color: fitted.color,
-          fontFamily: fitted.fontId,
-          fontSize: fitted.fontSizePt,
-          lineHeight: 1.35,
-          fontWeight: fitted.isBold ? 700 : 400,
-          fontStyle: fitted.isItalic ? "italic" : "normal",
-          textAlign: fitted.align === "justified" ? "justify" : fitted.align,
-          whiteSpace: "pre-wrap",
-        }}
-      >
-        {fitted.text}
-      </div>
-    );
-  }
-
-  const pathId = `editor_text_path_${layer.id}`;
-  const textWidthPx = fitted.text.length * Math.max(8, fitted.fontSizePt) * 0.55;
-  const wordCount = fitted.text.trim() ? fitted.text.trim().split(/\s+/).length : 0;
-  const pathAttrs = getTextPathRenderAttributes({ path: layer.text.path, align: fitted.align, widthPx, heightPx, textWidthPx, charCount: fitted.text.length, wordCount });
-  const renderPath = pathAttrs.pathStartAngleDeg != null
-    ? { ...layer.text.path, startAngleDeg: pathAttrs.pathStartAngleDeg }
-    : layer.text.path;
-  const pathD = getTextPathSvgD({ path: renderPath, widthPx, heightPx });
-
-  return (
-    <svg className="pointer-events-none h-full w-full select-none overflow-visible bg-teal-500/10" viewBox={`0 0 ${widthPx} ${heightPx}`}>
-      <path d={pathD} fill="none" stroke={pathEditing ? "rgb(245 158 11)" : "transparent"} strokeWidth={pathEditing ? 1 : 0} />
-      <defs>
-        <path id={pathId} d={pathD} />
-      </defs>
-      <text fontSize={fitted.fontSizePt} fontFamily={fitted.fontId} fontWeight={fitted.isBold ? 700 : 400} fontStyle={fitted.isItalic ? "italic" : "normal"} fill={fitted.color} textAnchor={pathAttrs.textAnchor} dominantBaseline="middle" textLength={pathAttrs.textLength} lengthAdjust={pathAttrs.lengthAdjust} wordSpacing={pathAttrs.wordSpacingPx ?? 0}>
-        <textPath href={`#${pathId}`} startOffset={pathAttrs.startOffset}>
-          {pathAttrs.dy ? <tspan dy={pathAttrs.dy}>{fitted.text}</tspan> : fitted.text}
-        </textPath>
-      </text>
-    </svg>
-  );
-}
-
-function PathPointOverlay({
-  layer,
-  onUpdate,
-}: {
-  layer: TextEditorLayer;
-  onUpdate: (updater: (layer: CustomizationLayer) => CustomizationLayer) => void;
-}) {
-  if (layer.text.path.type !== "custom") return null;
-  const points = layer.text.path.points;
-  return (
-    <>
-      {points.map((point, index) => (
-        <div key={point.id}>
-          <PathHandle
-            pointId={point.id}
-            kind="anchor"
-            xRatio={point.xRatio}
-            yRatio={point.yRatio}
-            onMove={(xRatio, yRatio) => {
-              onUpdate((current) =>
-                current.type === "text" && current.text.path.type === "custom"
-                  ? {
-                      ...current,
-                      text: {
-                        ...current.text,
-                        path: {
-                          ...current.text.path,
-                          points: current.text.path.points.map((entry) =>
-                            entry.id === point.id ? { ...entry, xRatio, yRatio } : entry,
-                          ),
-                        },
-                      },
-                    }
-                  : current,
-              );
-            }}
-          />
-          {point.inHandle ? (
-            <PathHandle
-              pointId={point.id}
-              kind="in"
-              xRatio={point.xRatio + point.inHandle.xRatio}
-              yRatio={point.yRatio + point.inHandle.yRatio}
-              onMove={(xRatio, yRatio) => updatePathHandle(onUpdate, point.id, "inHandle", xRatio - point.xRatio, yRatio - point.yRatio)}
-            />
-          ) : null}
-          {point.outHandle ? (
-            <PathHandle
-              pointId={point.id}
-              kind="out"
-              xRatio={point.xRatio + point.outHandle.xRatio}
-              yRatio={point.yRatio + point.outHandle.yRatio}
-              onMove={(xRatio, yRatio) => updatePathHandle(onUpdate, point.id, "outHandle", xRatio - point.xRatio, yRatio - point.yRatio)}
-            />
-          ) : null}
-          {index > 0 ? (
-            <div
-              className="pointer-events-none absolute h-px bg-amber-500"
-              style={{
-                left: `${points[index - 1]!.xRatio * 100}%`,
-                top: `${points[index - 1]!.yRatio * 100}%`,
-                width: `${Math.hypot(point.xRatio - points[index - 1]!.xRatio, point.yRatio - points[index - 1]!.yRatio) * 100}%`,
-              }}
-            />
-          ) : null}
-        </div>
-      ))}
-    </>
-  );
-}
-
-function PathHandle({
-  kind,
-  xRatio,
-  yRatio,
-  onMove,
-}: {
-  pointId: string;
-  kind: "anchor" | "in" | "out";
-  xRatio: number;
-  yRatio: number;
-  onMove: (xRatio: number, yRatio: number) => void;
-}) {
-  return (
-    <button
-      type="button"
-      className={`absolute size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white ${kind === "anchor" ? "bg-amber-500" : "bg-sky-500"}`}
-      style={{ left: `${xRatio * 100}%`, top: `${yRatio * 100}%` }}
-      onPointerDown={(event) => {
-        event.stopPropagation();
-        const target = event.currentTarget.parentElement?.parentElement as HTMLElement | null;
-        if (!target) return;
-        const bounds = target.getBoundingClientRect();
-        function move(pointer: PointerEvent) {
-          onMove(
-            Math.max(0, Math.min(1, (pointer.clientX - bounds.left) / bounds.width)),
-            Math.max(0, Math.min(1, (pointer.clientY - bounds.top) / bounds.height)),
-          );
-        }
-        function stop() {
-          window.removeEventListener("pointermove", move);
-          window.removeEventListener("pointerup", stop);
-        }
-        window.addEventListener("pointermove", move);
-        window.addEventListener("pointerup", stop);
-      }}
-    />
-  );
-}
-
-function VectorPointOverlay({
-  layer,
-  selectedPointId,
-  onSelectPoint,
-  onUpdate,
-}: {
-  layer: ImageShapeEditorLayer;
-  selectedPointId: string | null;
-  onSelectPoint: (pointId: string) => void;
-  onUpdate: (updater: (layer: CustomizationLayer) => CustomizationLayer) => void;
-}) {
-  const vectorPath = layer.shape.vectorPath;
-  if (!vectorPath) return null;
-  const [hoverPoint, setHoverPoint] = useState<{ xRatio: number; yRatio: number; afterIndex: number } | null>(null);
-  const points = vectorPath.points;
-  const selectedPoint = points.find((p) => p.id === selectedPointId) ?? null;
-
-  // Build edge segments (including closing edge if closed)
-  const edges: { fromIdx: number; toIdx: number }[] = [];
-  for (let i = 1; i < points.length; i++) {
-    edges.push({ fromIdx: i - 1, toIdx: i });
-  }
-  if (vectorPath.closed && points.length > 2) {
-    edges.push({ fromIdx: points.length - 1, toIdx: 0 });
-  }
-
-  function handleEdgeHover(event: React.PointerEvent<SVGElement>, fromIdx: number, toIdx: number) {
-    const svg = event.currentTarget.closest("svg");
-    if (!svg) return;
-    const rect = svg.getBoundingClientRect();
-    const mouseXRatio = (event.clientX - rect.left) / rect.width;
-    const mouseYRatio = (event.clientY - rect.top) / rect.height;
-    const from = points[fromIdx]!;
-    const to = points[toIdx]!;
-    // Project mouse position onto the line segment
-    const dx = to.xRatio - from.xRatio;
-    const dy = to.yRatio - from.yRatio;
-    const len2 = dx * dx + dy * dy;
-    if (len2 === 0) return;
-    let t = ((mouseXRatio - from.xRatio) * dx + (mouseYRatio - from.yRatio) * dy) / len2;
-    t = Math.max(0.05, Math.min(0.95, t));
-    setHoverPoint({
-      xRatio: from.xRatio + dx * t,
-      yRatio: from.yRatio + dy * t,
-      afterIndex: fromIdx,
-    });
-  }
-
-  function handleEdgeClick() {
-    if (!hoverPoint) return;
-    const newPoint: VectorPoint = {
-      id: createId("vector_point"),
-      type: "corner",
-      xRatio: hoverPoint.xRatio,
-      yRatio: hoverPoint.yRatio,
-    };
-    const insertIndex = hoverPoint.afterIndex + 1;
-    onUpdate((current) =>
-      current.type === "image_shape" && current.shape.vectorPath
-        ? {
-            ...current,
-            shape: {
-              ...current.shape,
-              vectorPath: {
-                ...current.shape.vectorPath,
-                points: [
-                  ...current.shape.vectorPath.points.slice(0, insertIndex),
-                  newPoint,
-                  ...current.shape.vectorPath.points.slice(insertIndex),
-                ],
-              },
-            },
-          }
-        : current,
-    );
-    setHoverPoint(null);
-    onSelectPoint(newPoint.id);
-  }
-
-  return (
-    <>
-      {/* Connection lines + invisible thick hit-test edges */}
-      <svg
-        className="absolute inset-0 h-full w-full"
-        style={{ pointerEvents: "none" }}
-        viewBox="0 0 100 100"
-        preserveAspectRatio="none"
-      >
-        {edges.map(({ fromIdx, toIdx }) => {
-          const from = points[fromIdx]!;
-          const to = points[toIdx]!;
-          const prevOut = from.outHandle;
-          const currIn = to.inHandle;
-          const x1 = from.xRatio * 100;
-          const y1 = from.yRatio * 100;
-          const x2 = to.xRatio * 100;
-          const y2 = to.yRatio * 100;
-          if (prevOut || currIn) {
-            const cp1x = (from.xRatio + (prevOut?.xRatio ?? 0)) * 100;
-            const cp1y = (from.yRatio + (prevOut?.yRatio ?? 0)) * 100;
-            const cp2x = (to.xRatio + (currIn?.xRatio ?? 0)) * 100;
-            const cp2y = (to.yRatio + (currIn?.yRatio ?? 0)) * 100;
-            const d = `M ${x1} ${y1} C ${cp1x} ${cp1y} ${cp2x} ${cp2y} ${x2} ${y2}`;
-            return (
-              <g key={`${from.id}-${to.id}`}>
-                <path
-                  d={d}
-                  fill="none"
-                  stroke="#6366f1"
-                  strokeWidth="1.5"
-                  vectorEffect="non-scaling-stroke"
-                />
-                <path
-                  d={d}
-                  fill="none"
-                  stroke="transparent"
-                  strokeWidth="8"
-                  vectorEffect="non-scaling-stroke"
-                  style={{ pointerEvents: "stroke", cursor: "copy" }}
-                  onPointerMove={(e) => handleEdgeHover(e, fromIdx, toIdx)}
-                  onPointerLeave={() => setHoverPoint(null)}
-                  onPointerDown={(e) => {
-                    e.stopPropagation();
-                    handleEdgeClick();
-                  }}
-                />
-              </g>
-            );
-          }
-          return (
-            <g key={`${from.id}-${to.id}`}>
-              <line
-                x1={x1}
-                y1={y1}
-                x2={x2}
-                y2={y2}
-                stroke="#6366f1"
-                strokeWidth="1.5"
-                vectorEffect="non-scaling-stroke"
-              />
-              {/* Invisible thick line for hover detection */}
-              <line
-                x1={x1}
-                y1={y1}
-                x2={x2}
-                y2={y2}
-                stroke="transparent"
-                strokeWidth="8"
-                vectorEffect="non-scaling-stroke"
-                style={{ pointerEvents: "stroke", cursor: "copy" }}
-                onPointerMove={(e) => handleEdgeHover(e, fromIdx, toIdx)}
-                onPointerLeave={() => setHoverPoint(null)}
-                onPointerDown={(e) => {
-                  e.stopPropagation();
-                  handleEdgeClick();
-                }}
-              />
-            </g>
-          );
-        })}
-        {/* Hover preview point */}
-        {hoverPoint ? (
-          <circle
-            cx={hoverPoint.xRatio * 100}
-            cy={hoverPoint.yRatio * 100}
-            r="4"
-            fill="#22c55e"
-            stroke="white"
-            strokeWidth="1.5"
-            vectorEffect="non-scaling-stroke"
-            style={{ pointerEvents: "none" }}
-          />
-        ) : null}
-      </svg>
-      {/* Point circles */}
-      {points.map((point) => (
-        <VectorPointHandle
-          key={point.id}
-          point={point}
-          isSelected={selectedPointId === point.id}
-          onSelect={() => onSelectPoint(point.id)}
-          onDrag={(xRatio, yRatio) => {
-            onUpdate((current) =>
-              current.type === "image_shape" && current.shape.vectorPath
-                ? {
-                    ...current,
-                    shape: {
-                      ...current.shape,
-                      vectorPath: {
-                        ...current.shape.vectorPath,
-                        points: current.shape.vectorPath.points.map((p) =>
-                          p.id === point.id ? { ...p, xRatio, yRatio } : p,
-                        ),
-                      },
-                    },
-                  }
-                : current,
-            );
-          }}
-          onDoubleClick={() => {
-            onUpdate((current) =>
-              current.type === "image_shape" && current.shape.vectorPath
-                ? {
-                    ...current,
-                    shape: {
-                      ...current.shape,
-                      vectorPath: {
-                        ...current.shape.vectorPath,
-                        points: current.shape.vectorPath.points.map((p) => {
-                          if (p.id !== point.id) return p;
-                          if (p.type === "corner") {
-                            return { ...p, type: "smooth", inHandle: { xRatio: -0.08, yRatio: 0 }, outHandle: { xRatio: 0.08, yRatio: 0 } };
-                          }
-                          return { ...p, type: "corner", inHandle: undefined, outHandle: undefined };
-                        }),
-                      },
-                    },
-                  }
-                : current,
-            );
-          }}
-          onDelete={() => {
-            onUpdate((current) =>
-              current.type === "image_shape" && current.shape.vectorPath
-                ? {
-                    ...current,
-                    shape: {
-                      ...current.shape,
-                      vectorPath: {
-                        ...current.shape.vectorPath,
-                        points: current.shape.vectorPath.points.filter((p) => p.id !== point.id),
-                      },
-                    },
-                  }
-                : current,
-            );
-          }}
-        />
-      ))}
-      {/* Handle lines */}
-      {selectedPoint?.type === "smooth" && selectedPoint.inHandle ? (
-        <VectorHandleLine point={selectedPoint} handle="in" onUpdate={onUpdate} />
-      ) : null}
-      {selectedPoint?.type === "smooth" && selectedPoint.outHandle ? (
-        <VectorHandleLine point={selectedPoint} handle="out" onUpdate={onUpdate} />
-      ) : null}
-    </>
-  );
-}
-
-function VectorPointHandle({
-  point,
-  isSelected,
-  onSelect,
-  onDrag,
-  onDoubleClick,
-  onDelete,
-}: {
-  point: VectorPoint;
-  isSelected: boolean;
-  onSelect: () => void;
-  onDrag: (xRatio: number, yRatio: number) => void;
-  onDoubleClick: () => void;
-  onDelete: () => void;
-}) {
-  const dragRef = useRef<{ startX: number; startY: number; xRatio: number; yRatio: number } | null>(null);
-
-  useKeyboardDelete(onDelete, isSelected);
-
-  return (
-    <button
-      type="button"
-      className={`absolute z-10 size-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow-sm ${isSelected ? "bg-indigo-500" : "bg-indigo-300"}`}
-      style={{ left: `${point.xRatio * 100}%`, top: `${point.yRatio * 100}%` }}
-      onPointerDown={(event) => {
-        event.stopPropagation();
-        onSelect();
-        const target = event.currentTarget.parentElement as HTMLElement | null;
-        if (!target) return;
-        const bounds = target.getBoundingClientRect();
-        dragRef.current = { startX: event.clientX, startY: event.clientY, xRatio: point.xRatio, yRatio: point.yRatio };
-        // Need pointer capture to get move events on the parent
-        const move = (pointer: PointerEvent) => {
-          if (!dragRef.current) return;
-          const dx = (pointer.clientX - dragRef.current.startX) / bounds.width;
-          const dy = (pointer.clientY - dragRef.current.startY) / bounds.height;
-          onDrag(
-            Math.max(0, Math.min(1, dragRef.current.xRatio + dx)),
-            Math.max(0, Math.min(1, dragRef.current.yRatio + dy)),
-          );
-        };
-        const stop = () => {
-          dragRef.current = null;
-          window.removeEventListener("pointermove", move);
-          window.removeEventListener("pointerup", stop);
-        };
-        window.addEventListener("pointermove", move);
-        window.addEventListener("pointerup", stop);
-      }}
-      onDoubleClick={(event) => {
-        event.stopPropagation();
-        onDoubleClick();
-      }}
-    />
-  );
-}
-
-function VectorHandleLine({
-  point,
-  handle,
-  onUpdate,
-}: {
-  point: VectorPoint;
-  handle: "in" | "out";
-  onUpdate: (updater: (layer: CustomizationLayer) => CustomizationLayer) => void;
-}) {
-  const handleData = handle === "in" ? point.inHandle : point.outHandle;
-  if (!handleData) return null;
-  const hx = point.xRatio + handleData.xRatio;
-  const hy = point.yRatio + handleData.yRatio;
-
-  return (
-    <>
-      <svg className="pointer-events-none absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-        <line
-          x1={point.xRatio * 100}
-          y1={point.yRatio * 100}
-          x2={hx * 100}
-          y2={hy * 100}
-          stroke="#38bdf8"
-          strokeWidth="1.5"
-          vectorEffect="non-scaling-stroke"
-        />
-      </svg>
-      <button
-        type="button"
-        className="absolute z-10 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white bg-sky-400 shadow-sm"
-        style={{ left: `${hx * 100}%`, top: `${hy * 100}%` }}
-        onPointerDown={(event) => {
-          event.stopPropagation();
-          const target = event.currentTarget.parentElement as HTMLElement | null;
-          if (!target) return;
-          const bounds = target.getBoundingClientRect();
-          const startX = event.clientX;
-          const startY = event.clientY;
-          const startHx = handleData.xRatio;
-          const startHy = handleData.yRatio;
-          function move(pointer: PointerEvent) {
-            const dx = (pointer.clientX - startX) / bounds.width;
-            const dy = (pointer.clientY - startY) / bounds.height;
-            const newHx = startHx + dx;
-            const newHy = startHy + dy;
-            onUpdate((current) =>
-              current.type === "image_shape" && current.shape.vectorPath
-                ? {
-                    ...current,
-                    shape: {
-                      ...current.shape,
-                      vectorPath: {
-                        ...current.shape.vectorPath,
-                        points: current.shape.vectorPath.points.map((p) =>
-                          p.id === point.id ? { ...p, [handle === "in" ? "inHandle" : "outHandle"]: { xRatio: newHx, yRatio: newHy } } : p,
-                        ),
-                      },
-                    },
-                  }
-                : current,
-            );
-          }
-          function stop() {
-            window.removeEventListener("pointermove", move);
-            window.removeEventListener("pointerup", stop);
-          }
-          window.addEventListener("pointermove", move);
-          window.addEventListener("pointerup", stop);
-        }}
-      />
-    </>
-  );
-}
-
-function useKeyboardDelete(onDelete: () => void, enabled: boolean) {
-  const ref = useRef(onDelete);
-  ref.current = onDelete;
-  useEffect(() => {
-    if (!enabled) return;
-    function handler(event: KeyboardEvent) {
-      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
-      if (event.key === "Delete" || event.key === "Backspace") {
-        event.preventDefault();
-        event.stopPropagation();
-        ref.current();
-      }
-    }
-    window.addEventListener("keydown", handler, true);
-    return () => window.removeEventListener("keydown", handler, true);
-  }, [enabled]);
-}
-
-function ClosedEllipsePathOverlay({
-  layer,
-  onUpdate,
-}: {
-  layer: TextEditorLayer;
-  onUpdate: (updater: (layer: CustomizationLayer) => CustomizationLayer) => void;
-}) {
-  if (layer.text.path.type !== "closed_ellipse") return null;
-  const path = layer.text.path;
-  const angle = (path.startAngleDeg * Math.PI) / 180;
-  const xRatio = path.bounds.xRatio + (Math.cos(angle) * path.bounds.widthRatio) / 2;
-  const yRatio = path.bounds.yRatio + (Math.sin(angle) * path.bounds.heightRatio) / 2;
-
-  return (
-    <button
-      type="button"
-      title="Text start position"
-      className="absolute size-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-amber-500 shadow"
-      style={{ left: `${xRatio * 100}%`, top: `${yRatio * 100}%` }}
-      onPointerDown={(event) => {
-        event.stopPropagation();
-        const target = event.currentTarget.parentElement as HTMLElement | null;
-        if (!target) return;
-        const bounds = target.getBoundingClientRect();
-        function move(pointer: PointerEvent) {
-          const x = (pointer.clientX - bounds.left) / bounds.width;
-          const y = (pointer.clientY - bounds.top) / bounds.height;
-          const dx = x - path.bounds.xRatio;
-          const dy = y - path.bounds.yRatio;
-          const startAngleDeg = (Math.atan2(dy, dx) * 180) / Math.PI;
-          onUpdate((current) =>
-            current.type === "text" && current.text.path.type === "closed_ellipse"
-              ? { ...current, text: { ...current.text, path: { ...current.text.path, startAngleDeg } } }
-              : current,
-          );
-        }
-        function stop() {
-          window.removeEventListener("pointermove", move);
-          window.removeEventListener("pointerup", stop);
-        }
-        window.addEventListener("pointermove", move);
-        window.addEventListener("pointerup", stop);
-      }}
-    />
-  );
-}
-
-function ResizeHandles({ layer, background, zoom, onUpdate }: { layer: CustomizationLayer; background: BackgroundAsset; zoom: number; onUpdate: (updater: (layer: CustomizationLayer) => CustomizationLayer) => void }) {
-  const closedTextPath = layer.type === "text" && layer.text.path.type === "closed_ellipse";
-  const handles = layer.type === "text" ? (closedTextPath ? ["nw", "n", "ne", "e", "se", "s", "sw", "w"] : ["left", "right"]) : layer.shape.lockAspectRatio ? ["nw", "ne", "sw", "se"] : ["nw", "n", "ne", "e", "se", "s", "sw", "w"];
-  return (
-    <>
-      {handles.map((handle) => (
-        <button
-          key={handle}
-          type="button"
-          className="absolute size-2 rounded-full bg-ui-fg-interactive"
-          style={handleStyle(handle)}
-          onPointerDown={(event) => {
-            event.stopPropagation();
-            const startX = event.clientX;
-            const startY = event.clientY;
-            const start = layerGeometryToPixels({ geometry: layer.geometry, background });
-            function move(pointer: PointerEvent) {
-              const dx = (pointer.clientX - startX) / zoom;
-              const dy = (pointer.clientY - startY) / zoom;
-              const next = resizeRect(start, handle, dx, dy, layer.type === "image_shape" && layer.shape.lockAspectRatio);
-              const geometry = pixelRectToLayerGeometry({ ...next, heightPx: layer.type === "image_shape" || closedTextPath ? next.heightPx : undefined, background });
-              onUpdate((current) => {
-                const keepTextHeight = current.type === "text" && current.text.path.type === "closed_ellipse";
-                return { ...current, geometry: current.type === "text" ? { ...geometry, heightRatio: keepTextHeight ? geometry.heightRatio ?? 0.1 : undefined } : { ...geometry, heightRatio: geometry.heightRatio ?? 0.1 } } as CustomizationLayer;
-              });
-            }
-            function stop() {
-              window.removeEventListener("pointermove", move);
-              window.removeEventListener("pointerup", stop);
-            }
-            window.addEventListener("pointermove", move);
-            window.addEventListener("pointerup", stop);
-          }}
-        />
-      ))}
-    </>
-  );
-}
-
-function updatePathHandle(
-  onUpdate: (updater: (layer: CustomizationLayer) => CustomizationLayer) => void,
-  pointId: string,
-  handle: "inHandle" | "outHandle",
-  xRatio: number,
-  yRatio: number,
-) {
-  onUpdate((current) =>
-    current.type === "text" && current.text.path.type === "custom"
-      ? {
-          ...current,
-          text: {
-            ...current.text,
-            path: {
-              ...current.text.path,
-              points: current.text.path.points.map((point) =>
-                point.id === pointId ? { ...point, [handle]: { xRatio, yRatio } } : point,
-              ),
-            },
-          },
-        }
-      : current,
-  );
-}
-
-function handleStyle(handle: string): React.CSSProperties {
+export function handleStyle(handle: string): React.CSSProperties {
   const base: React.CSSProperties = { transform: "translate(-50%, -50%)" };
   const map: Record<string, React.CSSProperties> = {
     nw: { left: 0, top: 0 },
@@ -1190,7 +519,7 @@ function handleStyle(handle: string): React.CSSProperties {
   return { ...base, ...map[handle] };
 }
 
-function resizeRect(rect: ReturnType<typeof layerGeometryToPixels>, handle: string, dx: number, dy: number, lockRatio: boolean) {
+export function resizeRect(rect: ReturnType<typeof layerGeometryToPixels>, handle: string, dx: number, dy: number, lockRatio: boolean) {
   let xPx = rect.xPx;
   let yPx = rect.yPx;
   let widthPx = rect.widthPx;

@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { validator } from "hono/validator";
 import { eq } from "drizzle-orm";
 import * as v from "valibot";
 import { getDb } from "../../db/client";
@@ -24,9 +25,22 @@ function buildSeedEmail(username: string) {
   return `${username.trim().toLowerCase()}@admin.trophy.local`;
 }
 
-export const adminBootstrapRoute = new Hono<AppEnv>();
-
-adminBootstrapRoute.post("/", async (c) => {
+export const adminBootstrapRoute = new Hono<AppEnv>().post(
+  "/",
+  validator("json", (body, c) => {
+    const result = v.safeParse(bootstrapSchema, body);
+    if (!result.success) {
+      return c.json(
+        {
+          message: "Invalid payload.",
+          issues: result.issues,
+        },
+        400,
+      );
+    }
+    return result.output;
+  }),
+  async (c) => {
   const auth = getAuth(c.env);
   const db = getDb(c.env);
 
@@ -45,37 +59,26 @@ adminBootstrapRoute.post("/", async (c) => {
     );
   }
 
-  const body = await c.req.json().catch(() => null);
-  const result = v.safeParse(bootstrapSchema, body);
-
-  if (!result.success) {
-    return c.json(
-      {
-        message: "Invalid payload.",
-        issues: result.issues,
-      },
-      400,
-    );
-  }
+  const result = c.req.valid("json");
 
   try {
     // @ts-ignore
     const created = await auth.api.createUser({
       body: {
-        email: buildSeedEmail(result.output.username),
-        name: result.output.username,
-        username: result.output.username,
-        password: result.output.password,
+        email: buildSeedEmail(result.username),
+        name: result.username,
+        username: result.username,
+        password: result.password,
         role: "super-admin",
         data: {
-          displayUsername: result.output.username,
+          displayUsername: result.username,
         },
       } as any,
     });
 
     await db
       .update(users)
-      .set({ username: result.output.username })
+      .set({ username: result.username })
       .where(eq(users.id, created.user.id));
 
     return c.json(
@@ -94,4 +97,5 @@ adminBootstrapRoute.post("/", async (c) => {
       500,
     );
   }
-});
+  },
+);
