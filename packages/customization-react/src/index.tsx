@@ -567,6 +567,7 @@ export function ProductCustomizationPreview({
                 />
               );
             })}
+          <CustomizationWatermark />
         </div>
         {!readOnly && selectedImageField ? (
           <div className="pointer-events-none absolute inset-x-3 bottom-3 z-20 flex items-end justify-between gap-3 sm:inset-x-4 sm:bottom-4">
@@ -736,6 +737,36 @@ export function ProductCustomizationPreview({
   }
 
   return createPortal(fullscreenOverlay, document.body);
+}
+
+const WATERMARK_LABELS = Array.from({ length: 36 }, (_, index) => index);
+
+function CustomizationWatermark() {
+  return (
+    <div
+      aria-hidden="true"
+      data-preview-watermark="phùng thị"
+      className="pointer-events-none absolute inset-0 z-10 overflow-hidden select-none"
+      style={{
+        opacity: 0.16,
+        mixBlendMode: "difference",
+      }}
+    >
+      <div
+        className="absolute inset-[-35%] grid grid-cols-6 content-center gap-x-16 gap-y-16"
+        style={{ transform: "rotate(-24deg)" }}
+      >
+        {WATERMARK_LABELS.map((index) => (
+          <span
+            key={index}
+            className="whitespace-nowrap text-sm font-semibold tracking-[0.16em] text-white sm:text-base"
+          >
+            phùng thị
+          </span>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 function CanvasAction({
