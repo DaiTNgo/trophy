@@ -27,21 +27,21 @@ const PARTNER_LOGOS: { src: string; alt: string }[] = [
 ];
 
 export function PartnerLogosSection() {
-  const { t } = useTranslation("home");
+  const { t } = useTranslation();
   const slides = [...PARTNER_LOGOS, ...PARTNER_LOGOS, ...PARTNER_LOGOS];
 
   return (
-    <section className="py-16 md:py-24 bg-surface overflow-hidden">
+    <section className="py-12 md:py-16 bg-surface overflow-hidden">
       <div className="mx-auto max-w-container-max px-margin-mobile md:px-margin-desktop">
         <div className="mb-10 text-center reveal active">
           <p className="mb-3 font-label-md text-label-md uppercase tracking-[0.35em] text-brand-accent">
-            {t("partners_eyebrow")}
+            {t("home.partners.eyebrow", "Đối tác")}
           </p>
           <h2 className="font-heading text-[30px] md:text-[40px] uppercase leading-none text-on-surface">
-            {t("partners_title")}
+            {t("home.partners.title", "Đối tác của chúng tôi")}
           </h2>
           <p className="mt-3 font-body-md text-body-md text-on-surface-variant max-w-xl mx-auto">
-            {t("partners_subtitle")}
+            {t("home.partners.subtitle", "Đồng hành cùng các doanh nghiệp, tổ chức hàng đầu")}
           </p>
         </div>
       </div>
@@ -51,7 +51,7 @@ export function PartnerLogosSection() {
           {slides.map((logo, i) => (
             <div
               key={`${logo.alt}-${i}`}
-              className="flex w-[180px] shrink-0 items-center justify-center rounded-lg bg-white border border-black/[0.06]"
+              className="flex w-[180px] shrink-0 items-center justify-center rounded-lg bg-white shadow-md border border-black/[0.06] transition-shadow duration-300 hover:shadow-lg"
             >
               <div className="flex w-full items-center justify-center px-5 py-5 transition-transform duration-300 hover:scale-[1.2]">
                 <img

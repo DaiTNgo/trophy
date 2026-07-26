@@ -1,8 +1,9 @@
-import { useTranslation } from "react-i18next";
-
 export function QuoteTicker() {
-  const { t } = useTranslation("home");
-  const quotes = [t("quote_1"), t("quote_2"), t("quote_3")];
+  const quotes = [
+    "Trao đi giá trị, nhận lại nụ cười",
+    "Mỗi giải thưởng là một câu chuyện xứng đáng được khắc ghi",
+    "Phùng Thị biến ý tưởng khách hàng thành hiện thực",
+  ];
 
   const items = quotes.flatMap((q, i) => {
     const elements: React.ReactNode[] = [<span key={`q-${i}`}>{q}</span>];
