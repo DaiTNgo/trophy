@@ -706,9 +706,37 @@ export default function ProductDetail() {
       Product image unavailable
     </div>
   );
-  const selectedMediaNode = isCustomizationMediaActive
-    ? previewNode
-    : galleryImageNode;
+  // Keep the customization canvas mounted while gallery media is visible. Its
+  // mount effect measures and fits the canvas, so replacing it with an image
+  // made the shared media frame repaint and jump on every media change.
+  const selectedMediaStage = customizationTemplate ? (
+    <div
+      className={`relative isolate overflow-hidden ${galleryMediaFrameClassName}`}
+    >
+      <div
+        aria-hidden={!isCustomizationMediaActive || undefined}
+        className={`absolute inset-0 ${
+          isCustomizationMediaActive
+            ? "z-10"
+            : "pointer-events-none invisible z-0"
+        }`}
+      >
+        {previewNode}
+      </div>
+      <div
+        aria-hidden={isCustomizationMediaActive || undefined}
+        className={`absolute inset-0 ${
+          isCustomizationMediaActive
+            ? "pointer-events-none invisible z-0"
+            : "z-10"
+        }`}
+      >
+        {galleryImageNode}
+      </div>
+    </div>
+  ) : (
+    galleryImageNode
+  );
   const shouldShowHiddenPreviewBar = isMobilePreviewHidden && !isAtPageTop;
   const mobilePreviewShellMinHeight = shouldShowHiddenPreviewBar
     ? (mobileHiddenShellHeight ?? undefined)
@@ -793,7 +821,7 @@ export default function ProductDetail() {
                           </button>
                         </>
                       ) : null}
-                      {selectedMediaNode}
+                      {selectedMediaStage}
                     </div>
                     <ProductGalleryThumbnails
                       thumbnails={mobileGalleryThumbnails}
@@ -867,11 +895,8 @@ export default function ProductDetail() {
                 onPrevious={() => moveSelectedMedia(-1)}
                 onNext={() => moveSelectedMedia(1)}
                 mainContent={
-                  <section
-                    className={galleryMediaFrameClassName}
-                    data-selected-variant-id={selectedVariant?.id ?? ""}
-                  >
-                    {selectedMediaNode}
+                  <section data-selected-variant-id={selectedVariant?.id ?? ""}>
+                    {selectedMediaStage}
                   </section>
                 }
                 thumbnails={galleryThumbnails}
