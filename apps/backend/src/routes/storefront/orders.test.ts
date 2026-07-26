@@ -81,6 +81,14 @@ describe("storefront orders route", () => {
       },
       shipToDifferentAddress: false,
     },
+    notes: "Please call before delivery.",
+    vat: {
+      type: "Company",
+      name: "Trophy Co.",
+      taxId: "0312345678",
+      email: "accounting@trophy.test",
+      address: "1 Nguyen Hue, Ho Chi Minh City",
+    },
     items: [
       {
         productId: 1,
@@ -113,6 +121,8 @@ describe("storefront orders route", () => {
     expect(db.valuesCalls[0]).toMatchObject({
       paymentMethod: "manual",
       customerPhone: "0123456789",
+      notes: "Please call before delivery.",
+      vatDetailsJson: JSON.stringify(validPayload.vat),
     });
   });
 

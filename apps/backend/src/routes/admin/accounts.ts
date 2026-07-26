@@ -1,5 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { Hono, type Context } from "hono";
+import { validator } from "hono/validator";
 import * as v from "valibot";
 import { getDb } from "../../db/client";
 import { sessions, users } from "../../db/schema";
@@ -73,33 +74,38 @@ export const adminAccountsRoute = new Hono<AppEnv>()
       200,
     );
   })
-  .post("/create", async (c) => {
+  .post(
+    "/create",
+    validator("json", (body, c) => {
+      const result = v.safeParse(createAccountSchema, body);
+      if (!result.success) {
+        return c.json({ message: "Invalid payload.", issues: result.issues }, 400);
+      }
+      return result.output;
+    }),
+    async (c) => {
     if (!(await requireSuperAdmin(c))) {
       return c.json({ message: "Forbidden" }, 403);
     }
 
-    const body = await c.req.json().catch(() => null);
-    const parsed = v.safeParse(createAccountSchema, body);
-    if (!parsed.success) {
-      return c.json({ message: "Invalid payload.", issues: parsed.issues }, 400);
-    }
+    const parsed = c.req.valid("json");
 
     const auth = getAuth(c.env);
     // Better Auth owns credential hashing and account creation.
     // @ts-ignore Better Auth exposes admin APIs at runtime for server-side use.
     const created = await auth.api.createUser({
       body: {
-        email: buildEmail(parsed.output.username),
-        name: parsed.output.username,
-        password: parsed.output.password,
+        email: buildEmail(parsed.username),
+        name: parsed.username,
+        password: parsed.password,
         role: "admin",
-        data: { displayUsername: parsed.output.username },
+        data: { displayUsername: parsed.username },
       },
     });
 
     await getDb(c.env)
       .update(users)
-      .set({ username: parsed.output.username })
+      .set({ username: parsed.username })
       .where(eq(users.id, created.user.id));
 
     return c.json(
@@ -107,7 +113,7 @@ export const adminAccountsRoute = new Hono<AppEnv>()
         user: {
           id: created.user.id,
           name: created.user.name,
-          username: parsed.output.username,
+          username: parsed.username,
           banned: false,
           banReason: null,
           role: "admin" as const,
@@ -115,7 +121,8 @@ export const adminAccountsRoute = new Hono<AppEnv>()
       },
       201,
     );
-  })
+    },
+  )
   .post("/:userId/disable", async (c) => {
     if (!(await requireSuperAdmin(c))) {
       return c.json({ message: "Forbidden" }, 403);
@@ -151,16 +158,21 @@ export const adminAccountsRoute = new Hono<AppEnv>()
 
     return c.json({ userId: account.id, banned: false }, 200);
   })
-  .post("/:userId/password", async (c) => {
+  .post(
+    "/:userId/password",
+    validator("json", (body, c) => {
+      const result = v.safeParse(resetPasswordSchema, body);
+      if (!result.success) {
+        return c.json({ message: "Invalid payload.", issues: result.issues }, 400);
+      }
+      return result.output;
+    }),
+    async (c) => {
     if (!(await requireSuperAdmin(c))) {
       return c.json({ message: "Forbidden" }, 403);
     }
 
-    const body = await c.req.json().catch(() => null);
-    const parsed = v.safeParse(resetPasswordSchema, body);
-    if (!parsed.success) {
-      return c.json({ message: "Invalid payload.", issues: parsed.issues }, 400);
-    }
+    const parsed = c.req.valid("json");
 
     const account = await findRegularAdmin(c, c.req.param("userId"));
     if (!account) {
@@ -169,10 +181,11 @@ export const adminAccountsRoute = new Hono<AppEnv>()
 
     // @ts-ignore Better Auth exposes admin APIs at runtime for server-side use.
     await getAuth(c.env).api.setUserPassword({
-      body: { userId: account.id, newPassword: parsed.output.password },
+      body: { userId: account.id, newPassword: parsed.password },
       headers: c.req.raw.headers,
     });
     await getDb(c.env).delete(sessions).where(eq(sessions.userId, account.id));
 
     return c.json({ userId: account.id, passwordUpdated: true }, 200);
-  });
+    },
+  );

@@ -312,6 +312,14 @@ export type StorefrontOrderRequest = {
       };
     };
   };
+  notes?: string;
+  vat?: {
+    type?: string;
+    name?: string;
+    taxId?: string;
+    email?: string;
+    address?: string;
+  };
   items: Array<{
     productId: number;
     variantId: number;

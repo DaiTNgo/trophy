@@ -50,6 +50,14 @@ export type AdminOrderDetail = {
       country: string;
     };
   } | null;
+  notes: string | null;
+  vat: {
+    type?: string;
+    name?: string;
+    taxId?: string;
+    email?: string;
+    address?: string;
+  } | null;
   totals: {
     subtotalAmount: number;
     totalAmount: number;

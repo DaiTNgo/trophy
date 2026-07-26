@@ -457,6 +457,9 @@ export const orders = sqliteTable("orders", {
   customerName: text("customer_name").notNull(),
   customerPhone: text("customer_phone").notNull(),
   customerEmail: text("customer_email"),
+  // shopper-entered order note and optional VAT invoice details
+  notes: text("notes"),
+  vatDetailsJson: text("vat_details_json"),
   // primary address snapshot (JSON)
   primaryAddressJson: text("primary_address_json").notNull(),
   // optional different shipping address snapshot (JSON)

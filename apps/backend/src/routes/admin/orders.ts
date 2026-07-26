@@ -10,6 +10,7 @@ import {
   parseCustomizationSnapshot,
   parseDifferentShippingAddress,
   parseOrderAddress,
+  parseVatDetails,
   parseProductSnapshot,
   parseVariantSnapshot,
 } from "../../lib/order-utils";
@@ -49,6 +50,7 @@ type OrderItemRow = typeof orderItems.$inferSelect;
 function serializeAdminOrderDetail(orderRow: OrderRow, itemRows: OrderItemRow[]) {
   const primaryAddress = parseOrderAddress(orderRow.primaryAddressJson);
   const shippingAddress = parseDifferentShippingAddress(orderRow.shippingAddressJson);
+  const vat = parseVatDetails(orderRow.vatDetailsJson);
 
   return {
     id: orderRow.id,
@@ -64,6 +66,8 @@ function serializeAdminOrderDetail(orderRow: OrderRow, itemRows: OrderItemRow[])
     },
     primaryAddress,
     shippingAddress,
+    notes: orderRow.notes,
+    vat,
     totals: {
       subtotalAmount: orderRow.subtotalAmount,
       totalAmount: orderRow.totalAmount,

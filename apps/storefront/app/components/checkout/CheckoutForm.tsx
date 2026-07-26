@@ -186,20 +186,57 @@ function AdditionalRequirementsSection({
         </Label>
         {vatChecked ? (
           <div className="grid grid-cols-1 gap-4 rounded-md border border-outline-variant bg-surface-container-low p-4 md:grid-cols-2 lg:p-6">
-            {[
-              "vat.type",
-              "vat.name",
-              "vat.taxId",
-              "vat.email",
-              "vat.address",
-            ].map((name) => (
+            <div className="md:col-span-2">
+              <Label className="mb-1 text-xs font-bold uppercase tracking-wider text-on-surface-variant">
+                Loại hóa đơn
+              </Label>
               <Input
-                key={name}
-                name={name}
-                type={name === "vat.email" ? "email" : "text"}
+                name="vat.type"
                 className="border-outline-variant bg-white"
+                placeholder="Cá nhân / Công ty"
+                type="text"
               />
-            ))}
+            </div>
+            <div>
+              <Label className="mb-1 text-xs font-bold uppercase tracking-wider text-on-surface-variant">
+                Tên đơn vị/Cá nhân
+              </Label>
+              <Input
+                name="vat.name"
+                className="border-outline-variant bg-white"
+                type="text"
+              />
+            </div>
+            <div>
+              <Label className="mb-1 text-xs font-bold uppercase tracking-wider text-on-surface-variant">
+                Mã số thuế
+              </Label>
+              <Input
+                name="vat.taxId"
+                className="border-outline-variant bg-white"
+                type="text"
+              />
+            </div>
+            <div>
+              <Label className="mb-1 text-xs font-bold uppercase tracking-wider text-on-surface-variant">
+                Email nhận hóa đơn
+              </Label>
+              <Input
+                name="vat.email"
+                className="border-outline-variant bg-white"
+                type="email"
+              />
+            </div>
+            <div className="md:col-span-2">
+              <Label className="mb-1 text-xs font-bold uppercase tracking-wider text-on-surface-variant">
+                Địa chỉ hóa đơn
+              </Label>
+              <Input
+                name="vat.address"
+                className="border-outline-variant bg-white"
+                type="text"
+              />
+            </div>
           </div>
         ) : null}
       </div>

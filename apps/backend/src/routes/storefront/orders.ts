@@ -30,6 +30,7 @@ import {
   parseCustomizationSnapshot,
   parseDifferentShippingAddress,
   parseOrderAddress,
+  parseVatDetails,
   parseProductSnapshot,
   parseVariantSnapshot,
   type StoredCustomizationSnapshot,
@@ -80,6 +81,16 @@ const createOrderSchema = v.object({
     differentAddress: v.optional(differentShippingAddressSchema),
   }),
   items: v.pipe(v.array(orderItemInputSchema), v.minLength(1, "At least one item is required")),
+  notes: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(2000, "Order note is too long"))),
+  vat: v.optional(
+    v.object({
+      type: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(100))),
+      name: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(255))),
+      taxId: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(100))),
+      email: v.optional(v.pipe(v.string(), v.trim(), v.email("Invalid VAT email"), v.maxLength(255))),
+      address: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(1000))),
+    }),
+  ),
   locale: v.optional(localeSchema, DEFAULT_LOCALE),
 });
 
@@ -386,6 +397,7 @@ async function loadOrderWithItemsByNumber(db: DbType, orderNumber: string) {
 function buildLookupOrderResponse(order: OrderRow, items: OrderItemRow[]) {
   const primaryAddress = parseOrderAddress(order.primaryAddressJson);
   const shippingAddress = parseDifferentShippingAddress(order.shippingAddressJson);
+  const vat = parseVatDetails(order.vatDetailsJson);
 
   return {
     order: {
@@ -404,6 +416,8 @@ function buildLookupOrderResponse(order: OrderRow, items: OrderItemRow[]) {
       },
       primaryAddress,
       shippingAddress,
+      notes: order.notes,
+      vat,
       items: items.map((item) => {
         const productSnapshot = parseProductSnapshot(item.productSnapshotJson);
         const variantSnapshot = parseVariantSnapshot(item.variantSnapshotJson);
@@ -634,6 +648,8 @@ export const storefrontOrdersRoute = new Hono<AppEnv>()
         customerName: input.customer.name,
         customerPhone: normalizedCustomerPhone,
         customerEmail: input.customer.email ?? null,
+        notes: input.notes || null,
+        vatDetailsJson: input.vat ? JSON.stringify(input.vat) : null,
         primaryAddressJson,
         shippingAddressJson,
         shipToDifferentAddress: input.shipping.shipToDifferentAddress,

@@ -20,6 +20,14 @@ export type DifferentShippingAddressSnapshot = {
   address: OrderAddressSnapshot;
 };
 
+export type VatDetailsSnapshot = {
+  type?: string;
+  name?: string;
+  taxId?: string;
+  email?: string;
+  address?: string;
+};
+
 export type StoredProductSnapshot = {
   id: number;
   title: string;
@@ -90,6 +98,10 @@ export function parseOrderAddress(value: string) {
 
 export function parseDifferentShippingAddress(value: string | null) {
   return safeParseJson<DifferentShippingAddressSnapshot>(value);
+}
+
+export function parseVatDetails(value: string | null) {
+  return safeParseJson<VatDetailsSnapshot>(value);
 }
 
 export function parseProductSnapshot(value: string) {

@@ -33,6 +33,18 @@ function getFormString(formData: FormData, name: string) {
   return String(formData.get(name) ?? "");
 }
 
+function getVatDetails(formData: FormData) {
+  const vat = {
+    type: getFormString(formData, "vat.type"),
+    name: getFormString(formData, "vat.name"),
+    taxId: getFormString(formData, "vat.taxId"),
+    email: getFormString(formData, "vat.email"),
+    address: getFormString(formData, "vat.address"),
+  };
+
+  return Object.values(vat).some(Boolean) ? vat : undefined;
+}
+
 function buildCheckoutItems(
   lines: CartLine[],
   resolved: StorefrontResolvedCartLine[],
@@ -193,6 +205,8 @@ export default function Checkout() {
           },
           shipToDifferentAddress: false,
         },
+        notes: getFormString(formData, "notes") || undefined,
+        vat: getVatDetails(formData),
         items: lines.map((line) => ({
           productId: line.productId,
           variantId: line.variantId,
