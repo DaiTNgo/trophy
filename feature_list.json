@@ -98,7 +98,7 @@
       "description": "Split tracked TSX component files larger than 550 lines into responsibility-focused modules.",
       "dependencies": [],
       "status": "in_progress",
-      "evidence": "2026-07-26: Split admin brand asset modals and order customization preview utilities, order detail Summary/Payments/Fulfillment sections, and shared customization preview/form orchestration into focused sibling modules. Restored public ProductCustomizationForm and CustomizationStudio exports after extraction. Shared typecheck, customization tests, storefront build, and git diff --check pass; remaining oversized files are recorded in progress.md."
+      "evidence": "2026-07-26: Split admin brand asset modals and order customization preview utilities, order detail Summary/Payments/Fulfillment sections, and shared customization TextField, ImageField, ProductCustomizationPreview, and preview support into focused siblings. Refactored customization-template-editor.tsx into a 549-line canvas coordinator plus vector and text/path/resize overlay modules, preserving existing callbacks and interaction behavior. Fixed Hono RPC admin auth contracts by registering JSON validators for bootstrap/account/recovery routes and chaining bootstrap route typing. Backend check/build pass, backend tests pass (116 tests), and admin build no longer reports auth-client errors; unrelated pre-existing admin/backend diagnostics remain."
     }
   ]
 }

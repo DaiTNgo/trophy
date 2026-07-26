@@ -1,4 +1,4 @@
-import { useId, useRef, type PointerEvent as ReactPointerEvent } from "react";
+import { useId, type PointerEvent as ReactPointerEvent } from "react";
 import {
   getTextPathRenderAttributes,
   getTextPathSvgD,
@@ -465,4 +465,3 @@ export function PreviewImageShape({
     </div>
   );
 }
-
