@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Search, X } from "lucide-react";
 import {
   Dialog,
@@ -16,6 +17,7 @@ import { useSearch } from "@/hooks/useSearch";
 import { SearchResults } from "./SearchResults";
 
 export function NavbarSearchDialog() {
+  const { t } = useTranslation("layout");
   const [isOpen, setIsOpen] = useState(false);
   const { query, setQuery, results, loading, clear } = useSearch();
 
@@ -26,13 +28,13 @@ export function NavbarSearchDialog() {
       <DialogTrigger asChild>
         <button
           className="p-2 text-[#1a2e44] hover:text-primary transition-colors"
-          aria-label="Tìm kiếm"
+          aria-label={t("search_dialog_trigger")}
         >
           <Search className="w-5 h-5" />
         </button>
       </DialogTrigger>
       <DialogContent className="max-w-none w-screen h-screen m-0 p-0! rounded-none border-none bg-white flex flex-col top-0 translate-y-0! data-[state=closed]:slide-out-to-top-0 data-[state=open]:slide-in-from-top-0 duration-300">
-        <DialogTitle className="sr-only">Tìm kiếm</DialogTitle>
+        <DialogTitle className="sr-only">{t("search_dialog_trigger")}</DialogTitle>
         <Container className="flex flex-col h-full py-8">
           <div className="w-full max-w-3xl mx-auto mt-4">
             <InputGroup className="border-0 border-b-2 border-gray-200 rounded-none shadow-none bg-transparent h-auto focus-within:ring-0 has-[[data-slot=input-group-control]:focus-visible]:ring-0 has-[[data-slot=input-group-control]:focus-visible]:border-primary">
@@ -42,7 +44,7 @@ export function NavbarSearchDialog() {
               <InputGroupInput
                 autoFocus
                 className="bg-transparent border-0 px-0 py-2 h-auto text-lg font-light text-gray-900 placeholder:text-gray-300 focus-visible:outline-none focus-visible:ring-0"
-                placeholder="Nhập từ khóa tìm kiếm..."
+                placeholder={t("search_dialog_placeholder")}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
               />
@@ -51,7 +53,7 @@ export function NavbarSearchDialog() {
                   <button
                     onClick={clear}
                     className="flex items-center justify-center w-6 h-6 rounded-full hover:bg-gray-100 transition-colors"
-                    aria-label="Xóa tìm kiếm"
+                    aria-label={t("search_clear")}
                   >
                     <X className="w-5 h-5 text-gray-400" />
                   </button>

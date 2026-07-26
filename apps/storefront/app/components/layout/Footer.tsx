@@ -4,10 +4,13 @@ import {
   MessageCircle,
   Phone
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
 import Container from "../container";
 
 export function Footer() {
+  const { t } = useTranslation("layout");
+
   return (
     <footer className="bg-surface-dark py-20">
       <Container>
@@ -15,27 +18,22 @@ export function Footer() {
           <div className="mb-16 grid grid-cols-1 gap-12 sm:grid-cols-2 lg:grid-cols-4">
             <div>
               <h4 className="mb-8 font-heading text-[26px] uppercase leading-none tracking-[0.03em] text-white">
-                Liên Kết Nhanh
+                {t("footer_quick_links")}
               </h4>
               <ul className="space-y-4 font-body-md text-body-md text-white/72">
                 <li>
-                  <a className="transition-colors hover:text-brand-accent" href="#">
-                    Về Phùng Thị
-                  </a>
+                  <Link className="transition-colors hover:text-brand-accent" to="/about">
+                    {t("footer_about")}
+                  </Link>
                 </li>
                 <li>
                   <Link className="transition-colors hover:text-brand-accent" to="/products">
-                    Tất cả sản phẩm
+                    {t("footer_all_products")}
                   </Link>
                 </li>
                 <li>
                   <a className="transition-colors hover:text-brand-accent" href="#">
-                    Dự án tiêu biểu
-                  </a>
-                </li>
-                <li>
-                  <a className="transition-colors hover:text-brand-accent" href="#">
-                    Tin tức &amp; Sự kiện
+                    {t("footer_featured_projects")}
                   </a>
                 </li>
               </ul>
@@ -43,27 +41,27 @@ export function Footer() {
 
             <div>
               <h4 className="mb-8 font-heading text-[26px] uppercase leading-none tracking-[0.03em] text-white">
-                Hỗ Trợ Khách Hàng
+                {t("footer_customer_support")}
               </h4>
               <ul className="space-y-4 font-body-md text-body-md text-white/72">
                 <li>
                   <a className="transition-colors hover:text-brand-accent" href="#">
-                    Chính sách bảo hành
+                    {t("footer_warranty")}
                   </a>
                 </li>
                 <li>
                   <a className="transition-colors hover:text-brand-accent" href="#">
-                    Hướng dẫn đặt hàng
+                    {t("footer_order_guide")}
                   </a>
                 </li>
                 <li>
                   <a className="transition-colors hover:text-brand-accent" href="#">
-                    Vận chuyển &amp; Thanh toán
+                    {t("footer_shipping_payment")}
                   </a>
                 </li>
                 <li>
                   <Link className="transition-colors hover:text-brand-accent" to="/order-lookup">
-                    Tra cứu đơn hàng
+                    {t("footer_order_lookup")}
                   </Link>
                 </li>
               </ul>
@@ -71,42 +69,40 @@ export function Footer() {
 
             <div>
               <h4 className="mb-8 flex items-center gap-2 font-heading text-[26px] uppercase leading-none tracking-[0.03em] text-white">
-                Xưởng Sản Xuất
+                {t("footer_workshops")}
               </h4>
               <div className="space-y-6 font-body-md text-body-md text-white/72">
                 <div>
                   <p className="mb-1 flex items-center gap-1.5 font-label-sm text-white">
                     <MapPin className="size-4" />
-                    Miền Bắc
+                    {t("footer_region_north")}
                   </p>
-                  <p className="ml-6">Thôn 2, xã Hòa Lạc, TP. Hà Nội</p>
+                  <p className="ml-6">{t("footer_address_north")}</p>
                 </div>
                 <div>
                   <p className="mb-1 flex items-center gap-1.5 font-label-sm text-white">
                     <MapPin className="size-4" />
-                    Miền Nam
+                    {t("footer_region_south")}
                   </p>
-                  <p className="ml-6">
-                    1264/47 Lê Đức Thọ, Phường 13, Gò Vấp, TP. HCM
-                  </p>
+                  <p className="ml-6">{t("footer_address_south")}</p>
                 </div>
               </div>
             </div>
 
             <div>
               <h4 className="mb-8 flex items-center gap-2 font-heading text-[26px] uppercase leading-none tracking-[0.03em] text-white">
-                Thông Tin Liên Hệ
+                {t("footer_contact_info")}
               </h4>
               <div className="space-y-3 font-body-md text-body-md text-white/72">
                 <p className="flex items-center gap-1.5 font-label-sm text-white">
-                  CÔNG TY TNHH SX THƯƠNG MẠI PHÙNG THỊ
+                  {t("footer_company_name")}
                 </p>
                 <p className="flex items-center gap-1.5 italic">
-                  MST: 0314042508
+                  {t("footer_tax_code")}
                 </p>
                 <p className="flex items-center gap-1.5">
                   <Phone className="size-4 shrink-0" />
-                  Hotline:
+                  {t("footer_hotline")}
                   <a
                     href="tel:0816999296"
                     className="transition-colors hover:text-brand-accent"
@@ -115,12 +111,12 @@ export function Footer() {
                   </a>
                 </p>
                 <p className="flex items-center gap-1.5">
-                  <MessageCircle className="size-4 shrink-0 " />
-                  Zalo: 0816 999 296
+                  <MessageCircle className="size-4 shrink-0" />
+                  {t("footer_zalo")}
                 </p>
                 <p className="flex items-center gap-1.5">
                   <Mail className="size-4 shrink-0" />
-                  Email:
+                  {t("footer_email")}
                   <a
                     href="mailto:Lienhe.phungthi@gmail.com"
                     className="transition-colors hover:text-brand-accent"
@@ -134,14 +130,14 @@ export function Footer() {
 
           <div className="flex flex-col items-center justify-between gap-4 border-t border-white/12 pt-8 md:flex-row">
             <p className="font-body-md text-body-md text-white/60">
-              © 2024 PHÙNG THỊ - Premium Trophy Manufacturing. All rights reserved.
+              {t("footer_copyright")}
             </p>
             <div className="flex gap-8 font-label-md text-label-md uppercase tracking-widest text-white/60">
               <a className="transition-colors hover:text-brand-accent" href="#">
-                Privacy Policy
+                {t("footer_privacy")}
               </a>
               <a className="transition-colors hover:text-brand-accent" href="#">
-                Terms of Service
+                {t("footer_terms")}
               </a>
             </div>
           </div>
