@@ -16,6 +16,7 @@ import { localeSchema, DEFAULT_LOCALE } from "../../lib/locale";
 import {
   orderItems,
   orders,
+  productMedia,
   productCustomizations,
   productVariantCustomizationMedia,
   productVariantMedia,
@@ -164,6 +165,18 @@ async function lookupPublishedProduct(db: DbType, productId: number, locale: "vi
 async function lookupVariantById(db: DbType, variantId: number): Promise<VariantRow | null> {
   const variant = await db.select().from(productVariants).where(eq(productVariants.id, variantId)).get();
   return variant ?? null;
+}
+
+async function lookupProductFirstMedia(db: DbType, productId: number) {
+  const media = await db
+    .select()
+    .from(productMedia)
+    .where(eq(productMedia.productId, productId))
+    .orderBy(asc(productMedia.position), asc(productMedia.id))
+    .limit(1)
+    .get();
+
+  return media ?? null;
 }
 
 async function lookupVariantForProduct(
@@ -523,7 +536,13 @@ export const storefrontOrdersRoute = new Hono<AppEnv>()
         }
 
         const customization = await lookupProductCustomization(db, item.productId);
+        const productFirstMedia = await lookupProductFirstMedia(db, item.productId);
         const firstMedia = await lookupVariantFirstMedia(db, item.variantId);
+        const thumbnail = productFirstMedia
+          ? toAbsoluteAssetUrl(c, productFirstMedia.url) as string
+          : firstMedia
+            ? toAbsoluteAssetUrl(c, `/api/assets/products/${firstMedia.assetId}/content`) as string
+            : null;
 
         if (variant.priceAmount === null || variant.priceAmount === undefined) {
           return {
@@ -536,7 +555,7 @@ export const storefrontOrdersRoute = new Hono<AppEnv>()
               handle: product.handle,
               variantTitle: variant.title,
               sku: variant.sku,
-              thumbnail: firstMedia ? (toAbsoluteAssetUrl(c, `/api/assets/products/${firstMedia.assetId}/content`) as string) : null,
+              thumbnail,
               priceAmount: null,
               customizable: customization?.enabled === true,
               requiresCustomization: customization?.enabled === true,
@@ -555,7 +574,7 @@ export const storefrontOrdersRoute = new Hono<AppEnv>()
             handle: product.handle,
             variantTitle: variant.title,
             sku: variant.sku,
-            thumbnail: firstMedia ? (toAbsoluteAssetUrl(c, `/api/assets/products/${firstMedia.assetId}/content`) as string) : null,
+            thumbnail,
             priceAmount: variant.priceAmount,
             customizable: customization?.enabled === true,
             requiresCustomization: customization?.enabled === true,

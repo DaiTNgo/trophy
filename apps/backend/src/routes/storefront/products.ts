@@ -526,6 +526,7 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
       attributeRows,
       optionRows,
       variantRows,
+      productMediaRows,
       variantMediaRows,
       variantCustomizationMediaRows,
       customizationRow
@@ -557,6 +558,11 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
         .from(productVariants)
         .where(eq(productVariants.productId, product.id))
         .orderBy(asc(productVariants.position), asc(productVariants.id)),
+      db
+        .select()
+        .from(productMedia)
+        .where(eq(productMedia.productId, product.id))
+        .orderBy(asc(productMedia.position), asc(productMedia.id)),
       db
         .select({
           variantId: productVariantMedia.variantId,
@@ -757,6 +763,12 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
       subtitle: product.subtitle,
       handle: product.handle,
       description: product.description,
+      media: productMediaRows.map((media) => ({
+        id: media.id,
+        url: toAbsoluteAssetUrl(c, media.url) as string,
+        alt: media.alt,
+        position: media.position,
+      })),
       status: product.status,
       categories: resolvedCategories,
       attributes: resolvedAttributes,

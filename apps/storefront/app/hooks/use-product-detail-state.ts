@@ -507,7 +507,10 @@ export function useProductDetailState({
           productHandle: product.handle,
           variantTitle: getLocalized(selectedVariant.title, locale),
           sku: selectedVariant.sku,
-          thumbnail: selectedVariant.media[0]?.contentUrl ?? null,
+          thumbnail:
+            selectedVariant.media[0]?.contentUrl ??
+            product.media[0]?.url ??
+            null,
           priceAmount: selectedVariant.priceAmount,
           customizable: Boolean(customizationTemplate),
           requiresCustomization: Boolean(customizationTemplate),

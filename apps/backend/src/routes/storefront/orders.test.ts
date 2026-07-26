@@ -144,6 +144,7 @@ describe("storefront orders route", () => {
       { id: 1, title: "Champion Cup", handle: "champion-cup", status: "published" },
       { id: 10, productId: 1, title: "Gold", sku: "SKU-1", priceAmount: 5000 },
       { enabled: true },
+      null,
       { assetId: "asset-1", position: 0 },
     );
 
@@ -185,6 +186,7 @@ describe("storefront orders route", () => {
       { id: 1, title: "Champion Cup", handle: "champion-cup", status: "published" },
       { id: 10, productId: 1, title: "Gold", sku: "SKU-1", priceAmount: null },
       null,
+      null,
       { assetId: "asset-1", position: 0 },
     );
 
@@ -205,6 +207,27 @@ describe("storefront orders route", () => {
     expect(body.items[0]).toMatchObject({ valid: false, reason: "product_unavailable" });
     expect(body.items[1]).toMatchObject({ valid: false, reason: "variant_mismatch" });
     expect(body.items[2]).toMatchObject({ valid: false, reason: "contact_price" });
+  });
+
+  it("uses the first product media as the cart thumbnail before variant media", async () => {
+    db.getQueue.push(
+      { id: 1, title: "Champion Cup", handle: "champion-cup", status: "published" },
+      { id: 10, productId: 1, title: "Gold", sku: "SKU-1", priceAmount: 5000 },
+      { enabled: false },
+      { id: 50, productId: 1, url: "/api/assets/products/product-asset/content", position: 0 },
+      { assetId: "variant-asset", position: 0 },
+    );
+
+    const res = await storefrontOrdersRoute.request("/resolve", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ items: [{ productId: 1, variantId: 10 }] }),
+    });
+
+    expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toMatchObject({
+      items: [{ product: { thumbnail: "http://localhost/api/assets/products/product-asset/content" } }],
+    });
   });
 
   it("looks up an order by order number and matching phone", async () => {
