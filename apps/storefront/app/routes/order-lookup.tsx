@@ -225,6 +225,7 @@ export default function OrderLookupRoute() {
                             template={selectedItem.customizationPreview.template}
                             values={selectedItem.customizationPreview.values}
                             dynamicFonts={[] as DynamicFontFamily[]}
+                            watermark
                             readOnly
                             className="h-[min(52vh,420px)] min-h-[280px] rounded-xl border border-outline"
                             resolveFontUrl={backendFontUrl}

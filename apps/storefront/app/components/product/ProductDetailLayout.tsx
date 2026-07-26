@@ -84,6 +84,7 @@ export function ProductDetailLayout({
       template={customizationTemplate}
       values={customizationValues}
       dynamicFonts={dynamicFonts as DynamicFontFamily[]}
+      watermark
       className={`border-0 rounded-none ${galleryMediaFrameClassName}`}
       resolveFontUrl={backendFontUrl}
       resolveStaticFontUrl={backendStaticFontUrl}
