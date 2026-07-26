@@ -1,4 +1,5 @@
 import { Link } from "react-router";
+import { useTranslation } from "react-i18next";
 import { Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { SearchResults as SearchResultsType } from "@/hooks/useSearch";
@@ -14,6 +15,8 @@ interface SearchResultsProps {
 }
 
 function ProductResult({ product }: { product: SearchProduct }) {
+  const { t } = useTranslation("layout");
+
   return (
     <Link
       to={getGenericProductPath(product.handle)}
@@ -21,15 +24,21 @@ function ProductResult({ product }: { product: SearchProduct }) {
     >
       <div className="w-10 h-10 rounded-md bg-gray-100 flex items-center justify-center shrink-0 overflow-hidden">
         {product.thumbnail ? (
-          <img src={product.thumbnail} alt={product.title} className="w-full h-full object-cover" />
+          <img
+            src={product.thumbnail}
+            alt={product.title}
+            className="w-full h-full object-cover"
+          />
         ) : (
           <Search className="w-4 h-4 text-gray-400" />
         )}
       </div>
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium text-gray-900 truncate">{product.title}</p>
+        <p className="text-sm font-medium text-gray-900 truncate">
+          {product.title}
+        </p>
         <p className="text-xs text-gray-500">
-          {product.priceFrom ? "Từ " : ""}
+          {product.priceFrom ? t("search_price_from") : ""}
           {formatCurrency(product.priceAmount)}
         </p>
       </div>
@@ -98,18 +107,28 @@ function Column({
   );
 }
 
-export function SearchResults({ results, loading, query, onResultClick }: SearchResultsProps) {
+export function SearchResults({
+  results,
+  loading,
+  query,
+  onResultClick,
+}: SearchResultsProps) {
+  const { t } = useTranslation("layout");
+
   if (!query.trim()) return null;
 
   if (loading) {
     return <LoadingSkeleton />;
   }
 
-  if (!results || (results.products.length === 0 && results.categories.length === 0)) {
+  if (
+    !results ||
+    (results.products.length === 0 && results.categories.length === 0)
+  ) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
         <Search className="w-8 h-8 text-gray-300 mb-3" />
-        <p className="text-sm text-gray-500">Không có sản phẩm nào.</p>
+        <p className="text-sm text-gray-500">{t("search_no_results")}</p>
       </div>
     );
   }
@@ -123,27 +142,35 @@ export function SearchResults({ results, loading, query, onResultClick }: Search
       {bothTypes ? (
         <div className="grid grid-cols-2">
           <Column
-            title="Danh mục"
+            title={t("search_category")}
             items={results.categories}
-            renderItem={(item) => <CategoryResult category={item as SearchCategory} />}
+            renderItem={(item) => (
+              <CategoryResult category={item as SearchCategory} />
+            )}
           />
           <Column
-            title="Sản phẩm"
+            title={t("search_product")}
             items={results.products}
-            renderItem={(item) => <ProductResult product={item as SearchProduct} />}
+            renderItem={(item) => (
+              <ProductResult product={item as SearchProduct} />
+            )}
           />
         </div>
       ) : hasCategories ? (
         <Column
-          title="Danh mục"
+          title={t("search_category")}
           items={results.categories}
-          renderItem={(item) => <CategoryResult category={item as SearchCategory} />}
+          renderItem={(item) => (
+            <CategoryResult category={item as SearchCategory} />
+          )}
         />
       ) : (
         <Column
-          title="Sản phẩm"
+          title={t("search_product")}
           items={results.products}
-          renderItem={(item) => <ProductResult product={item as SearchProduct} />}
+          renderItem={(item) => (
+            <ProductResult product={item as SearchProduct} />
+          )}
         />
       )}
     </div>

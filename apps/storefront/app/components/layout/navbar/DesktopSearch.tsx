@@ -1,10 +1,12 @@
 import { useState, useRef, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { Search, X } from "lucide-react";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import { useSearch } from "@/hooks/useSearch";
 import { SearchResults } from "./SearchResults";
 
 export function DesktopSearch() {
+  const { t } = useTranslation("layout");
   const { query, setQuery, results, loading, clear } = useSearch();
   const [focused, setFocused] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -30,7 +32,7 @@ export function DesktopSearch() {
         </InputGroupAddon>
         <InputGroupInput
           className="text-[14px] text-gray-500 placeholder:text-gray-400"
-          placeholder="Tìm kiếm sản phẩm, danh mục..."
+          placeholder={t("search_placeholder")}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => setFocused(true)}
@@ -45,7 +47,7 @@ export function DesktopSearch() {
             <button
               onClick={clear}
               className="flex items-center justify-center w-5 h-5 rounded-full hover:bg-gray-200 transition-colors"
-              aria-label="Xóa tìm kiếm"
+              aria-label={t("search_clear")}
             >
               <X className="w-4 h-4 text-gray-500" />
             </button>

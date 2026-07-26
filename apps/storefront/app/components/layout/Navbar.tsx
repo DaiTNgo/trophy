@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router";
+import { useTranslation } from "react-i18next";
 import { ChevronDown, Menu, ShoppingCart } from "lucide-react";
 import { useNavbarScroll } from "@/hooks/useNavbarScroll";
 import { useClickOutside } from "@/hooks/useClickOutside";
@@ -42,6 +43,7 @@ export function Navbar({
   hideCategoryStripOnMobile = false,
   disableStickyOnMobile = false,
 }: NavbarProps) {
+  const { t } = useTranslation("layout");
   const { pathname } = useLocation();
   const { itemCount } = useCart();
   const { isSticky, slideIn } = useNavbarScroll();
@@ -121,7 +123,7 @@ export function Navbar({
                 <button
                   onClick={() => setIsMobileMenuOpen(true)}
                   className="p-2 -ml-2 text-brand-strong"
-                  aria-label="Mở menu"
+                  aria-label={t("navbar_menu_label")}
                 >
                   <Menu className="w-6 h-6" />
                 </button>
@@ -162,7 +164,7 @@ export function Navbar({
                     <ChevronDown
                       className={`text-[20px] transition-transform duration-300 ${activeDropdown === "products" ? "rotate-180" : ""}`}
                     />
-                    SẢN PHẨM
+                    {t("navbar_products")}
                   </button>
                 </div>
                 <div></div>
@@ -185,7 +187,7 @@ export function Navbar({
                       <ChevronDown
                         className={`text-[20px] transition-transform duration-300 ${activeDropdown === "themes" ? "rotate-180" : ""}`}
                       />
-                      CHỦ ĐỀ
+                      {t("navbar_themes")}
                     </button>
                   </div>
                 )}
