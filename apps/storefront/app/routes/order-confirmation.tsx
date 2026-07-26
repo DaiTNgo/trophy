@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import type { Route } from "./+types/order-confirmation";
 import { CheckCircle } from "lucide-react";
+import Container from "../components/container";
 import { formatCurrency } from "../lib/utils";
 import { getLocalized } from "../lib/translation";
 
@@ -72,7 +73,8 @@ export default function OrderConfirmation() {
 
   return (
     <div className="min-h-screen bg-background text-on-background">
-      <main className="mx-auto max-w-container-max px-margin-mobile py-12 md:px-margin-desktop">
+      <main>
+        <Container className="max-w-container-max py-12 md:px-margin-desktop">
         <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_380px]">
           <section className="rounded-[28px] border border-outline bg-white px-8 py-12">
             <div className="flex h-20 w-20 items-center justify-center rounded-full bg-primary-container/15">
@@ -158,6 +160,7 @@ export default function OrderConfirmation() {
             )}
           </aside>
         </div>
+        </Container>
       </main>
     </div>
   );

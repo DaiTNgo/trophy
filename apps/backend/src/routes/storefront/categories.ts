@@ -1,5 +1,5 @@
-import { asc, isNull } from 'drizzle-orm'
-import { Hono, type Context } from 'hono'
+import { asc } from 'drizzle-orm'
+import { Hono } from 'hono'
 import { toAbsoluteAssetUrl } from '../../lib/url'
 import { getDb } from '../../db/client'
 import { hydrateAndResolveTranslations } from '../../lib/catalog-translation'
@@ -15,7 +15,6 @@ const storefrontCategoriesQuerySchema = v.object({
 export const storefrontCategoriesRoute = new Hono<AppEnv>()
   .get('/', async (c) => {
     const db = getDb(c.env)
-    const all = c.req.query('all') === 'true'
     const parsedQuery = v.safeParse(storefrontCategoriesQuerySchema, c.req.query())
     const locale = parsedQuery.success ? parsedQuery.output.locale : DEFAULT_LOCALE
 

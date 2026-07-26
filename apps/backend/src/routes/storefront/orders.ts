@@ -9,7 +9,7 @@ import {
   type CustomizationFormValues,
   type CustomizationTemplate,
 } from "@trophy/customization";
-import { getDb, type Database } from "../../db/client";
+import { getDb } from "../../db/client";
 import { hydrateAndResolveTranslations } from "../../lib/catalog-translation";
 import { hydrateAndResolveCustomization } from "../../lib/customization-translation";
 import { localeSchema, DEFAULT_LOCALE } from "../../lib/locale";
@@ -17,6 +17,7 @@ import {
   orderItems,
   orders,
   productCustomizations,
+  productVariantCustomizationMedia,
   productVariantMedia,
   productVariants,
   products,
@@ -120,6 +121,8 @@ type DbType = ReturnType<typeof getDb>;
 type ProductRow = typeof products.$inferSelect;
 type VariantRow = typeof productVariants.$inferSelect;
 type VariantMediaRow = typeof productVariantMedia.$inferSelect;
+type VariantCustomizationMediaRow =
+  typeof productVariantCustomizationMedia.$inferSelect;
 type CustomizationRow = typeof productCustomizations.$inferSelect;
 type OrderRow = typeof orders.$inferSelect;
 type OrderItemRow = typeof orderItems.$inferSelect;
@@ -184,6 +187,19 @@ async function lookupVariantFirstMedia(db: DbType, variantId: number): Promise<V
     .where(eq(productVariantMedia.variantId, variantId))
     .orderBy(asc(productVariantMedia.position), asc(productVariantMedia.assetId))
     .limit(1)
+    .get();
+
+  return media ?? null;
+}
+
+async function lookupVariantCustomizationMedia(
+  db: DbType,
+  variantId: number,
+): Promise<VariantCustomizationMediaRow | null> {
+  const media = await db
+    .select()
+    .from(productVariantCustomizationMedia)
+    .where(eq(productVariantCustomizationMedia.variantId, variantId))
     .get();
 
   return media ?? null;
@@ -278,16 +294,19 @@ async function validateAndBuildItemSnapshot(
   }
 
   const firstMedia = await lookupVariantFirstMedia(db, item.variantId);
-  const backgroundSnapshot: BackgroundSnapshot | null = firstMedia
+  const customizationRow = await lookupProductCustomization(db, item.productId);
+  const customizationMedia = customizationRow?.enabled
+    ? await lookupVariantCustomizationMedia(db, item.variantId)
+    : null;
+  const backgroundAssetId = customizationMedia?.assetId ?? firstMedia?.assetId;
+  const backgroundSnapshot: BackgroundSnapshot | null = backgroundAssetId
     ? {
-        assetId: firstMedia.assetId,
-        previewUrl: toAbsoluteAssetUrl(c, `/api/assets/products/${firstMedia.assetId}/content`) as string,
+        assetId: backgroundAssetId,
+        previewUrl: toAbsoluteAssetUrl(c, `/api/assets/products/${backgroundAssetId}/content`) as string,
         widthPx: null,
         heightPx: null,
       }
     : null;
-
-  const customizationRow = await lookupProductCustomization(db, item.productId);
   const isCustomizable = customizationRow?.enabled === true;
 
   if (isCustomizable && !item.customization?.values) {

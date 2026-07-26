@@ -455,7 +455,7 @@ describe("storefront orders route", () => {
         layersJson: JSON.stringify(iconLayers),
         formFieldsJson: JSON.stringify(DEFAULT_TEMPLATE.formFields),
       },
-      null,
+      { variantId: 10, assetId: "customization-asset-1" },
     );
     db.returningQueue.push([{ id: 123, createdAt: new Date("2026-07-05T00:00:00.000Z") }]);
 
@@ -493,8 +493,18 @@ describe("storefront orders route", () => {
 
     const orderItemInsert = db.valuesCalls.find(
       (value: any) => value && typeof value === "object" && "customizationSnapshotJson" in value,
-    ) as { customizationSnapshotJson: string } | undefined;
+    ) as
+      | {
+          backgroundSnapshotJson: string | null;
+          customizationSnapshotJson: string;
+        }
+      | undefined;
+    const backgroundSnapshot = orderItemInsert?.backgroundSnapshotJson
+      ? JSON.parse(orderItemInsert.backgroundSnapshotJson)
+      : null;
     const snapshot = orderItemInsert ? JSON.parse(orderItemInsert.customizationSnapshotJson) : null;
+
+    expect(backgroundSnapshot?.assetId).toBe("customization-asset-1");
 
     expect(snapshot?.values?.field_badge_shape).toMatchObject({
       source: "clipart",

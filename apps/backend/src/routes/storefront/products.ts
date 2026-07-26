@@ -69,10 +69,6 @@ const storefrontListingQuerySchema = v.object({
   )
 })
 
-const handleQuerySchema = v.object({
-  locale: v.optional(localeSchema, DEFAULT_LOCALE)
-})
-
 const handleParamsSchema = v.object({
   handle: v.pipe(
     v.string(),
@@ -233,7 +229,6 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
     const db = getDb(c.env)
     const page = parsedQuery.output.page ?? 1
     const limit = parsedQuery.output.limit ?? 20
-    const locale = parsedQuery.output.locale ?? DEFAULT_LOCALE
     const offset = (page - 1) * limit
 
     const conditions = [eq(products.status, 'published')]
@@ -512,9 +507,6 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
 
     const db = getDb(c.env)
     const handle = parsed.output.handle
-
-    const parsedQuery = parseQuery(c.req.query(), handleQuerySchema)
-    const locale = parsedQuery.success ? (parsedQuery.output.locale ?? DEFAULT_LOCALE) : DEFAULT_LOCALE
 
     let product = await db
       .select()

@@ -1,10 +1,8 @@
-import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { getDb } from "../../db/client";
 import { customizationAssets } from "../../db/schema";
 import {
   allowedMimeTypes,
-  assetParamsSchema,
   cleanOwnerKey,
   extensionForMimeType,
   MAX_ASSET_BYTES,
@@ -12,7 +10,7 @@ import {
 import type { AppEnv } from "../../lib/env";
 import { readImageDimensions } from "../../lib/image-dimensions";
 import { toAbsoluteAssetUrl } from "../../lib/url";
-import { jsonError, parseParams } from "../../lib/validation";
+import { jsonError } from "../../lib/validation";
 
 export const customizationAssetsRoute = new Hono<AppEnv>()
   .post("/", async (c) => {
