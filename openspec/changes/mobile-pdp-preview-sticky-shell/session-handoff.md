@@ -5,7 +5,9 @@ Date: 2026-07-29
 
 ## What Was Implemented
 
-- The mobile customization preview canvas now uses `clamp(240px, 42svh, 380px)` rather than a 320px minimum / 50vh frame, so it occupies less vertical space on mobile while desktop dimensions remain unchanged.
+- Storefront desktop and mobile navigation labels now use “Shop by Products” / “Shop by Interest” in English and the shorter “Danh mục” / “Theo nhu cầu” in Vietnamese.
+- Storefront dialog and drawer overlays now use `z-[100]`, above the mobile sticky preview shell at `z-[70]`, so search and sidebar panels are never covered by the canvas.
+- The mobile customization preview canvas now uses `clamp(240px, 42svh, 380px)` rather than a 320px minimum / 50vh frame, so it occupies less vertical space on mobile while desktop dimensions remain unchanged. The storefront caller also clears the shared component's desktop `min-height: 520px` on mobile, preventing the canvas toolbar from being clipped below the shell.
 - Route-aware mobile category-strip suppression for PDP in storefront layout/navbar.
 - Mobile PDP navbar sticky disabled on small-device layouts while desktop navbar behavior stays unchanged.
 - Mobile-only customizable PDP branch with sticky preview shell, constrained preview height, and `Hide preview` / `Show preview` behavior.
