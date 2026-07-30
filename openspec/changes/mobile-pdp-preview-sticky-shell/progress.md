@@ -2,6 +2,7 @@
 
 ## Current State
 
+- Adjusted the mobile customization preview canvas on 2026-07-29 to use `clamp(240px, 42svh, 380px)`. This replaces the previous 320px minimum / 50vh frame, leaving more room for product options and customization controls on short mobile viewports while preserving the existing `lg` desktop dimensions.
 - Implemented the storefront side of `mobile-pdp-preview-sticky-shell` on 2026-07-16.
 - `apps/storefront/app/components/layout/storefront-layout.tsx` now derives a route-aware `hideCategoryStripOnMobile` flag for product detail pages and passes it into `Navbar`.
 - `apps/storefront/app/components/layout/Navbar.tsx` now suppresses the category strip on product detail pages for mobile/tablet widths and disables mobile navbar sticky behavior on PDP while preserving the existing desktop strip/sticky behavior.
