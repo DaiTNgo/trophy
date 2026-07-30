@@ -1,7 +1,7 @@
 {
   "navbar_menu_label": "Open menu",
-  "navbar_products": "Products",
-  "navbar_themes": "Themes",
+  "navbar_products": "Shop by Products",
+  "navbar_themes": "Shop by Interest",
 
   "navbar_more": "More",
   "navbar_more_contact": "Contact Info",
@@ -19,8 +19,8 @@
 
   "mobile_menu_title": "Navigation Menu",
   "mobile_menu_close": "Close menu",
-  "mobile_menu_products": "Products",
-  "mobile_menu_themes": "Themes",
+  "mobile_menu_products": "Shop by Products",
+  "mobile_menu_themes": "Shop by Interest",
   "mobile_menu_contact": "Contact",
   "mobile_menu_about": "About Us",
   "mobile_menu_order_lookup": "Order Lookup",

@@ -1,7 +1,7 @@
 {
   "navbar_menu_label": "Mở menu",
-  "navbar_products": "SẢN PHẨM",
-  "navbar_themes": "CHỦ ĐỀ",
+  "navbar_products": "DANH MỤC",
+  "navbar_themes": "THEO NHU CẦU",
 
   "navbar_more": "THÊM",
   "navbar_more_contact": "Thông tin liên hệ",
@@ -19,8 +19,8 @@
 
   "mobile_menu_title": "Menu điều hướng",
   "mobile_menu_close": "Đóng menu",
-  "mobile_menu_products": "Sản phẩm",
-  "mobile_menu_themes": "Chủ đề",
+  "mobile_menu_products": "Danh mục",
+  "mobile_menu_themes": "Theo nhu cầu",
   "mobile_menu_contact": "Liên hệ",
   "mobile_menu_about": "Về chúng tôi",
   "mobile_menu_order_lookup": "Tra cứu đơn hàng",
