@@ -1,10 +1,11 @@
 # Session Handoff
 
 Change: `mobile-pdp-preview-sticky-shell`
-Date: 2026-07-16
+Date: 2026-07-29
 
 ## What Was Implemented
 
+- The mobile customization preview canvas now uses `clamp(240px, 42svh, 380px)` rather than a 320px minimum / 50vh frame, so it occupies less vertical space on mobile while desktop dimensions remain unchanged.
 - Route-aware mobile category-strip suppression for PDP in storefront layout/navbar.
 - Mobile PDP navbar sticky disabled on small-device layouts while desktop navbar behavior stays unchanged.
 - Mobile-only customizable PDP branch with sticky preview shell, constrained preview height, and `Hide preview` / `Show preview` behavior.
