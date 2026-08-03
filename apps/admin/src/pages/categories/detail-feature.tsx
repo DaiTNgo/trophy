@@ -26,7 +26,6 @@ import { Upload, X, MoreHorizontal, Pencil, Trash, AlertCircle, Plus, Info } fro
 
 export function CategoryDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const isNew = id === "new";
   const navigate = useNavigate();
   const { setBreadcrumbs } = useBreadcrumbs();
 
@@ -48,7 +47,7 @@ export function CategoryDetailPage() {
   const [isEditDrawerOpen, setIsEditDrawerOpen] = useState(false);
   const [isRankingModalOpen, setIsRankingModalOpen] = useState(false);
 
-  const [isLoading, setIsLoading] = useState(!isNew);
+  const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
   // Cleanup object URLs
@@ -61,8 +60,6 @@ export function CategoryDetailPage() {
   }, [previewUrl]);
 
   useEffect(() => {
-    if (isNew) return;
-
     async function loadData() {
       try {
         const [catRes, prodRes] = await Promise.all([
@@ -93,14 +90,14 @@ export function CategoryDetailPage() {
     }
 
     loadData();
-  }, [id, isNew]);
+  }, [id]);
 
   useEffect(() => {
     setBreadcrumbs([
       { label: "Categories", path: "/categories" },
-      { label: isNew ? "Create Category" : (name.vi || "Loading..."), path: `/categories/${id}` },
+      { label: name.vi || "Loading...", path: `/categories/${id}` },
     ]);
-  }, [setBreadcrumbs, isNew, id, name]);
+  }, [setBreadcrumbs, id, name]);
 
   // Clean up breadcrumbs only when the component unmounts
   useEffect(() => {
@@ -161,42 +158,55 @@ export function CategoryDetailPage() {
     setImageUrl("");
   };
 
-  async function handleSave() {
+  async function handleSaveMedia() {
     setIsSaving(true);
     try {
       let finalImageUrl = imageUrl;
-
       if (file) {
         const media = await uploadProductVariantMedia(file);
         finalImageUrl = media.contentUrl;
       }
 
-      const payload: any = isSystem
-        ? { imageUrl: finalImageUrl || null }
-        : {
-            name: { vi: name.vi, en: name.en || undefined },
-            handle: handle || null,
-            description: description.vi ? { vi: description.vi, en: description.en || undefined } : null,
-            imageUrl: finalImageUrl || null,
-          };
+      const res = await backendFetch(`/api/admin/product-metadata/categories/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageUrl: finalImageUrl || null }),
+      });
 
-      const res = await backendFetch(
-        `/api/admin/product-metadata/categories${isNew ? "" : `/${id}`}`,
-        {
-          method: isNew ? "POST" : "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        }
-      );
+      if (!res.ok) {
+        console.error("Failed to save category media");
+        return;
+      }
+
+      setImageUrl(finalImageUrl || "");
+      setPreviewUrl(finalImageUrl || "");
+      setFile(null);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function handleSave() {
+    setIsSaving(true);
+    try {
+      if (isSystem) return;
+
+      const payload = {
+        name: { vi: name.vi, en: name.en || undefined },
+        handle: handle || null,
+        description: description.vi ? { vi: description.vi, en: description.en || undefined } : null,
+      };
+
+      const res = await backendFetch(`/api/admin/product-metadata/categories/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
 
       if (res.ok) {
-        if (isNew) {
-          navigate("/categories");
-        } else {
-          setImageUrl(finalImageUrl || "");
-          setPreviewUrl(finalImageUrl || "");
-          setFile(null);
-        }
+        setIsEditDrawerOpen(false);
       } else {
         console.error("Failed to save category");
       }
@@ -238,8 +248,6 @@ export function CategoryDetailPage() {
 
   return (
     <div className="flex flex-col gap-y-4">
-      {!isNew ? (
-        <>
           <div className="flex flex-col lg:flex-row gap-4">
             <Container className="p-0 overflow-hidden flex-1">
               <div className="flex flex-col">
@@ -334,7 +342,7 @@ export function CategoryDetailPage() {
                     <Button variant="secondary" size="small" onClick={() => fileInputRef.current?.click()}>
                       {previewUrl ? "Replace" : "Upload"}
                     </Button>
-                    <Button size="small" onClick={handleSave} isLoading={isSaving}>
+                    <Button size="small" onClick={handleSaveMedia} isLoading={isSaving}>
                       Save Media
                     </Button>
                   </div>
@@ -565,7 +573,7 @@ export function CategoryDetailPage() {
                 <Drawer.Close asChild>
                   <Button variant="secondary">Cancel</Button>
                 </Drawer.Close>
-                <Button onClick={async () => { await handleSave(); setIsEditDrawerOpen(false); }} isLoading={isSaving}>
+                <Button onClick={handleSave} isLoading={isSaving}>
                   Save
                 </Button>
               </Drawer.Footer>
@@ -601,120 +609,6 @@ export function CategoryDetailPage() {
               }
             }}
           />
-        </>
-      ) : (
-        <>
-          <Container>
-            <div className="flex flex-col gap-y-3">
-              <Text size="small" className="text-ui-fg-muted uppercase tracking-wider">
-                New Category
-              </Text>
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                <div className="flex flex-col gap-y-1">
-                  <Heading level="h2">Create Category</Heading>
-                  <Text size="base" className="text-ui-fg-subtle">
-                    Manage category metadata.
-                  </Text>
-                </div>
-                <div className="flex gap-2">
-                  <Button variant="secondary" onClick={() => navigate("/categories")}>
-                    Cancel
-                  </Button>
-                  <Button variant="primary" onClick={handleSave} isLoading={isSaving}>
-                    Save
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </Container>
-
-          <Container>
-            <div className="flex flex-col gap-y-6 max-w-2xl">
-                <div className="flex flex-col gap-y-2">
-                  <Label htmlFor="name" className="text-ui-fg-base">
-                    Name
-                  </Label>
-                  <LocalizedTextField
-                    id="name"
-                    value={name}
-                    locale={nameLocale}
-                    onLocaleChange={setNameLocale}
-                    onChange={setName}
-                    placeholder={{ vi: "Tieu de", en: "Title" }}
-                    helperText="Vietnamese is required. English is optional."
-                    requiredLocales={["vi"]}
-                  />
-                </div>
-
-              <div className="flex flex-col gap-y-2">
-                <Label htmlFor="handle" className="text-ui-fg-base">
-                  Handle (optional)
-                </Label>
-                <Input
-                  id="handle"
-                  value={handle}
-                  onChange={(e) => setHandle(e.target.value)}
-                  placeholder="e.g. t-shirts"
-                />
-              </div>
-
-              <div className="flex flex-col gap-y-2">
-                <Label className="text-ui-fg-base">Category Image (optional)</Label>
-                {previewUrl ? (
-                  <div className="relative overflow-hidden rounded-lg border border-ui-border-base bg-ui-bg-subtle w-48 h-48">
-                    <MediaPreview
-                      src={previewUrl}
-                      mimeType={file?.type || (previewUrl.toLowerCase().endsWith(".pdf") ? "application/pdf" : "image/jpeg")}
-                      className="h-full w-full object-cover"
-                      alt="Category Preview"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleRemoveImage}
-                      className="absolute right-2 top-2 rounded-full bg-ui-bg-overlay p-1 text-ui-fg-on-color shadow transition hover:bg-ui-bg-overlay-hover"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="flex flex-col items-center justify-center gap-y-2 rounded-lg border border-dashed border-ui-border-base bg-ui-bg-subtle text-ui-fg-muted transition hover:border-ui-border-strong hover:text-ui-fg-base w-48 h-48"
-                  >
-                    <Upload className="h-6 w-6" />
-                    <Text size="small">Upload Image</Text>
-                  </button>
-                )}
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*,application/pdf"
-                  className="hidden"
-                  onChange={handleFileSelect}
-                />
-              </div>
-
-              <div className="flex flex-col gap-y-2">
-                <Label htmlFor="description" className="text-ui-fg-base">
-                  Description (optional)
-                </Label>
-                  <LocalizedTextField
-                    id="description"
-                    value={description}
-                    locale={descriptionLocale}
-                    onLocaleChange={setDescriptionLocale}
-                    onChange={setDescription}
-                    placeholder={{ vi: "Mo ta", en: "Description" }}
-                    helperText="Optional in both Vietnamese and English."
-                    requiredLocales={[]}
-                    multiline
-                  />
-              </div>
-            </div>
-          </Container>
-        </>
-      )}
     </div>
   );
 }

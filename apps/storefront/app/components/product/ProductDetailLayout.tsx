@@ -77,7 +77,7 @@ export function ProductDetailLayout({
     />
   );
   const galleryMediaFrameClassName =
-    "h-[min(50vh,460px)] min-h-[320px] lg:h-[min(72vh,740px)] lg:min-h-[520px]";
+    "h-[clamp(240px,42svh,380px)] lg:h-[min(72vh,740px)] lg:min-h-[520px]";
 
   const previewNode = customizationTemplate ? (
     <ProductCustomizationPreview
@@ -85,7 +85,7 @@ export function ProductDetailLayout({
       values={customizationValues}
       dynamicFonts={dynamicFonts as DynamicFontFamily[]}
       watermark
-      className={`border-0 rounded-none ${galleryMediaFrameClassName}`}
+      className={`border-0 min-h-0 rounded-none ${galleryMediaFrameClassName}`}
       resolveFontUrl={backendFontUrl}
       resolveStaticFontUrl={backendStaticFontUrl}
       selectedVariantId={selectedVariant?.id ?? null}

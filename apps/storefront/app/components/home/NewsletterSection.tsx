@@ -1,23 +1,26 @@
+import { useTranslation } from "react-i18next";
 import { Mail } from "lucide-react";
 
 export function NewsletterSection() {
+  const { t } = useTranslation("home");
+
   return (
     <section className="bg-surface-subtle px-4 py-12 md:px-margin-desktop md:py-16">
       <div className="mx-auto flex max-w-[980px] flex-col items-center text-center">
         <h2 className="max-w-[860px] font-heading text-[30px] font-bold uppercase leading-[1.15] text-brand-strong md:text-[40px]">
-          Đăng ký nhận bản tin
+          {t("newsletter_title")}
         </h2>
         <p className="mt-4 max-w-[680px] font-body-md text-[16px] leading-7 text-text-base md:text-[18px]">
-          Để nhận thông tin sản phẩm mới, lịch ra mắt và chương trình khuyến mãi.
+          {t("newsletter_subtitle")}
         </p>
 
         <form
           onSubmit={(e) => e.preventDefault()}
           className="mt-8 w-full max-w-[600px]"
-          aria-label="Đăng ký nhận bản tin"
+          aria-label={t("newsletter_aria_form")}
         >
           <label htmlFor="newsletter-email" className="sr-only">
-            Địa chỉ email
+            {t("newsletter_email_label")}
           </label>
           <div className="flex h-[58px] w-full items-center border border-border-strong bg-surface-base shadow-sm transition-colors focus-within:border-action-support focus-within:ring-2 focus-within:ring-action-support/20">
             <input
@@ -30,7 +33,7 @@ export function NewsletterSection() {
             />
             <button
               type="submit"
-              aria-label="Đăng ký"
+              aria-label={t("newsletter_title")}
               className="flex h-full w-[64px] shrink-0 items-center justify-center bg-action-support text-white transition-colors hover:bg-action-support-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-action-support focus-visible:ring-offset-2"
             >
               <Mail className="h-6 w-6" strokeWidth={1.8} />

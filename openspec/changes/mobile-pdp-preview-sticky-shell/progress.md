@@ -2,6 +2,9 @@
 
 ## Current State
 
+- Updated storefront navigation labels on 2026-07-30: English uses “Shop by Products” and “Shop by Interest”; Vietnamese uses the shorter “Danh mục” and “Theo nhu cầu” in both desktop and mobile menus.
+- Raised the shared storefront dialog and drawer layers to `z-[100]` on 2026-07-30. The mobile PDP sticky preview shell uses `z-[70]`, so search and sidebar overlays must sit above it when opened.
+- Adjusted the mobile customization preview canvas on 2026-07-29 to use `clamp(240px, 42svh, 380px)`. Its caller now explicitly removes the shared component's desktop `min-height: 520px` on mobile; otherwise the smaller mobile shell clipped the toolbar at the bottom of the internally taller canvas. The existing `lg` desktop dimensions remain unchanged.
 - Implemented the storefront side of `mobile-pdp-preview-sticky-shell` on 2026-07-16.
 - `apps/storefront/app/components/layout/storefront-layout.tsx` now derives a route-aware `hideCategoryStripOnMobile` flag for product detail pages and passes it into `Navbar`.
 - `apps/storefront/app/components/layout/Navbar.tsx` now suppresses the category strip on product detail pages for mobile/tablet widths and disables mobile navbar sticky behavior on PDP while preserving the existing desktop strip/sticky behavior.
