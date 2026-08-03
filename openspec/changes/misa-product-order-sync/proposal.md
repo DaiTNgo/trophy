@@ -5,8 +5,8 @@ Trophy currently has no active MISA integration in the branch, so products publi
 ## What Changes
 
 - Add a backend MISA client for token acquisition, product synchronization, contacts, and sale orders.
-- Synchronize every SKU-backed Trophy variant to MISA before marking a product as published.
-- Persist the numeric MISA product ID on each Trophy variant after synchronization.
+- Synchronize published Trophy variants to MISA using their stable variant IDs as product codes, without blocking local save or publish on MISA failure.
+- Persist MISA synchronization status, numeric product ID, latest error, and successful sync time on each Trophy variant.
 - Delete products from MISA before deleting their local Trophy records, with an order-reference guard.
 - Add protected admin MISA proxy endpoints and a standalone MISA Products screen for debugging and lookup.
 - Synchronize a successful Trophy checkout order to MISA after the local order is created.
@@ -29,6 +29,6 @@ Archive/inactive lifecycle changes and migration file authoring are explicitly o
 ## Impact
 
 - Backend: new MISA service, product lifecycle routes, checkout order integration, admin proxy routes, environment bindings, and tests.
-- Database: requires an operator-provided `product_variants.misa_product_id` column; this change does not author the migration.
+- Database: requires operator-provided MISA ID and per-variant synchronization columns; this change does not author the migration.
 - Admin: MISA Products screen and product action wiring for existing Edit/Delete flows.
 - Documentation: backend environment setup, MISA API behavior, and Bruno examples.

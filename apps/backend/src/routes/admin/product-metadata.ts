@@ -12,7 +12,7 @@ import type { AppEnv } from '../../lib/env'
 import { jsonError, parseJson } from '../../lib/validation'
 import { localizedString, localizedNullableText } from '../../lib/locale'
 import { hydrateTranslations, upsertTranslations } from '../../lib/catalog-translation'
-import { isCustomizationCategory } from '../../lib/customization-category'
+import { isSystemProductCategory } from '../../lib/customization-category'
 
 const nonNegativeInt = v.pipe(v.number(), v.integer(), v.minValue(0))
 
@@ -271,7 +271,7 @@ export const productMetadataRoute = new Hono<AppEnv>()
     return c.json({
       categories: hydratedItems.map((category) => ({
         ...category,
-        isSystem: isCustomizationCategory(category.handle),
+        isSystem: isSystemProductCategory(category.handle),
       })),
     }, 200)
   })
@@ -347,13 +347,13 @@ export const productMetadataRoute = new Hono<AppEnv>()
       return jsonError(c, 404, 'Category not found')
     }
 
-    if (isCustomizationCategory(existing.handle)) {
+    if (isSystemProductCategory(existing.handle)) {
       if (
         parsed.output.name !== undefined ||
         parsed.output.handle !== undefined ||
         parsed.output.description !== undefined
       ) {
-        return jsonError(c, 409, 'Customization category name, handle, and description cannot be changed')
+        return jsonError(c, 409, 'System category name, handle, and description cannot be changed')
       }
     }
 
@@ -429,8 +429,8 @@ export const productMetadataRoute = new Hono<AppEnv>()
       return jsonError(c, 404, 'Category not found')
     }
 
-    if (isCustomizationCategory(existing.handle)) {
-      return jsonError(c, 409, 'Customization category cannot be deleted')
+    if (isSystemProductCategory(existing.handle)) {
+      return jsonError(c, 409, 'System category cannot be deleted')
     }
 
     await db.delete(productCategories).where(eq(productCategories.id, id)).run()

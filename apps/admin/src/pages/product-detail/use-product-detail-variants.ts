@@ -6,6 +6,7 @@ import { convertPdfToImageFile } from "../../lib/pdf-preview";
 import {
   createProductVariant,
   deleteProductVariant,
+  syncProductVariantToMisa,
   updateProductVariantCustomizationMedia,
   updateProductVariantDetails,
   updateProductVariantMedia,
@@ -104,6 +105,7 @@ export function useProductDetailVariants({ product, mutate }: ProductDetailVaria
   const [isSavingStock, setIsSavingStock] = useState(false);
   const [isSavingVariant, setIsSavingVariant] = useState(false);
   const [isUploadingVariantMedia, setIsUploadingVariantMedia] = useState(false);
+  const [syncingMisaVariantId, setSyncingMisaVariantId] = useState<number | null>(null);
 
   const variantMediaInputRef = useRef<HTMLInputElement | null>(null);
   const variantCustomizationMediaInputRef = useRef<HTMLInputElement | null>(null);
@@ -387,13 +389,33 @@ export function useProductDetailVariants({ product, mutate }: ProductDetailVaria
     }
   }
 
+  async function handleSyncVariantToMisa(variantId: number) {
+    setSyncingMisaVariantId(variantId);
+    try {
+      const result = await syncProductVariantToMisa(product.id, variantId);
+      await mutate();
+      if (result.sync.status === "synced") {
+        toast.success("Variant synchronized with MISA");
+      } else {
+        toast.error("Variant could not be synchronized with MISA", {
+          description: result.sync.error || "Review the MISA status and try again.",
+        });
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to synchronize the variant with MISA.";
+      toast.error("Variant could not be synchronized with MISA", { description: message });
+    } finally {
+      setSyncingMisaVariantId(null);
+    }
+  }
+
   return {
     priceOpen, setPriceOpen, stockOpen, setStockOpen, variantOpen, setVariantOpen,
     priceRows, setPriceRows, stockRows, setStockRows, variantForm, setVariantForm,
     variantTitleLocale, setVariantTitleLocale, variantAttributeLocale, setVariantAttributeLocale,
-    isSavingPrices, isSavingStock, isSavingVariant, isUploadingVariantMedia,
+    isSavingPrices, isSavingStock, isSavingVariant, isUploadingVariantMedia, syncingMisaVariantId,
     variantMediaInputRef, variantCustomizationMediaInputRef, openPrices, openStock,
     openVariantEditor, updateVariantAttribute, savePrices, saveStock, saveVariant,
-    handleVariantMediaUpload, handleCustomizationMediaUpload, handleDeleteVariant,
+    handleVariantMediaUpload, handleCustomizationMediaUpload, handleDeleteVariant, handleSyncVariantToMisa,
   };
 }

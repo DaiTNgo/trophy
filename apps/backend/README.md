@@ -59,7 +59,7 @@ pnpm --filter backend exec wrangler secret put MISA_CLIENT_SECRET
 
 MISA publish and checkout flows call the backend MISA client directly. The admin proxy at `/api/admin/misa/products` is intended for authenticated debugging and lookup; it never returns the MISA bearer token.
 
-Before applying the migration, the schema requires `product_variants.misa_product_id` for the numeric MISA product ID and the order MISA sync fields defined in `src/db/schema.ts`. Migration generation and application are intentionally operator-owned for this change.
+Before applying the migration, the schema requires `product_variants.misa_product_id`, `misa_sync_status`, `misa_last_error`, and `misa_synced_at` for per-variant MISA synchronization, plus the order MISA sync fields defined in `src/db/schema.ts`. Migration generation and application are intentionally operator-owned for this change.
 
 Useful Bruno requests after checkout or while debugging:
 

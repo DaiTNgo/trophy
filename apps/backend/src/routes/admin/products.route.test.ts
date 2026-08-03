@@ -5,9 +5,9 @@ vi.mock("../../db/client", () => ({
 }));
 
 vi.mock("../../lib/misa", () => ({
-  buildMisaCreateProductsPayload: vi.fn(() => [{ product_code: "SKU-1", product_name: "Product", inactive: false }]),
+  buildMisaCreateProductsPayload: vi.fn(() => [{ product_code: "20", product_name: "Product", inactive: false, usage_unit: "Cái", product_properties: "Hàng hóa", form_layout: "Mẫu tiêu chuẩn" }]),
   createMisaProducts: vi.fn(async () => ({ created: [], existing: [] })),
-  findMisaProductsByCodes: vi.fn(async () => [{ id: "101", product_code: "SKU-1", product_name: "Product" }]),
+  findMisaProductsByCodes: vi.fn(async () => [{ id: "101", product_code: "20", product_name: "Product" }]),
   deleteMisaProducts: vi.fn(async () => undefined),
   deleteMisaProductsByCodes: vi.fn(async () => ({ deleted: [] })),
   isMisaConfigured: vi.fn(() => true),
@@ -236,15 +236,146 @@ describe("admin products operation-specific routes", () => {
 
     expect(response.status).toBe(200);
     expect(createMisaProducts).toHaveBeenCalled();
-    expect(findMisaProductsByCodes).toHaveBeenCalledWith(expect.anything(), ["SKU-1"]);
-    expect(db.mutations).toContainEqual({ kind: "update", set: expect.objectContaining({ misaProductId: 101 }) });
+    expect(findMisaProductsByCodes).toHaveBeenCalledWith(expect.anything(), ["20"]);
+    expect(db.mutations).toContainEqual({ kind: "update", set: expect.objectContaining({ misaProductId: 101, misaSyncStatus: "synced" }) });
     expect(db.mutations).toContainEqual({ kind: "update", set: expect.objectContaining({ status: "published" }) });
+  });
+
+  it("publishes locally and records a variant MISA failure", async () => {
+    const variant = {
+      id: 20,
+      productId: 1,
+      title: "Gold",
+      sku: null,
+      priceAmount: 5000,
+      inventoryQuantity: 8,
+      allowBackorder: false,
+      isDefault: true,
+      position: 0,
+      createdAt: "2026-07-04T00:00:00.000Z",
+      updatedAt: "2026-07-04T00:00:00.000Z",
+    };
+    queueReadProduct(db, { id: 1, title: "Champion Cup", status: "draft" }, { variantRows: [variant] });
+    queueReadProduct(db, { id: 1, title: "Champion Cup", status: "published" }, { variantRows: [variant] });
+    vi.mocked(createMisaProducts).mockRejectedValueOnce(new Error("MISA rejected product"));
+
+    const response = await productsRoute.request("/1/publish", { method: "POST" }, {
+      MISA_CLIENT_ID: "client",
+      MISA_CLIENT_SECRET: "secret",
+    } as never);
+
+    expect(response.status).toBe(200);
+    expect(db.mutations).toContainEqual({ kind: "update", set: expect.objectContaining({ status: "published" }) });
+    expect(db.mutations).toContainEqual({ kind: "update", set: expect.objectContaining({ misaSyncStatus: "failed", misaLastError: "MISA rejected product" }) });
+  });
+
+  it("returns product overview save without waiting for a stalled MISA name update", async () => {
+    const variant = {
+      id: 20,
+      productId: 1,
+      title: "Gold",
+      sku: null,
+      misaProductId: 101,
+      misaSyncStatus: "synced",
+      misaLastError: null,
+      misaSyncedAt: null,
+      priceAmount: 5000,
+      inventoryQuantity: 8,
+      allowBackorder: false,
+      isDefault: true,
+      position: 0,
+      createdAt: "2026-07-04T00:00:00.000Z",
+      updatedAt: "2026-07-04T00:00:00.000Z",
+    };
+    db.getQueue.push({ id: 1, title: "Champion Cup", handle: "champion-cup", status: "published", subtitle: null, description: null });
+    db.selectQueue.push([]); // Product-title translation upsert.
+    queueReadProduct(db, { id: 1, title: "Renamed Cup", status: "published" }, { variantRows: [variant] });
+    queueReadProduct(db, { id: 1, title: "Renamed Cup", status: "published" }, { variantRows: [variant] });
+    let backgroundTask: Promise<unknown> | undefined;
+    const request = productsRoute.fetch(new Request("http://localhost/1", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: { vi: "Renamed Cup" } }),
+    }), { MISA_CLIENT_ID: "client", MISA_CLIENT_SECRET: "secret" } as never, {
+      waitUntil: (task) => { backgroundTask = task; },
+      passThroughOnException: () => undefined,
+      props: {},
+    });
+
+    const result = await Promise.race<Response | "timeout">([
+      request,
+      new Promise((resolve) => setTimeout(() => resolve("timeout"), 25)),
+    ]);
+    expect(result).not.toBe("timeout");
+    expect((result as Response).status).toBe(200);
+    expect(db.mutations).toContainEqual({ kind: "update", set: expect.objectContaining({ title: "Renamed Cup" }) });
+    expect(backgroundTask).toBeDefined();
+  });
+
+  it("manually synchronizes one published variant with MISA", async () => {
+    const variant = {
+      id: 20,
+      productId: 1,
+      title: "Gold",
+      sku: null,
+      priceAmount: 5000,
+      inventoryQuantity: 8,
+      allowBackorder: false,
+      isDefault: true,
+      position: 0,
+      createdAt: "2026-07-04T00:00:00.000Z",
+      updatedAt: "2026-07-04T00:00:00.000Z",
+    };
+    queueReadProduct(db, { id: 1, title: "Champion Cup", status: "published" }, { variantRows: [variant] });
+    queueReadProduct(db, { id: 1, title: "Champion Cup", status: "published" }, { variantRows: [variant] });
+
+    const response = await productsRoute.request("/1/variants/20/misa-sync", { method: "POST" }, {
+      MISA_CLIENT_ID: "client",
+      MISA_CLIENT_SECRET: "secret",
+    } as never);
+
+    expect(response.status).toBe(200);
+    expect(createMisaProducts).toHaveBeenCalledWith(expect.anything(), [expect.objectContaining({ product_code: "20" })]);
+    await expect(response.json()).resolves.toMatchObject({ sync: { variantId: 20, status: "synced", error: null } });
+  });
+
+  it("rejects manual MISA synchronization for a draft product", async () => {
+    queueReadProduct(db, { id: 1, title: "Champion Cup", status: "draft" }, { variantRows: [] });
+
+    const response = await productsRoute.request("/1/variants/20/misa-sync", { method: "POST" }, {
+      MISA_CLIENT_ID: "client",
+      MISA_CLIENT_SECRET: "secret",
+    } as never);
+
+    expect(response.status).toBe(409);
   });
 
   it("rejects deleting a product referenced by an order", async () => {
     db.getQueue.push({ id: 1, status: "published" }, { id: 55 });
     const response = await productsRoute.request("/1", { method: "DELETE" }, { MISA_CLIENT_ID: "client", MISA_CLIENT_SECRET: "secret" } as never);
     expect(response.status).toBe(409);
+  });
+
+  it("assigns Other products when saving organization with no categories", async () => {
+    db.getQueue.push(
+      { id: 1, title: "Champion Cup", collectionId: null },
+      null,
+      null,
+      { id: 9, handle: "other-products" },
+    );
+    queueReadProduct(db, { id: 1, status: "draft" });
+
+    const response = await productsRoute.request("/1/organize", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ collectionId: null, categoryIds: [] }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(db.mutations).toContainEqual({
+      kind: "insert",
+      values: [{ productId: 1, categoryId: 9 }],
+    });
   });
 
   it("creates a product option without replacing the full option set", async () => {

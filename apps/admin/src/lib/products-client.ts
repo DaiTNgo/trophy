@@ -1,4 +1,5 @@
 import type { CatalogProduct, LocalizedTextValue } from "../types";
+import { backendClient } from "./backend-client";
 import { backendFetch } from "./fetch";
 
 export type MisaProduct = {
@@ -51,6 +52,8 @@ type ApiProduct = {
     title: LocalizedInput;
     sku: string | null;
     misaProductId: number | null;
+    misaSyncStatus: "pending" | "synced" | "failed";
+    misaLastError: string | null;
     priceAmount: number | null;
     inventoryQuantity: number;
     allowBackorder: boolean;
@@ -479,6 +482,24 @@ export async function deleteProductVariant(id: string, variantId: number) {
   return body.item as ApiProduct;
 }
 
+export async function syncProductVariantToMisa(
+  id: string,
+  variantId: number,
+): Promise<{ item: ApiProduct; sync: { status: "synced" | "failed"; error: string | null } }> {
+  const response = await backendClient.api.admin.products[":id"].variants[":variantId"]["misa-sync"].$post({
+    param: { id, variantId: String(variantId) },
+  });
+  const body = await response.json() as {
+    item?: ApiProduct;
+    sync?: { status: "synced" | "failed"; error: string | null };
+    error?: string;
+  };
+  if (!response.ok || !body.item || !body.sync) {
+    throw new Error(body.error || "Failed to synchronize the variant with MISA.");
+  }
+  return { item: body.item, sync: body.sync };
+}
+
 export async function updateProductVariantPrices(
   id: string,
   items: Array<{ id: number; priceAmount: number | null }>,
@@ -622,6 +643,8 @@ export function mapApiProductToCatalogProduct(product: Partial<ApiProduct> & Pic
     title: toLocalized(variant.title).vi,
     titleTranslations: toLocalized(variant.title),
     sku: variant.sku ?? "",
+    misaSyncStatus: variant.misaSyncStatus,
+    misaLastError: variant.misaLastError,
     price: variant.priceAmount ?? 0,
     inventory: variant.inventoryQuantity,
     options: (variant.optionValueIds || []).map((id) => {

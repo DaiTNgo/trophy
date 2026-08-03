@@ -162,6 +162,13 @@
       "when": 1785058560478,
       "tag": "0022_stormy_drax",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "6",
+      "when": 1785765309805,
+      "tag": "0023_low_randall_flagg",
+      "breakpoints": true
     }
   ]
 }

@@ -33,14 +33,15 @@ import {
   buildMisaCreateProductsPayload,
   createMisaProducts,
   deleteMisaProducts,
-  deleteMisaProductsByCodes,
   findMisaProductsByCodes,
   isMisaConfigured,
+  updateMisaProducts,
 } from '../../lib/misa'
 import { hydrateCustomization, persistCustomizationTranslations } from '../../lib/customization-translation'
 import {
   CUSTOMIZATION_CATEGORY_HANDLE,
   ensureCustomizationCategory,
+  ensureOtherProductsCategory,
 } from '../../lib/customization-category'
 
 const DEFAULT_PRODUCT_OPTION_TITLE = 'Default option'
@@ -859,6 +860,84 @@ const readProduct = async (c: Context<AppEnv>, db: ReturnType<typeof getDb>, pro
   )
 
   return hydratedProduct
+}
+
+const syncMisaProductVariants = async (
+  c: Context<AppEnv>,
+  db: ReturnType<typeof getDb>,
+  product: NonNullable<Awaited<ReturnType<typeof readProduct>>>,
+  variants = product.variants,
+) => {
+  let payloads: ReturnType<typeof buildMisaCreateProductsPayload>
+  try {
+    payloads = buildMisaCreateProductsPayload({ title: product.title, variants })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unable to prepare MISA product payload'
+    await Promise.all(variants.map((variant) => db.update(productVariants)
+      .set({ misaSyncStatus: 'failed', misaLastError: message })
+      .where(eq(productVariants.id, variant.id))))
+    return variants.map((variant) => ({ variantId: variant.id, status: 'failed' as const, error: message }))
+  }
+
+  if (!isMisaConfigured(c.env)) {
+    await Promise.all(variants.map((variant) => db.update(productVariants)
+      .set({ misaSyncStatus: 'failed', misaLastError: 'MISA integration is not configured' })
+      .where(eq(productVariants.id, variant.id))))
+    return variants.map((variant) => ({
+      variantId: variant.id,
+      status: 'failed' as const,
+      error: 'MISA integration is not configured',
+    }))
+  }
+
+  return Promise.all(variants.map(async (variant, index) => {
+    const payload = payloads[index]
+    try {
+      if (variant.misaSyncStatus === 'synced' && variant.misaProductId) {
+        await updateMisaProducts(c.env, [payload])
+        await db.update(productVariants)
+          .set({ misaSyncStatus: 'synced', misaLastError: null, misaSyncedAt: new Date() })
+          .where(eq(productVariants.id, variant.id))
+        return { variantId: variant.id, status: 'synced' as const, error: null }
+      }
+
+      await createMisaProducts(c.env, [payload])
+      const remoteProducts = await findMisaProductsByCodes(c.env, [payload.product_code])
+      const remote = remoteProducts.find((item) => item.product_code === payload.product_code)
+      const misaProductId = remote?.id ? Number(remote.id) : NaN
+      if (!Number.isInteger(misaProductId) || misaProductId <= 0) {
+        throw new Error(`MISA did not return a numeric ID for variant ${variant.id}`)
+      }
+
+      await db.update(productVariants)
+        .set({
+          misaProductId,
+          misaSyncStatus: 'synced',
+          misaLastError: null,
+          misaSyncedAt: new Date(),
+        })
+        .where(eq(productVariants.id, variant.id))
+      return { variantId: variant.id, status: 'synced' as const, error: null }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to synchronize variant with MISA'
+      await db.update(productVariants)
+        .set({
+          misaSyncStatus: 'failed',
+          misaLastError: message,
+        })
+        .where(eq(productVariants.id, variant.id))
+      return { variantId: variant.id, status: 'failed' as const, error: message }
+    }
+  }))
+}
+
+const enqueueMisaProductSync = (
+  c: Context<AppEnv>,
+  db: ReturnType<typeof getDb>,
+  product: NonNullable<Awaited<ReturnType<typeof readProduct>>>,
+) => {
+  const task = syncMisaProductVariants(c, db, product).catch(() => undefined)
+  c.executionCtx?.waitUntil(task)
 }
 
 const replaceAttributes = async (
@@ -2224,6 +2303,10 @@ export const productsRoute = new Hono<AppEnv>()
       const customizationCategory = await ensureCustomizationCategory(db)
       categoryIds = [...new Set([...categoryIds, customizationCategory.id])]
     }
+    if (categoryIds.length === 0) {
+      const otherProductsCategory = await ensureOtherProductsCategory(db)
+      categoryIds = [otherProductsCategory.id]
+    }
 
     if (categoryIds.length > 0) {
       await db.insert(productCategoryLinks).values(
@@ -2340,6 +2423,8 @@ export const productsRoute = new Hono<AppEnv>()
           updatedAt: nowIso()
         })
         .where(eq(products.id, insertedProduct.id))
+
+      await syncMisaProductVariants(c, db, publishCandidate)
     }
 
     const product = await readProduct(c, db, insertedProduct.id)
@@ -2426,6 +2511,9 @@ export const productsRoute = new Hono<AppEnv>()
     }
 
     const product = await readProduct(c, db, current.id)
+    if (product && current.status === 'published' && nextTitle !== current.title) {
+      enqueueMisaProductSync(c, db, product)
+    }
     return c.json({ item: product }, 200)
   })
   .patch('/:id/organize', async (c) => {
@@ -2478,6 +2566,10 @@ export const productsRoute = new Hono<AppEnv>()
       if (currentCustomization?.enabled) {
         const customizationCategory = await ensureCustomizationCategory(db)
         categoryIds = [...new Set([...categoryIds, customizationCategory.id])]
+      }
+      if (categoryIds.length === 0) {
+        const otherProductsCategory = await ensureOtherProductsCategory(db)
+        categoryIds = [otherProductsCategory.id]
       }
 
       await db
@@ -3174,7 +3266,14 @@ export const productsRoute = new Hono<AppEnv>()
     await updateProductTimestamp(db, product.id)
 
     const nextProduct = await readProduct(c, db, product.id)
-    return c.json({ item: nextProduct }, 201)
+    if (nextProduct && product.status === 'published') {
+      const inserted = nextProduct.variants.find((item) => item.id === insertedVariant.id)
+      if (inserted) await syncMisaProductVariants(c, db, nextProduct, [inserted])
+    }
+    const syncedProduct = product.status === 'published'
+      ? await readProduct(c, db, product.id)
+      : nextProduct
+    return c.json({ item: syncedProduct }, 201)
   })
   .patch('/:id/variants/:variantId', async (c) => {
     const params = parseParams(c, variantParamsSchema)
@@ -3219,10 +3318,12 @@ export const productsRoute = new Hono<AppEnv>()
       return jsonError(c, selectionError.status, selectionError.error)
     }
 
+    const nextVariantTitle = localizedInputValue(parsed.output.title)
+
     await db
       .update(productVariants)
       .set({
-        title: localizedInputValue(parsed.output.title),
+        title: nextVariantTitle,
         sku: parsed.output.sku ?? null,
         allowBackorder: parsed.output.allowBackorder ?? variant.allowBackorder,
         updatedAt: nowIso()
@@ -3261,7 +3362,32 @@ export const productsRoute = new Hono<AppEnv>()
     await updateProductTimestamp(db, product.id)
 
     const nextProduct = await readProduct(c, db, product.id)
-    return c.json({ item: nextProduct }, 200)
+    if (nextProduct && product.status === 'published' && nextVariantTitle !== variant.title) {
+      const updated = nextProduct.variants.find((item) => item.id === variant.id)
+      if (updated) await syncMisaProductVariants(c, db, nextProduct, [updated])
+    }
+    const syncedProduct = product.status === 'published' && nextVariantTitle !== variant.title
+      ? await readProduct(c, db, product.id)
+      : nextProduct
+    return c.json({ item: syncedProduct }, 200)
+  })
+  .post('/:id/variants/:variantId/misa-sync', async (c) => {
+    const params = parseParams(c, variantParamsSchema)
+    if (!params.success) return params.response
+
+    const db = getDb(c.env)
+    const product = await readProduct(c, db, params.output.id)
+    if (!product) return jsonError(c, 404, 'Product not found')
+    if (product.status !== 'published') {
+      return jsonError(c, 409, 'Only published product variants can be synchronized with MISA')
+    }
+
+    const variant = product.variants.find((item) => item.id === params.output.variantId)
+    if (!variant) return jsonError(c, 404, 'Variant not found')
+
+    const [sync] = await syncMisaProductVariants(c, db, product, [variant])
+    const updatedProduct = await readProduct(c, db, product.id)
+    return c.json({ item: updatedProduct, sync }, 200)
   })
   .delete('/:id/variants/:variantId', async (c) => {
     const params = parseParams(c, variantParamsSchema)
@@ -3284,6 +3410,26 @@ export const productsRoute = new Hono<AppEnv>()
 
     if (product.variants.length === 1) {
       return jsonError(c, 409, 'A product must have at least one variant')
+    }
+
+    const ordered = await db
+      .select({ id: orderItems.id })
+      .from(orderItems)
+      .where(eq(orderItems.variantId, variant.id))
+      .get()
+    if (ordered) {
+      return jsonError(c, 409, 'Variant cannot be deleted because it is used by an order')
+    }
+
+    if (variant.misaSyncStatus === 'synced' && variant.misaProductId) {
+      if (!isMisaConfigured(c.env)) {
+        return jsonError(c, 503, 'MISA integration is not configured')
+      }
+      try {
+        await deleteMisaProducts(c.env, [variant.misaProductId])
+      } catch (error) {
+        return jsonError(c, 502, error instanceof Error ? error.message : 'Unable to delete MISA product')
+      }
     }
 
     await db
@@ -3735,37 +3881,6 @@ export const productsRoute = new Hono<AppEnv>()
       return jsonError(c, 409, publishError)
     }
 
-    if (!isMisaConfigured(c.env)) {
-      return jsonError(c, 503, 'MISA integration is not configured')
-    }
-
-    let misaPayload
-    try {
-      misaPayload = buildMisaCreateProductsPayload(product)
-      await createMisaProducts(c.env, misaPayload)
-      const remoteProducts = await findMisaProductsByCodes(
-        c.env,
-        misaPayload.map((item) => item.product_code),
-      )
-      const idsByCode = new Map(
-        remoteProducts.flatMap((remote) => {
-          const id = remote.id ? Number(remote.id) : NaN
-          return Number.isInteger(id) && id > 0 ? [[remote.product_code, id] as const] : []
-        }),
-      )
-      for (const variant of product.variants) {
-        const code = variant.sku?.trim()
-        const misaProductId = code ? idsByCode.get(code) : undefined
-        if (misaProductId) {
-          await db.update(productVariants)
-            .set({ misaProductId })
-            .where(eq(productVariants.id, variant.id))
-        }
-      }
-    } catch (error) {
-      return jsonError(c, 502, error instanceof Error ? error.message : 'Unable to synchronize product with MISA')
-    }
-
     await db
       .update(products)
       .set({
@@ -3774,6 +3889,7 @@ export const productsRoute = new Hono<AppEnv>()
       })
       .where(eq(products.id, product.id))
 
+    await syncMisaProductVariants(c, db, product)
     const publishedProduct = await readProduct(c, db, product.id)
     return c.json({ item: publishedProduct }, 200)
   })
@@ -3819,19 +3935,18 @@ export const productsRoute = new Hono<AppEnv>()
 
     const product = await readProduct(c, db, current.id)
     if (!product) return jsonError(c, 404, 'Product not found')
-    if (!isMisaConfigured(c.env)) return jsonError(c, 503, 'MISA integration is not configured')
-
     const variants = product.variants
-    const codes = variants.map((variant) => variant.sku?.trim()).filter((value): value is string => Boolean(value))
-    try {
-      const storedIds = variants.map((variant) => variant.misaProductId).filter((value): value is number => typeof value === 'number' && Number.isInteger(value) && value > 0)
-      if (storedIds.length === codes.length) {
+    const storedIds = variants
+      .filter((variant) => variant.misaSyncStatus === 'synced')
+      .map((variant) => variant.misaProductId)
+      .filter((value): value is number => typeof value === 'number' && Number.isInteger(value) && value > 0)
+    if (storedIds.length > 0) {
+      if (!isMisaConfigured(c.env)) return jsonError(c, 503, 'MISA integration is not configured')
+      try {
         await deleteMisaProducts(c.env, storedIds)
-      } else {
-        await deleteMisaProductsByCodes(c.env, codes)
+      } catch (error) {
+        return jsonError(c, 502, error instanceof Error ? error.message : 'Unable to delete MISA products')
       }
-    } catch (error) {
-      return jsonError(c, 502, error instanceof Error ? error.message : 'Unable to delete MISA products')
     }
 
     const optionRows = await db.select({ id: productOptions.id }).from(productOptions).where(eq(productOptions.productId, current.id))
