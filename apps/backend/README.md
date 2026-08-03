@@ -46,6 +46,42 @@ The admin UI signs in with `username + password`, not email.
 
 Create a real D1 database, then replace the placeholder IDs in [`wrangler.jsonc`](/Users/dnt/workspace/trophy/apps/backend/wrangler.jsonc).
 
+## MISA integration
+
+Copy `.dev.vars.example` to `.dev.vars` for local development and set the real `MISA_CLIENT_ID` and `MISA_CLIENT_SECRET`. Do not commit `.dev.vars` or put MISA secrets in `wrangler.jsonc`.
+
+Production secrets are configured with Wrangler:
+
+```bash
+pnpm --filter backend exec wrangler secret put MISA_CLIENT_ID
+pnpm --filter backend exec wrangler secret put MISA_CLIENT_SECRET
+```
+
+MISA publish and checkout flows call the backend MISA client directly. The admin proxy at `/api/admin/misa/products` is intended for authenticated debugging and lookup; it never returns the MISA bearer token.
+
+Before applying the migration, the schema requires `product_variants.misa_product_id`, `misa_sync_status`, `misa_last_error`, and `misa_synced_at` for per-variant MISA synchronization, plus the order MISA sync fields defined in `src/db/schema.ts`. Migration generation and application are intentionally operator-owned for this change.
+
+Useful Bruno requests after checkout or while debugging:
+
+```http
+POST {{backend_url}}/api/storefront/orders
+Content-Type: application/json
+
+{{checkout_payload}}
+```
+
+```http
+GET {{backend_url}}/api/admin/misa/products?q=SKU-1
+Authorization: Bearer {{admin_session_token}}
+```
+
+```http
+POST {{backend_url}}/api/admin/products/{{product_id}}/publish
+Authorization: Bearer {{admin_session_token}}
+```
+
+The publish request is the business flow: Admin calls Trophy and the backend calls MISA directly. The MISA proxy is only for explicit admin lookup/debug operations.
+
 ```txt
 pnpm --filter backend exec wrangler d1 create backend
 ```

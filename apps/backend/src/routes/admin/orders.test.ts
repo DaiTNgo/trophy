@@ -159,6 +159,12 @@ describe("admin orders routes", () => {
       totalAmount: 10000,
       currencyCode: "VND",
       itemCount: 2,
+      misaSyncStatus: "failed",
+      misaContactId: "contact-123",
+      misaSaleOrderId: null,
+      misaLastError: "MISA rejected the order items",
+      misaAttemptCount: 1,
+      misaSyncedAt: null,
       createdAt: new Date("2026-07-05T00:00:00.000Z"),
       updatedAt: new Date("2026-07-05T01:00:00.000Z"),
     });
@@ -221,6 +227,14 @@ describe("admin orders routes", () => {
       taxId: "0312345678",
       email: "accounting@trophy.test",
       address: "1 Nguyen Hue, Ho Chi Minh City",
+    });
+    expect(body.order.misa).toEqual({
+      syncStatus: "failed",
+      contactId: "contact-123",
+      saleOrderId: null,
+      lastError: "MISA rejected the order items",
+      attemptCount: 1,
+      syncedAt: null,
     });
     expect(body.order.items[0].customization).toEqual({
       values: [{ fieldId: "text_1", label: "Name", valueSummary: "Alice" }],

@@ -19,6 +19,7 @@ import {
   ImagePlus,
   MoreHorizontal,
   Pencil,
+  RefreshCw,
   Trash,
 } from "lucide-react";
 import { DropdownMenu } from "@medusajs/ui";
@@ -33,6 +34,12 @@ type ProductDetailVariantsProps = {
   mutate: () => Promise<void>;
 };
 
+const misaStatus = {
+  synced: { label: "Synced", color: "green" as const },
+  pending: { label: "Pending", color: "grey" as const },
+  failed: { label: "Failed", color: "red" as const },
+};
+
 export function ProductDetailVariants({ product, mutate }: ProductDetailVariantsProps) {
   const state = useProductDetailVariants({ product, mutate });
   const {
@@ -43,6 +50,7 @@ export function ProductDetailVariants({ product, mutate }: ProductDetailVariants
     variantMediaInputRef, variantCustomizationMediaInputRef, openPrices, openStock,
     openVariantEditor, updateVariantAttribute, savePrices, saveStock, saveVariant,
     handleVariantMediaUpload, handleCustomizationMediaUpload, handleDeleteVariant,
+    handleSyncVariantToMisa, syncingMisaVariantId,
   } = state;
 
   return (
@@ -85,6 +93,7 @@ export function ProductDetailVariants({ product, mutate }: ProductDetailVariants
                 <Table.HeaderCell className="w-12 pl-6" />
                 <Table.HeaderCell>Title</Table.HeaderCell>
                 <Table.HeaderCell>SKU</Table.HeaderCell>
+                <Table.HeaderCell>MISA</Table.HeaderCell>
                 {product.optionDefinitions.map((opt) => (
                   <Table.HeaderCell key={opt.id}>{opt.title}</Table.HeaderCell>
                 ))}
@@ -100,6 +109,7 @@ export function ProductDetailVariants({ product, mutate }: ProductDetailVariants
                       No product variants yet.
                     </Text>
                   </Table.Cell>
+                  <Table.Cell />
                   <Table.Cell />
                   <Table.Cell />
                   <Table.Cell />
@@ -134,6 +144,15 @@ export function ProductDetailVariants({ product, mutate }: ProductDetailVariants
                       {variant.sku || "-"}
                     </Text>
                   </Table.Cell>
+                  <Table.Cell>
+                    <Badge
+                      size="xsmall"
+                      color={misaStatus[variant.misaSyncStatus ?? "pending"].color}
+                      title={variant.misaLastError ?? undefined}
+                    >
+                      {misaStatus[variant.misaSyncStatus ?? "pending"].label}
+                    </Badge>
+                  </Table.Cell>
                   {product.optionDefinitions.map((opt) => {
                     const selected = variant.options.find((o) => o.option === opt.title);
                     return (
@@ -165,6 +184,15 @@ export function ProductDetailVariants({ product, mutate }: ProductDetailVariants
                           <Pencil className="mr-2 h-4 w-4" />
                           Edit
                         </DropdownMenu.Item>
+                        {product.status === "Published" ? (
+                          <DropdownMenu.Item
+                            onClick={() => void handleSyncVariantToMisa(Number(variant.id))}
+                            disabled={syncingMisaVariantId === Number(variant.id)}
+                          >
+                            <RefreshCw className="mr-2 h-4 w-4" />
+                            {syncingMisaVariantId === Number(variant.id) ? "Syncing MISA" : "Sync MISA"}
+                          </DropdownMenu.Item>
+                        ) : null}
                         <DropdownMenu.Separator />
                         <DropdownMenu.Item onClick={() => void handleDeleteVariant(Number(variant.id))}>
                           <Trash className="mr-2 h-4 w-4 text-ui-fg-error" />

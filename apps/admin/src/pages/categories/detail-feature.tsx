@@ -487,7 +487,7 @@ export function CategoryDetailPage() {
               <Drawer.Body className="p-4 flex flex-col gap-y-6">
                 {isSystem ? (
                   <Text size="small" className="rounded-md border border-ui-border-base bg-ui-bg-subtle p-3 text-ui-fg-subtle">
-                    This is the system Customization category. Only its image and ranking can be changed.
+                    This is a system category. Only its image and ranking can be changed.
                   </Text>
                 ) : null}
                 <div className="flex flex-col gap-y-2">

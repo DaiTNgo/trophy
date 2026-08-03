@@ -58,6 +58,14 @@ export type AdminOrderDetail = {
     email?: string;
     address?: string;
   } | null;
+  misa: {
+    syncStatus: "pending" | "synced" | "failed";
+    contactId: string | null;
+    saleOrderId: string | null;
+    lastError: string | null;
+    attemptCount: number;
+    syncedAt: string | null;
+  };
   totals: {
     subtotalAmount: number;
     totalAmount: number;

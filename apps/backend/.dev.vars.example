@@ -1,0 +1,7 @@
+MISA_CLIENT_ID=replace-with-misa-client-id
+MISA_CLIENT_SECRET=replace-with-misa-client-secret
+MISA_API_BASE_URL=https://crmconnect.misa.vn/api/v2
+BETTER_AUTH_SECRET=replace-with-local-secret
+BETTER_AUTH_URL=http://localhost:8787
+ADMIN_APP_ORIGIN=http://localhost:5174
+STOREFRONT_APP_ORIGIN=http://localhost:5173

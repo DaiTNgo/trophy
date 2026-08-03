@@ -124,6 +124,26 @@ _Avoid_: hidden default option, required default click
 A purchasable product row representing one concrete option selection, with its own title, SKU, price, inventory, backorder setting, and variant media.
 _Avoid_: generated option combination, Medusa variant model
 
+**MISA Product Record**:
+The external MISA product corresponding to exactly one Trophy Product Variant. Its stable `product_code` is the Trophy variant ID, while its `product_name` is the localized Vietnamese product title followed by the variant title, separated by ` - `. It always uses `usage_unit` "Cái", `product_properties` "Hàng hóa", and `form_layout` "Mẫu tiêu chuẩn". A Trophy SKU is operational catalog data and does not identify the MISA Product Record. MISA failure never prevents Trophy from saving or publishing its product; each Product Variant independently records whether its MISA Product Record has been created.
+_Avoid_: SKU-backed MISA product, product-level MISA record
+
+**Variant MISA Sync Status**:
+The independently persisted MISA synchronization state of a Product Variant: `pending` means it has not yet been created in MISA or needs synchronization, `synced` means its MISA Product Record is known to exist, and `failed` means its most recent MISA operation failed. Each variant also stores its MISA product ID, last MISA error, and most recent successful synchronization time. It is distinct from product publication and order synchronization.
+_Avoid_: product MISA status, order MISA status, published status
+
+**MISA Product Sync Trigger**:
+Trophy attempts MISA product synchronization when an operator creates a product as published, changes a product from draft to published, adds a variant to an already published product, or changes a product or variant name on an already published product. Saving a draft does not call MISA. A MISA error does not reverse the local Trophy save or publish and is recorded per affected Product Variant.
+_Avoid_: draft MISA sync, MISA-gated publish
+
+**Variant MISA Name Update**:
+When a product title or variant title changes, Trophy updates the existing MISA Product Record with MISA `PUT /Products`, identified by the stable variant-ID `product_code`. It does not create a replacement record or use the Trophy SKU for this update.
+_Avoid_: delete-and-recreate MISA product, SKU-based MISA update
+
+**Variant MISA Deletion**:
+Deleting a Product Variant with a synchronized MISA Product Record is permitted only when no historical Order Item references that variant. Trophy checks that condition locally, then deletes the MISA Product Record; it deletes the local Product Variant only after MISA succeeds.
+_Avoid_: post-delete order check, local-first MISA deletion
+
 **Variant Management Action**:
 An explicit operator action that changes one part of variant-related data, such as option values, variant details, prices, stock, or media, without replacing unrelated variant state.
 _Avoid_: full variant replace, regenerate variants

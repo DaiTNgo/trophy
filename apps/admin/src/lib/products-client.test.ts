@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const backendFetchMock = vi.fn();
 
 vi.mock("./fetch", () => ({
+  BACKEND_URL: "http://localhost:8787",
   backendFetch: (...args: unknown[]) => backendFetchMock(...args),
 }));
 
@@ -12,7 +13,7 @@ const apiProduct = {
   id: 10,
   title: "Tournament Cup",
   handle: "tournament-cup",
-  status: "draft",
+  status: "draft" as const,
   subtitle: null,
   description: null,
   categories: [],
@@ -37,6 +38,31 @@ describe("mapApiProductToCatalogProduct", () => {
         status: "published",
       }).status,
     ).toBe("Published");
+  });
+
+  it("preserves each variant's MISA synchronization state", () => {
+    const product = mapApiProductToCatalogProduct({
+      ...apiProduct,
+      variants: [{
+        id: 7,
+        title: "Gold",
+        sku: null,
+        misaProductId: null,
+        misaSyncStatus: "failed",
+        misaLastError: "MISA integration is not configured",
+        priceAmount: 1000,
+        inventoryQuantity: 2,
+        allowBackorder: false,
+        media: [],
+        customizationMedia: null,
+        optionValueIds: [],
+      }],
+    });
+
+    expect(product.variants[0]).toMatchObject({
+      misaSyncStatus: "failed",
+      misaLastError: "MISA integration is not configured",
+    });
   });
 
   it("sends option values with the nested value object expected by the admin products route", async () => {

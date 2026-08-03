@@ -20,6 +20,12 @@ import {
   renderAddress,
 } from "./order-detail-utils";
 
+const misaStatus = {
+  synced: { label: "Synced", color: "green" as const },
+  pending: { label: "Pending", color: "grey" as const },
+  failed: { label: "Failed", color: "red" as const },
+};
+
 function DisabledActionHint() {
   return (
     <Text size="xsmall" className="px-2 py-1 text-ui-fg-muted">
@@ -223,6 +229,39 @@ export function OrderDetailSidebar({
               </div>
             ))}
           </div>
+        </div>
+      </Container>
+
+      <Container className="p-0">
+        <div className="flex items-center justify-between border-b border-ui-border-base px-6 py-4">
+          <Heading level="h2">MISA</Heading>
+          <StatusBadge color={misaStatus[order.misa.syncStatus].color}>
+            {misaStatus[order.misa.syncStatus].label}
+          </StatusBadge>
+        </div>
+        <div className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-3 p-6">
+          <Text size="small" className="text-ui-fg-subtle">Sale order ID</Text>
+          <Text size="small" className="break-all text-right text-ui-fg-base">
+            {order.misa.saleOrderId ?? "Not returned"}
+          </Text>
+          <Text size="small" className="text-ui-fg-subtle">Contact ID</Text>
+          <Text size="small" className="break-all text-right text-ui-fg-base">
+            {order.misa.contactId ?? "Not returned"}
+          </Text>
+          <Text size="small" className="text-ui-fg-subtle">Attempts</Text>
+          <Text size="small" className="text-right text-ui-fg-base">{order.misa.attemptCount}</Text>
+          <Text size="small" className="text-ui-fg-subtle">Last synced</Text>
+          <Text size="small" className="text-right text-ui-fg-base">
+            {order.misa.syncedAt ? formatAdminDate(order.misa.syncedAt) : "Not synced"}
+          </Text>
+          {order.misa.lastError ? (
+            <>
+              <Text size="small" className="text-ui-fg-subtle">Last error</Text>
+              <Text size="small" className="break-words text-right text-ui-fg-error">
+                {order.misa.lastError}
+              </Text>
+            </>
+          ) : null}
         </div>
       </Container>
 

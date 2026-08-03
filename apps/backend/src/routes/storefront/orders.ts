@@ -38,6 +38,7 @@ import {
   type StoredCustomizationSnapshot,
 } from "../../lib/order-utils";
 import { jsonError, parseJson } from "../../lib/validation";
+import { isMisaConfigured, syncMisaOrder } from "../../lib/misa";
 
 type OrderStatus = "pending" | "confirmed" | "cancelled";
 type PaymentStatus = "pending" | "paid" | "failed" | "refunded";
@@ -719,6 +720,26 @@ export const storefrontOrdersRoute = new Hono<AppEnv>()
         productionStatus: item.productionStatus,
         createdAt: new Date(now),
       });
+    }
+
+    if (isMisaConfigured(c.env)) {
+      try {
+        const synced = await syncMisaOrder(c.env, insertedOrder.id);
+        await db.update(orders).set({
+          misaSyncStatus: "synced",
+          misaContactId: synced.contactId,
+          misaSaleOrderId: synced.saleOrderId,
+          misaLastError: null,
+          misaAttemptCount: 1,
+          misaSyncedAt: new Date(),
+        }).where(eq(orders.id, insertedOrder.id));
+      } catch (error) {
+        await db.update(orders).set({
+          misaSyncStatus: "failed",
+          misaLastError: error instanceof Error ? error.message : "MISA order synchronization failed",
+          misaAttemptCount: 1,
+        }).where(eq(orders.id, insertedOrder.id));
+      }
     }
 
     return c.json(

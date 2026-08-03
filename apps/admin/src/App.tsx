@@ -25,6 +25,7 @@ import { BrandColorsPage } from "./pages/brand-colors";
 import { BrandFontsPage } from "./pages/brand-fonts";
 import { ClipartPage } from "./pages/clipart";
 import { ClipartDetailPage } from "./pages/clipart-detail";
+import { MisaProductsPage } from "./pages/misa-products";
 
 function ProtectedRoute() {
   const auth = useAuth();
@@ -54,6 +55,7 @@ const router = createBrowserRouter([
           { path: "orders", Component: OrdersListPage },
           { path: "orders/:orderNumber", Component: OrderDetailPage },
           { path: "products", Component: ProductsListPage },
+          { path: "misa-products", Component: MisaProductsPage },
           { path: "products/new", Component: CreateProductPage },
           { path: "products/:productId", Component: ProductDetailPage },
           { path: "products/:productId/customization", Component: ProductCustomizationEditor },

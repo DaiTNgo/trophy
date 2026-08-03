@@ -90,6 +90,14 @@ function serializeAdminOrderDetail(
     shippingAddress,
     notes: orderRow.notes,
     vat,
+    misa: {
+      syncStatus: orderRow.misaSyncStatus,
+      contactId: orderRow.misaContactId,
+      saleOrderId: orderRow.misaSaleOrderId,
+      lastError: orderRow.misaLastError,
+      attemptCount: orderRow.misaAttemptCount,
+      syncedAt: orderRow.misaSyncedAt?.toISOString() ?? null,
+    },
     totals: {
       subtotalAmount: orderRow.subtotalAmount,
       totalAmount: orderRow.totalAmount,

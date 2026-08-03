@@ -1,5 +1,5 @@
 import { useDeferredValue, useMemo, useState, useEffect } from "react";
-import { Link, useLocation } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router";
 import {
   Button,
   Container,
@@ -10,9 +10,10 @@ import {
   IconButton,
   StatusBadge,
 } from "@medusajs/ui";
-import { Plus, MoreHorizontal, ArrowUpDown, X, Check } from "lucide-react";
+import { Plus, MoreHorizontal, ArrowUpDown, X, Check, Trash2, Pencil } from "lucide-react";
 import {
   fetchProducts,
+  deleteProduct,
   mapApiProductToCatalogProduct,
 } from "../lib/products-client";
 import type { CatalogProduct } from "../types";
@@ -20,6 +21,7 @@ import {EllipseMiniSolid} from "@medusajs/icons";
 
 export function ProductsListPage() {
   const location = useLocation();
+  const navigate = useNavigate();
   const [query, setQuery] = useState("");
   const [sortBy, setSortBy] = useState("title");
   const [sortOrder, setSortOrder] = useState("asc");
@@ -30,6 +32,21 @@ export function ProductsListPage() {
   const [products, setProducts] = useState<CatalogProduct[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  async function handleDelete(product: CatalogProduct) {
+    if (!window.confirm(`Delete ${product.title.vi || product.title.en || "this product"}?`)) return;
+    setDeletingId(product.id);
+    setError(null);
+    try {
+      await deleteProduct(product.id);
+      setProducts((current) => current.filter((item) => item.id !== product.id));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete product");
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   const deferredQuery = useDeferredValue(query);
   const flash = (location.state as { flash?: string } | null)?.flash;
@@ -416,8 +433,12 @@ export function ProductsListPage() {
                           </IconButton>
                         </DropdownMenu.Trigger>
                         <DropdownMenu.Content align="end">
-                          <DropdownMenu.Item>Edit</DropdownMenu.Item>
-                          <DropdownMenu.Item className="text-ui-fg-error">
+                          <DropdownMenu.Item onClick={() => navigate(`/products/${product.id}`)}>
+                            <Pencil className="h-4 w-4" />
+                            Edit
+                          </DropdownMenu.Item>
+                          <DropdownMenu.Item className="text-ui-fg-error" disabled={deletingId === product.id} onClick={() => void handleDelete(product)}>
+                            <Trash2 className="h-4 w-4" />
                             Delete
                           </DropdownMenu.Item>
                         </DropdownMenu.Content>

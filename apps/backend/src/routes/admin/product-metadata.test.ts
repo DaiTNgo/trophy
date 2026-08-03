@@ -141,6 +141,44 @@ describe("product metadata routes", () => {
     expect(db.mutations).toHaveLength(0);
   });
 
+  it("marks Other products as a system category and rejects its deletion", async () => {
+    db.selectQueue.push([
+      {
+        id: 10,
+        name: "Other products",
+        description: null,
+        handle: "other-products",
+        imageUrl: null,
+        position: 0,
+      },
+    ]);
+
+    const list = await productMetadataRoute.request("/categories");
+
+    expect(list.status).toBe(200);
+    await expect(list.json()).resolves.toMatchObject({
+      categories: [{ id: 10, handle: "other-products", isSystem: true }],
+    });
+
+    db.getQueue.push({ id: 10, handle: "other-products" });
+    const deletion = await productMetadataRoute.request("/categories/10", {
+      method: "DELETE",
+    });
+
+    expect(deletion.status).toBe(409);
+    expect(db.mutations).toHaveLength(0);
+
+    db.getQueue.push({ id: 10, handle: "other-products" });
+    const update = await productMetadataRoute.request("/categories/10", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ handle: "miscellaneous" }),
+    });
+
+    expect(update.status).toBe(409);
+    expect(db.mutations).toHaveLength(0);
+  });
+
   it("allows only image and position updates for the system customization category", async () => {
     db.getQueue.push({ id: 9, handle: "customization" });
 
