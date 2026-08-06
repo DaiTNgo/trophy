@@ -2,6 +2,8 @@
 
 ## Current Session
 
+- 2026-08-06: Began the backend Products route refactor in the isolated `refactor/backend-products-route` worktree. Extracted MISA product synchronization into `apps/backend/src/routes/admin/product-misa-sync.ts` and variant-media asset lookup/persistence into `product-media.ts`. `products.ts` now depends on focused services and is 3,839 lines (from 3,975); media helper tests import their owning module rather than the route entrypoint. API paths and response contracts are unchanged. Verification: `./init.sh` passes (141 backend tests, backend/admin/storefront checks and builds) and `git diff --check` passes. Next step: extract the product read model, then compose endpoint groups into focused Hono route modules. `feature_list.json` remains invalid JSON from baseline and was not edited.
+
 - 2026-08-06: Removed `Created` and `Updated` from the Products list sort menu beside Search, and removed the unused `sortBy` state. The menu now keeps only Title and ascending/descending order controls. Verification: `pnpm --filter admin test` passes (13 tests), `pnpm --filter admin build` passes, and `git diff --check` passes. `feature_list.json` remains invalid JSON from before this change and was not updated.
 
 - 2026-08-06: Removed the `Created` and `Updated` filters from the admin Products list. Their filter chips, menu entries, state, and placeholder logic are gone; the existing sort choices remain unchanged. Verification: `pnpm --filter admin test` passes (13 tests), `pnpm --filter admin build` passes, and `git diff --check` passes. `feature_list.json` remains invalid JSON from before this change and was not updated.

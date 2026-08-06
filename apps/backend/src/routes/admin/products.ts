@@ -30,12 +30,8 @@ import {
 import type { AppEnv } from '../../lib/env'
 import { jsonError, parseJson, parseParams } from '../../lib/validation'
 import {
-  buildMisaCreateProductsPayload,
-  createMisaProducts,
   deleteMisaProducts,
-  findMisaProductsByCodes,
-  isMisaConfigured,
-  updateMisaProducts,
+  isMisaConfigured
 } from '../../lib/misa'
 import { hydrateCustomization, persistCustomizationTranslations } from '../../lib/customization-translation'
 import {
@@ -43,6 +39,12 @@ import {
   ensureCustomizationCategory,
   ensureOtherProductsCategory,
 } from '../../lib/customization-category'
+import { enqueueMisaProductSync, syncMisaProductVariants } from './product-misa-sync'
+import {
+  insertVariantCustomizationMedia,
+  insertVariantMedia,
+  loadProductAssetsById
+} from './product-media'
 
 const DEFAULT_PRODUCT_OPTION_TITLE = 'Default option'
 const DEFAULT_PRODUCT_OPTION_VALUE = 'Default option value'
@@ -862,84 +864,6 @@ const readProduct = async (c: Context<AppEnv>, db: ReturnType<typeof getDb>, pro
   return hydratedProduct
 }
 
-const syncMisaProductVariants = async (
-  c: Context<AppEnv>,
-  db: ReturnType<typeof getDb>,
-  product: NonNullable<Awaited<ReturnType<typeof readProduct>>>,
-  variants = product.variants,
-) => {
-  let payloads: ReturnType<typeof buildMisaCreateProductsPayload>
-  try {
-    payloads = buildMisaCreateProductsPayload({ title: product.title, variants })
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unable to prepare MISA product payload'
-    await Promise.all(variants.map((variant) => db.update(productVariants)
-      .set({ misaSyncStatus: 'failed', misaLastError: message })
-      .where(eq(productVariants.id, variant.id))))
-    return variants.map((variant) => ({ variantId: variant.id, status: 'failed' as const, error: message }))
-  }
-
-  if (!isMisaConfigured(c.env)) {
-    await Promise.all(variants.map((variant) => db.update(productVariants)
-      .set({ misaSyncStatus: 'failed', misaLastError: 'MISA integration is not configured' })
-      .where(eq(productVariants.id, variant.id))))
-    return variants.map((variant) => ({
-      variantId: variant.id,
-      status: 'failed' as const,
-      error: 'MISA integration is not configured',
-    }))
-  }
-
-  return Promise.all(variants.map(async (variant, index) => {
-    const payload = payloads[index]
-    try {
-      if (variant.misaSyncStatus === 'synced' && variant.misaProductId) {
-        await updateMisaProducts(c.env, [payload])
-        await db.update(productVariants)
-          .set({ misaSyncStatus: 'synced', misaLastError: null, misaSyncedAt: new Date() })
-          .where(eq(productVariants.id, variant.id))
-        return { variantId: variant.id, status: 'synced' as const, error: null }
-      }
-
-      await createMisaProducts(c.env, [payload])
-      const remoteProducts = await findMisaProductsByCodes(c.env, [payload.product_code])
-      const remote = remoteProducts.find((item) => item.product_code === payload.product_code)
-      const misaProductId = remote?.id ? Number(remote.id) : NaN
-      if (!Number.isInteger(misaProductId) || misaProductId <= 0) {
-        throw new Error(`MISA did not return a numeric ID for variant ${variant.id}`)
-      }
-
-      await db.update(productVariants)
-        .set({
-          misaProductId,
-          misaSyncStatus: 'synced',
-          misaLastError: null,
-          misaSyncedAt: new Date(),
-        })
-        .where(eq(productVariants.id, variant.id))
-      return { variantId: variant.id, status: 'synced' as const, error: null }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unable to synchronize variant with MISA'
-      await db.update(productVariants)
-        .set({
-          misaSyncStatus: 'failed',
-          misaLastError: message,
-        })
-        .where(eq(productVariants.id, variant.id))
-      return { variantId: variant.id, status: 'failed' as const, error: message }
-    }
-  }))
-}
-
-const enqueueMisaProductSync = (
-  c: Context<AppEnv>,
-  db: ReturnType<typeof getDb>,
-  product: NonNullable<Awaited<ReturnType<typeof readProduct>>>,
-) => {
-  const task = syncMisaProductVariants(c, db, product).catch(() => undefined)
-  c.executionCtx?.waitUntil(task)
-}
-
 const replaceAttributes = async (
   db: ReturnType<typeof getDb>,
   productId: number,
@@ -1664,43 +1588,6 @@ const loadOptionValueLookup = async (
   )
 }
 
-const loadProductAssetsById = async (
-  db: ReturnType<typeof getDb>,
-  assetIds: string[]
-) => {
-  if (assetIds.length === 0) {
-    return new Map<string, typeof productAssets.$inferSelect>()
-  }
-
-  const assetRows = await db
-    .select()
-    .from(productAssets)
-    .where(inArray(productAssets.id, assetIds))
-
-  return new Map(assetRows.map((asset) => [asset.id, asset]))
-}
-
-export const buildVariantMediaInsertRows = (
-  persistedVariants: Array<{ id: number }>,
-  submittedVariants: Array<{ media: Array<{ assetId: string }> }>
-) =>
-  persistedVariants.flatMap((variant, variantIndex) =>
-    submittedVariants[variantIndex].media.map((media, mediaIndex) => ({
-      variantId: variant.id,
-      assetId: media.assetId,
-      position: mediaIndex
-    }))
-  )
-
-export const buildVariantCustomizationMediaInsertRows = (
-  persistedVariants: Array<{ id: number }>,
-  submittedVariants: Array<{ customizationMedia?: { assetId: string } | null }>
-) =>
-  persistedVariants.flatMap((variant, variantIndex) => {
-    const assetId = submittedVariants[variantIndex]?.customizationMedia?.assetId
-    return assetId ? [{ variantId: variant.id, assetId }] : []
-  })
-
 const defaultLocalizedText = (value: string) => ({ vi: value, en: value })
 
 const defaultProductOptionInput = () => ({
@@ -1789,29 +1676,6 @@ const normalizeFullCreateDefaultOptionGraph = (
   )
 
   return { hasCustomOptions, options, variants }
-}
-
-const insertVariantMedia = async (
-  db: ReturnType<typeof getDb>,
-  persistedVariants: Array<{ id: number }>,
-  submittedVariants: Array<{ media: Array<{ assetId: string }> }>
-) => {
-  const rows = buildVariantMediaInsertRows(persistedVariants, submittedVariants)
-
-  if (rows.length > 0) {
-    await db.insert(productVariantMedia).values(rows)
-  }
-}
-
-const insertVariantCustomizationMedia = async (
-  db: ReturnType<typeof getDb>,
-  persistedVariants: Array<{ id: number }>,
-  submittedVariants: Array<{ customizationMedia?: { assetId: string } | null }>
-) => {
-  const rows = buildVariantCustomizationMediaInsertRows(persistedVariants, submittedVariants)
-  if (rows.length > 0) {
-    await db.insert(productVariantCustomizationMedia).values(rows)
-  }
 }
 
 export const deriveCustomizationCanvas = (

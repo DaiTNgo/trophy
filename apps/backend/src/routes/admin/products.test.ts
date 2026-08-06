@@ -3,11 +3,13 @@ import { describe, expect, it } from "vitest";
 import { productAssets } from "../../db/schema";
 import {
   buildProductCustomizationInsert,
-  buildVariantCustomizationMediaInsertRows,
-  buildVariantMediaInsertRows,
   validateCustomizationPublishReadiness,
   validatePublishable,
 } from "./products";
+import {
+  buildVariantCustomizationMediaInsertRows,
+  buildVariantMediaInsertRows,
+} from "./product-media";
 
 type ProductAssetRow = typeof productAssets.$inferSelect;
 
