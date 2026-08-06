@@ -64,6 +64,10 @@ import {
 import { readProduct } from './product-reader'
 import { validateVariantSelectionForProduct } from './product-variant-selection'
 import { replaceVariants } from './product-variant-mutations'
+import {
+  buildProductCustomizationInsert,
+  validateCustomizationPublishReadiness
+} from './product-customization-service'
 
 const DEFAULT_PRODUCT_OPTION_TITLE = 'Default option'
 const DEFAULT_PRODUCT_OPTION_VALUE = 'Default option value'
@@ -683,110 +687,6 @@ const normalizeFullCreateDefaultOptionGraph = (
 
   return { hasCustomOptions, options, variants }
 }
-
-export const deriveCustomizationCanvas = (
-  submittedVariants: Array<{ customizationMedia?: { assetId: string } | null }>,
-  assetsById: Map<string, typeof productAssets.$inferSelect>
-) => {
-  for (const variant of submittedVariants) {
-    const assetId = variant.customizationMedia?.assetId
-    const asset = assetId ? assetsById.get(assetId) : null
-    if (asset?.widthPx && asset?.heightPx) {
-      return {
-        canvasWidthPx: asset.widthPx,
-        canvasHeightPx: asset.heightPx
-      }
-    }
-  }
-
-  return {
-    canvasWidthPx: null,
-    canvasHeightPx: null
-  }
-}
-
-export const buildProductCustomizationInsert = ({
-  productId,
-  customization,
-  submittedVariants,
-  assetsById,
-  now = nowIso()
-}: {
-  productId: number
-  customization?:
-    | NonNullable<v.InferOutput<typeof fullCreateCustomizationSchema>>
-    | null
-  submittedVariants: v.InferOutput<typeof fullCreateProductSchema>['variants']
-  assetsById: Map<string, typeof productAssets.$inferSelect>
-  now?: string
-}) => {
-  if (!customization?.enabled) {
-    return null
-  }
-
-  const derivedCanvas = deriveCustomizationCanvas(submittedVariants, assetsById)
-
-  return {
-    productId,
-    enabled: true,
-    canvasWidthPx: derivedCanvas.canvasWidthPx,
-    canvasHeightPx: derivedCanvas.canvasHeightPx,
-    layersJson: JSON.stringify(customization.layers),
-    formFieldsJson: JSON.stringify(customization.formFields),
-    createdAt: now,
-    updatedAt: now
-  }
-}
-
-export const validateCustomizationPublishReadiness = ({
-  customization,
-  submittedVariants,
-  assetsById
-}: {
-  customization: NonNullable<v.InferOutput<typeof fullCreateCustomizationSchema>>
-  submittedVariants: v.InferOutput<typeof fullCreateProductSchema>['variants']
-  assetsById: Map<string, typeof productAssets.$inferSelect>
-}) => {
-  for (const variant of submittedVariants) {
-    if (!variant.customizationMedia?.assetId) {
-      return 'Each variant needs Customization Media before publish'
-    }
-  }
-
-  const derivedCanvas = deriveCustomizationCanvas(submittedVariants, assetsById)
-  if (!derivedCanvas.canvasWidthPx || !derivedCanvas.canvasHeightPx) {
-    return 'Customization requires at least one valid Customization Media asset before publish'
-  }
-
-  for (const variant of submittedVariants) {
-    const asset = assetsById.get(variant.customizationMedia!.assetId)
-    if (!asset?.widthPx || !asset?.heightPx) {
-      return 'Customization requires valid dimensions for every Customization Media asset'
-    }
-    if (
-      asset.widthPx !== derivedCanvas.canvasWidthPx ||
-      asset.heightPx !== derivedCanvas.canvasHeightPx
-    ) {
-      return 'All Customization Media assets must share the same size before publish'
-    }
-  }
-
-  const validation = validateProductCustomizationForPublish({
-    productId: 'pending',
-    enabled: customization.enabled,
-    canvasWidthPx: derivedCanvas.canvasWidthPx,
-    canvasHeightPx: derivedCanvas.canvasHeightPx,
-    layers: customization.layers as ProductCustomization['layers'],
-    formFields: customization.formFields as ProductCustomization['formFields']
-  })
-
-  if (!validation.valid) {
-    return validation.issues[0]?.message ?? 'Customization is invalid'
-  }
-
-  return null
-}
-
 
 const hasVietnameseCatalogText = (val: any) => {
   if (typeof val === 'string') return val.trim().length > 0;

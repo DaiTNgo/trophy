@@ -2,10 +2,12 @@ import { DEFAULT_TEMPLATE } from "@trophy/customization";
 import { describe, expect, it } from "vitest";
 import { productAssets } from "../../db/schema";
 import {
-  buildProductCustomizationInsert,
-  validateCustomizationPublishReadiness,
   validatePublishable,
 } from "./products";
+import {
+  buildProductCustomizationInsert,
+  validateCustomizationPublishReadiness,
+} from "./product-customization-service";
 import {
   buildVariantCustomizationMediaInsertRows,
   buildVariantMediaInsertRows,
