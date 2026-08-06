@@ -65,6 +65,7 @@ import { productOptionDefinitionRoute } from './product-option-definition-route'
 import { productOptionReplacementRoute } from './product-option-replacement-route'
 import { productOptionValueRoute } from './product-option-value-route'
 import { productVariantBatchRoute } from './product-variant-batch-route'
+import { productVariantReplacementRoute } from './product-variant-replacement-route'
 import {
   createProductSchema,
   fullCreateCustomizationSchema,
@@ -78,8 +79,7 @@ import {
   variantCustomizationMediaSchema,
   variantDetailSchema,
   variantMediaSchema,
-  variantParamsSchema,
-  variantsSchema
+  variantParamsSchema
 } from './product-schemas'
 
 const DEFAULT_PRODUCT_OPTION_TITLE = 'Default option'
@@ -1364,83 +1364,7 @@ export const productsRoute = new Hono<AppEnv>()
     const nextProduct = await readProduct(c, db, product.id)
     return c.json({ item: nextProduct }, 200)
   })
-  // Legacy full-replace variant editor. Product detail must use operation-specific variant routes.
-  .put('/:id/variants', async (c) => {
-    const params = parseParams(c, idParamsSchema)
-
-    if (!params.success) {
-      return params.response
-    }
-
-    const parsed = await parseJson(c, variantsSchema)
-
-    if (!parsed.success) {
-      return parsed.response
-    }
-
-    const db = getDb(c.env)
-    const existingProduct = await readProduct(c, db, params.output.id)
-
-    if (!existingProduct) {
-      return jsonError(c, 404, 'Product not found')
-    }
-
-    if (existingProduct.status === 'published' && existingProduct.customization?.enabled) {
-      const candidateVariants = parsed.output.items.map((item, index) => ({
-        id: item.id ?? -1,
-        title: item.title,
-        sku: item.sku,
-        priceAmount: item.priceAmount ?? null,
-        inventoryQuantity: item.inventoryQuantity ?? 0,
-        allowBackorder: item.allowBackorder ?? false,
-        isDefault: item.isDefault ?? false,
-        position: index,
-        options: [],
-        media: item.media ?? []
-      }))
-
-      const publishError = validatePublishable({
-        ...existingProduct,
-        variants: candidateVariants
-      } as any)
-
-      if (publishError) {
-        return jsonError(c, 409, publishError)
-      }
-    }
-
-    const allAssetIds = [
-      ...new Set(
-        parsed.output.items.flatMap((variant) =>
-          [
-            ...(variant.media ?? []).map((media) => media.assetId),
-            ...(variant.customizationMedia?.assetId ? [variant.customizationMedia.assetId] : [])
-          ]
-        )
-      )
-    ]
-
-    if (allAssetIds.length > 0) {
-      const assetsById = await loadProductAssetsById(db, allAssetIds)
-      if (assetsById.size !== allAssetIds.length) {
-        return jsonError(c, 404, 'One or more variant media assets were not found')
-      }
-    }
-
-    const replaceError = await replaceVariants(db, params.output.id, parsed.output.items)
-
-    if (replaceError) {
-      return jsonError(c, replaceError.status, replaceError.error)
-    }
-
-    await db
-      .update(products)
-      .set({ updatedAt: nowIso() })
-      .where(eq(products.id, params.output.id))
-
-    const product = await readProduct(c, db, params.output.id)
-    return c.json({ item: product }, 200)
-  })
+  .route('/', productVariantReplacementRoute)
   .put('/:id/customization', async (c) => {
     const params = parseParams(c, idParamsSchema)
 
