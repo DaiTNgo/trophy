@@ -48,7 +48,6 @@ import {
   ensureVariantAssetIdsExist,
   ensureVariantBelongsToProduct,
   updateProductTimestamp,
-  validateOptionTitleUniquenessForProduct,
   validateOptionValueUniquenessForOption
 } from './product-guards'
 import {
@@ -65,6 +64,7 @@ import {
   validateCustomizationPublishReadiness
 } from './product-customization-service'
 import { productContentRoute } from './product-content-route'
+import { productOptionDefinitionRoute } from './product-option-definition-route'
 import { productVariantBatchRoute } from './product-variant-batch-route'
 import {
   createProductSchema,
@@ -72,9 +72,7 @@ import {
   fullCreateProductSchema,
   idParamsSchema,
   nullableLocalizedPatch,
-  optionCreateSchema,
   optionParamsSchema,
-  optionUpdateSchema,
   optionValueCreateSchema,
   optionValueParamsSchema,
   optionValueUpdateSchema,
@@ -845,132 +843,7 @@ export const productsRoute = new Hono<AppEnv>()
     return c.json({ item: product }, 200)
   })
   .route('/', productContentRoute)
-  .post('/:id/options', async (c) => {
-    const params = parseParams(c, idParamsSchema)
-
-    if (!params.success) {
-      return params.response
-    }
-
-    const parsed = await parseJson(c, optionCreateSchema)
-
-    if (!parsed.success) {
-      return parsed.response
-    }
-
-    const db = getDb(c.env)
-    const product = await ensureProductExists(db, params.output.id)
-
-    if (!product) {
-      return jsonError(c, 404, 'Product not found')
-    }
-
-    if (product.status === 'published') {
-      return jsonError(
-        c,
-        409,
-        'Published products cannot add option definitions without rebuilding variants'
-      )
-    }
-
-    const uniqueTitleError = await validateOptionTitleUniquenessForProduct(
-      db,
-      product.id,
-      parsed.output.title.vi
-    )
-    if (uniqueTitleError) {
-      return jsonError(c, uniqueTitleError.status, uniqueTitleError.error)
-    }
-
-    const currentOptions = await db
-      .select({ id: productOptions.id })
-      .from(productOptions)
-      .where(eq(productOptions.productId, product.id))
-
-    const insertedOption = await db
-      .insert(productOptions)
-      .values({
-        productId: product.id,
-        title: parsed.output.title.vi,
-        position: currentOptions.length
-      })
-      .returning()
-      .get()
-
-    await upsertTranslations(db, 'product_option', String(insertedOption.id), 'title', parsed.output.title)
-
-    const values = parsed.output.values ?? []
-    if (values.length > 0) {
-      const insertedValues = await db.insert(productOptionValues).values(
-        values.map((vItem, index) => ({
-          optionId: insertedOption.id,
-          value: vItem.value.vi,
-          position: index
-        }))
-      ).returning()
-      
-      for (let i = 0; i < insertedValues.length; i++) {
-        await upsertTranslations(db, 'product_option_value', String(insertedValues[i].id), 'value', values[i].value)
-      }
-    }
-
-    await db
-      .update(products)
-      .set({
-        updatedAt: nowIso()
-      })
-      .where(eq(products.id, product.id))
-
-    const nextProduct = await readProduct(c, db, product.id)
-    return c.json({ item: nextProduct }, 201)
-  })
-  .patch('/:id/options/:optionId', async (c) => {
-    const params = parseParams(c, optionParamsSchema)
-
-    if (!params.success) {
-      return params.response
-    }
-
-    const parsed = await parseJson(c, optionUpdateSchema)
-
-    if (!parsed.success) {
-      return parsed.response
-    }
-
-    const db = getDb(c.env)
-    const option = await ensureOptionBelongsToProduct(db, params.output.id, params.output.optionId)
-
-    if (!option) {
-      return jsonError(c, 404, 'Option not found')
-    }
-
-    const uniqueTitleError = await validateOptionTitleUniquenessForProduct(
-      db,
-      params.output.id,
-      parsed.output.title.vi,
-      option.id
-    )
-    if (uniqueTitleError) {
-      return jsonError(c, uniqueTitleError.status, uniqueTitleError.error)
-    }
-
-    await db
-      .update(productOptions)
-      .set({ title: parsed.output.title.vi })
-      .where(eq(productOptions.id, option.id))
-
-    await upsertTranslations(db, 'product_option', String(option.id), 'title', parsed.output.title)
-
-    await db
-      .update(products)
-      .set({
-        updatedAt: nowIso()
-      })
-      .where(eq(products.id, params.output.id))
-
-    const product = await readProduct(c, db, params.output.id)
-    return c.json({ item: product }, 200)
-  })
+  .route('/', productOptionDefinitionRoute)
   .delete('/:id/options/:optionId', async (c) => {
     const params = parseParams(c, optionParamsSchema)
 
