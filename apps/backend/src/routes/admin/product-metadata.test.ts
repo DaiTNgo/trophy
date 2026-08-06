@@ -117,6 +117,53 @@ describe("product metadata routes", () => {
     );
   });
 
+  it("clears a category description when the admin submits null", async () => {
+    db.getQueue.push(
+      {
+        id: 3,
+        name: "Cup C1",
+        description: "Existing description",
+        handle: "cup-c1",
+        imageUrl: null,
+        position: 0,
+      },
+      {
+        id: 3,
+        name: "Cup C111",
+        description: null,
+        handle: "cup-c1",
+        imageUrl: null,
+        position: 0,
+      },
+    );
+
+    const res = await productMetadataRoute.request("/categories/3", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: { vi: "Cup C111" },
+        handle: "cup-c1",
+        description: null,
+      }),
+    });
+
+    expect(res.status).toBe(200);
+    expect(
+      db.mutations.some(
+        (entry: MutationRecord) =>
+          entry.kind === "update" &&
+          (entry.set as { description?: string | null } | undefined)?.description === null,
+      ),
+    ).toBe(true);
+    expect(vi.mocked(upsertTranslations)).toHaveBeenCalledWith(
+      db,
+      "product_category",
+      "3",
+      "description",
+      { vi: null, en: null },
+    );
+  });
+
   it("rejects negative category ranking positions", async () => {
     const res = await productMetadataRoute.request("/categories/ranking", {
       method: "PUT",

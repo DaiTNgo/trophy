@@ -19,17 +19,17 @@ import {
 import type { CatalogProduct } from "../types";
 import {EllipseMiniSolid} from "@medusajs/icons";
 
+const PAGE_SIZE = 15;
+
 export function ProductsListPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
-  const [sortBy, setSortBy] = useState("title");
   const [sortOrder, setSortOrder] = useState("asc");
   const [activeFilters, setActiveFilters] = useState<string[]>([]);
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
-  const [createdFilter, setCreatedFilter] = useState<string | null>(null);
-  const [updatedFilter, setUpdatedFilter] = useState<string | null>(null);
   const [products, setProducts] = useState<CatalogProduct[]>([]);
+  const [pageIndex, setPageIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -74,9 +74,6 @@ export function ProductsListPage() {
       result = result.filter(product => statusFilter.includes(product.status));
     }
 
-    // Created filter logic would typically go here based on dates, 
-    // but we'll leave it as a UI placeholder or basic filter since mock data lacks dates.
-
     const normalizedQuery = deferredQuery.trim().toLowerCase();
     if (normalizedQuery) {
       result = result.filter((product) =>
@@ -94,6 +91,20 @@ export function ProductsListPage() {
 
     return result;
   }, [deferredQuery, products, statusFilter]);
+
+  const pageCount = Math.max(1, Math.ceil(filteredProducts.length / PAGE_SIZE));
+  const pageStart = pageIndex * PAGE_SIZE;
+  const paginatedProducts = filteredProducts.slice(pageStart, pageStart + PAGE_SIZE);
+  const canPreviousPage = pageIndex > 0;
+  const canNextPage = pageIndex + 1 < pageCount;
+
+  useEffect(() => {
+    setPageIndex(0);
+  }, [deferredQuery, statusFilter, sortOrder]);
+
+  useEffect(() => {
+    setPageIndex((current) => Math.min(current, pageCount - 1));
+  }, [pageCount]);
 
   return (
     <div className="flex flex-col gap-y-6">
@@ -196,70 +207,6 @@ export function ProductsListPage() {
               </div>
             )}
 
-            {activeFilters.includes("created") && (
-              <div className="flex items-center rounded-md border border-ui-border-base shadow-sm text-sm overflow-hidden bg-ui-bg-base">
-                <div className="px-2 py-1 font-medium bg-ui-bg-subtle border-r border-ui-border-base">Created</div>
-                <DropdownMenu>
-                  <DropdownMenu.Trigger className="px-2 py-1 hover:bg-ui-bg-subtle-hover flex items-center gap-x-1 outline-none text-ui-fg-base cursor-pointer">
-                    <span className="truncate max-w-[200px]">
-                      {createdFilter || "Select..."}
-                    </span>
-                  </DropdownMenu.Trigger>
-                  <DropdownMenu.Content align="start">
-                    {["Today", "Last 7 days", "Last 30 days", "Last 90 days", "Last 12 months", "Custom"].map((s) => (
-                      <DropdownMenu.Item key={s} onClick={() => setCreatedFilter(s)}>
-                        <div className="flex items-center gap-x-2">
-                          <EllipseMiniSolid className={createdFilter === s ? "visible" : "invisible"} />
-                          <span>{s}</span>
-                        </div>
-                      </DropdownMenu.Item>
-                    ))}
-                  </DropdownMenu.Content>
-                </DropdownMenu>
-                <button 
-                  className="px-2 py-1 hover:bg-ui-bg-subtle-hover text-ui-fg-muted hover:text-ui-fg-base border-l border-ui-border-base transition-colors"
-                  onClick={() => {
-                    setActiveFilters(prev => prev.filter(f => f !== "created"));
-                    setCreatedFilter(null);
-                  }}
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </div>
-            )}
-
-            {activeFilters.includes("updated") && (
-              <div className="flex items-center rounded-md border border-ui-border-base shadow-sm text-sm overflow-hidden bg-ui-bg-base">
-                <div className="px-2 py-1 font-medium bg-ui-bg-subtle border-r border-ui-border-base">Updated</div>
-                <DropdownMenu>
-                  <DropdownMenu.Trigger className="px-2 py-1 hover:bg-ui-bg-subtle-hover flex items-center gap-x-1 outline-none text-ui-fg-base cursor-pointer">
-                    <span className="truncate max-w-[200px]">
-                      {updatedFilter || "Select..."}
-                    </span>
-                  </DropdownMenu.Trigger>
-                  <DropdownMenu.Content align="start">
-                    {["Today", "Last 7 days", "Last 30 days", "Last 90 days", "Last 12 months", "Custom"].map((s) => (
-                      <DropdownMenu.Item key={s} onClick={() => setUpdatedFilter(s)}>
-                        <div className="flex items-center gap-x-2">
-                          <EllipseMiniSolid className={updatedFilter === s ? "visible" : "invisible"} />
-                          <span>{s}</span>
-                        </div>
-                      </DropdownMenu.Item>
-                    ))}
-                  </DropdownMenu.Content>
-                </DropdownMenu>
-                <button 
-                  className="px-2 py-1 hover:bg-ui-bg-subtle-hover text-ui-fg-muted hover:text-ui-fg-base border-l border-ui-border-base transition-colors"
-                  onClick={() => {
-                    setActiveFilters(prev => prev.filter(f => f !== "updated"));
-                    setUpdatedFilter(null);
-                  }}
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </div>
-            )}
-
             <DropdownMenu>
               <DropdownMenu.Trigger asChild>
                 <Button variant="secondary" size="small" className={activeFilters.length > 0 ? "border-dashed" : ""}>
@@ -270,16 +217,6 @@ export function ProductsListPage() {
                 {!activeFilters.includes("status") && (
                   <DropdownMenu.Item onClick={() => setActiveFilters(prev => [...prev, "status"])}>
                     Status
-                  </DropdownMenu.Item>
-                )}
-                {!activeFilters.includes("created") && (
-                  <DropdownMenu.Item onClick={() => setActiveFilters(prev => [...prev, "created"])}>
-                    Created
-                  </DropdownMenu.Item>
-                )}
-                {!activeFilters.includes("updated") && (
-                  <DropdownMenu.Item onClick={() => setActiveFilters(prev => [...prev, "updated"])}>
-                    Updated
                   </DropdownMenu.Item>
                 )}
               </DropdownMenu.Content>
@@ -293,8 +230,6 @@ export function ProductsListPage() {
                 onClick={() => {
                   setActiveFilters([]);
                   setStatusFilter([]);
-                  setCreatedFilter(null);
-                  setUpdatedFilter(null);
                 }}
               >
                 Clear all
@@ -318,22 +253,10 @@ export function ProductsListPage() {
                 </IconButton>
               </DropdownMenu.Trigger>
               <DropdownMenu.Content align="end">
-                <DropdownMenu.Item onClick={() => setSortBy("title")}>
+                <DropdownMenu.Item>
                   <div className="flex items-center gap-x-2">
-                    <EllipseMiniSolid className={sortBy === "title" ? "visible" : "invisible"} />
+                    <EllipseMiniSolid className="visible" />
                     <span>Title</span>
-                  </div>
-                </DropdownMenu.Item>
-                <DropdownMenu.Item onClick={() => setSortBy("created")}>
-                  <div className="flex items-center gap-x-2">
-                    <EllipseMiniSolid className={sortBy === "created" ? "visible" : "invisible"} />
-                    <span>Created</span>
-                  </div>
-                </DropdownMenu.Item>
-                <DropdownMenu.Item onClick={() => setSortBy("updated")}>
-                  <div className="flex items-center gap-x-2">
-                    <EllipseMiniSolid className={sortBy === "updated" ? "visible" : "invisible"} />
-                    <span>Updated</span>
                   </div>
                 </DropdownMenu.Item>
                 <DropdownMenu.Separator />
@@ -385,7 +308,7 @@ export function ProductsListPage() {
                 </Table.Row>
               </Table.Header>
               <Table.Body>
-                {filteredProducts.map((product) => (
+                {paginatedProducts.map((product) => (
                   <Table.Row key={product.id}>
                     <Table.Cell>
                       <div className="flex items-center gap-x-3">
@@ -452,13 +375,13 @@ export function ProductsListPage() {
           {!isLoading && filteredProducts.length > 0 && (
             <Table.Pagination
               count={filteredProducts.length}
-              pageSize={15}
-              pageIndex={0}
-              pageCount={Math.ceil(filteredProducts.length / 15)}
-              canPreviousPage={false}
-              canNextPage={filteredProducts.length > 15}
-              previousPage={() => {}}
-              nextPage={() => {}}
+              pageSize={PAGE_SIZE}
+              pageIndex={pageIndex}
+              pageCount={pageCount}
+              canPreviousPage={canPreviousPage}
+              canNextPage={canNextPage}
+              previousPage={() => setPageIndex((current) => Math.max(0, current - 1))}
+              nextPage={() => setPageIndex((current) => Math.min(pageCount - 1, current + 1))}
             />
           )}
         </div>
