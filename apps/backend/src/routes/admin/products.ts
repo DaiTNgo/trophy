@@ -62,6 +62,7 @@ import {
 } from './product-customization-service'
 import { productContentRoute } from './product-content-route'
 import { productOptionDefinitionRoute } from './product-option-definition-route'
+import { productOptionReplacementRoute } from './product-option-replacement-route'
 import { productOptionValueRoute } from './product-option-value-route'
 import { productVariantBatchRoute } from './product-variant-batch-route'
 import {
@@ -70,7 +71,6 @@ import {
   fullCreateProductSchema,
   idParamsSchema,
   nullableLocalizedPatch,
-  optionsSchema,
   organizeSchema,
   searchProductsQuerySchema,
   updateProductSchema,
@@ -839,37 +839,7 @@ export const productsRoute = new Hono<AppEnv>()
   .route('/', productContentRoute)
   .route('/', productOptionDefinitionRoute)
   .route('/', productOptionValueRoute)
-  // Legacy full-replace option editor. Product detail must use operation-specific option routes.
-  .put('/:id/options', async (c) => {
-    const params = parseParams(c, idParamsSchema)
-
-    if (!params.success) {
-      return params.response
-    }
-
-    const parsed = await parseJson(c, optionsSchema)
-
-    if (!parsed.success) {
-      return parsed.response
-    }
-
-    if (
-      new Set(parsed.output.items.map((item) => item.title.vi.toLowerCase())).size !==
-      parsed.output.items.length
-    ) {
-      return jsonError(c, 409, 'Option titles must be unique')
-    }
-
-    const db = getDb(c.env)
-    const replaceError = await replaceOptions(db, params.output.id, parsed.output.items)
-
-    if (replaceError) {
-      return jsonError(c, replaceError.status, replaceError.error)
-    }
-
-    const product = await readProduct(c, db, params.output.id)
-    return c.json({ item: product }, 200)
-  })
+  .route('/', productOptionReplacementRoute)
   .route('/', productVariantBatchRoute)
   .post('/:id/variants', async (c) => {
     const params = parseParams(c, idParamsSchema)
