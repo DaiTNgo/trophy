@@ -20,16 +20,16 @@ export function MegaMenuGrid({ items }: MegaMenuGridProps) {
           to={item.href}
           className="group flex flex-row items-center justify-start gap-4 bg-white px-8 py-6 transition-colors"
         >
-          <div className="w-[50px] flex-shrink-0 flex items-center justify-center">
+          <div className="relative h-[50px] w-[50px] flex-shrink-0 overflow-hidden">
             {item.imageUrl ? (
               <img
                 src={backendAssetUrl(item.imageUrl)}
                 alt={item.title}
-                className="max-w-[50px] max-h-[50px] object-contain transition-transform"
+                className="absolute inset-0 h-full w-full object-cover transition-transform"
                 loading="lazy"
               />
             ) : (
-              <div className="flex h-[50px] w-[50px] items-center justify-center rounded bg-surface-subtle">
+              <div className="flex h-full w-full items-center justify-center rounded bg-surface-subtle">
                 <Package className="text-[24px] text-gray-400" />
               </div>
             )}
