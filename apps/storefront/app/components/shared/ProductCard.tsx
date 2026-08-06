@@ -61,11 +61,11 @@ export function ProductCard({
       <div className="group flex h-full flex-col items-center text-center">
         <Link
           to={productHref}
-          className="mb-4 flex aspect-square w-full items-center justify-center bg-surface-base px-3"
+          className="relative mb-4 flex aspect-square w-full items-center justify-center overflow-hidden bg-surface-base px-3"
         >
           {imgSrc ? (
             <img
-              className="h-full w-full object-contain transition-transform duration-500 group-hover:scale-[1.035]"
+              className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.035]"
               data-alt={imageAlt}
               src={imgSrc}
               alt={imageAlt}
@@ -73,7 +73,7 @@ export function ProductCard({
               sizes="(min-width: 1280px) 300px, (min-width: 768px) calc((100vw - 160px) / 3), calc((100vw - 48px) / 2)"
             />
           ) : (
-            <div className="flex h-full w-full items-center justify-center bg-surface-subtle">
+            <div className="absolute inset-0 flex items-center justify-center bg-surface-subtle">
               <Image className="h-10 w-10 text-text-muted" />
             </div>
           )}
@@ -123,7 +123,7 @@ export function ProductCard({
         >
           {imgSrc ? (
             <img
-              className="h-full w-full object-contain transition-transform duration-500 hover:scale-[1.04]"
+              className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 hover:scale-[1.04]"
               data-alt={imageAlt}
               src={imgSrc}
               alt={imageAlt}
@@ -131,7 +131,7 @@ export function ProductCard({
               sizes="(min-width: 1280px) 267px, (min-width: 1024px) calc((100vw - 160px) / 4), (min-width: 768px) calc((100vw - 96px) / 4), calc((100vw - 48px) / 2)"
             />
           ) : (
-            <div className="flex h-full w-full items-center justify-center bg-surface-container-low">
+            <div className="absolute inset-0 flex items-center justify-center bg-surface-container-low">
               <Image className="h-10 w-10 text-on-surface-variant" />
             </div>
           )}
@@ -174,16 +174,16 @@ export function ProductCard({
 
   return (
     <div className="group flex flex-col items-center text-center">
-      <Link to={productHref} className="w-full relative aspect-[4/5] sm:aspect-square mb-6 flex items-center justify-center p-4">
+      <Link to={productHref} className="relative w-full aspect-[4/5] sm:aspect-square mb-6 flex items-center justify-center overflow-hidden p-4">
         {imgSrc ? (
           <img
-            className="w-full h-full object-contain transition-transform duration-500"
+            className="absolute inset-0 w-full h-full object-cover transition-transform duration-500"
             data-alt={imageAlt}
             src={imgSrc}
             alt={imageAlt}
           />
         ) : (
-          <div className="w-full h-full bg-surface-container-low flex items-center justify-center">
+          <div className="absolute inset-0 bg-surface-container-low flex items-center justify-center">
             <Image className="text-4xl text-on-surface-variant" />
           </div>
         )}

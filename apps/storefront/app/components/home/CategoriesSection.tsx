@@ -61,7 +61,7 @@ export function CategoriesSection({ categories, locale = "vi" }: ShopByProductSe
                 >
                   <div className="relative mb-6 flex aspect-square w-full items-center justify-center bg-surface-container-low px-4">
                     <img
-                      className="max-h-full max-w-full object-contain transition-transform duration-700 group-hover:scale-105"
+                      className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
                       src={imageUrl}
                       alt={name}
                       loading="lazy"

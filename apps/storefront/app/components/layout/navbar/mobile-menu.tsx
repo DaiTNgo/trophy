@@ -98,15 +98,15 @@ export function NavbarMobileMenu({
                       to={item.href}
                       className="flex flex-col items-center justify-center gap-3 bg-surface-base p-4 text-center"
                     >
-                      <div className="flex aspect-square w-full max-w-[90px] items-center justify-center">
+                      <div className="relative flex aspect-square w-full max-w-[90px] items-center justify-center">
                         {item.imageUrl ? (
                           <img
                             src={backendAssetUrl(item.imageUrl)}
                             alt={item.title}
-                            className="h-full w-full object-contain mix-blend-multiply"
+                            className="absolute inset-0 h-full w-full object-cover mix-blend-multiply"
                           />
                         ) : (
-                          <div className="flex h-full w-full items-center justify-center rounded-md bg-white/50">
+                          <div className="absolute inset-0 flex h-full w-full items-center justify-center rounded-md bg-white/50">
                             <Package className="h-8 w-8 text-gray-400" />
                           </div>
                         )}
