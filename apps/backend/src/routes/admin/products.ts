@@ -45,6 +45,16 @@ import {
   insertVariantMedia,
   loadProductAssetsById
 } from './product-media'
+import {
+  ensureOptionBelongsToProduct,
+  ensureOptionValueBelongsToProduct,
+  ensureProductExists,
+  ensureVariantAssetIdsExist,
+  ensureVariantBelongsToProduct,
+  updateProductTimestamp,
+  validateOptionTitleUniquenessForProduct,
+  validateOptionValueUniquenessForOption
+} from './product-guards'
 import { readProduct } from './product-reader'
 
 const DEFAULT_PRODUCT_OPTION_TITLE = 'Default option'
@@ -690,122 +700,6 @@ const replaceOptions = async (
         updatedAt: nowIso()
       })
       .where(eq(productVariants.id, currentVariants[0].id))
-  }
-
-  return null
-}
-
-const ensureProductExists = async (db: ReturnType<typeof getDb>, productId: number) =>
-  db.select().from(products).where(eq(products.id, productId)).get()
-
-const ensureOptionBelongsToProduct = async (
-  db: ReturnType<typeof getDb>,
-  productId: number,
-  optionId: number
-) =>
-  db
-    .select()
-    .from(productOptions)
-    .where(and(eq(productOptions.id, optionId), eq(productOptions.productId, productId)))
-    .get()
-
-const ensureVariantBelongsToProduct = async (
-  db: ReturnType<typeof getDb>,
-  productId: number,
-  variantId: number
-) =>
-  db
-    .select()
-    .from(productVariants)
-    .where(and(eq(productVariants.id, variantId), eq(productVariants.productId, productId)))
-    .get()
-
-const ensureOptionValueBelongsToProduct = async (
-  db: ReturnType<typeof getDb>,
-  productId: number,
-  valueId: number
-) =>
-  db
-    .select({
-      id: productOptionValues.id,
-      optionId: productOptionValues.optionId,
-      value: productOptionValues.value,
-      position: productOptionValues.position,
-      productId: productOptions.productId,
-      optionTitle: productOptions.title
-    })
-    .from(productOptionValues)
-    .innerJoin(productOptions, eq(productOptionValues.optionId, productOptions.id))
-    .where(and(eq(productOptionValues.id, valueId), eq(productOptions.productId, productId)))
-    .get()
-
-const updateProductTimestamp = async (db: ReturnType<typeof getDb>, productId: number) => {
-  await db
-    .update(products)
-    .set({ updatedAt: nowIso() })
-    .where(eq(products.id, productId))
-}
-
-const ensureVariantAssetIdsExist = async (
-  db: ReturnType<typeof getDb>,
-  assetIds: string[]
-) => {
-  if (assetIds.length === 0) {
-    return null
-  }
-
-  const assetsById = await loadProductAssetsById(db, assetIds)
-  if (assetsById.size !== assetIds.length) {
-    return { error: 'One or more variant media assets were not found', status: 404 as const }
-  }
-
-  return null
-}
-
-const validateOptionTitleUniquenessForProduct = async (
-  db: ReturnType<typeof getDb>,
-  productId: number,
-  title: string,
-  excludedOptionId?: number
-) => {
-  const optionRows = await db
-    .select({ id: productOptions.id, title: productOptions.title })
-    .from(productOptions)
-    .where(eq(productOptions.productId, productId))
-
-  const normalizedTitle = title.trim().toLowerCase()
-  if (
-    optionRows.some(
-      (row) => row.id !== excludedOptionId && row.title.trim().toLowerCase() === normalizedTitle
-    )
-  ) {
-    return { error: 'Option titles must be unique', status: 409 as const }
-  }
-
-  return null
-}
-
-const validateOptionValueUniquenessForOption = async (
-  db: ReturnType<typeof getDb>,
-  optionId: number,
-  value: string,
-  excludedValueId?: number
-) => {
-  const optionValueRows = await db
-    .select({ id: productOptionValues.id, value: productOptionValues.value })
-    .from(productOptionValues)
-    .where(eq(productOptionValues.optionId, optionId))
-
-  const normalizedValue = value.trim().toLowerCase()
-  if (
-    optionValueRows.some(
-      (row) => row.id !== excludedValueId && row.value.trim().toLowerCase() === normalizedValue
-    )
-  ) {
-    return {
-      error: 'Option values must be unique within the same option',
-      status: 409 as const
-    }
   }
 
   return null
