@@ -67,6 +67,7 @@ import { productVariantDetailRoute } from './product-variant-detail-route'
 import { productVariantDeleteRoute } from './product-variant-delete-route'
 import { productVariantMisaRoute } from './product-variant-misa-route'
 import { productVariantReplacementRoute } from './product-variant-replacement-route'
+import { normalizeFullCreateDefaultOptionGraph } from './product-default-graph'
 import {
   createProductSchema,
   fullCreateCustomizationSchema,
@@ -211,33 +212,6 @@ const loadOptionValueLookup = async (
 
 const defaultLocalizedText = (value: string) => ({ vi: value, en: value })
 
-const defaultProductOptionInput = () => ({
-  title: defaultLocalizedText(DEFAULT_PRODUCT_OPTION_TITLE),
-  values: [{ value: defaultLocalizedText(DEFAULT_PRODUCT_OPTION_VALUE) }]
-})
-
-const defaultProductVariantInput = () => ({
-  title: DEFAULT_PRODUCT_VARIANT_TITLE,
-  sku: null,
-  priceAmount: null,
-  inventoryQuantity: 0,
-  allowBackorder: false,
-  isDefault: true,
-  attributes: [] as Array<{
-    name: { vi: string; en?: string | null }
-    value: { vi: string; en?: string | null }
-    unit?: string | null
-  }>,
-  optionValues: [
-    {
-      optionTitle: DEFAULT_PRODUCT_OPTION_TITLE,
-      value: DEFAULT_PRODUCT_OPTION_VALUE
-    }
-  ],
-  media: [] as Array<{ assetId: string }>,
-  customizationMedia: null as { assetId: string } | null
-})
-
 const localizedInputValue = (value: string | { vi: string }) =>
   typeof value === 'string' ? value : value.vi
 
@@ -248,31 +222,6 @@ const isDefaultOptionInput = (
   localizedInputValue(options[0].title) === DEFAULT_PRODUCT_OPTION_TITLE &&
   options[0].values.length === 1 &&
   localizedInputValue(options[0].values[0].value) === DEFAULT_PRODUCT_OPTION_VALUE
-
-const normalizeFullCreateDefaultOptionGraph = (
-  input: v.InferOutput<typeof fullCreateProductSchema>
-) => {
-  const hasCustomOptions = input.options.length > 0 && !isDefaultOptionInput(input.options)
-  const options = hasCustomOptions ? input.options : [defaultProductOptionInput()]
-  const variants = (input.variants.length > 0 ? input.variants : [defaultProductVariantInput()]).map(
-    (variant, index) => ({
-      ...variant,
-      title: variant.title || DEFAULT_PRODUCT_VARIANT_TITLE,
-      isDefault: index === 0 ? true : (variant.isDefault ?? false),
-      optionValues:
-        !hasCustomOptions && (!variant.optionValues || variant.optionValues.length === 0)
-          ? [
-              {
-                optionTitle: DEFAULT_PRODUCT_OPTION_TITLE,
-                value: DEFAULT_PRODUCT_OPTION_VALUE
-              }
-            ]
-          : (variant.optionValues ?? [])
-    })
-  )
-
-  return { hasCustomOptions, options, variants }
-}
 
 export const productsRoute = new Hono<AppEnv>()
   .get('/', async (c) => {
