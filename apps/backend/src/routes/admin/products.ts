@@ -65,6 +65,7 @@ import { productOptionDefinitionRoute } from './product-option-definition-route'
 import { productOptionReplacementRoute } from './product-option-replacement-route'
 import { productOptionValueRoute } from './product-option-value-route'
 import { productVariantBatchRoute } from './product-variant-batch-route'
+import { productVariantMisaRoute } from './product-variant-misa-route'
 import { productVariantReplacementRoute } from './product-variant-replacement-route'
 import {
   createProductSchema,
@@ -841,6 +842,7 @@ export const productsRoute = new Hono<AppEnv>()
   .route('/', productOptionValueRoute)
   .route('/', productOptionReplacementRoute)
   .route('/', productVariantBatchRoute)
+  .route('/', productVariantMisaRoute)
   .post('/:id/variants', async (c) => {
     const params = parseParams(c, idParamsSchema)
 
@@ -1072,24 +1074,6 @@ export const productsRoute = new Hono<AppEnv>()
       ? await readProduct(c, db, product.id)
       : nextProduct
     return c.json({ item: syncedProduct }, 200)
-  })
-  .post('/:id/variants/:variantId/misa-sync', async (c) => {
-    const params = parseParams(c, variantParamsSchema)
-    if (!params.success) return params.response
-
-    const db = getDb(c.env)
-    const product = await readProduct(c, db, params.output.id)
-    if (!product) return jsonError(c, 404, 'Product not found')
-    if (product.status !== 'published') {
-      return jsonError(c, 409, 'Only published product variants can be synchronized with MISA')
-    }
-
-    const variant = product.variants.find((item) => item.id === params.output.variantId)
-    if (!variant) return jsonError(c, 404, 'Variant not found')
-
-    const [sync] = await syncMisaProductVariants(c, db, product, [variant])
-    const updatedProduct = await readProduct(c, db, product.id)
-    return c.json({ item: updatedProduct, sync }, 200)
   })
   .delete('/:id/variants/:variantId', async (c) => {
     const params = parseParams(c, variantParamsSchema)
