@@ -27,7 +27,10 @@ interface ShopByProductSectionProps {
   locale?: string;
 }
 
-export function CategoriesSection({ categories, locale = "vi" }: ShopByProductSectionProps) {
+export function CategoriesSection({
+  categories,
+  locale = "vi",
+}: ShopByProductSectionProps) {
   const { t } = useTranslation("home");
   if (categories.length === 0) return null;
   const featuredCategories = categories.slice(0, 4);
@@ -93,7 +96,7 @@ export function CategoriesSection({ categories, locale = "vi" }: ShopByProductSe
                       <div className="mt-auto pb-4 opacity-0">
                         <span className="inline-block rounded-sm bg-action-support px-8 py-3 text-[14px] font-bold uppercase tracking-wider text-white">
                           {t("categories_cta")} {name}
-                        </span>
+                    </span>
                       </div>
                     </div>
                   </div>

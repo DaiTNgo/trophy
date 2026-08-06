@@ -14,6 +14,7 @@ export function ProductGallery({
   thumbnails,
   onPrevious,
   onNext,
+  customizable = false,
 }: {
   mainContent: ReactNode;
   customizable?: boolean;
@@ -23,8 +24,12 @@ export function ProductGallery({
 }) {
   return (
     <section className="lg:sticky lg:top-36 lg:self-start">
-      <div className="overflow-hidden rounded-lg border border-border-subtle bg-white">
-        <div className="relative bg-surface-panel">
+      <div
+        className={`overflow-hidden rounded-lg bg-white ${
+          customizable ? "shadow-[inset_0_0_0_1px_rgba(36,65,89,0.16)]" : ""
+        }`}
+      >
+        <div className="relative bg-white">
           {onPrevious && thumbnails.length > 1 ? (
             <button
               type="button"
@@ -78,7 +83,7 @@ export function ProductGalleryThumbnails({
   if (thumbnails.length <= 1) return null;
 
   return (
-    <div className={`relative border-t border-border-subtle bg-white px-2 py-2 ${className}`}>
+    <div className={`relative bg-white px-4 py-3 ${className}`}>
       {canScrollLeft ? (
         <button
           type="button"
@@ -93,7 +98,7 @@ export function ProductGalleryThumbnails({
       <div
         ref={stripRef}
         onScroll={updateScrollState}
-        className="flex gap-2 overflow-x-auto scroll-smooth px-6 scrollbar-none"
+        className="mx-auto flex w-fit max-w-full gap-2 overflow-x-auto scroll-smooth px-1 scrollbar-none"
         style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
       >
         {thumbnails.map((thumbnail) => (
@@ -101,12 +106,13 @@ export function ProductGalleryThumbnails({
             key={thumbnail.id}
             type="button"
             onClick={thumbnail.onClick}
-            className={`shrink-0 overflow-hidden rounded border bg-white transition ${
+            aria-current={thumbnail.active ? "true" : undefined}
+            className={`shrink-0 overflow-hidden rounded-md border bg-white transition ${
               thumbnail.active
-                ? "border-text-base ring-2 ring-text-base/20"
+                ? "border-brand-strong ring-2 ring-brand-strong/15"
                 : "border-border-subtle hover:border-text-muted"
             }`}
-            style={{ width: 68, height: 68 }}
+            style={{ width: 72, height: 72 }}
           >
             <img
               src={thumbnail.src}

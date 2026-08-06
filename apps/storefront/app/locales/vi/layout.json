@@ -7,6 +7,8 @@
   "navbar_more_contact": "Thông tin liên hệ",
   "navbar_more_about": "Về chúng tôi",
   "navbar_more_order_lookup": "Tra cứu đơn hàng",
+  "navbar_cart_one": "Giỏ hàng, {{count}} sản phẩm",
+  "navbar_cart_other": "Giỏ hàng, {{count}} sản phẩm",
 
   "search_placeholder": "Tìm kiếm sản phẩm, danh mục...",
   "search_clear": "Xóa tìm kiếm",
@@ -46,9 +48,9 @@
   "footer_hotline": "Hotline:",
   "footer_zalo": "Zalo: 0816 999 296",
   "footer_email": "Email:",
-  "footer_copyright": "© 2024 PHÙNG THỊ - Premium Trophy Manufacturing. All rights reserved.",
-  "footer_privacy": "Privacy Policy",
-  "footer_terms": "Terms of Service",
+  "footer_copyright": "© 2024 PHÙNG THỊ. Đã đăng ký bản quyền.",
+  "footer_privacy": "Chính sách bảo mật",
+  "footer_terms": "Điều khoản sử dụng",
 
   "contact_call": "Gọi 0816 999 296",
   "contact_fab_close": "Đóng",

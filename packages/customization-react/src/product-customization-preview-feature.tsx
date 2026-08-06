@@ -42,6 +42,7 @@ export function ProductCustomizationPreview({
   watermark = false,
   readOnly = false,
   className,
+  viewportClassName,
   resolveAssetUrl,
   resolveFontUrl,
   resolveStaticFontUrl,
@@ -55,6 +56,7 @@ export function ProductCustomizationPreview({
   watermark?: boolean;
   readOnly?: boolean;
   className?: string;
+  viewportClassName?: string;
   resolveAssetUrl?: ResolveCustomizationAssetUrl;
   resolveFontUrl?: ResolveCustomizationFontUrl;
   resolveStaticFontUrl?: ResolveCustomizationStaticFontUrl;
@@ -292,7 +294,8 @@ export function ProductCustomizationPreview({
       className={cn(
         "relative mx-auto flex h-[min(72vh,740px)] min-h-[520px] w-full flex-col overflow-hidden rounded-lg border border-outline-variant bg-surface-container-low",
         className,
-        isFullscreen && "h-full min-h-0 max-h-full w-full max-w-none rounded-none",
+        isFullscreen &&
+          "h-full min-h-0 max-h-full w-full max-w-none rounded-none",
       )}
       data-selected-variant-id={selectedVariantId ?? ""}
       data-preview-background-url={background?.previewUrl ?? ""}
@@ -307,9 +310,11 @@ export function ProductCustomizationPreview({
       <ShapeClipPaths layers={design.layers} />
       <div
         ref={viewportRef}
-        className={`relative min-h-0 flex-1 overflow-hidden bg-[linear-gradient(90deg,rgba(28,27,27,0.035)_1px,transparent_1px),linear-gradient(rgba(28,27,27,0.035)_1px,transparent_1px)] bg-[size:28px_28px] ${
-          isCanvasPanMode ? "cursor-grab active:cursor-grabbing" : ""
-        }`}
+        className={cn(
+          "relative min-h-0 flex-1 overflow-hidden bg-[linear-gradient(90deg,rgba(28,27,27,0.035)_1px,transparent_1px),linear-gradient(rgba(28,27,27,0.035)_1px,transparent_1px)] bg-[size:28px_28px]",
+          isCanvasPanMode && "cursor-grab active:cursor-grabbing",
+          viewportClassName,
+        )}
         style={{ touchAction: isCanvasPanMode ? "none" : "auto" }}
         onPointerDown={startCanvasPan}
         onPointerMove={moveCanvasPan}
@@ -428,7 +433,9 @@ export function ProductCustomizationPreview({
           {watermark ? <CustomizationWatermark /> : null}
         </div>
         <PreviewToolbar
-          selectedImageValue={!readOnly && selectedImageField ? selectedImageField.value : null}
+          selectedImageValue={
+            !readOnly && selectedImageField ? selectedImageField.value : null
+          }
           zoom={zoom}
           onImageAdjust={adjustSelectedImage}
           onFullscreen={() => setFullscreen(true)}

@@ -62,7 +62,7 @@ export function BestSellersSection({
       <Container>
         <div className="relative mb-8 flex items-end justify-center md:mb-10 reveal active">
           <div className="max-w-3xl text-center">
-            <h2 className="font-bold uppercase text-brand-strong text-headline-md md:text-headline-lg">
+            <h2 className="font-heading font-semibold uppercase text-brand-strong text-headline-md md:text-headline-lg">
               {title ?? t("best_sellers_default_title")}
             </h2>
             {subtitle ? (
@@ -73,7 +73,7 @@ export function BestSellersSection({
           </div>
           <div className="hidden md:flex absolute right-0 items-center gap-3 text-text-muted">
             <button
-              aria-label="Previous"
+              aria-label={t("carousel_previous")}
               className={`flex h-10 w-10 items-center justify-center transition-colors ${canScrollPrev ? "hover:text-brand-strong text-text-muted" : "text-border-subtle cursor-not-allowed"}`}
               onClick={scrollPrev}
               disabled={!canScrollPrev}
@@ -81,7 +81,7 @@ export function BestSellersSection({
               <ChevronLeft className="w-7 h-7 stroke-[1.5]" />
             </button>
             <button
-              aria-label="Next"
+              aria-label={t("carousel_next")}
               className={`flex h-10 w-10 items-center justify-center transition-colors ${canScrollNext ? "hover:text-brand-strong text-text-muted" : "text-border-subtle cursor-not-allowed"}`}
               onClick={scrollNext}
               disabled={!canScrollNext}
@@ -130,7 +130,7 @@ export function BestSellersSection({
 
           <div className="md:hidden absolute inset-y-0 left-0 flex items-center">
             <button
-              aria-label="Previous"
+              aria-label={t("carousel_previous")}
               className={`w-8 h-8 flex items-center justify-center rounded-full bg-surface-base shadow-sm border border-border-subtle -ml-3 z-10 transition-opacity ${canScrollPrev ? "opacity-100" : "opacity-0 pointer-events-none"}`}
               onClick={scrollPrev}
             >
@@ -139,7 +139,7 @@ export function BestSellersSection({
           </div>
           <div className="md:hidden absolute inset-y-0 right-0 flex items-center">
             <button
-              aria-label="Next"
+              aria-label={t("carousel_next")}
               className={`w-8 h-8 flex items-center justify-center rounded-full bg-surface-base shadow-sm border border-border-subtle -mr-3 z-10 transition-opacity ${canScrollNext ? "opacity-100" : "opacity-0 pointer-events-none"}`}
               onClick={scrollNext}
             >

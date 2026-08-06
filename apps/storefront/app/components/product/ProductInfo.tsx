@@ -1,12 +1,12 @@
 import {
-    Award,
-    ChevronDown,
-    Package,
-    Phone,
-    Star,
-    StarHalf,
-    Truck,
-    Zap
+  Award,
+  ChevronDown,
+  Package,
+  Phone,
+  Star,
+  StarHalf,
+  Truck,
+  Zap,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link } from "react-router";
@@ -111,12 +111,14 @@ export function ProductInfo({
           <h1 className="mb-2 font-heading text-[34px] uppercase leading-none tracking-[0.02em] text-brand-strong">
             {title}
           </h1>
-          <div className="mb-3 flex items-center gap-3">
-            {starsEl}
-          </div>
-          <p className="font-heading text-[32px] uppercase leading-none tracking-[0.02em] text-action-positive">{price}</p>
+          <div className="mb-3 flex items-center gap-3">{starsEl}</div>
+          <p className="font-body text-[32px] font-bold leading-none tracking-[0.02em] text-action-positive">
+            {price}
+          </p>
           {description ? (
-            <p className="mt-3 text-sm leading-relaxed text-text-base">{description}</p>
+            <p className="mt-3 text-sm leading-relaxed text-text-base">
+              {description}
+            </p>
           ) : null}
         </div>
 
@@ -124,7 +126,10 @@ export function ProductInfo({
         {displayBadges.length > 0 ? (
           <div className="mb-5 flex flex-wrap gap-4 border-y border-border-subtle py-3">
             {displayBadges.map((badge, i) => (
-              <div key={i} className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.12em] text-brand-strong">
+              <div
+                key={i}
+                className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.12em] text-brand-strong"
+              >
                 <span className="text-brand-accent">{badge.icon}</span>
                 {badge.label}
               </div>
@@ -154,17 +159,22 @@ export function ProductInfo({
         <h1 className="mb-2 font-heading text-[34px] uppercase leading-none tracking-[0.02em] text-brand-strong">
           {title}
         </h1>
-        <div className="mb-3 flex items-center gap-3">
-          {starsEl}
-        </div>
-        <p className="mb-4 font-heading text-[32px] uppercase leading-none tracking-[0.02em] text-action-positive">{price}</p>
+        <div className="mb-3 flex items-center gap-3">{starsEl}</div>
+        <p className="mb-4 font-body text-[32px] font-bold leading-none tracking-[0.02em] text-action-positive">
+          {price}
+        </p>
         {description ? (
-          <p className="mb-4 text-sm leading-relaxed text-text-base">{description}</p>
+          <p className="mb-4 text-sm leading-relaxed text-text-base">
+            {description}
+          </p>
         ) : null}
         {displayBadges.length > 0 ? (
           <div className="flex flex-wrap gap-4 border-t border-border-subtle pt-4">
             {displayBadges.map((badge, i) => (
-              <div key={i} className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.12em] text-brand-strong">
+              <div
+                key={i}
+                className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.12em] text-brand-strong"
+              >
                 <span className="text-brand-accent">{badge.icon}</span>
                 {badge.label}
               </div>
@@ -226,7 +236,9 @@ export function ProductDetailSections({
                 {Object.entries(specs).map(([name, value]) => (
                   <div key={name} className="contents">
                     <span className="text-text-muted">{name}:</span>
-                    <span className="font-semibold text-text-base">{value}</span>
+                    <span className="font-semibold text-text-base">
+                      {value}
+                    </span>
                   </div>
                 ))}
               </div>
