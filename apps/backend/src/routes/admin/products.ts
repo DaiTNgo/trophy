@@ -65,6 +65,7 @@ import {
   validateCustomizationPublishReadiness
 } from './product-customization-service'
 import { productContentRoute } from './product-content-route'
+import { productVariantBatchRoute } from './product-variant-batch-route'
 import {
   createProductSchema,
   fullCreateCustomizationSchema,
@@ -79,9 +80,7 @@ import {
   optionValueUpdateSchema,
   optionsSchema,
   organizeSchema,
-  priceUpdateSchema,
   searchProductsQuerySchema,
-  stockUpdateSchema,
   updateProductSchema,
   variantCreateSchema,
   variantCustomizationMediaSchema,
@@ -1223,113 +1222,7 @@ export const productsRoute = new Hono<AppEnv>()
     const product = await readProduct(c, db, params.output.id)
     return c.json({ item: product }, 200)
   })
-  .patch('/:id/variants/prices', async (c) => {
-    const params = parseParams(c, idParamsSchema)
-
-    if (!params.success) {
-      return params.response
-    }
-
-    const parsed = await parseJson(c, priceUpdateSchema)
-
-    if (!parsed.success) {
-      return parsed.response
-    }
-
-    const db = getDb(c.env)
-    const product = await readProduct(c, db, params.output.id)
-
-    if (!product) {
-      return jsonError(c, 404, 'Product not found')
-    }
-
-    const variantIds = parsed.output.items.map((item) => item.id)
-    if (new Set(variantIds).size !== variantIds.length) {
-      return jsonError(c, 409, 'Variant ids in a price update must be unique')
-    }
-
-    if (
-      product.status === 'published' &&
-      parsed.output.items.some((item) => item.priceAmount === null)
-    ) {
-      return jsonError(c, 409, 'Every variant must have a price before publish')
-    }
-
-    const existingVariants = await db
-      .select({ id: productVariants.id })
-      .from(productVariants)
-      .where(eq(productVariants.productId, product.id))
-    const existingVariantIds = new Set(existingVariants.map((row) => row.id))
-
-    if (variantIds.some((variantId) => !existingVariantIds.has(variantId))) {
-      return jsonError(c, 404, 'One or more variants were not found')
-    }
-
-    for (const item of parsed.output.items) {
-      await db
-        .update(productVariants)
-        .set({
-          priceAmount: item.priceAmount,
-          updatedAt: nowIso()
-        })
-        .where(and(eq(productVariants.id, item.id), eq(productVariants.productId, product.id)))
-    }
-
-    await updateProductTimestamp(db, product.id)
-
-    const nextProduct = await readProduct(c, db, product.id)
-    return c.json({ item: nextProduct }, 200)
-  })
-  .patch('/:id/variants/stock', async (c) => {
-    const params = parseParams(c, idParamsSchema)
-
-    if (!params.success) {
-      return params.response
-    }
-
-    const parsed = await parseJson(c, stockUpdateSchema)
-
-    if (!parsed.success) {
-      return parsed.response
-    }
-
-    const db = getDb(c.env)
-    const product = await ensureProductExists(db, params.output.id)
-
-    if (!product) {
-      return jsonError(c, 404, 'Product not found')
-    }
-
-    const variantIds = parsed.output.items.map((item) => item.id)
-    if (new Set(variantIds).size !== variantIds.length) {
-      return jsonError(c, 409, 'Variant ids in a stock update must be unique')
-    }
-
-    const existingVariants = await db
-      .select({ id: productVariants.id })
-      .from(productVariants)
-      .where(eq(productVariants.productId, product.id))
-    const existingVariantIds = new Set(existingVariants.map((row) => row.id))
-
-    if (variantIds.some((variantId) => !existingVariantIds.has(variantId))) {
-      return jsonError(c, 404, 'One or more variants were not found')
-    }
-
-    for (const item of parsed.output.items) {
-      await db
-        .update(productVariants)
-        .set({
-          inventoryQuantity: item.inventoryQuantity,
-          updatedAt: nowIso()
-        })
-        .where(and(eq(productVariants.id, item.id), eq(productVariants.productId, product.id)))
-    }
-
-    await updateProductTimestamp(db, product.id)
-
-    const nextProduct = await readProduct(c, db, product.id)
-    return c.json({ item: nextProduct }, 200)
-  })
+  .route('/', productVariantBatchRoute)
   .post('/:id/variants', async (c) => {
     const params = parseParams(c, idParamsSchema)
 
