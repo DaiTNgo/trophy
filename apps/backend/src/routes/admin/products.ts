@@ -42,9 +42,7 @@ import {
   loadProductAssetsById
 } from './product-media'
 import {
-  ensureProductExists,
   ensureVariantAssetIdsExist,
-  ensureVariantBelongsToProduct,
   updateProductTimestamp,
 } from './product-guards'
 import {
@@ -65,6 +63,7 @@ import { productOptionDefinitionRoute } from './product-option-definition-route'
 import { productOptionReplacementRoute } from './product-option-replacement-route'
 import { productOptionValueRoute } from './product-option-value-route'
 import { productVariantBatchRoute } from './product-variant-batch-route'
+import { productVariantDetailRoute } from './product-variant-detail-route'
 import { productVariantMisaRoute } from './product-variant-misa-route'
 import { productVariantReplacementRoute } from './product-variant-replacement-route'
 import {
@@ -78,7 +77,6 @@ import {
   updateProductSchema,
   variantCreateSchema,
   variantCustomizationMediaSchema,
-  variantDetailSchema,
   variantMediaSchema,
   variantParamsSchema
 } from './product-schemas'
@@ -842,6 +840,7 @@ export const productsRoute = new Hono<AppEnv>()
   .route('/', productOptionValueRoute)
   .route('/', productOptionReplacementRoute)
   .route('/', productVariantBatchRoute)
+  .route('/', productVariantDetailRoute)
   .route('/', productVariantMisaRoute)
   .post('/:id/variants', async (c) => {
     const params = parseParams(c, idParamsSchema)
@@ -978,102 +977,6 @@ export const productsRoute = new Hono<AppEnv>()
       ? await readProduct(c, db, product.id)
       : nextProduct
     return c.json({ item: syncedProduct }, 201)
-  })
-  .patch('/:id/variants/:variantId', async (c) => {
-    const params = parseParams(c, variantParamsSchema)
-
-    if (!params.success) {
-      return params.response
-    }
-
-    const parsed = await parseJson(c, variantDetailSchema)
-
-    if (!parsed.success) {
-      return parsed.response
-    }
-
-    const db = getDb(c.env)
-    const product = await ensureProductExists(db, params.output.id)
-
-    if (!product) {
-      return jsonError(c, 404, 'Product not found')
-    }
-
-    const variant = await ensureVariantBelongsToProduct(db, product.id, params.output.variantId)
-    if (!variant) {
-      return jsonError(c, 404, 'Variant not found')
-    }
-
-    const currentOptionRows = await db
-      .select({ optionValueId: productVariantOptionValues.optionValueId })
-      .from(productVariantOptionValues)
-      .where(eq(productVariantOptionValues.variantId, variant.id))
-    const nextOptionValueIds = parsed.output.optionValueIds
-      ? [...new Set(parsed.output.optionValueIds)].sort((a, b) => a - b)
-      : currentOptionRows.map((row) => row.optionValueId).sort((a, b) => a - b)
-
-    const selectionError = await validateVariantSelectionForProduct({
-      db,
-      productId: product.id,
-      optionValueIds: nextOptionValueIds,
-      excludedVariantId: variant.id
-    })
-    if (selectionError) {
-      return jsonError(c, selectionError.status, selectionError.error)
-    }
-
-    const nextVariantTitle = localizedInputValue(parsed.output.title)
-
-    await db
-      .update(productVariants)
-      .set({
-        title: nextVariantTitle,
-        sku: parsed.output.sku ?? null,
-        allowBackorder: parsed.output.allowBackorder ?? variant.allowBackorder,
-        updatedAt: nowIso()
-      })
-      .where(eq(productVariants.id, variant.id))
-
-    await upsertTranslations(
-      db,
-      'product_variant',
-      String(variant.id),
-      'title',
-      typeof parsed.output.title === 'string'
-        ? defaultLocalizedText(parsed.output.title)
-        : parsed.output.title
-    )
-
-    if (parsed.output.optionValueIds !== undefined) {
-      await db
-        .delete(productVariantOptionValues)
-        .where(eq(productVariantOptionValues.variantId, variant.id))
-
-      if (nextOptionValueIds.length > 0) {
-        await db.insert(productVariantOptionValues).values(
-          nextOptionValueIds.map((optionValueId) => ({
-            variantId: variant.id,
-            optionValueId
-          }))
-        )
-      }
-    }
-
-    if (parsed.output.attributes !== undefined) {
-      await replaceVariantAttributes(db, variant.id, parsed.output.attributes)
-    }
-
-    await updateProductTimestamp(db, product.id)
-
-    const nextProduct = await readProduct(c, db, product.id)
-    if (nextProduct && product.status === 'published' && nextVariantTitle !== variant.title) {
-      const updated = nextProduct.variants.find((item) => item.id === variant.id)
-      if (updated) await syncMisaProductVariants(c, db, nextProduct, [updated])
-    }
-    const syncedProduct = product.status === 'published' && nextVariantTitle !== variant.title
-      ? await readProduct(c, db, product.id)
-      : nextProduct
-    return c.json({ item: syncedProduct }, 200)
   })
   .delete('/:id/variants/:variantId', async (c) => {
     const params = parseParams(c, variantParamsSchema)
