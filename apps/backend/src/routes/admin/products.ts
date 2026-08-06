@@ -1,8 +1,4 @@
-import {
-  validateProductCustomizationDraft,
-  validateProductCustomizationForPublish,
-  type ProductCustomization
-} from '@trophy/customization'
+import { validateProductCustomizationDraft, type ProductCustomization } from '@trophy/customization'
 import { and, asc, desc, eq, inArray, like, or, sql } from 'drizzle-orm'
 import { upsertTranslations } from '../../lib/catalog-translation'
 import { Hono } from 'hono'
@@ -64,6 +60,7 @@ import {
 import { readProduct } from './product-reader'
 import { validateVariantSelectionForProduct } from './product-variant-selection'
 import { replaceVariants } from './product-variant-mutations'
+import { productUsesVariantMode, validatePublishable } from './product-publishability'
 import {
   buildProductCustomizationInsert,
   validateCustomizationPublishReadiness
@@ -630,31 +627,6 @@ const defaultProductVariantInput = () => ({
 const localizedInputValue = (value: string | { vi: string }) =>
   typeof value === 'string' ? value : value.vi
 
-const localizedStoredValue = (value: unknown) => {
-  if (typeof value === 'string') {
-    return value
-  }
-
-  if (value && typeof value === 'object' && 'vi' in value && typeof value.vi === 'string') {
-    return value.vi
-  }
-
-  return ''
-}
-
-const productUsesVariantMode = (product: {
-  options: Array<{ title: unknown; values: Array<{ value: unknown }> }>
-  variants: Array<unknown>
-}) =>
-  product.options.length > 1 ||
-  (product.options.length === 1 &&
-    localizedStoredValue(product.options[0]?.title) !== DEFAULT_PRODUCT_OPTION_TITLE) ||
-  (product.options.length === 1 &&
-    product.options[0]!.values.some(
-      (optionValue) => localizedStoredValue(optionValue.value) !== DEFAULT_PRODUCT_OPTION_VALUE
-    )) ||
-  product.variants.length > 1
-
 const isDefaultOptionInput = (
   options: v.InferOutput<typeof fullCreateProductSchema>['options']
 ) =>
@@ -686,115 +658,6 @@ const normalizeFullCreateDefaultOptionGraph = (
   )
 
   return { hasCustomOptions, options, variants }
-}
-
-const hasVietnameseCatalogText = (val: any) => {
-  if (typeof val === 'string') return val.trim().length > 0;
-  if (!val) return false;
-  return (val.vi || '').trim().length > 0;
-}
-
-const isLocComplete = (val: any) => {
-  if (typeof val === 'string') return val.trim().length > 0;
-  if (!val) return false;
-  return (val.vi || '').trim().length > 0 && (val.en || '').trim().length > 0;
-}
-export const validatePublishable = (product: NonNullable<Awaited<ReturnType<typeof readProduct>>>) => {
-  if (!hasVietnameseCatalogText(product.title)) {
-    return 'Product title requires Vietnamese text before publish'
-  }
-
-  for (const attr of product.attributes) {
-    if (!isLocComplete(attr.name) || !isLocComplete(attr.value)) {
-      return 'All product attributes must have translated names and values before publish'
-    }
-  }
-
-  for (const opt of product.options) {
-    if (!isLocComplete(opt.title)) {
-      return 'All product options must have translated titles before publish'
-    }
-    for (const val of opt.values) {
-      if (!isLocComplete(val.value)) {
-        return 'All product option values must have translated labels before publish'
-      }
-    }
-  }
-
-  if (product.variants.length === 0) {
-    return 'A product must have at least one variant'
-  }
-
-  for (const variant of product.variants) {
-    if (variant.priceAmount === null) {
-      return 'Every variant must have a price before publish'
-    }
-    for (const attr of variant.attributes ?? []) {
-      if (!isLocComplete(attr.name) || !isLocComplete(attr.value)) {
-        return 'All variant attributes must have translated names and values before publish'
-      }
-    }
-  }
-
-  const expectedOptionCount = product.options.length
-
-  if (!productUsesVariantMode(product)) {
-    if (product.variants.length !== 1 || !product.variants[0].isDefault) {
-      return 'Products without variants must have exactly one default variant'
-    }
-
-    if (product.options.length > 1 || (product.options.length === 1 && product.options[0]?.values.length !== 1)) {
-      return 'Products without variants must have exactly one default option and value, or zero options'
-    }
-  }
-
-  const seenCombinations = new Set<string>()
-
-  for (const variant of product.variants) {
-    if (variant.optionValueIds.length !== expectedOptionCount) {
-      return 'Every variant must include exactly one value for each option'
-    }
-
-    const key = [...variant.optionValueIds].sort((a, b) => a - b).join(':')
-    if (seenCombinations.has(key)) {
-      return 'Variant combinations must be unique'
-    }
-
-    seenCombinations.add(key)
-  }
-
-  if (product.customization?.enabled) {
-    const firstMedia = product.variants.find((variant) => variant.customizationMedia)?.customizationMedia
-
-    if (!firstMedia?.widthPx || !firstMedia?.heightPx) {
-      return 'Customization requires Customization Media for every variant before publish'
-    }
-
-    for (const variant of product.variants) {
-      if (!variant.customizationMedia) {
-        return 'Each variant needs Customization Media before publish'
-      }
-
-      if (variant.customizationMedia.widthPx !== firstMedia.widthPx || variant.customizationMedia.heightPx !== firstMedia.heightPx) {
-        return 'All Customization Media assets must share the same size before publish'
-      }
-    }
-
-    const customizationValidation = validateProductCustomizationForPublish({
-      productId: String(product.id),
-      enabled: true,
-      canvasWidthPx: firstMedia.widthPx,
-      canvasHeightPx: firstMedia.heightPx,
-      layers: product.customization.layers,
-      formFields: product.customization.formFields
-    })
-
-    if (!customizationValidation.valid) {
-      return customizationValidation.issues[0]?.message ?? 'Customization is invalid'
-    }
-  }
-
-  return null
 }
 
 export const productsRoute = new Hono<AppEnv>()

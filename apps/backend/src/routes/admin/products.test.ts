@@ -1,9 +1,7 @@
 import { DEFAULT_TEMPLATE } from "@trophy/customization";
 import { describe, expect, it } from "vitest";
 import { productAssets } from "../../db/schema";
-import {
-  validatePublishable,
-} from "./products";
+import { validatePublishable } from "./product-publishability";
 import {
   buildProductCustomizationInsert,
   validateCustomizationPublishReadiness,
