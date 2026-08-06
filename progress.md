@@ -2,6 +2,12 @@
 
 ## Current Session
 
+- 2026-08-06: Removed `Created` and `Updated` from the Products list sort menu beside Search, and removed the unused `sortBy` state. The menu now keeps only Title and ascending/descending order controls. Verification: `pnpm --filter admin test` passes (13 tests), `pnpm --filter admin build` passes, and `git diff --check` passes. `feature_list.json` remains invalid JSON from before this change and was not updated.
+
+- 2026-08-06: Removed the `Created` and `Updated` filters from the admin Products list. Their filter chips, menu entries, state, and placeholder logic are gone; the existing sort choices remain unchanged. Verification: `pnpm --filter admin test` passes (13 tests), `pnpm --filter admin build` passes, and `git diff --check` passes. `feature_list.json` remains invalid JSON from before this change and was not updated.
+
+- 2026-08-06: Fixed admin Products list pagination. Products are now sliced into 15-item pages, search/filter changes reset to page one, deletion cannot leave the list on an invalid page, and `Previous`/`Next` update the active page with correct disabled states. Verification: `pnpm --filter admin test` passes (13 tests), `pnpm --filter admin build` passes, and `git diff --check` passes. `feature_list.json` remains invalid JSON from before this change and was not updated.
+
 - 2026-08-03: Added the system `Other products` product category. Full product creation and organization saves now create or reuse it when no category is selected; category metadata marks both `customization` and `other-products` as system categories, so the admin hides Delete and the API rejects system-category delete, name, handle, and description changes. Added route and helper coverage. Verification: `./init.sh` passes (137 backend tests, backend/admin/storefront checks and builds) and `git diff --check` passes. `feature_list.json` could not be updated because it is already invalid JSON before this change (literal truncated `...` strings).
 
 - 2026-07-26: Rebuilt OpenSpec change `misa-product-order-sync` after the previous MISA implementation was removed. Added schema fields for `product_variants.misa_product_id` and order MISA sync metadata, shared MISA v2 client, product publish/delete sync, admin MISA proxy and lookup UI, checkout contact/sale-order sync, Bruno documentation, and 127 backend tests. `./init.sh` passes end to end. Migration generation/application remains operator-owned and is the only incomplete prerequisite.

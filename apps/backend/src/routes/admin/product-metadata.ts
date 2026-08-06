@@ -44,7 +44,7 @@ const createCollectionSchema = v.object({
 
 const createCategorySchema = v.object({
   name: localizedString(1, 120),
-  description: v.optional(localizedNullableText()),
+  description: v.optional(v.nullable(localizedNullableText())),
   handle: optionalHandle,
   imageUrl: v.optional(v.nullable(v.string()))
 })
@@ -59,10 +59,14 @@ const updateCollectionSchema = v.object({
 const updateCategorySchema = v.object({
   name: v.optional(localizedString(1, 120)),
   handle: optionalHandle,
-  description: v.optional(localizedNullableText()),
+  description: v.optional(v.nullable(localizedNullableText())),
   imageUrl: v.optional(v.nullable(v.string())),
   position: v.optional(nonNegativeInt)
 })
+
+const nullableLocalizedPatch = (
+  value: { vi?: string | null; en?: string | null } | null
+) => value ?? { vi: null, en: null }
 
 const updateCategoryRankingSchema = v.object({
   categories: v.array(
@@ -302,7 +306,13 @@ export const productMetadataRoute = new Hono<AppEnv>()
 
     await upsertTranslations(db, 'product_category', String(item.id), 'name', parsed.output.name)
     if (parsed.output.description !== undefined) {
-      await upsertTranslations(db, 'product_category', String(item.id), 'description', parsed.output.description)
+      await upsertTranslations(
+        db,
+        'product_category',
+        String(item.id),
+        'description',
+        nullableLocalizedPatch(parsed.output.description)
+      )
     }
 
     return c.json({ item }, 201)
@@ -391,7 +401,13 @@ export const productMetadataRoute = new Hono<AppEnv>()
     }
 
     if (parsed.output.description !== undefined) {
-      await upsertTranslations(db, 'product_category', String(item.id), 'description', parsed.output.description)
+      await upsertTranslations(
+        db,
+        'product_category',
+        String(item.id),
+        'description',
+        nullableLocalizedPatch(parsed.output.description)
+      )
     }
 
     const [hydratedItem] = await hydrateTranslations(
