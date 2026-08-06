@@ -53,7 +53,6 @@ import {
 } from './product-guards'
 import {
   replaceAttributes,
-  replaceMedia,
   replaceOptions,
   replaceVariantAttributes
 } from './product-mutations'
@@ -65,13 +64,12 @@ import {
   buildProductCustomizationInsert,
   validateCustomizationPublishReadiness
 } from './product-customization-service'
+import { productContentRoute } from './product-content-route'
 import {
-  attributesSchema,
   createProductSchema,
   fullCreateCustomizationSchema,
   fullCreateProductSchema,
   idParamsSchema,
-  mediaSchema,
   nullableLocalizedPatch,
   optionCreateSchema,
   optionParamsSchema,
@@ -847,72 +845,7 @@ export const productsRoute = new Hono<AppEnv>()
     const product = await readProduct(c, db, current.id)
     return c.json({ item: product }, 200)
   })
-  .put('/:id/attributes', async (c) => {
-    const params = parseParams(c, idParamsSchema)
-
-    if (!params.success) {
-      return params.response
-    }
-
-    const parsed = await parseJson(c, attributesSchema)
-
-    if (!parsed.success) {
-      return parsed.response
-    }
-
-    const db = getDb(c.env)
-    const exists = await db
-      .select({ id: products.id })
-      .from(products)
-      .where(eq(products.id, params.output.id))
-      .get()
-
-    if (!exists) {
-      return jsonError(c, 404, 'Product not found')
-    }
-
-    await replaceAttributes(db, params.output.id, parsed.output.items)
-    await db
-      .update(products)
-      .set({ updatedAt: nowIso() })
-      .where(eq(products.id, params.output.id))
-
-    const product = await readProduct(c, db, params.output.id)
-    return c.json({ item: product }, 200)
-  })
-  .put('/:id/media', async (c) => {
-    const params = parseParams(c, idParamsSchema)
-
-    if (!params.success) {
-      return params.response
-    }
-
-    const parsed = await parseJson(c, mediaSchema)
-
-    if (!parsed.success) {
-      return parsed.response
-    }
-
-    const db = getDb(c.env)
-    const exists = await db
-      .select({ id: products.id })
-      .from(products)
-      .where(eq(products.id, params.output.id))
-      .get()
-
-    if (!exists) {
-      return jsonError(c, 404, 'Product not found')
-    }
-
-    await replaceMedia(db, params.output.id, parsed.output.items)
-    await db
-      .update(products)
-      .set({ updatedAt: nowIso() })
-      .where(eq(products.id, params.output.id))
-
-    const product = await readProduct(c, db, params.output.id)
-    return c.json({ item: product }, 200)
-  })
+  .route('/', productContentRoute)
   .post('/:id/options', async (c) => {
     const params = parseParams(c, idParamsSchema)
 
