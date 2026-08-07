@@ -20,12 +20,10 @@ import { CollectionDetailPage } from "./pages/collections/detail";
 import { CategoriesListPage } from "./pages/categories/index";
 import { CategoryDetailPage } from "./pages/categories/detail";
 import { PlaceholderIndexPage } from "./pages/placeholder-index";
-import { CustomizationTemplatesRouter } from "./pages/customization-templates";
 import { BrandColorsPage } from "./pages/brand-colors";
 import { BrandFontsPage } from "./pages/brand-fonts";
 import { ClipartPage } from "./pages/clipart";
 import { ClipartDetailPage } from "./pages/clipart-detail";
-import { MisaProductsPage } from "./pages/misa-products";
 
 function ProtectedRoute() {
   const auth = useAuth();
@@ -55,7 +53,6 @@ const router = createBrowserRouter([
           { path: "orders", Component: OrdersListPage },
           { path: "orders/:orderNumber", Component: OrderDetailPage },
           { path: "products", Component: ProductsListPage },
-          { path: "misa-products", Component: MisaProductsPage },
           { path: "products/new", Component: CreateProductPage },
           { path: "products/:productId", Component: ProductDetailPage },
           { path: "products/:productId/customization", Component: ProductCustomizationEditor },
@@ -63,16 +60,6 @@ const router = createBrowserRouter([
           { path: "collections/:id", Component: CollectionDetailPage },
           { path: "categories", Component: CategoriesListPage },
           { path: "categories/:id", Component: CategoryDetailPage },
-          {
-            path: "inventory",
-            Component: () => (
-              <PlaceholderIndexPage
-                eyebrow="Inventory"
-                title="Inventory"
-                description="Track stock locations, quantities, and replenishment workflows once inventory contracts move beyond mock data."
-              />
-            ),
-          },
           {
             path: "customers",
             Component: () => (
@@ -107,7 +94,6 @@ const router = createBrowserRouter([
           { path: "settings", Component: () => <Navigate to="/settings/security" replace /> },
           { path: "settings/security", Component: SecurityPage },
           { path: "super-admin/recovery", Component: SuperAdminRecoveryPage },
-          { path: "customization/templates/*", Component: CustomizationTemplatesRouter },
           { path: "customization/clipart", Component: ClipartPage },
           { path: "customization/clipart/:categoryId", Component: ClipartDetailPage },
           { path: "customization/colors", Component: BrandColorsPage },

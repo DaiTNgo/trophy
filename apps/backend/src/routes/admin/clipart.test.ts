@@ -29,7 +29,10 @@ function createQueryChain({
 }) {
   const chain: any = {
     from: vi.fn(() => chain),
-    where: vi.fn(() => chain),
+    where: vi.fn(() => {
+      if (kind === "delete") mutations.push({ kind });
+      return chain;
+    }),
     innerJoin: vi.fn(() => chain),
     leftJoin: vi.fn(() => chain),
     orderBy: vi.fn(() => chain),
@@ -326,6 +329,46 @@ describe("admin clipart routes", () => {
     await expect(res.json()).resolves.toEqual({
       error: "Clipart category not found",
     });
+  });
+
+  it("deletes the clipart asset and its stored source object", async () => {
+    db.getQueue.push(
+      {
+        id: "clipart_star",
+        categoryId: "sports",
+        sourceAssetId: "asset_star",
+        name: "Star",
+        fileName: "star.svg",
+        previewUrl: "/api/assets/customizations/asset_star/content",
+        mimeType: "image/svg+xml",
+        sourceWidthPx: 128,
+        sourceHeightPx: 128,
+        active: true,
+        createdAt: 10,
+        updatedAt: 10,
+      },
+      {
+        id: "asset_star",
+        objectKey: "clipart/sports/clipart_star/source.svg",
+        previewObjectKey: null,
+      },
+    );
+
+    const res = await adminClipartRoute.request(
+      "/assets/clipart_star",
+      { method: "DELETE" },
+      env,
+    );
+
+    expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toEqual({ success: true });
+    expect(env.CUSTOMIZATION_ASSETS.delete).toHaveBeenCalledWith(
+      "clipart/sports/clipart_star/source.svg",
+    );
+    expect(db.mutations).toEqual([
+      { kind: "delete" },
+      { kind: "delete" },
+    ]);
   });
 
   it("rejects clipart batch uploads for an inactive category", async () => {

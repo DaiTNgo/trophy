@@ -326,12 +326,31 @@ export const adminClipartRoute = new Hono<AppEnv>()
     if (!params.success) return params.response;
 
     const db = getDb(c.env);
-    const [asset] = await db
-      .update(customizationClipartAssets)
-      .set({ active: false })
+    const asset = await db
+      .select()
+      .from(customizationClipartAssets)
       .where(eq(customizationClipartAssets.id, params.output.id))
-      .returning();
+      .get();
 
     if (!asset) return jsonError(c, 404, "Clipart asset not found");
-    return c.json({ success: true, asset: serializeAsset(c, asset) }, 200);
+
+    const sourceAsset = await db
+      .select()
+      .from(customizationAssets)
+      .where(eq(customizationAssets.id, asset.sourceAssetId))
+      .get();
+
+    if (sourceAsset) {
+      await c.env.CUSTOMIZATION_ASSETS.delete(sourceAsset.objectKey);
+      if (sourceAsset.previewObjectKey && sourceAsset.previewObjectKey !== sourceAsset.objectKey) {
+        await c.env.CUSTOMIZATION_ASSETS.delete(sourceAsset.previewObjectKey);
+      }
+    }
+
+    await db.delete(customizationClipartAssets).where(eq(customizationClipartAssets.id, asset.id));
+    if (sourceAsset) {
+      await db.delete(customizationAssets).where(eq(customizationAssets.id, sourceAsset.id));
+    }
+
+    return c.json({ success: true }, 200);
   });

@@ -297,80 +297,76 @@ export function ProductsListPage() {
               </Text>
             </div>
           ) : (
-            <Table>
-              <Table.Header>
-                <Table.Row>
-                  <Table.HeaderCell>Product</Table.HeaderCell>
-                  <Table.HeaderCell>Collection</Table.HeaderCell>
-                  <Table.HeaderCell>Variants</Table.HeaderCell>
-                  <Table.HeaderCell>Status</Table.HeaderCell>
-                  <Table.HeaderCell className="w-10"></Table.HeaderCell>
-                </Table.Row>
-              </Table.Header>
-              <Table.Body>
-                {paginatedProducts.map((product) => (
-                  <Table.Row key={product.id}>
-                    <Table.Cell>
-                      <div className="flex items-center gap-x-3">
-                        {product.media?.[0] && (
-                          <div className="h-8 w-6 overflow-hidden rounded bg-ui-bg-subtle flex-shrink-0">
-                            <img
-                              src={product.media[0]}
-                              alt={product.title?.vi || product.title?.en}
-                              className="h-full w-full object-cover"
-                            />
-                          </div>
-                        )}
-                        <div className="flex flex-col">
-                          <Link
-                            to={`/products/${product.id}`}
-                            className="text-ui-fg-base font-medium"
-                          >
-                            {product.title?.vi || product.title?.en}
-                          </Link>
-                        </div>
-                      </div>
-                    </Table.Cell>
-                    <Table.Cell>
-                      <Text size="small" className="text-ui-fg-subtle">
-                        {product.collection || "-"}
-                      </Text>
-                    </Table.Cell>
-                    <Table.Cell>
-                      <Text size="small" className="text-ui-fg-subtle">
-                        {product.variants
-                          ? `${product.variants.length} variants`
-                          : "4 variants"}
-                      </Text>
-                    </Table.Cell>
-                    <Table.Cell>
-                      <StatusBadge color={product.status === "Published" ? "green" : "grey"}>
-                        {product.status}
-                      </StatusBadge>
-                    </Table.Cell>
-                    <Table.Cell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenu.Trigger asChild>
-                          <IconButton variant="transparent" size="small">
-                            <MoreHorizontal className="h-4 w-4 text-ui-fg-muted" />
-                          </IconButton>
-                        </DropdownMenu.Trigger>
-                        <DropdownMenu.Content align="end">
-                          <DropdownMenu.Item onClick={() => navigate(`/products/${product.id}`)}>
-                            <Pencil className="h-4 w-4" />
-                            Edit
-                          </DropdownMenu.Item>
-                          <DropdownMenu.Item className="text-ui-fg-error" disabled={deletingId === product.id} onClick={() => void handleDelete(product)}>
-                            <Trash2 className="h-4 w-4" />
-                            Delete
-                          </DropdownMenu.Item>
-                        </DropdownMenu.Content>
-                      </DropdownMenu>
-                    </Table.Cell>
+            <div className="overflow-x-auto">
+              <Table className="min-w-[560px]">
+                <Table.Header>
+                  <Table.Row>
+                    <Table.HeaderCell>Product</Table.HeaderCell>
+                    <Table.HeaderCell>Variants</Table.HeaderCell>
+                    <Table.HeaderCell>Status</Table.HeaderCell>
+                    <Table.HeaderCell className="w-10"></Table.HeaderCell>
                   </Table.Row>
-                ))}
-              </Table.Body>
-            </Table>
+                </Table.Header>
+                <Table.Body>
+                  {paginatedProducts.map((product) => (
+                    <Table.Row key={product.id}>
+                      <Table.Cell>
+                        <div className="flex items-center gap-x-3">
+                          {product.media?.[0] && (
+                            <div className="h-8 w-6 overflow-hidden rounded bg-ui-bg-subtle flex-shrink-0">
+                              <img
+                                src={product.media[0]}
+                                alt={product.title?.vi || product.title?.en}
+                                className="h-full w-full object-cover"
+                              />
+                            </div>
+                          )}
+                          <div className="flex flex-col">
+                            <Link
+                              to={`/products/${product.id}`}
+                              className="text-ui-fg-base font-medium"
+                            >
+                              {product.title?.vi || product.title?.en}
+                            </Link>
+                          </div>
+                        </div>
+                      </Table.Cell>
+                      <Table.Cell>
+                        <Text size="small" className="text-ui-fg-subtle">
+                          {product.variants
+                            ? `${product.variants.length} variants`
+                            : "4 variants"}
+                        </Text>
+                      </Table.Cell>
+                      <Table.Cell>
+                        <StatusBadge color={product.status === "Published" ? "green" : "grey"}>
+                          {product.status}
+                        </StatusBadge>
+                      </Table.Cell>
+                      <Table.Cell className="text-right">
+                        <DropdownMenu>
+                          <DropdownMenu.Trigger asChild>
+                            <IconButton variant="transparent" size="small">
+                              <MoreHorizontal className="h-4 w-4 text-ui-fg-muted" />
+                            </IconButton>
+                          </DropdownMenu.Trigger>
+                          <DropdownMenu.Content align="end">
+                            <DropdownMenu.Item onClick={() => navigate(`/products/${product.id}`)}>
+                              <Pencil className="h-4 w-4" />
+                              Edit
+                            </DropdownMenu.Item>
+                            <DropdownMenu.Item className="text-ui-fg-error" disabled={deletingId === product.id} onClick={() => void handleDelete(product)}>
+                              <Trash2 className="h-4 w-4" />
+                              Delete
+                            </DropdownMenu.Item>
+                          </DropdownMenu.Content>
+                        </DropdownMenu>
+                      </Table.Cell>
+                    </Table.Row>
+                  ))}
+                </Table.Body>
+              </Table>
+            </div>
           )}
           {!isLoading && filteredProducts.length > 0 && (
             <Table.Pagination

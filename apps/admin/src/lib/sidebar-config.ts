@@ -1,5 +1,5 @@
 import type { ComponentType } from "react";
-import { Boxes, Package, Palette, Settings, ShoppingCart, Tag, Type, Users, Waypoints } from "lucide-react";
+import { Boxes, Package, Palette, Settings, ShoppingCart, Tag, Type, Users } from "lucide-react";
 
 export type SidebarNavItem = {
   label: string;
@@ -35,35 +35,17 @@ export const primarySidebarItems: SidebarNavItem[] = [
         icon: Boxes,
         prefixes: ["/categories"],
       },
-      {
-        label: "MISA Products",
-        to: "/misa-products",
-        icon: Waypoints,
-        prefixes: ["/misa-products"],
-      },
     ],
-  },
-  {
-    label: "Inventory",
-    to: "/inventory",
-    icon: Boxes,
-    prefixes: ["/inventory"],
   },
 ];
 
 export const operationsSidebarItems: SidebarNavItem[] = [
   {
     label: "Customization",
-    to: "/customization/templates",
+    to: "/customization/clipart",
     icon: Palette,
     prefixes: ["/customization"],
     children: [
-      {
-        label: "Templates",
-        to: "/customization/templates",
-        icon: Palette,
-        prefixes: ["/customization/templates"],
-      },
       {
         label: "Clipart",
         to: "/customization/clipart",
@@ -105,7 +87,6 @@ export const bottomSidebarItems: SidebarNavItem[] = [
 export const shellSections = [
   { label: "Orders", prefixes: ["/orders"] },
   { label: "Products", prefixes: ["/products", "/collections", "/categories"] },
-  { label: "Inventory", prefixes: ["/inventory"] },
   { label: "Customization", prefixes: ["/customization"] },
   { label: "Team", prefixes: ["/team"] },
   { label: "Settings", prefixes: ["/settings"] },
