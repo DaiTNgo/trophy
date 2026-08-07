@@ -56,6 +56,11 @@ export function Navbar({
 
   const dropdownRef = useClickOutside<HTMLDivElement>(() =>
     setActiveDropdown(null),
+    {
+      isInside: (target) =>
+        target instanceof Element &&
+        !!target.closest("[data-nav-dropdown-trigger]"),
+    },
   );
 
   const [catApi, setCatApi] = useState<CarouselApi>();
@@ -117,7 +122,7 @@ export function Navbar({
           className="w-full bg-white flex flex-col relative transition-all duration-300"
           id="main-nav"
         >
-          <div ref={dropdownRef}>
+          <div>
             <Container className="flex items-center justify-between lg:justify-start gap-4 h-20 lg:gap-8 bg-white relative z-20">
               <div className="flex lg:hidden shrink-0 items-center gap-0">
                 <button
@@ -144,6 +149,7 @@ export function Navbar({
               <div className="hidden h-full shrink-0 items-center gap-2 text-[13px] font-bold tracking-wide text-brand-strong lg:flex">
                 <div className="h-[40px] flex items-center relative">
                   <button
+                    data-nav-dropdown-trigger="products"
                     onClick={() =>
                       setActiveDropdown(
                         activeDropdown === "products" ? null : "products",
@@ -171,6 +177,7 @@ export function Navbar({
                 {collections.length > 0 && (
                   <div className="h-10 flex items-center relative">
                     <button
+                      data-nav-dropdown-trigger="themes"
                       onClick={() =>
                         setActiveDropdown(
                           activeDropdown === "themes" ? null : "themes",
@@ -215,13 +222,17 @@ export function Navbar({
             </Container>
 
             {activeDropdown && (
-              <div className="absolute left-0 right-0 top-full z-50 animate-in border-t border-gray-100 bg-white shadow-xl fade-in slide-in-from-top-2">
+              <div
+                ref={dropdownRef}
+                className="absolute left-0 right-0 top-full z-50 animate-in border-t border-gray-100 bg-white shadow-xl fade-in slide-in-from-top-2"
+              >
                 <MegaMenuGrid
                   items={
                     activeDropdown === "products"
                       ? productMenuItems
                       : themeMenuItems
                   }
+                  onNavigate={() => setActiveDropdown(null)}
                 />
               </div>
             )}
