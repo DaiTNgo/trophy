@@ -2,12 +2,10 @@ import { validateProductCustomizationDraft, type ProductCustomization } from '@t
 import { and, asc, desc, eq, inArray, like, or, sql } from 'drizzle-orm'
 import { upsertTranslations } from '../../lib/catalog-translation'
 import { Hono } from 'hono'
-import { toAbsoluteAssetUrl } from '../../lib/url'
 import * as v from 'valibot'
 import { getDb } from '../../db/client'
 import {
   productAttributes,
-  productAssets,
   productCategories,
   productCategoryLinks,
   productCollections,
@@ -25,15 +23,12 @@ import {
 } from '../../db/schema'
 import type { AppEnv } from '../../lib/env'
 import { jsonError, parseJson, parseParams } from '../../lib/validation'
-import {
-  deleteMisaProducts,
-  isMisaConfigured
-} from '../../lib/misa'
+import { deleteMisaProducts, isMisaConfigured } from '../../lib/misa'
 import { persistCustomizationTranslations } from '../../lib/customization-translation'
 import {
   CUSTOMIZATION_CATEGORY_HANDLE,
   ensureCustomizationCategory,
-  ensureOtherProductsCategory,
+  ensureOtherProductsCategory
 } from '../../lib/customization-category'
 import { enqueueMisaProductSync, syncMisaProductVariants } from './product-misa-sync'
 import {
@@ -41,19 +36,10 @@ import {
   insertVariantMedia,
   loadProductAssetsById
 } from './product-media'
-import {
-  ensureVariantAssetIdsExist,
-  updateProductTimestamp,
-} from './product-guards'
-import {
-  replaceAttributes,
-  replaceOptions,
-  replaceVariantAttributes
-} from './product-mutations'
+import { replaceAttributes, replaceOptions } from './product-mutations'
 import { readProduct } from './product-reader'
-import { validateVariantSelectionForProduct } from './product-variant-selection'
 import { replaceVariants } from './product-variant-mutations'
-import { productUsesVariantMode, validatePublishable } from './product-publishability'
+import { validatePublishable } from './product-publishability'
 import {
   buildProductCustomizationInsert,
   validateCustomizationPublishReadiness
@@ -67,6 +53,8 @@ import { productVariantDetailRoute } from './product-variant-detail-route'
 import { productVariantDeleteRoute } from './product-variant-delete-route'
 import { productVariantMisaRoute } from './product-variant-misa-route'
 import { productVariantReplacementRoute } from './product-variant-replacement-route'
+import { productVariantCreateRoute } from './product-variant-create-route'
+import { productVariantMediaRoute } from './product-variant-media-route'
 import { normalizeFullCreateDefaultOptionGraph } from './product-default-graph'
 import {
   createProductSchema,
@@ -76,16 +64,11 @@ import {
   nullableLocalizedPatch,
   organizeSchema,
   searchProductsQuerySchema,
-  updateProductSchema,
-  variantCreateSchema,
-  variantCustomizationMediaSchema,
-  variantMediaSchema,
-  variantParamsSchema
+  updateProductSchema
 } from './product-schemas'
 
 const DEFAULT_PRODUCT_OPTION_TITLE = 'Default option'
 const DEFAULT_PRODUCT_OPTION_VALUE = 'Default option value'
-const DEFAULT_PRODUCT_VARIANT_TITLE = 'Default variant'
 
 const slugify = (value: string) =>
   value
@@ -122,9 +105,7 @@ const ensureUniqueHandle = async (
 
 const getRelatedCount = async (
   db: ReturnType<typeof getDb>,
-  table:
-    | typeof productCollections
-    | typeof productCategories,
+  table: typeof productCollections | typeof productCategories,
   ids: number[]
 ) => {
   if (ids.length === 0) {
@@ -133,7 +114,6 @@ const getRelatedCount = async (
 
   return (await db.select({ id: table.id }).from(table).where(inArray(table.id, ids))).length
 }
-
 
 const nowIso = () => new Date().toISOString()
 
@@ -183,10 +163,7 @@ const validateOrganizeReferences = async (
 const buildOptionSelectionKey = (optionTitle: string, value: string) =>
   `${optionTitle.trim().toLowerCase()}::${value.trim().toLowerCase()}`
 
-const loadOptionValueLookup = async (
-  db: ReturnType<typeof getDb>,
-  productId: number
-) => {
+const loadOptionValueLookup = async (db: ReturnType<typeof getDb>, productId: number) => {
   const optionRows = await db
     .select()
     .from(productOptions)
@@ -214,14 +191,6 @@ const defaultLocalizedText = (value: string) => ({ vi: value, en: value })
 
 const localizedInputValue = (value: string | { vi: string }) =>
   typeof value === 'string' ? value : value.vi
-
-const isDefaultOptionInput = (
-  options: v.InferOutput<typeof fullCreateProductSchema>['options']
-) =>
-  options.length === 1 &&
-  localizedInputValue(options[0].title) === DEFAULT_PRODUCT_OPTION_TITLE &&
-  options[0].values.length === 1 &&
-  localizedInputValue(options[0].values[0].value) === DEFAULT_PRODUCT_OPTION_VALUE
 
 export const productsRoute = new Hono<AppEnv>()
   .get('/', async (c) => {
@@ -298,10 +267,7 @@ export const productsRoute = new Hono<AppEnv>()
           }
         })
         .from(products)
-        .leftJoin(
-          productCollections,
-          eq(products.collectionId, productCollections.id)
-        )
+        .leftJoin(productCollections, eq(products.collectionId, productCollections.id))
         .where(whereClause)
         .orderBy(desc(products.id))
         .limit(limit)
@@ -333,10 +299,7 @@ export const productsRoute = new Hono<AppEnv>()
     }
 
     const db = getDb(c.env)
-    const handle = await ensureUniqueHandle(
-      db,
-      parsed.output.handle ?? parsed.output.title.vi
-    )
+    const handle = await ensureUniqueHandle(db, parsed.output.handle ?? parsed.output.title.vi)
     const defaultVariantTitle =
       parsed.output.defaultVariantTitle ?? `${parsed.output.title.vi} Default`
     const insertedProduct = await db
@@ -351,12 +314,30 @@ export const productsRoute = new Hono<AppEnv>()
       .returning()
       .get()
 
-    await upsertTranslations(db, 'product', String(insertedProduct.id), 'title', parsed.output.title)
+    await upsertTranslations(
+      db,
+      'product',
+      String(insertedProduct.id),
+      'title',
+      parsed.output.title
+    )
     if (parsed.output.subtitle) {
-      await upsertTranslations(db, 'product', String(insertedProduct.id), 'subtitle', parsed.output.subtitle)
+      await upsertTranslations(
+        db,
+        'product',
+        String(insertedProduct.id),
+        'subtitle',
+        parsed.output.subtitle
+      )
     }
     if (parsed.output.description) {
-      await upsertTranslations(db, 'product', String(insertedProduct.id), 'description', parsed.output.description)
+      await upsertTranslations(
+        db,
+        'product',
+        String(insertedProduct.id),
+        'description',
+        parsed.output.description
+      )
     }
 
     const insertedDefaultOption = await db
@@ -393,17 +374,21 @@ export const productsRoute = new Hono<AppEnv>()
       defaultLocalizedText(DEFAULT_PRODUCT_OPTION_VALUE)
     )
 
-    const insertedDefaultVariant = await db.insert(productVariants).values({
-      productId: insertedProduct.id,
-      title: defaultVariantTitle,
-      sku: null,
-      priceAmount: parsed.output.priceAmount ?? null,
-      inventoryQuantity: 0,
-      allowBackorder: false,
-      isDefault: true,
-      position: 0,
-      updatedAt: nowIso()
-    }).returning().get()
+    const insertedDefaultVariant = await db
+      .insert(productVariants)
+      .values({
+        productId: insertedProduct.id,
+        title: defaultVariantTitle,
+        sku: null,
+        priceAmount: parsed.output.priceAmount ?? null,
+        inventoryQuantity: 0,
+        allowBackorder: false,
+        isDefault: true,
+        position: 0,
+        updatedAt: nowIso()
+      })
+      .returning()
+      .get()
 
     await db.insert(productVariantOptionValues).values({
       variantId: insertedDefaultVariant.id,
@@ -423,8 +408,11 @@ export const productsRoute = new Hono<AppEnv>()
     const normalizedInput = normalizeFullCreateDefaultOptionGraph(parsed.output)
 
     if (
-      new Set(normalizedInput.options.map((item) => (typeof item.title === 'string' ? item.title : item.title.vi).toLowerCase())).size !==
-      normalizedInput.options.length
+      new Set(
+        normalizedInput.options.map((item) =>
+          (typeof item.title === 'string' ? item.title : item.title.vi).toLowerCase()
+        )
+      ).size !== normalizedInput.options.length
     ) {
       return jsonError(c, 409, 'Option titles must be unique')
     }
@@ -432,12 +420,10 @@ export const productsRoute = new Hono<AppEnv>()
     const db = getDb(c.env)
     const allAssetIds = [
       ...new Set(
-        normalizedInput.variants.flatMap((variant) =>
-          [
-            ...variant.media.map((media) => media.assetId),
-            ...(variant.customizationMedia?.assetId ? [variant.customizationMedia.assetId] : [])
-          ]
-        )
+        normalizedInput.variants.flatMap((variant) => [
+          ...variant.media.map((media) => media.assetId),
+          ...(variant.customizationMedia?.assetId ? [variant.customizationMedia.assetId] : [])
+        ])
       )
     ]
     const assetsById = await loadProductAssetsById(db, allAssetIds)
@@ -470,28 +456,58 @@ export const productsRoute = new Hono<AppEnv>()
 
     const handle = await ensureUniqueHandle(
       db,
-      parsed.output.details.handle ?? (typeof parsed.output.details.title === 'string' ? parsed.output.details.title : parsed.output.details.title.vi)
+      parsed.output.details.handle ??
+        (typeof parsed.output.details.title === 'string'
+          ? parsed.output.details.title
+          : parsed.output.details.title.vi)
     )
 
     const insertedProduct = await db
       .insert(products)
       .values({
-        title: typeof parsed.output.details.title === 'string' ? parsed.output.details.title : parsed.output.details.title.vi,
-        subtitle: (typeof parsed.output.details.subtitle === 'string' ? parsed.output.details.subtitle : parsed.output.details.subtitle?.vi) ?? null,
+        title:
+          typeof parsed.output.details.title === 'string'
+            ? parsed.output.details.title
+            : parsed.output.details.title.vi,
+        subtitle:
+          (typeof parsed.output.details.subtitle === 'string'
+            ? parsed.output.details.subtitle
+            : parsed.output.details.subtitle?.vi) ?? null,
         handle,
-        description: (typeof parsed.output.details.description === 'string' ? parsed.output.details.description : parsed.output.details.description?.vi) ?? null,
+        description:
+          (typeof parsed.output.details.description === 'string'
+            ? parsed.output.details.description
+            : parsed.output.details.description?.vi) ?? null,
         status: 'draft',
         collectionId: parsed.output.organization.collectionId ?? null
       })
       .returning()
       .get()
 
-    await upsertTranslations(db, 'product', String(insertedProduct.id), 'title', parsed.output.details.title)
+    await upsertTranslations(
+      db,
+      'product',
+      String(insertedProduct.id),
+      'title',
+      parsed.output.details.title
+    )
     if (parsed.output.details.subtitle) {
-      await upsertTranslations(db, 'product', String(insertedProduct.id), 'subtitle', parsed.output.details.subtitle)
+      await upsertTranslations(
+        db,
+        'product',
+        String(insertedProduct.id),
+        'subtitle',
+        parsed.output.details.subtitle
+      )
     }
     if (parsed.output.details.description) {
-      await upsertTranslations(db, 'product', String(insertedProduct.id), 'description', parsed.output.details.description)
+      await upsertTranslations(
+        db,
+        'product',
+        String(insertedProduct.id),
+        'description',
+        parsed.output.details.description
+      )
     }
 
     let categoryIds = [...new Set(parsed.output.organization.categoryIds ?? [])]
@@ -656,11 +672,7 @@ export const productsRoute = new Hono<AppEnv>()
     }
 
     const db = getDb(c.env)
-    const current = await db
-      .select()
-      .from(products)
-      .where(eq(products.id, params.output.id))
-      .get()
+    const current = await db.select().from(products).where(eq(products.id, params.output.id)).get()
 
     if (!current) {
       return jsonError(c, 404, 'Product not found')
@@ -670,11 +682,7 @@ export const productsRoute = new Hono<AppEnv>()
     let nextHandle = current.handle
 
     if (parsed.output.handle !== undefined) {
-      nextHandle = await ensureUniqueHandle(
-        db,
-        parsed.output.handle ?? nextTitle,
-        current.id
-      )
+      nextHandle = await ensureUniqueHandle(db, parsed.output.handle ?? nextTitle, current.id)
     } else if (!current.handle) {
       nextHandle = await ensureUniqueHandle(db, nextTitle, current.id)
     }
@@ -685,12 +693,12 @@ export const productsRoute = new Hono<AppEnv>()
         title: nextTitle,
         subtitle:
           parsed.output.subtitle !== undefined
-            ? parsed.output.subtitle?.vi ?? null
+            ? (parsed.output.subtitle?.vi ?? null)
             : current.subtitle,
         handle: nextHandle,
         description:
           parsed.output.description !== undefined
-            ? parsed.output.description?.vi ?? null
+            ? (parsed.output.description?.vi ?? null)
             : current.description,
         updatedAt: nowIso()
       })
@@ -700,10 +708,22 @@ export const productsRoute = new Hono<AppEnv>()
       await upsertTranslations(db, 'product', String(current.id), 'title', parsed.output.title)
     }
     if (parsed.output.subtitle !== undefined) {
-      await upsertTranslations(db, 'product', String(current.id), 'subtitle', nullableLocalizedPatch(parsed.output.subtitle))
+      await upsertTranslations(
+        db,
+        'product',
+        String(current.id),
+        'subtitle',
+        nullableLocalizedPatch(parsed.output.subtitle)
+      )
     }
     if (parsed.output.description !== undefined) {
-      await upsertTranslations(db, 'product', String(current.id), 'description', nullableLocalizedPatch(parsed.output.description))
+      await upsertTranslations(
+        db,
+        'product',
+        String(current.id),
+        'description',
+        nullableLocalizedPatch(parsed.output.description)
+      )
     }
 
     const product = await readProduct(c, db, current.id)
@@ -726,11 +746,7 @@ export const productsRoute = new Hono<AppEnv>()
     }
 
     const db = getDb(c.env)
-    const current = await db
-      .select()
-      .from(products)
-      .where(eq(products.id, params.output.id))
-      .get()
+    const current = await db.select().from(products).where(eq(products.id, params.output.id)).get()
 
     if (!current) {
       return jsonError(c, 404, 'Product not found')
@@ -746,7 +762,7 @@ export const productsRoute = new Hono<AppEnv>()
       .set({
         collectionId:
           parsed.output.collectionId !== undefined
-            ? parsed.output.collectionId ?? null
+            ? (parsed.output.collectionId ?? null)
             : current.collectionId,
         updatedAt: nowIso()
       })
@@ -768,9 +784,7 @@ export const productsRoute = new Hono<AppEnv>()
         categoryIds = [otherProductsCategory.id]
       }
 
-      await db
-        .delete(productCategoryLinks)
-        .where(eq(productCategoryLinks.productId, current.id))
+      await db.delete(productCategoryLinks).where(eq(productCategoryLinks.productId, current.id))
 
       if (categoryIds.length > 0) {
         await db.insert(productCategoryLinks).values(
@@ -793,315 +807,8 @@ export const productsRoute = new Hono<AppEnv>()
   .route('/', productVariantDetailRoute)
   .route('/', productVariantDeleteRoute)
   .route('/', productVariantMisaRoute)
-  .post('/:id/variants', async (c) => {
-    const params = parseParams(c, idParamsSchema)
-
-    if (!params.success) {
-      return params.response
-    }
-
-    const parsed = await parseJson(c, variantCreateSchema)
-
-    if (!parsed.success) {
-      return parsed.response
-    }
-
-    const db = getDb(c.env)
-    const product = await readProduct(c, db, params.output.id)
-
-    if (!product) {
-      return jsonError(c, 404, 'Product not found')
-    }
-
-    if (!productUsesVariantMode(product) && product.variants.length >= 1) {
-      return jsonError(c, 409, 'Define product options before creating multiple variants')
-    }
-
-    const optionValueIds = [...new Set(parsed.output.optionValueIds ?? [])].sort((a, b) => a - b)
-    const selectionError = await validateVariantSelectionForProduct({
-      db,
-      productId: product.id,
-      optionValueIds
-    })
-    if (selectionError) {
-      return jsonError(c, selectionError.status, selectionError.error)
-    }
-
-    const assetIds = [
-      ...new Set([
-        ...(parsed.output.media ?? []).map((item) => item.assetId),
-        ...(parsed.output.customizationMedia?.assetId ? [parsed.output.customizationMedia.assetId] : [])
-      ])
-    ]
-    const missingAssets = await ensureVariantAssetIdsExist(db, assetIds)
-    if (missingAssets) {
-      return jsonError(c, missingAssets.status, missingAssets.error)
-    }
-
-    if (product.status === 'published' && parsed.output.priceAmount === null) {
-      return jsonError(c, 409, 'Every variant must have a price before publish')
-    }
-
-    if (product.status === 'published' && product.customization?.enabled && !parsed.output.customizationMedia?.assetId) {
-      return jsonError(c, 409, 'Each variant needs Customization Media before publish')
-    }
-
-    if (product.status === 'published' && product.customization?.enabled) {
-      const nextAsset = await loadProductAssetsById(db, [parsed.output.customizationMedia!.assetId])
-      const dimensions = nextAsset.get(parsed.output.customizationMedia!.assetId)
-      const expected = product.variants.find((item) => item.customizationMedia)?.customizationMedia
-      if (!dimensions?.widthPx || !dimensions.heightPx) {
-        return jsonError(c, 409, 'Customization Media must have valid dimensions before publish')
-      }
-      if (expected && (dimensions.widthPx !== expected.widthPx || dimensions.heightPx !== expected.heightPx)) {
-        return jsonError(c, 409, 'Customization Media must match the existing canvas size before publish')
-      }
-    }
-
-    const insertedVariant = await db
-      .insert(productVariants)
-      .values({
-        productId: product.id,
-        title: localizedInputValue(parsed.output.title),
-        sku: parsed.output.sku ?? null,
-        priceAmount: parsed.output.priceAmount ?? null,
-        inventoryQuantity: parsed.output.inventoryQuantity ?? 0,
-        allowBackorder: parsed.output.allowBackorder ?? false,
-        isDefault: false,
-        position: product.variants.length,
-        updatedAt: nowIso()
-      })
-      .returning()
-      .get()
-
-    await upsertTranslations(
-      db,
-      'product_variant',
-      String(insertedVariant.id),
-      'title',
-      typeof parsed.output.title === 'string'
-        ? defaultLocalizedText(parsed.output.title)
-        : parsed.output.title
-    )
-
-    if (optionValueIds.length > 0) {
-      await db.insert(productVariantOptionValues).values(
-        optionValueIds.map((optionValueId) => ({
-          variantId: insertedVariant.id,
-          optionValueId
-        }))
-      )
-    }
-
-    const galleryAssetIds = [...new Set((parsed.output.media ?? []).map((item) => item.assetId))]
-    if (galleryAssetIds.length > 0) {
-      await db.insert(productVariantMedia).values(
-        galleryAssetIds.map((assetId, index) => ({
-          variantId: insertedVariant.id,
-          assetId,
-          position: index
-        }))
-      )
-    }
-
-    if (parsed.output.customizationMedia?.assetId) {
-      await db.insert(productVariantCustomizationMedia).values({
-        variantId: insertedVariant.id,
-        assetId: parsed.output.customizationMedia.assetId
-      })
-    }
-
-    await replaceVariantAttributes(
-      db,
-      insertedVariant.id,
-      parsed.output.attributes ?? []
-    )
-
-    await updateProductTimestamp(db, product.id)
-
-    const nextProduct = await readProduct(c, db, product.id)
-    if (nextProduct && product.status === 'published') {
-      const inserted = nextProduct.variants.find((item) => item.id === insertedVariant.id)
-      if (inserted) await syncMisaProductVariants(c, db, nextProduct, [inserted])
-    }
-    const syncedProduct = product.status === 'published'
-      ? await readProduct(c, db, product.id)
-      : nextProduct
-    return c.json({ item: syncedProduct }, 201)
-  })
-  .put('/:id/variants/:variantId/customization-media', async (c) => {
-    const params = parseParams(c, variantParamsSchema)
-    if (!params.success) {
-      return params.response
-    }
-
-    const parsed = await parseJson(c, variantCustomizationMediaSchema)
-    if (!parsed.success) {
-      return parsed.response
-    }
-
-    const db = getDb(c.env)
-    const product = await readProduct(c, db, params.output.id)
-    if (!product) {
-      return jsonError(c, 404, 'Product not found')
-    }
-    if (!product.customization?.enabled) {
-      return jsonError(c, 409, 'Customization is disabled for this product')
-    }
-
-    const variant = product.variants.find((item) => item.id === params.output.variantId)
-    if (!variant) {
-      return jsonError(c, 404, 'Variant not found')
-    }
-
-    const asset = await db
-      .select()
-      .from(productAssets)
-      .where(eq(productAssets.id, parsed.output.assetId))
-      .get()
-    if (!asset) {
-      return jsonError(c, 404, 'Customization Media asset not found')
-    }
-    if (!asset.widthPx || !asset.heightPx) {
-      return jsonError(c, 422, 'Customization Media must have valid dimensions')
-    }
-
-    const otherCanvas = product.variants.find(
-      (item) => item.id !== variant.id && item.customizationMedia
-    )?.customizationMedia
-    if (
-      otherCanvas &&
-      (asset.widthPx !== otherCanvas.widthPx || asset.heightPx !== otherCanvas.heightPx)
-    ) {
-      return jsonError(c, 409, 'Customization Media must match the existing canvas size')
-    }
-
-    if (product.status === 'published') {
-      const candidate = {
-        ...product,
-        variants: product.variants.map((item) =>
-          item.id === variant.id
-            ? { ...item, customizationMedia: asset }
-            : item
-        )
-      }
-      const publishError = validatePublishable(
-        candidate as NonNullable<Awaited<ReturnType<typeof readProduct>>>
-      )
-      if (publishError) {
-        return jsonError(c, 409, publishError)
-      }
-    }
-
-    const previousAssetId = variant.customizationMedia?.id ?? null
-    await db
-      .delete(productVariantCustomizationMedia)
-      .where(eq(productVariantCustomizationMedia.variantId, variant.id))
-    await db.insert(productVariantCustomizationMedia).values({
-      variantId: variant.id,
-      assetId: asset.id,
-      updatedAt: nowIso()
-    })
-    await updateProductTimestamp(db, product.id)
-
-    if (previousAssetId && previousAssetId !== asset.id) {
-      const previousAsset = await db
-        .select()
-        .from(productAssets)
-        .where(eq(productAssets.id, previousAssetId))
-        .get()
-      if (previousAsset) {
-        await c.env.CUSTOMIZATION_ASSETS.delete(previousAsset.objectKey)
-        await db.delete(productAssets).where(eq(productAssets.id, previousAsset.id))
-      }
-    }
-
-    const nextProduct = await readProduct(c, db, product.id)
-    return c.json({ item: nextProduct }, 200)
-  })
-  .put('/:id/variants/:variantId/media', async (c) => {
-    const params = parseParams(c, variantParamsSchema)
-
-    if (!params.success) {
-      return params.response
-    }
-
-    const parsed = await parseJson(c, variantMediaSchema)
-
-    if (!parsed.success) {
-      return parsed.response
-    }
-
-    const db = getDb(c.env)
-    const product = await readProduct(c, db, params.output.id)
-
-    if (!product) {
-      return jsonError(c, 404, 'Product not found')
-    }
-
-    const variant = product.variants.find((item) => item.id === params.output.variantId)
-    if (!variant) {
-      return jsonError(c, 404, 'Variant not found')
-    }
-
-    const assetIds = [...new Set(parsed.output.items.map((item) => item.assetId))]
-    const assetLookup = await loadProductAssetsById(db, assetIds)
-    if (assetLookup.size !== assetIds.length) {
-      return jsonError(c, 404, 'One or more variant media assets were not found')
-    }
-
-    if (product.status === 'published' && product.customization?.enabled) {
-      const candidate = {
-        ...product,
-        variants: product.variants.map((item) =>
-          item.id === variant.id
-            ? {
-                ...item,
-                media: assetIds.map((assetId, index) => {
-                  const asset = assetLookup.get(assetId)!
-                  return {
-                    id: asset.id,
-                    fileName: asset.fileName,
-                    mimeType: asset.mimeType,
-                    widthPx: asset.widthPx,
-                    heightPx: asset.heightPx,
-                    byteSize: asset.byteSize,
-                    position: index,
-                    contentUrl: toAbsoluteAssetUrl(c, `/api/assets/products/${asset.id}/content`) as string
-                  }
-                })
-              }
-            : item
-        )
-      }
-
-      const publishError = validatePublishable(
-        candidate as NonNullable<Awaited<ReturnType<typeof readProduct>>>
-      )
-      if (publishError) {
-        return jsonError(c, 409, publishError)
-      }
-    }
-
-    await db
-      .delete(productVariantMedia)
-      .where(eq(productVariantMedia.variantId, variant.id))
-
-    if (assetIds.length > 0) {
-      await db.insert(productVariantMedia).values(
-        assetIds.map((assetId, index) => ({
-          variantId: variant.id,
-          assetId,
-          position: index
-        }))
-      )
-    }
-
-    await updateProductTimestamp(db, product.id)
-
-    const nextProduct = await readProduct(c, db, product.id)
-    return c.json({ item: nextProduct }, 200)
-  })
+  .route('/', productVariantCreateRoute)
+  .route('/', productVariantMediaRoute)
   .route('/', productVariantReplacementRoute)
   .put('/:id/customization', async (c) => {
     const params = parseParams(c, idParamsSchema)
@@ -1127,7 +834,9 @@ export const productsRoute = new Hono<AppEnv>()
     let derivedCanvasHeightPx: number | null = null
 
     if (parsed.output.enabled) {
-      const firstMedia = product.variants.find((variant) => variant.customizationMedia)?.customizationMedia
+      const firstMedia = product.variants.find(
+        (variant) => variant.customizationMedia
+      )?.customizationMedia
       if (firstMedia?.widthPx && firstMedia?.heightPx) {
         derivedCanvasWidthPx = firstMedia.widthPx
         derivedCanvasHeightPx = firstMedia.heightPx
@@ -1181,7 +890,7 @@ export const productsRoute = new Hono<AppEnv>()
       if (!linkedCategory) {
         await db.insert(productCategoryLinks).values({
           productId: product.id,
-          categoryId: customizationCategory.id,
+          categoryId: customizationCategory.id
         })
       }
 
@@ -1217,10 +926,7 @@ export const productsRoute = new Hono<AppEnv>()
       }
     }
 
-    await db
-      .update(products)
-      .set({ updatedAt: nowIso() })
-      .where(eq(products.id, product.id))
+    await db.update(products).set({ updatedAt: nowIso() }).where(eq(products.id, product.id))
 
     const updatedProduct = await readProduct(c, db, product.id)
     return c.json({ item: updatedProduct }, 200)
@@ -1265,11 +971,7 @@ export const productsRoute = new Hono<AppEnv>()
     }
 
     const db = getDb(c.env)
-    const current = await db
-      .select()
-      .from(products)
-      .where(eq(products.id, params.output.id))
-      .get()
+    const current = await db.select().from(products).where(eq(products.id, params.output.id)).get()
 
     if (!current) {
       return jsonError(c, 404, 'Product not found')
@@ -1294,8 +996,13 @@ export const productsRoute = new Hono<AppEnv>()
     const current = await db.select().from(products).where(eq(products.id, params.output.id)).get()
     if (!current) return jsonError(c, 404, 'Product not found')
 
-    const ordered = await db.select({ id: orderItems.id }).from(orderItems).where(eq(orderItems.productId, current.id)).get()
-    if (ordered) return jsonError(c, 409, 'Product cannot be deleted because it is used by an order')
+    const ordered = await db
+      .select({ id: orderItems.id })
+      .from(orderItems)
+      .where(eq(orderItems.productId, current.id))
+      .get()
+    if (ordered)
+      return jsonError(c, 409, 'Product cannot be deleted because it is used by an order')
 
     const product = await readProduct(c, db, current.id)
     if (!product) return jsonError(c, 404, 'Product not found')
@@ -1303,31 +1010,55 @@ export const productsRoute = new Hono<AppEnv>()
     const storedIds = variants
       .filter((variant) => variant.misaSyncStatus === 'synced')
       .map((variant) => variant.misaProductId)
-      .filter((value): value is number => typeof value === 'number' && Number.isInteger(value) && value > 0)
+      .filter(
+        (value): value is number =>
+          typeof value === 'number' && Number.isInteger(value) && value > 0
+      )
     if (storedIds.length > 0) {
       if (!isMisaConfigured(c.env)) return jsonError(c, 503, 'MISA integration is not configured')
       try {
         await deleteMisaProducts(c.env, storedIds)
       } catch (error) {
-        return jsonError(c, 502, error instanceof Error ? error.message : 'Unable to delete MISA products')
+        return jsonError(
+          c,
+          502,
+          error instanceof Error ? error.message : 'Unable to delete MISA products'
+        )
       }
     }
 
-    const optionRows = await db.select({ id: productOptions.id }).from(productOptions).where(eq(productOptions.productId, current.id))
+    const optionRows = await db
+      .select({ id: productOptions.id })
+      .from(productOptions)
+      .where(eq(productOptions.productId, current.id))
     const optionIds = optionRows.map((row) => row.id)
-    const valueRows = optionIds.length > 0
-      ? await db.select({ id: productOptionValues.id }).from(productOptionValues).where(inArray(productOptionValues.optionId, optionIds))
-      : []
+    const valueRows =
+      optionIds.length > 0
+        ? await db
+            .select({ id: productOptionValues.id })
+            .from(productOptionValues)
+            .where(inArray(productOptionValues.optionId, optionIds))
+        : []
     const valueIds = valueRows.map((row) => row.id)
     const variantIds = variants.map((variant) => variant.id)
     if (variantIds.length > 0) {
-      await db.delete(productVariantOptionValues).where(inArray(productVariantOptionValues.variantId, variantIds))
-      await db.delete(productVariantAttributes).where(inArray(productVariantAttributes.variantId, variantIds))
+      await db
+        .delete(productVariantOptionValues)
+        .where(inArray(productVariantOptionValues.variantId, variantIds))
+      await db
+        .delete(productVariantAttributes)
+        .where(inArray(productVariantAttributes.variantId, variantIds))
       await db.delete(productVariantMedia).where(inArray(productVariantMedia.variantId, variantIds))
-      await db.delete(productVariantCustomizationMedia).where(inArray(productVariantCustomizationMedia.variantId, variantIds))
+      await db
+        .delete(productVariantCustomizationMedia)
+        .where(inArray(productVariantCustomizationMedia.variantId, variantIds))
     }
-    if (valueIds.length > 0) await db.delete(productVariantOptionValues).where(inArray(productVariantOptionValues.optionValueId, valueIds))
-    if (optionIds.length > 0) await db.delete(productOptionValues).where(inArray(productOptionValues.optionId, optionIds))
+    if (valueIds.length > 0)
+      await db
+        .delete(productVariantOptionValues)
+        .where(inArray(productVariantOptionValues.optionValueId, valueIds))
+    if (optionIds.length > 0)
+      await db.delete(productOptionValues).where(inArray(productOptionValues.optionId, optionIds))
     await db.delete(productVariants).where(eq(productVariants.productId, current.id))
     await db.delete(productOptions).where(eq(productOptions.productId, current.id))
     await db.delete(productAttributes).where(eq(productAttributes.productId, current.id))
