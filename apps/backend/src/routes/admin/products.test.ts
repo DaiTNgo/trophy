@@ -1,13 +1,15 @@
 import { DEFAULT_TEMPLATE } from "@trophy/customization";
 import { describe, expect, it } from "vitest";
 import { productAssets } from "../../db/schema";
+import { validatePublishable } from "./product-publishability";
 import {
   buildProductCustomizationInsert,
+  validateCustomizationPublishReadiness,
+} from "./product-customization-service";
+import {
   buildVariantCustomizationMediaInsertRows,
   buildVariantMediaInsertRows,
-  validateCustomizationPublishReadiness,
-  validatePublishable,
-} from "./products";
+} from "./product-media";
 
 type ProductAssetRow = typeof productAssets.$inferSelect;
 
