@@ -40,6 +40,22 @@ _Avoid_: product-only inquiry, inquiry for missing variant
 The operator-facing product list used for catalog management. It may include draft, published, and archived products with fields needed for administration rather than shopper browsing.
 _Avoid_: storefront catalog, public product list
 
+**Product Trash**:
+The admin-only collection of products removed from the active Admin Product Catalog by a soft delete. A product in Product Trash is unavailable to shoppers and remains recoverable until it is permanently deleted.
+_Avoid_: archive, deleted product list, inactive catalog
+
+**Product Restoration**:
+The operator action that removes a Product from Product Trash and returns it to the Admin Product Catalog as a draft. Restoration never republishes a product automatically.
+_Avoid_: undelete to published, reactivate product
+
+**Permanent Product Deletion**:
+The irreversible removal of a Product from Product Trash, including its remaining catalog data. It is independent of Order Item Snapshots, which retain the historical purchase record without reading the removed catalog product or variant.
+_Avoid_: order-blocked product deletion, catalog archive
+
+**Product Trash MISA Retention**:
+The rule that soft-deleting a Product retains its MISA Product Records. MISA cleanup occurs only when an operator permanently deletes the Product from Product Trash.
+_Avoid_: soft-delete MISA cleanup, restore-time MISA sync
+
 **Admin Product Detail**:
 The operator-facing product management page for one product, backed by the admin route surface as the source of truth after creation.
 _Avoid_: local product detail, mock product editor
@@ -225,8 +241,16 @@ The one independently uploaded asset owned by a variant and explicitly designate
 _Avoid_: gallery image, all variant media, upload background
 
 **Product Reference Media**:
-Gallery Media shown to shoppers as product examples or past-work references, but not used as a customization canvas.
-_Avoid_: customization background, canvas media
+Gallery Media curated at the product level for thumbnails and product galleries. An item can be uploaded specifically for the product or can reference an asset owned by one of the product's variants; it is not used as a customization canvas.
+_Avoid_: customization background, canvas media, duplicate variant upload
+
+**Variant Media**:
+Media owned by exactly one product variant and shown for that variant. It can also be selected into Product Reference Media without creating a second R2 object.
+_Avoid_: product media upload, shared gallery file, customization background
+
+**Product Thumbnail**:
+The explicitly selected Product Reference Media item used to represent a product. If its referenced Variant Media is deleted, the thumbnail becomes empty and does not fall back to another gallery item.
+_Avoid_: first gallery image, automatic thumbnail fallback, variant default image
 
 **Product Media Carousel**:
 The shopper-facing ordered image sequence for the selected variant: its Customization Media first, followed by that variant's Gallery Media in gallery position order. Next/Previous navigation changes the visible image within this sequence and does not change the selected variant.
@@ -235,6 +259,14 @@ _Avoid_: variant switcher, gallery-only carousel, customization canvas history
 **Customization Preview Reset**:
 The storefront behavior that returns the visible image to the selected variant's Customization Media whenever the shopper focuses or clicks the customization form. The reset changes the visible image only; it preserves the shopper's entered customization values.
 _Avoid_: clear customization, reset form, replace gallery media
+
+**Shopper Customization Draft**:
+A browser-owned, pre-checkout customization of one cart line, including the shopper's entered values and any uploaded image. It is temporary and is not an Order Item Snapshot.
+_Avoid_: order customization, purchased design, cart asset
+
+**Order Customization Snapshot**:
+The immutable customization data and shopper-uploaded media preserved for one created order item, so production can reproduce the purchased result after its draft and catalog state change.
+_Avoid_: cart draft, live customization, product asset
 
 **Customization Publish Readiness**:
 The product-level condition that a customizable product must satisfy before it can be published, including one Customization Background for every variant, matching background dimensions, and a valid customization editor model. Draft products may be incomplete but cannot open the customization editor until its required backgrounds are available.
@@ -262,7 +294,7 @@ _Avoid_: single-product purchase, transaction, cart
 
 **Order Item Snapshot**:
 The immutable product, variant, price, and customization record captured for a single order item at the time the shopper places the order. It preserves what the shopper bought even if the product catalog or customization template changes later.
-_Avoid_: live product reference, cart item reference, mutable order item
+_Avoid_: live product reference, product-media fallback, cart item reference, mutable order item
 
 **Order Price Snapshot**:
 The product variant price captured by the backend at the moment a shopper requests order creation. Shopper-submitted prices are not part of the ordering contract.

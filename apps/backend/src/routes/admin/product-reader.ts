@@ -1,4 +1,4 @@
-import { asc, eq, inArray, sql } from 'drizzle-orm'
+import { and, asc, eq, inArray, isNull, sql } from 'drizzle-orm'
 import { type Context } from 'hono'
 import { getDb } from '../../db/client'
 import {
@@ -26,9 +26,18 @@ import { makeCustomizationUrlsAbsolute, toAbsoluteAssetUrl } from '../../lib/url
 export async function readProduct(
   c: Context<AppEnv>,
   db: ReturnType<typeof getDb>,
-  productId: number
+  productId: number,
+  { includeTrashed = false }: { includeTrashed?: boolean } = {}
 ) {
-  const product = await db.select().from(products).where(eq(products.id, productId)).get()
+  const product = await db
+    .select()
+    .from(products)
+    .where(
+      includeTrashed
+        ? eq(products.id, productId)
+        : and(eq(products.id, productId), isNull(products.deletedAt))
+    )
+    .get()
 
   if (!product) {
     return null

@@ -250,6 +250,7 @@ describe("admin orders routes", () => {
       },
     });
     expect(JSON.stringify(body)).not.toContain("productSnapshotJson");
+    expect(db.select).toHaveBeenCalledTimes(4);
   });
 
   it("returns 404 when an admin order detail is missing", async () => {
@@ -267,6 +268,59 @@ describe("admin orders routes", () => {
     );
 
     expect(res.status).toBe(404);
+  });
+
+  it("does not read live catalog data when an order snapshot is malformed", async () => {
+    queueAdminSession(db.getQueue);
+    db.getQueue.push({
+      id: 5,
+      orderNumber: "ORD-malformed",
+      status: "pending",
+      paymentStatus: "pending",
+      fulfillmentStatus: "unfulfilled",
+      paymentMethod: "manual",
+      customerName: "Admin test",
+      customerPhone: "0123456789",
+      customerEmail: "admin@example.com",
+      notes: null,
+      vatDetailsJson: null,
+      primaryAddressJson: JSON.stringify({ line1: "1 Main St", city: "HCM", country: "VN" }),
+      shippingAddressJson: null,
+      shipToDifferentAddress: false,
+      subtotalAmount: 5000,
+      totalAmount: 5000,
+      currencyCode: "VND",
+      itemCount: 1,
+      misaSyncStatus: "pending",
+      misaContactId: null,
+      misaSaleOrderId: null,
+      misaLastError: null,
+      misaAttemptCount: 0,
+      misaSyncedAt: null,
+      createdAt: new Date("2026-08-07T00:00:00.000Z"),
+      updatedAt: new Date("2026-08-07T00:00:00.000Z"),
+    });
+    db.selectQueue.push([], [{
+      id: 1,
+      orderId: 5,
+      quantity: 1,
+      unitPriceAmount: 5000,
+      lineSubtotalAmount: 5000,
+      productionStatus: "not_required",
+      productSnapshotJson: "{invalid",
+      variantSnapshotJson: "{invalid",
+      backgroundSnapshotJson: null,
+      customizationSnapshotJson: null,
+    }]);
+
+    const response = await adminRoute.request("/orders/ORD-malformed", {
+      headers: { Authorization: "Bearer token-1" },
+    }, {} as never);
+
+    expect(response.status).toBe(200);
+    const body = await response.json() as any;
+    expect(body.order.items[0]).toMatchObject({ product: null, variant: null, background: null });
+    expect(db.select).toHaveBeenCalledTimes(4);
   });
 
   it("rejects empty admin order status updates", async () => {

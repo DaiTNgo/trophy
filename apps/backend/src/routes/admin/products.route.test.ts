@@ -14,7 +14,8 @@ vi.mock("../../lib/misa", () => ({
 }));
 
 import { getDb } from "../../db/client";
-import { createMisaProducts, findMisaProductsByCodes } from "../../lib/misa";
+import { createMisaProducts, deleteMisaProducts, findMisaProductsByCodes } from "../../lib/misa";
+import { adminRoute } from "./index";
 import { productsRoute } from "./products";
 
 type MutationRecord = {
@@ -210,6 +211,14 @@ describe("admin products operation-specific routes", () => {
   beforeEach(() => {
     db = createMockDb();
     vi.mocked(getDb).mockReturnValue(db as never);
+    vi.clearAllMocks();
+    vi.mocked(getDb).mockReturnValue(db as never);
+  });
+
+  it("rejects unauthenticated Product Trash access", async () => {
+    const response = await adminRoute.request("/products/trash", undefined, {} as never);
+
+    expect(response.status).toBe(401);
   });
 
   it("synchronizes MISA IDs before marking a product published", async () => {
@@ -350,10 +359,86 @@ describe("admin products operation-specific routes", () => {
     expect(response.status).toBe(409);
   });
 
-  it("rejects deleting a product referenced by an order", async () => {
-    db.getQueue.push({ id: 1, status: "published" }, { id: 55 });
+  it("soft-deletes a product referenced by an order without removing MISA records", async () => {
+    db.getQueue.push({ id: 1, status: "published" });
     const response = await productsRoute.request("/1", { method: "DELETE" }, { MISA_CLIENT_ID: "client", MISA_CLIENT_SECRET: "secret" } as never);
-    expect(response.status).toBe(409);
+    expect(response.status).toBe(200);
+    expect(db.mutations).toContainEqual({
+      kind: "update",
+      set: expect.objectContaining({ deletedAt: expect.any(String) }),
+    });
+    expect(vi.mocked(deleteMisaProducts)).not.toHaveBeenCalled();
+  });
+
+  it("lists only products in trash", async () => {
+    db.selectQueue.push([{
+      id: 1,
+      title: "Champion Cup",
+      handle: "champion-cup",
+      status: "published",
+      deletedAt: "2026-08-07T00:00:00.000Z",
+      updatedAt: "2026-08-07T00:00:00.000Z",
+    }]);
+
+    const response = await productsRoute.request("/trash");
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      items: [expect.objectContaining({ id: 1, deletedAt: "2026-08-07T00:00:00.000Z" })],
+    });
+  });
+
+  it("restores a trashed product as draft", async () => {
+    db.getQueue.push({ id: 1, status: "published", deletedAt: "2026-08-07T00:00:00.000Z" });
+
+    const response = await productsRoute.request("/1/restore", { method: "POST" });
+
+    expect(response.status).toBe(200);
+    expect(db.mutations).toContainEqual({
+      kind: "update",
+      set: expect.objectContaining({ deletedAt: null, status: "draft" }),
+    });
+    expect(createMisaProducts).not.toHaveBeenCalled();
+  });
+
+  it("rejects permanent deletion outside product trash", async () => {
+    db.getQueue.push(null);
+
+    const response = await productsRoute.request("/1/permanent", { method: "DELETE" });
+
+    expect(response.status).toBe(404);
+    expect(db.mutations).toEqual([]);
+  });
+
+  it("keeps a trashed product when MISA cleanup fails during permanent deletion", async () => {
+    db.getQueue.push({ id: 1, status: "published", deletedAt: "2026-08-07T00:00:00.000Z" });
+    queueReadProduct(db, { id: 1, status: "published" }, {
+      variantRows: [{
+        id: 20,
+        productId: 1,
+        title: "Gold",
+        sku: "SKU-1",
+        misaProductId: 101,
+        misaSyncStatus: "synced",
+        misaLastError: null,
+        priceAmount: 5000,
+        inventoryQuantity: 8,
+        allowBackorder: false,
+        isDefault: true,
+        position: 0,
+        createdAt: "2026-07-04T00:00:00.000Z",
+        updatedAt: "2026-07-04T00:00:00.000Z",
+      } as any],
+    });
+    vi.mocked(deleteMisaProducts).mockRejectedValueOnce(new Error("MISA unavailable"));
+
+    const response = await productsRoute.request("/1/permanent", { method: "DELETE" }, {
+      MISA_CLIENT_ID: "client",
+      MISA_CLIENT_SECRET: "secret",
+    } as never);
+
+    expect(response.status).toBe(502);
+    expect(db.mutations.some((mutation: MutationRecord) => mutation.kind === "delete")).toBe(false);
   });
 
   it("assigns Other products when saving organization with no categories", async () => {

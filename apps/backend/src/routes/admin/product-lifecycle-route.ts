@@ -1,8 +1,7 @@
-import { eq, inArray } from 'drizzle-orm'
+import { and, eq, inArray, isNotNull, isNull } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { getDb } from '../../db/client'
 import {
-  orderItems,
   productAttributes,
   productCategoryLinks,
   productCustomizations,
@@ -66,17 +65,53 @@ export const productLifecycleRoute = new Hono<AppEnv>()
     if (!params.success) return params.response
 
     const db = getDb(c.env)
-    const current = await db.select().from(products).where(eq(products.id, params.output.id)).get()
+    const current = await db
+      .select()
+      .from(products)
+      .where(and(eq(products.id, params.output.id), isNull(products.deletedAt)))
+      .get()
     if (!current) return jsonError(c, 404, 'Product not found')
 
-    const ordered = await db
-      .select({ id: orderItems.id })
-      .from(orderItems)
-      .where(eq(orderItems.productId, current.id))
-      .get()
-    if (ordered) return jsonError(c, 409, 'Product cannot be deleted because it is used by an order')
+    const deletedAt = nowIso()
+    await db
+      .update(products)
+      .set({ deletedAt, updatedAt: deletedAt })
+      .where(eq(products.id, current.id))
 
-    const product = await readProduct(c, db, current.id)
+    return c.json({ item: await readProduct(c, db, current.id, { includeTrashed: true }) }, 200)
+  })
+  .post('/:id/restore', async (c) => {
+    const params = parseParams(c, idParamsSchema)
+    if (!params.success) return params.response
+
+    const db = getDb(c.env)
+    const current = await db
+      .select()
+      .from(products)
+      .where(and(eq(products.id, params.output.id), isNotNull(products.deletedAt)))
+      .get()
+    if (!current) return jsonError(c, 404, 'Product not found')
+
+    await db
+      .update(products)
+      .set({ deletedAt: null, status: 'draft', updatedAt: nowIso() })
+      .where(eq(products.id, current.id))
+
+    return c.json({ item: await readProduct(c, db, current.id) }, 200)
+  })
+  .delete('/:id/permanent', async (c) => {
+    const params = parseParams(c, idParamsSchema)
+    if (!params.success) return params.response
+
+    const db = getDb(c.env)
+    const current = await db
+      .select()
+      .from(products)
+      .where(and(eq(products.id, params.output.id), isNotNull(products.deletedAt)))
+      .get()
+    if (!current) return jsonError(c, 404, 'Product not found')
+
+    const product = await readProduct(c, db, current.id, { includeTrashed: true })
     if (!product) return jsonError(c, 404, 'Product not found')
     const storedIds = product.variants
       .filter((variant) => variant.misaSyncStatus === 'synced')

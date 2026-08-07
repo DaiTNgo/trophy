@@ -610,10 +610,47 @@ export async function archiveProduct(id: string) {
 }
 
 export async function deleteProduct(id: string) {
-  const response = await backendFetch(`/api/admin/products/${id}`, { method: "DELETE" });
+  const response = await backendClient.api.admin.products[":id"].$delete({ param: { id } });
   const body = await response.json().catch(() => null) as { error?: string } | null;
   if (!response.ok) throw new Error(body?.error || "Failed to delete product.");
   return body;
+}
+
+export type TrashedProduct = {
+  id: string;
+  title: LocalizedTextValue;
+  handle: string;
+  status: ApiProduct["status"];
+  deletedAt: string;
+};
+
+export async function fetchTrashedProducts(): Promise<TrashedProduct[]> {
+  const response = await backendClient.api.admin.products.trash.$get();
+  const body = await response.json().catch(() => null) as {
+    items?: Array<{ id: number; title: LocalizedInput; handle: string; status: ApiProduct["status"]; deletedAt: string | null }>;
+    error?: string;
+  } | null;
+  if (!response.ok || !body?.items) throw new Error(body?.error || "Unable to fetch product trash.");
+
+  return body.items.flatMap((product) => product.deletedAt ? [{
+    id: String(product.id),
+    title: toLocalized(product.title),
+    handle: product.handle,
+    status: product.status,
+    deletedAt: product.deletedAt,
+  }] : []);
+}
+
+export async function restoreProduct(id: string) {
+  const response = await backendClient.api.admin.products[":id"].restore.$post({ param: { id } });
+  const body = await response.json().catch(() => null) as { error?: string } | null;
+  if (!response.ok) throw new Error(body?.error || "Failed to restore product.");
+}
+
+export async function permanentlyDeleteProduct(id: string) {
+  const response = await backendClient.api.admin.products[":id"].permanent.$delete({ param: { id } });
+  const body = await response.json().catch(() => null) as { error?: string } | null;
+  if (!response.ok) throw new Error(body?.error || "Failed to permanently delete product.");
 }
 
 export function mapApiProductToCatalogProduct(product: Partial<ApiProduct> & Pick<ApiProduct, 'id' | 'title' | 'handle' | 'status' | 'updatedAt'>): CatalogProduct {

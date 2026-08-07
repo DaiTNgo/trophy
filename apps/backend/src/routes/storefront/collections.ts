@@ -301,7 +301,7 @@ async function loadBestSellersPage(
   limit: number,
   offset: number,
 ) {
-  const conditions = [eq(products.status, "published")];
+  const conditions = [eq(products.status, "published"), isNull(products.deletedAt)];
   const customizableCondition = buildCustomizableCondition(customizable);
   if (customizableCondition) {
     conditions.push(customizableCondition);
@@ -464,6 +464,7 @@ export const storefrontCollectionsRoute = new Hono<AppEnv>()
 
     const conditions = [
       eq(products.status, "published"),
+      isNull(products.deletedAt),
       eq(products.collectionId, collection.id),
     ];
     const customizableCondition = buildCustomizableCondition(customizable);

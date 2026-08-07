@@ -174,6 +174,7 @@ export const products = sqliteTable(
     updatedAt: text("updated_at")
       .notNull()
       .default(sql`CURRENT_TIMESTAMP`),
+    deletedAt: text("deleted_at"),
   },
   (table) => [uniqueIndex("products_handle_idx").on(table.handle)],
 );

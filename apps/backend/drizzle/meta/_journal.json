@@ -176,6 +176,13 @@
       "when": 1786090462509,
       "tag": "0024_soft_major_mapleleaf",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "6",
+      "when": 1786109249817,
+      "tag": "0025_flippant_freak",
+      "breakpoints": true
     }
   ]
 }

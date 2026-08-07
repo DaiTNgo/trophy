@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm'
+import { and, asc, desc, eq, inArray, isNull, sql } from 'drizzle-orm'
 import { Hono, type Context } from 'hono'
 import { makeCustomizationUrlsAbsolute, toAbsoluteAssetUrl } from '../../lib/url'
 import * as v from 'valibot'
@@ -246,7 +246,7 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
       }
     }
 
-    const conditions = [eq(products.status, 'published')]
+    const conditions = [eq(products.status, 'published'), isNull(products.deletedAt)]
 
     if (parsedQuery.output.category) {
       conditions.push(
@@ -533,7 +533,7 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
     let product = await db
       .select()
       .from(products)
-      .where(and(eq(products.handle, handle), eq(products.status, 'published')))
+      .where(and(eq(products.handle, handle), eq(products.status, 'published'), isNull(products.deletedAt)))
       .get()
 
     if (!product) {

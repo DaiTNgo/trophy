@@ -12,6 +12,7 @@ import { SuperAdminRecoveryPage } from "./pages/super-admin-recovery";
 import { OrdersListPage } from "./pages/orders-list";
 import { OrderDetailPage } from "./pages/order-detail";
 import { ProductsListPage } from "./pages/products-list";
+import { ProductsTrashPage } from "./pages/products-trash";
 import { CreateProductPage } from "./pages/create-product";
 import { ProductDetailPage } from "./pages/product-detail";
 import { ProductCustomizationEditor } from "./pages/product-customization-editor";
@@ -53,6 +54,7 @@ const router = createBrowserRouter([
           { path: "orders", Component: OrdersListPage },
           { path: "orders/:orderNumber", Component: OrderDetailPage },
           { path: "products", Component: ProductsListPage },
+          { path: "products/trash", Component: ProductsTrashPage },
           { path: "products/new", Component: CreateProductPage },
           { path: "products/:productId", Component: ProductDetailPage },
           { path: "products/:productId/customization", Component: ProductCustomizationEditor },

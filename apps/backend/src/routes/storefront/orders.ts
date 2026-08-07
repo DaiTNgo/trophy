@@ -1,4 +1,4 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, isNull } from "drizzle-orm";
 import { Hono, type Context } from "hono";
 import { toAbsoluteAssetUrl } from "../../lib/url";
 import * as v from "valibot";
@@ -155,7 +155,7 @@ async function lookupPublishedProduct(db: DbType, productId: number, locale: "vi
   const product = await db
     .select()
     .from(products)
-    .where(and(eq(products.id, productId), eq(products.status, "published")))
+    .where(and(eq(products.id, productId), eq(products.status, "published"), isNull(products.deletedAt)))
     .get();
 
   if (!product) return null;
