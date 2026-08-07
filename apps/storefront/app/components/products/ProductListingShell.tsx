@@ -251,7 +251,7 @@ function ProductGrid({
   categoryHandle?: string | null;
 }) {
   return (
-    <div className="grid grid-cols-2 gap-x-5 gap-y-11 md:grid-cols-3 md:gap-x-10 md:gap-y-14">
+    <div className="grid grid-cols-2 gap-x-5 gap-y-11 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 md:gap-x-8 lg:gap-x-10 md:gap-y-12">
       {products.map((product, index) => {
         const title = getLocalized(product.title, locale);
 
@@ -293,7 +293,7 @@ function ListingResults({
 }) {
   return (
     <section className="bg-surface-base px-4 py-8 md:px-8 md:py-10">
-      <div className="mx-auto w-full max-w-[1040px]">
+      <div className="mx-auto w-full max-w-[1280px]">
         {products.length === 0 ? (
           <EmptyListingState emptyState={emptyState} />
         ) : (

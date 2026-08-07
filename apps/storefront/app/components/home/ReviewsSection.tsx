@@ -1,12 +1,5 @@
 import { Container } from "@/components/container";
 import { useTranslation } from "react-i18next";
-import { ShieldCheck, Eye, Clock } from "lucide-react";
-
-const ICON_MAP: Record<string, React.ElementType> = {
-  ShieldCheck,
-  Eye,
-  Clock,
-};
 
 const CARD_GRADIENTS = [
   "bg-gradient-to-b from-[#c8b0a0] to-white",
@@ -51,31 +44,21 @@ export function ReviewsSection() {
           </h2>
         </div>
 
-        <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-center md:pb-40" style={{ perspective: "1200px" }}>
+        <div className="flex flex-col gap-5 md:flex-row md:items-stretch md:justify-center md:pb-40" style={{ perspective: "1200px" }}>
           {guarantees.map((g, i) => {
-            const icons = [ShieldCheck, Eye, Clock];
-            const Icon = icons[i];
-
             return (
               <div
                 key={g.role}
                 className="gs-card group"
                 data-index={i}
               >
-                <div className={`w-full rounded-xl ${CARD_GRADIENTS[i]} border ${BORDER_COLORS[i]} ${HOVER_BORDER_COLORS[i]} ${SHADOW_COLORS[i]} px-6 py-7 transition-all duration-400 group-hover:-translate-y-1 md:w-[280px] md:min-h-[180px] md:px-8 md:py-8`}>
-                  <div className="flex items-start gap-4">
-                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-brand-strong to-brand-support shadow-lg shadow-brand-strong/20">
-                      {Icon && <Icon className="text-[22px] text-white" />}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="font-bold text-[13px] uppercase tracking-[0.08em] text-on-surface mb-2">
-                        {g.role}
-                      </p>
-                      <p className="font-body-md text-[15px] leading-relaxed text-on-surface-variant md:text-[16px]">
-                        "{g.quote}"
-                      </p>
-                    </div>
-                  </div>
+                <div className={`flex h-full w-full flex-col rounded-xl ${CARD_GRADIENTS[i]} border ${BORDER_COLORS[i]} ${HOVER_BORDER_COLORS[i]} ${SHADOW_COLORS[i]} px-6 py-7 transition-all duration-400 group-hover:-translate-y-1 md:w-[280px] md:min-h-[325px] md:px-8 md:py-8`}>
+                  <p className="font-bold text-[13px] uppercase tracking-[0.08em] text-on-surface mb-2">
+                    {g.role}
+                  </p>
+                  <p className="font-body-md text-[15px] leading-loose text-on-surface-variant md:text-[16px]">
+                    "{g.quote}"
+                  </p>
                 </div>
               </div>
             );
