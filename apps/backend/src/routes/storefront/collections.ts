@@ -1,8 +1,18 @@
-import { and, asc, desc, eq, inArray, sql, type SQL } from 'drizzle-orm'
-import { Hono, type Context } from 'hono'
-import { toAbsoluteAssetUrl } from '../../lib/url'
-import * as v from 'valibot'
-import { getDb } from '../../db/client'
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  inArray,
+  isNull,
+  or,
+  sql,
+  type SQL,
+} from "drizzle-orm";
+import { Hono, type Context } from "hono";
+import { toAbsoluteAssetUrl } from "../../lib/url";
+import * as v from "valibot";
+import { getDb } from "../../db/client";
 import {
   productCategories,
   productCategoryLinks,
@@ -13,50 +23,45 @@ import {
   productVariantMedia,
   productVariantCustomizationMedia,
   productVariants,
-  products
-} from '../../db/schema'
-import type { AppEnv } from '../../lib/env'
-import { parseParams } from '../../lib/validation'
-import { hydrateTranslations } from '../../lib/catalog-translation'
-import { localeSchema, DEFAULT_LOCALE } from '../../lib/locale'
-import { buildListingItem } from './products'
+  products,
+} from "../../db/schema";
+import type { AppEnv } from "../../lib/env";
+import { parseParams } from "../../lib/validation";
+import { hydrateTranslations } from "../../lib/catalog-translation";
+import { localeSchema, DEFAULT_LOCALE } from "../../lib/locale";
+import { buildListingItem } from "./products";
 
 const querySchema = v.object({
   locale: v.optional(localeSchema, DEFAULT_LOCALE),
-  customizable: v.optional(v.picklist(['all', 'true', 'false']), 'all')
-})
+  customizable: v.optional(v.picklist(["all", "true", "false"]), "all"),
+});
 
 const handleParamsSchema = v.object({
-  handle: v.pipe(
-    v.string(),
-    v.trim(),
-    v.minLength(1),
-    v.maxLength(255)
-  )
-})
+  handle: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(255)),
+});
 
-type CustomizableFilter = 'all' | 'true' | 'false'
+type CustomizableFilter = "all" | "true" | "false";
 
 function buildCustomizableCondition(filter: CustomizableFilter) {
-  if (filter === 'true') {
+  if (filter === "true") {
     return sql`exists (
       select 1
       from ${productCustomizations}
       where ${productCustomizations.productId} = ${products.id}
         and ${productCustomizations.enabled} = true
-    )`
+    )`;
   }
 
-  if (filter === 'false') {
+  if (filter === "false") {
     return sql`not exists (
       select 1
       from ${productCustomizations}
       where ${productCustomizations.productId} = ${products.id}
         and ${productCustomizations.enabled} = true
-    )`
+    )`;
   }
 
-  return undefined
+  return undefined;
 }
 
 async function loadListingPage(
@@ -64,7 +69,7 @@ async function loadListingPage(
   db: ReturnType<typeof getDb>,
   whereClause: SQL | undefined,
   limit: number,
-  offset: number
+  offset: number,
 ) {
   const [items, totalResult] = await Promise.all([
     db
@@ -73,7 +78,7 @@ async function loadListingPage(
         title: products.title,
         subtitle: products.subtitle,
         handle: products.handle,
-        status: products.status
+        status: products.status,
       })
       .from(products)
       .where(whereClause)
@@ -84,37 +89,57 @@ async function loadListingPage(
       .select({ total: sql<number>`count(*)` })
       .from(products)
       .where(whereClause)
-      .get()
-  ])
+      .get(),
+  ]);
 
-  const productIds = items.map((item) => item.id)
+  const productIds = items.map((item) => item.id);
 
-  const [categoryRows, productMediaRows, variantRows, variantMediaRows, variantCustomizationMediaRows, customizationRows] = await Promise.all([
+  const [
+    categoryRows,
+    productMediaRows,
+    variantRows,
+    variantMediaRows,
+    variantCustomizationMediaRows,
+    customizationRows,
+  ] = await Promise.all([
     productIds.length > 0
       ? db
           .select({
             productId: productCategoryLinks.productId,
             categoryId: productCategories.id,
-            name: productCategories.name
+            name: productCategories.name,
           })
           .from(productCategoryLinks)
           .innerJoin(
             productCategories,
-            eq(productCategoryLinks.categoryId, productCategories.id)
+            eq(productCategoryLinks.categoryId, productCategories.id),
           )
-          .where(inArray(productCategoryLinks.productId, productIds))
-      : Promise.resolve([] as Array<{ productId: number; categoryId: number; name: string }>),
+          .where(
+            and(
+              inArray(productCategoryLinks.productId, productIds),
+              eq(productCategories.visibility, "public"),
+            ),
+          )
+      : Promise.resolve(
+          [] as Array<{ productId: number; categoryId: number; name: string }>,
+        ),
     productIds.length > 0
       ? db
           .select({
             productId: productMedia.productId,
             url: productMedia.url,
-            position: productMedia.position
+            position: productMedia.position,
           })
           .from(productMedia)
           .where(inArray(productMedia.productId, productIds))
-          .orderBy(asc(productMedia.productId), asc(productMedia.position), asc(productMedia.id))
-      : Promise.resolve([] as Array<{ productId: number; url: string; position: number }>),
+          .orderBy(
+            asc(productMedia.productId),
+            asc(productMedia.position),
+            asc(productMedia.id),
+          )
+      : Promise.resolve(
+          [] as Array<{ productId: number; url: string; position: number }>,
+        ),
     productIds.length > 0
       ? db
           .select()
@@ -128,88 +153,126 @@ async function loadListingPage(
             variantId: productVariantMedia.variantId,
             assetId: productVariantMedia.assetId,
             position: productVariantMedia.position,
-            productId: productVariants.productId
+            productId: productVariants.productId,
           })
           .from(productVariantMedia)
-          .innerJoin(productVariants, eq(productVariantMedia.variantId, productVariants.id))
+          .innerJoin(
+            productVariants,
+            eq(productVariantMedia.variantId, productVariants.id),
+          )
           .where(inArray(productVariants.productId, productIds))
           .orderBy(
             asc(productVariantMedia.variantId),
             asc(productVariantMedia.position),
-            asc(productVariantMedia.assetId)
+            asc(productVariantMedia.assetId),
           )
       : Promise.resolve(
           [] as Array<{
-            variantId: number
-            assetId: string
-            position: number
-            productId: number
-          }>
+            variantId: number;
+            assetId: string;
+            position: number;
+            productId: number;
+          }>,
         ),
     productIds.length > 0
       ? db
           .select({
             variantId: productVariantCustomizationMedia.variantId,
             assetId: productVariantCustomizationMedia.assetId,
-            productId: productVariants.productId
+            productId: productVariants.productId,
           })
           .from(productVariantCustomizationMedia)
-          .innerJoin(productVariants, eq(productVariantCustomizationMedia.variantId, productVariants.id))
+          .innerJoin(
+            productVariants,
+            eq(productVariantCustomizationMedia.variantId, productVariants.id),
+          )
           .where(inArray(productVariants.productId, productIds))
-      : Promise.resolve([] as Array<{ variantId: number; assetId: string; productId: number }>),
+      : Promise.resolve(
+          [] as Array<{
+            variantId: number;
+            assetId: string;
+            productId: number;
+          }>,
+        ),
     productIds.length > 0
       ? db
           .select({
             productId: productCustomizations.productId,
-            enabled: productCustomizations.enabled
+            enabled: productCustomizations.enabled,
           })
           .from(productCustomizations)
           .where(inArray(productCustomizations.productId, productIds))
-      : Promise.resolve([] as Array<{ productId: number; enabled: boolean }>)
-  ])
+      : Promise.resolve([] as Array<{ productId: number; enabled: boolean }>),
+  ]);
 
-  const resolvedItems = await hydrateTranslations(db, 'product', items, i => String(i.id), [{fieldName: 'title', objectKey: 'title'}, {fieldName: 'subtitle', objectKey: 'subtitle'}], [{fieldName: 'title', objectKey: 'title'}, {fieldName: 'subtitle', objectKey: 'subtitle'}]);
-  const resolvedCategories = await hydrateTranslations(db, 'product_category', categoryRows, c => String(c.categoryId), [{fieldName: 'name', objectKey: 'name'}], [{fieldName: 'name', objectKey: 'name'}]);
+  const resolvedItems = await hydrateTranslations(
+    db,
+    "product",
+    items,
+    (i) => String(i.id),
+    [
+      { fieldName: "title", objectKey: "title" },
+      { fieldName: "subtitle", objectKey: "subtitle" },
+    ],
+    [
+      { fieldName: "title", objectKey: "title" },
+      { fieldName: "subtitle", objectKey: "subtitle" },
+    ],
+  );
+  const resolvedCategories = await hydrateTranslations(
+    db,
+    "product_category",
+    categoryRows,
+    (c) => String(c.categoryId),
+    [{ fieldName: "name", objectKey: "name" }],
+    [{ fieldName: "name", objectKey: "name" }],
+  );
 
-  const categoriesByProductId = new Map<number, string[]>()
+  const categoriesByProductId = new Map<number, string[]>();
   for (const row of resolvedCategories) {
-    const current = categoriesByProductId.get(row.productId) ?? []
-    current.push(row.name)
-    categoriesByProductId.set(row.productId, current)
+    const current = categoriesByProductId.get(row.productId) ?? [];
+    current.push(row.name);
+    categoriesByProductId.set(row.productId, current);
   }
 
-  const variantsByProductId = new Map<number, (typeof variantRows)[number][]>()
+  const variantsByProductId = new Map<number, (typeof variantRows)[number][]>();
   for (const row of variantRows) {
-    const current = variantsByProductId.get(row.productId) ?? []
-    current.push(row)
-    variantsByProductId.set(row.productId, current)
+    const current = variantsByProductId.get(row.productId) ?? [];
+    current.push(row);
+    variantsByProductId.set(row.productId, current);
   }
 
-  const productMediaByProductId = new Map<number, Array<{ url: string; position: number }>>()
+  const productMediaByProductId = new Map<
+    number,
+    Array<{ url: string; position: number }>
+  >();
   for (const row of productMediaRows) {
-    const current = productMediaByProductId.get(row.productId) ?? []
-    current.push(row)
-    productMediaByProductId.set(row.productId, current)
+    const current = productMediaByProductId.get(row.productId) ?? [];
+    current.push(row);
+    productMediaByProductId.set(row.productId, current);
   }
 
   const variantMediaByVariantId = new Map<
     number,
     (typeof variantMediaRows)[number][]
-  >()
+  >();
   for (const row of variantMediaRows) {
-    const current = variantMediaByVariantId.get(row.variantId) ?? []
-    current.push(row)
-    variantMediaByVariantId.set(row.variantId, current)
+    const current = variantMediaByVariantId.get(row.variantId) ?? [];
+    current.push(row);
+    variantMediaByVariantId.set(row.variantId, current);
   }
 
-  const variantCustomizationMediaByVariantId = new Map<number, { assetId: string }>()
+  const variantCustomizationMediaByVariantId = new Map<
+    number,
+    { assetId: string }
+  >();
   for (const row of variantCustomizationMediaRows) {
-    variantCustomizationMediaByVariantId.set(row.variantId, row)
+    variantCustomizationMediaByVariantId.set(row.variantId, row);
   }
 
   const customizationByProductId = new Map(
-    customizationRows.map((row) => [row.productId, row])
-  )
+    customizationRows.map((row) => [row.productId, row]),
+  );
 
   const listingItems = resolvedItems.map((item) =>
     buildListingItem(
@@ -220,14 +283,14 @@ async function loadListingPage(
       variantMediaByVariantId,
       customizationByProductId.get(item.id)?.enabled ?? false,
       variantCustomizationMediaByVariantId,
-      productMediaByProductId.get(item.id) ?? []
-    )
-  )
+      productMediaByProductId.get(item.id) ?? [],
+    ),
+  );
 
   return {
     items: listingItems,
     total: totalResult?.total ?? 0,
-  }
+  };
 }
 
 async function loadBestSellersPage(
@@ -236,27 +299,27 @@ async function loadBestSellersPage(
   collection: { id: number } | undefined,
   customizable: CustomizableFilter,
   limit: number,
-  offset: number
+  offset: number,
 ) {
-  const conditions = [eq(products.status, 'published')]
-  const customizableCondition = buildCustomizableCondition(customizable)
+  const conditions = [eq(products.status, "published")];
+  const customizableCondition = buildCustomizableCondition(customizable);
   if (customizableCondition) {
-    conditions.push(customizableCondition)
+    conditions.push(customizableCondition);
   }
-  const whereClause = and(...conditions)
+  const whereClause = and(...conditions);
   const salesQuantity = sql<number>`coalesce((
     select sum(${orderItems.quantity})
     from ${orderItems}
     where ${orderItems.productId} = ${products.id}
-  ), 0)`
+  ), 0)`;
   const sourceTier = collection
     ? sql<number>`case
       when ${products.collectionId} = ${collection.id} then 0
       when ${salesQuantity} > 0 then 1
       else 2
     end`
-    : sql<number>`case when ${salesQuantity} > 0 then 1 else 2 end`
-  const salesPriority = sql<number>`case when ${sourceTier} = 1 then ${salesQuantity} else 0 end`
+    : sql<number>`case when ${salesQuantity} > 0 then 1 else 2 end`;
+  const salesPriority = sql<number>`case when ${sourceTier} = 1 then ${salesQuantity} else 0 end`;
 
   const rankedRows = await db
     .select({ id: products.id })
@@ -264,16 +327,16 @@ async function loadBestSellersPage(
     .where(whereClause)
     .orderBy(asc(sourceTier), desc(salesPriority), desc(products.id))
     .limit(limit)
-    .offset(offset)
+    .offset(offset);
   const totalResult = await db
     .select({ total: sql<number>`count(*)` })
     .from(products)
     .where(whereClause)
-    .get()
-  const productIds = rankedRows.map((row) => row.id)
+    .get();
+  const productIds = rankedRows.map((row) => row.id);
 
   if (productIds.length === 0) {
-    return { items: [], total: totalResult?.total ?? 0 }
+    return { items: [], total: totalResult?.total ?? 0 };
   }
 
   const details = await loadListingPage(
@@ -281,25 +344,27 @@ async function loadBestSellersPage(
     db,
     inArray(products.id, productIds),
     productIds.length,
-    0
-  )
-  const itemsByProductId = new Map(details.items.map((item) => [item.id, item]))
+    0,
+  );
+  const itemsByProductId = new Map(
+    details.items.map((item) => [item.id, item]),
+  );
 
   return {
     items: productIds.flatMap((id) => {
-      const item = itemsByProductId.get(id)
-      return item ? [item] : []
+      const item = itemsByProductId.get(id);
+      return item ? [item] : [];
     }),
-    total: totalResult?.total ?? 0
-  }
+    total: totalResult?.total ?? 0,
+  };
 }
 
 export const storefrontCollectionsRoute = new Hono<AppEnv>()
-  .get('/', async (c) => {
-    const db = getDb(c.env)
-    const parsedQuery = v.safeParse(querySchema, c.req.query())
+  .get("/", async (c) => {
+    const db = getDb(c.env);
+    const parsedQuery = v.safeParse(querySchema, c.req.query());
     if (!parsedQuery.success) {
-      return c.json({ error: 'Validation failed' }, 400)
+      return c.json({ error: "Validation failed" }, 400);
     }
     const items = await db
       .select({
@@ -307,72 +372,117 @@ export const storefrontCollectionsRoute = new Hono<AppEnv>()
         title: productCollections.title,
         handle: productCollections.handle,
         imageUrl: productCollections.imageUrl,
+        visibility: productCollections.visibility,
       })
       .from(productCollections)
-      .orderBy(asc(productCollections.position))
+      .where(
+        or(
+          eq(productCollections.visibility, "public"),
+          isNull(productCollections.visibility),
+        ),
+      )
+      .orderBy(asc(productCollections.position));
 
-    const resolvedItems = await hydrateTranslations(db, 'product_collection', items, i => String(i.id), [{fieldName: 'title', objectKey: 'title'}], [{fieldName: 'title', objectKey: 'title'}])
-    return c.json({ items: resolvedItems.map(item => ({ ...item, imageUrl: item.imageUrl ? toAbsoluteAssetUrl(c, item.imageUrl) as string : null })) }, 200)
+    const resolvedItems = await hydrateTranslations(
+      db,
+      "product_collection",
+      items,
+      (i) => String(i.id),
+      [{ fieldName: "title", objectKey: "title" }],
+      [{ fieldName: "title", objectKey: "title" }],
+    );
+    return c.json(
+      {
+        items: resolvedItems.map((item) => ({
+          ...item,
+          visibility: item.visibility ?? "public",
+          imageUrl: item.imageUrl
+            ? (toAbsoluteAssetUrl(c, item.imageUrl) as string)
+            : null,
+        })),
+      },
+      200,
+    );
   })
-  .get('/:handle/products', async (c) => {
-    const parsed = parseParams(c, handleParamsSchema)
-    if (!parsed.success) return parsed.response
+  .get("/:handle/products", async (c) => {
+    const parsed = parseParams(c, handleParamsSchema);
+    if (!parsed.success) return parsed.response;
 
-    const db = getDb(c.env)
-    const parsedQuery = v.safeParse(querySchema, c.req.query())
+    const db = getDb(c.env);
+    const parsedQuery = v.safeParse(querySchema, c.req.query());
     if (!parsedQuery.success) {
-      return c.json({ error: 'Validation failed' }, 400)
+      return c.json({ error: "Validation failed" }, 400);
     }
-    const customizable = parsedQuery.output.customizable
-    const page = Math.max(1, Number(c.req.query('page')) || 1)
-    const limit = Math.min(100, Math.max(1, Number(c.req.query('limit')) || 20))
-    const offset = (page - 1) * limit
+    const customizable = parsedQuery.output.customizable;
+    const page = Math.max(1, Number(c.req.query("page")) || 1);
+    const limit = Math.min(
+      100,
+      Math.max(1, Number(c.req.query("limit")) || 20),
+    );
+    const offset = (page - 1) * limit;
 
     const collection = await db
-      .select({ id: productCollections.id })
+      .select({
+        id: productCollections.id,
+        visibility: productCollections.visibility,
+      })
       .from(productCollections)
-      .where(eq(productCollections.handle, parsed.output.handle))
-      .get()
+      .where(
+        and(
+          eq(productCollections.handle, parsed.output.handle),
+          or(
+            eq(productCollections.visibility, "public"),
+            isNull(productCollections.visibility),
+          ),
+        ),
+      )
+      .get();
 
-    if (parsed.output.handle === 'best-sellers') {
+    if (parsed.output.handle === "best-sellers") {
       const listing = await loadBestSellersPage(
         c,
         db,
         collection,
         customizable,
         limit,
-        offset
-      )
-      return c.json({
-        items: listing.items,
-        page,
-        limit,
-        total: listing.total
-      }, 200)
+        offset,
+      );
+      return c.json(
+        {
+          items: listing.items,
+          page,
+          limit,
+          total: listing.total,
+        },
+        200,
+      );
     }
 
     if (!collection) {
-      return c.json({ items: [], page, limit, total: 0 }, 200)
+      return c.json({ error: "Collection not found" }, 404);
     }
 
     const conditions = [
-      eq(products.status, 'published'),
-      eq(products.collectionId, collection.id)
-    ]
-    const customizableCondition = buildCustomizableCondition(customizable)
+      eq(products.status, "published"),
+      eq(products.collectionId, collection.id),
+    ];
+    const customizableCondition = buildCustomizableCondition(customizable);
     if (customizableCondition) {
-      conditions.push(customizableCondition)
+      conditions.push(customizableCondition);
     }
-    const whereClause = and(...conditions)
+    const whereClause = and(...conditions);
 
-    const primary = await loadListingPage(c, db, whereClause, limit, offset)
-    let listingItems = primary.items
-    let total = primary.total
+    const primary = await loadListingPage(c, db, whereClause, limit, offset);
+    let listingItems = primary.items;
+    let total = primary.total;
 
-    return c.json({
-      items: listingItems,
-      page,
-      limit,
-      total
-    }, 200)
-  })
+    return c.json(
+      {
+        items: listingItems,
+        page,
+        limit,
+        total,
+      },
+      200,
+    );
+  });

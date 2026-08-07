@@ -231,6 +231,21 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
     const limit = parsedQuery.output.limit ?? 20
     const offset = (page - 1) * limit
 
+    if (parsedQuery.output.category) {
+      const category = await db
+        .select({ id: productCategories.id })
+        .from(productCategories)
+        .where(and(
+          eq(productCategories.handle, parsedQuery.output.category),
+          eq(productCategories.visibility, 'public'),
+        ))
+        .get()
+
+      if (!category) {
+        return jsonError(c, 404, 'Category not found')
+      }
+    }
+
     const conditions = [eq(products.status, 'published')]
 
     if (parsedQuery.output.category) {
@@ -242,6 +257,7 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
             on ${productCategories.id} = ${productCategoryLinks.categoryId}
           where ${productCategoryLinks.productId} = ${products.id}
             and ${productCategories.handle} = ${parsedQuery.output.category}
+            and ${productCategories.visibility} = 'public'
         )`
       )
     }
@@ -296,7 +312,10 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
             })
             .from(productCategoryLinks)
             .innerJoin(productCategories, eq(productCategoryLinks.categoryId, productCategories.id))
-            .where(inArray(productCategoryLinks.productId, candidates.map((item) => item.id)))
+            .where(and(
+              inArray(productCategoryLinks.productId, candidates.map((item) => item.id)),
+              eq(productCategories.visibility, 'public'),
+            ))
         : []
       const hydratedCategories = await hydrateTranslations(
         db,
@@ -367,7 +386,10 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
               productCategories,
               eq(productCategoryLinks.categoryId, productCategories.id)
             )
-            .where(inArray(productCategoryLinks.productId, productIds))
+            .where(and(
+              inArray(productCategoryLinks.productId, productIds),
+              eq(productCategories.visibility, 'public'),
+            ))
         : Promise.resolve([] as Array<{ productId: number; categoryId: number; name: string }>),
       productIds.length > 0
         ? db
@@ -542,7 +564,10 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
           productCategories,
           eq(productCategoryLinks.categoryId, productCategories.id)
         )
-        .where(eq(productCategoryLinks.productId, product.id)),
+        .where(and(
+          eq(productCategoryLinks.productId, product.id),
+          eq(productCategories.visibility, 'public'),
+        )),
       db
         .select()
         .from(productAttributes)

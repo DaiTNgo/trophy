@@ -40,6 +40,7 @@ export function CreateCategoryModal({ open, onOpenChange, categories, onSuccess 
   const [description, setDescription] = useState<LocalizedTextValue>(() => createEmptyLocalizedText());
   const [descriptionLocale, setDescriptionLocale] = useState<AdminLocale>("vi");
   const [imageUrl, setImageUrl] = useState("");
+  const [visibility, setVisibility] = useState<"public" | "hidden">("public");
   const [previewUrl, setPreviewUrl] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -57,6 +58,7 @@ export function CreateCategoryModal({ open, onOpenChange, categories, onSuccess 
       setDescription(createEmptyLocalizedText());
       setDescriptionLocale("vi");
       setImageUrl("");
+      setVisibility("public");
       setPreviewUrl("");
       setFile(null);
       setOrderedItems([...categories]);
@@ -165,6 +167,7 @@ export function CreateCategoryModal({ open, onOpenChange, categories, onSuccess 
           handle: handle || undefined,
           description: description.vi ? { vi: description.vi, en: description.en || undefined } : undefined,
           imageUrl: finalImageUrl || undefined,
+          visibility,
         })
       });
       if (!res.ok) throw new Error("Failed to create category");
@@ -316,17 +319,13 @@ export function CreateCategoryModal({ open, onOpenChange, categories, onSuccess 
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="flex flex-col gap-y-2">
-                    <Label weight="plus">Status</Label>
-                    <Select value="active" disabled>
-                      <Select.Trigger><Select.Value placeholder="Active" /></Select.Trigger>
-                      <Select.Content><Select.Item value="active">Active</Select.Item></Select.Content>
-                    </Select>
-                  </div>
-                  <div className="flex flex-col gap-y-2">
                     <Label weight="plus">Visibility</Label>
-                    <Select value="public" disabled>
-                      <Select.Trigger><Select.Value placeholder="Public" /></Select.Trigger>
-                      <Select.Content><Select.Item value="public">Public</Select.Item></Select.Content>
+                    <Select value={visibility} onValueChange={(value) => setVisibility(value as "public" | "hidden")}>
+                      <Select.Trigger><Select.Value /></Select.Trigger>
+                      <Select.Content>
+                        <Select.Item value="public">Public</Select.Item>
+                        <Select.Item value="hidden">Hidden</Select.Item>
+                      </Select.Content>
                     </Select>
                   </div>
                 </div>

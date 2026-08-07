@@ -160,21 +160,15 @@ export function NavbarCategoryStrip({
                       </div>
                     )}
                   </div>
-                  <span
-                    className={`relative block pb-2 text-center text-[11px] font-bold uppercase leading-tight tracking-wide transition-colors lg:text-left lg:text-[13px] lg:whitespace-nowrap ${
+                  <div
+                    className={`relative flex h-8 items-center justify-center overflow-hidden text-center text-[11px] font-bold uppercase leading-tight tracking-wide transition-colors after:absolute after:bottom-0 after:left-1/2 after:h-0.5 after:-translate-x-1/2 after:rounded-full after:bg-brand-strong after:transition-all after:content-[''] lg:justify-start lg:text-left lg:text-[13px] lg:whitespace-nowrap lg:after:left-0 lg:after:translate-x-0 ${
                       isActive
-                        ? "text-brand-strong"
-                        : "text-brand-strong hover:text-brand-support"
+                        ? "text-brand-strong after:w-8 after:opacity-100"
+                        : "text-brand-strong hover:text-brand-support after:w-0 after:opacity-0"
                     }`}
                   >
                     {getLocalized(cat.name, locale)}
-                    <span
-                      aria-hidden="true"
-                      className={`absolute bottom-0 left-1/2 h-0.5 -translate-x-1/2 rounded-full bg-brand-strong transition-all lg:left-0 lg:translate-x-0 ${
-                        isActive ? "w-8 opacity-100" : "w-0 opacity-0"
-                      }`}
-                    />
-                  </span>
+                  </div>
                 </Link>
               );
             })}

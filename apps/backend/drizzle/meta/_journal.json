@@ -169,6 +169,13 @@
       "when": 1785765309805,
       "tag": "0023_low_randall_flagg",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "6",
+      "when": 1786090462509,
+      "tag": "0024_soft_major_mapleleaf",
+      "breakpoints": true
     }
   ]
 }

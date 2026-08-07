@@ -36,7 +36,9 @@ export const users = sqliteTable("user", {
   username: text("username").unique(),
   displayUsername: text("display_username"),
   email: text("email").notNull().unique(),
-  emailVerified: integer("email_verified", { mode: "boolean" }).default(false).notNull(),
+  emailVerified: integer("email_verified", { mode: "boolean" })
+    .default(false)
+    .notNull(),
   image: text("image"),
   createdAt: integer("created_at", { mode: "timestamp_ms" })
     .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
@@ -137,6 +139,7 @@ export const productCollections = sqliteTable(
     handle: text("handle").notNull(),
     imageUrl: text("image_url"),
     position: integer("position").notNull().default(0),
+    visibility: text("visibility").notNull().default("public"),
   },
   (table) => [uniqueIndex("product_collections_handle_idx").on(table.handle)],
 );
@@ -149,6 +152,7 @@ export const productCategories = sqliteTable(
     handle: text("handle").notNull(),
     description: text("description"),
     imageUrl: text("image_url"),
+    visibility: text("visibility").notNull().default("public"),
     position: integer("position").notNull().default(0),
   },
   (table) => [uniqueIndex("product_categories_handle_idx").on(table.handle)],
@@ -208,8 +212,12 @@ export const productVariants = sqliteTable("product_variants", {
   misaSyncedAt: integer("misa_synced_at", { mode: "timestamp_ms" }),
   priceAmount: integer("price_amount"),
   inventoryQuantity: integer("inventory_quantity").notNull().default(0),
-  allowBackorder: integer("allow_backorder", { mode: "boolean" }).notNull().default(false),
-  isDefault: integer("is_default", { mode: "boolean" }).notNull().default(false),
+  allowBackorder: integer("allow_backorder", { mode: "boolean" })
+    .notNull()
+    .default(false),
+  isDefault: integer("is_default", { mode: "boolean" })
+    .notNull()
+    .default(false),
   position: integer("position").notNull(),
   createdAt: text("created_at")
     .notNull()
@@ -231,7 +239,10 @@ export const productVariantMedia = sqliteTable(
   },
   (table) => [
     primaryKey({ columns: [table.variantId, table.assetId] }),
-    uniqueIndex("product_variant_media_variant_position_idx").on(table.variantId, table.position),
+    uniqueIndex("product_variant_media_variant_position_idx").on(
+      table.variantId,
+      table.position,
+    ),
   ],
 );
 
@@ -281,14 +292,17 @@ export const productVariantOptionValues = sqliteTable(
   (table) => [primaryKey({ columns: [table.variantId, table.optionValueId] })],
 );
 
-export const productVariantAttributes = sqliteTable("product_variant_attributes", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  variantId: integer("variant_id").notNull(),
-  name: text("name").notNull(),
-  value: text("value").notNull(),
-  unit: text("unit"),
-  position: integer("position").notNull(),
-});
+export const productVariantAttributes = sqliteTable(
+  "product_variant_attributes",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    variantId: integer("variant_id").notNull(),
+    name: text("name").notNull(),
+    value: text("value").notNull(),
+    unit: text("unit"),
+    position: integer("position").notNull(),
+  },
+);
 
 export const productAttributes = sqliteTable("product_attributes", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -340,7 +354,9 @@ export const customizationTemplates = sqliteTable(
       .notNull()
       .default(sql`CURRENT_TIMESTAMP`),
   },
-  (table) => [uniqueIndex("customization_templates_product_idx").on(table.productId)],
+  (table) => [
+    uniqueIndex("customization_templates_product_idx").on(table.productId),
+  ],
 );
 
 export const customizationTemplateRevisions = sqliteTable(
@@ -361,7 +377,10 @@ export const customizationTemplateRevisions = sqliteTable(
     publishedAt: text("published_at"),
   },
   (table) => [
-    uniqueIndex("customization_template_revision_idx").on(table.templateId, table.revision),
+    uniqueIndex("customization_template_revision_idx").on(
+      table.templateId,
+      table.revision,
+    ),
   ],
 );
 
@@ -393,7 +412,12 @@ export const customizationDesignRevisions = sqliteTable(
       .default(sql`CURRENT_TIMESTAMP`),
     frozenAt: text("frozen_at"),
   },
-  (table) => [uniqueIndex("customization_design_revision_idx").on(table.designId, table.revision)],
+  (table) => [
+    uniqueIndex("customization_design_revision_idx").on(
+      table.designId,
+      table.revision,
+    ),
+  ],
 );
 
 export const customizationAssets = sqliteTable("customization_assets", {
@@ -413,39 +437,45 @@ export const customizationAssets = sqliteTable("customization_assets", {
     .default(sql`CURRENT_TIMESTAMP`),
 });
 
-export const customizationClipartCategories = sqliteTable("customization_clipart_categories", {
-  id: text("id").primaryKey(),
-  name: text("name").notNull(),
-  active: integer("active", { mode: "boolean" }).notNull().default(true),
-  sortOrder: integer("sort_order").notNull().default(0),
-  createdAt: integer("created_at", { mode: "timestamp_ms" })
-    .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
-    .notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp_ms" })
-    .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
-    .$onUpdate(() => new Date())
-    .notNull(),
-});
+export const customizationClipartCategories = sqliteTable(
+  "customization_clipart_categories",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    active: integer("active", { mode: "boolean" }).notNull().default(true),
+    sortOrder: integer("sort_order").notNull().default(0),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+      .notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+      .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+);
 
-export const customizationClipartAssets = sqliteTable("customization_clipart_assets", {
-  id: text("id").primaryKey(),
-  categoryId: text("category_id").notNull(),
-  sourceAssetId: text("source_asset_id").notNull(),
-  name: text("name").notNull(),
-  fileName: text("file_name"),
-  previewUrl: text("preview_url").notNull(),
-  mimeType: text("mime_type").notNull(),
-  sourceWidthPx: integer("source_width_px"),
-  sourceHeightPx: integer("source_height_px"),
-  active: integer("active", { mode: "boolean" }).notNull().default(true),
-  createdAt: integer("created_at", { mode: "timestamp_ms" })
-    .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
-    .notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp_ms" })
-    .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
-    .$onUpdate(() => new Date())
-    .notNull(),
-});
+export const customizationClipartAssets = sqliteTable(
+  "customization_clipart_assets",
+  {
+    id: text("id").primaryKey(),
+    categoryId: text("category_id").notNull(),
+    sourceAssetId: text("source_asset_id").notNull(),
+    name: text("name").notNull(),
+    fileName: text("file_name"),
+    previewUrl: text("preview_url").notNull(),
+    mimeType: text("mime_type").notNull(),
+    sourceWidthPx: integer("source_width_px"),
+    sourceHeightPx: integer("source_height_px"),
+    active: integer("active", { mode: "boolean" }).notNull().default(true),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+      .notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+      .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+);
 
 // ─── Orders ────────────────────────────────────────────────────────────────────
 
@@ -455,7 +485,9 @@ export const orders = sqliteTable("orders", {
   // statuses: narrow string unions enforced at application layer
   status: text("status").notNull().default("pending"), // 'pending' | 'confirmed' | 'cancelled'
   paymentStatus: text("payment_status").notNull().default("pending"), // 'pending' | 'paid' | 'failed' | 'refunded' | 'cancelled'
-  fulfillmentStatus: text("fulfillment_status").notNull().default("unfulfilled"), // 'unfulfilled' | 'partially_fulfilled' | 'fulfilled'
+  fulfillmentStatus: text("fulfillment_status")
+    .notNull()
+    .default("unfulfilled"), // 'unfulfilled' | 'partially_fulfilled' | 'fulfilled'
   paymentMethod: text("payment_method").notNull(), // 'bank_transfer' | 'cash_on_delivery'
   // customer details
   customerName: text("customer_name").notNull(),
@@ -468,7 +500,11 @@ export const orders = sqliteTable("orders", {
   primaryAddressJson: text("primary_address_json").notNull(),
   // optional different shipping address snapshot (JSON)
   shippingAddressJson: text("shipping_address_json"),
-  shipToDifferentAddress: integer("ship_to_different_address", { mode: "boolean" }).notNull().default(false),
+  shipToDifferentAddress: integer("ship_to_different_address", {
+    mode: "boolean",
+  })
+    .notNull()
+    .default(false),
   // order totals (stored in smallest currency unit, e.g. VND đồng)
   subtotalAmount: integer("subtotal_amount").notNull(),
   totalAmount: integer("total_amount").notNull(),

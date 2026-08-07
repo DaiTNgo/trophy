@@ -2,6 +2,9 @@
 
 ## Current State
 
+- The Edit Category Products drawer keeps the search field, header, and footer fixed; only the table wrapper scrolls for long product lists.
+- Product names in the category detail Products table link to `/products/:productId`, matching the existing admin product-list navigation pattern.
+- The category detail Products table no longer shows row-selection checkboxes or the placeholder Sales Channels column. The Edit Category Products drawer still uses checkboxes for assigning products.
 - Category detail saves may submit `description: null` when the localized description is empty. The backend now accepts this current admin contract and clears the canonical description plus the `vi` and `en` translations; the regression is covered in `apps/backend/src/routes/admin/product-metadata.test.ts`.
 - The admin create-category modal once again supports optional media upload in the `Details` tab.
 - Existing category detail now exposes media editing directly on the page via a dedicated `Media` panel; the edit drawer no longer owns media.
@@ -12,14 +15,8 @@
 
 ## Verification
 
-1. `pnpm --filter admin test`
-2. `pnpm --filter admin build`
-3. `./init.sh`
-4. `pnpm --filter backend test -- src/routes/admin/product-metadata.test.ts`
-5. `pnpm --filter backend check`
-6. `pnpm --filter backend test`
-7. `pnpm --filter backend build`
-8. `pnpm --filter admin build`
+1. `pnpm --filter admin build`
+2. `./init.sh` (backend typecheck, 141 backend tests, backend build, admin build, storefront typecheck/build)
 
 ## Suggested Next Actions
 

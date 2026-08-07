@@ -49,7 +49,7 @@ describe("cart line revisions", () => {
 
   it("preserves the cart line reference through the generic product redirect", () => {
     expect(getCategoryProductRedirectPath("cups", "champion-cup", "?cartLine=line-1"))
-      .toBe("/categories/cups/products/champion-cup?cartLine=line-1");
+      .toBe("/product/champion-cup?cartLine=line-1");
   });
 
   it("restores only a source line for the requested product", () => {

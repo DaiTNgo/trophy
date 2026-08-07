@@ -42,7 +42,7 @@ export function useProductDetailState({
   product: ProductDetail;
   dynamicFonts: unknown[];
   locale: "vi" | "en";
-  activeCategory: ProductDetail["categories"][number];
+  activeCategory: ProductDetail["categories"][number] | null;
   cartLineRevisionId: string | null;
 }) {
   const { addLine, isReady: isCartReady, lines } = useCart();
@@ -198,7 +198,7 @@ export function useProductDetailState({
     });
     recordedRecentlyViewedProductId.current = product.id;
   }, [
-    activeCategory.handle,
+    activeCategory?.handle,
     locale,
     product.handle,
     product.id,
