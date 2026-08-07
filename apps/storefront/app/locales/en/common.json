@@ -1,5 +1,11 @@
 {
   "welcome": "Welcome to our store",
   "cart": "Cart",
-  "language": "Language"
+  "language": "Language",
+  "notFound": {
+    "title": "The page you're looking for doesn't exist.",
+    "description": "The link may be outdated or the page may have moved. Let's get you back to something worth celebrating.",
+    "homeAction": "Back to home",
+    "productsAction": "Browse products"
+  }
 }
