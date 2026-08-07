@@ -6,8 +6,12 @@
   "heading": "Tra cứu đơn hàng",
   "description": "Nhập mã đơn và số điện thoại đã dùng khi đặt hàng để xem lại tình trạng đơn.",
 
+  "form_heading": "Thông tin tra cứu",
+  "form_help": "Dùng thông tin trong đơn đã đặt.",
   "order_number_label": "Mã đơn hàng",
+  "order_number_placeholder": "Ví dụ: ORD-123456",
   "phone_label": "Số điện thoại",
+  "phone_placeholder": "Số điện thoại khi đặt hàng",
   "submit": "Tra cứu đơn hàng",
   "submitting": "Đang tra cứu...",
 
@@ -19,8 +23,9 @@
   "payment": "Thanh toán",
   "customer": "Khách hàng",
   "address": "Địa chỉ",
+  "items_heading": "Sản phẩm trong đơn",
   "quantity_abbr": "SL:",
-  "preview": "Preview",
+  "preview": "Xem trước",
 
   "dialog_title": "Thông tin sản phẩm trong đơn hàng",
   "dialog_variant": "Phiên bản",
@@ -30,5 +35,6 @@
   "dialog_customization": "Thông tin tùy chỉnh",
   "dialog_close": "Đóng",
 
+  "empty_heading": "Kết quả đơn hàng",
   "empty_state": "Kết quả tra cứu sẽ hiển thị tại đây sau khi bạn nhập đúng mã đơn và số điện thoại."
 }

@@ -14,7 +14,7 @@ export function LanguageSwitcher() {
       <input type="hidden" name="returnTo" value={pathname + search} />
       <button
         type="submit"
-        className="relative flex h-10 w-10 items-center justify-center rounded-full text-brand-strong transition-colors hover:bg-surface-subtle hover:text-primary"
+        className="relative flex h-10 min-w-10 items-center justify-center rounded-md border border-border-subtle bg-white px-2 text-[12px] font-bold tracking-wide text-brand-strong transition-colors hover:border-brand-strong hover:bg-surface-subtle focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-support active:translate-y-px"
         title={t("language_switcher_title")}
       >
         {label}

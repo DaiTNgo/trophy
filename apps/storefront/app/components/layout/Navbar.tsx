@@ -201,12 +201,15 @@ export function Navbar({
 
                 <Link
                   to="/cart"
-                  className="relative flex h-10 w-10 items-center justify-center rounded-full text-brand-strong transition-colors hover:bg-surface-subtle hover:text-brand-support"
+                  aria-label={t("navbar_cart", { count: itemCount })}
+                  className="relative flex h-10 w-10 items-center justify-center rounded-md border border-action-positive bg-action-positive text-white transition-colors duration-200 hover:border-action-positive-hover hover:bg-action-positive-hover active:translate-y-px lg:h-12 lg:w-[88px] lg:rounded-xl"
                 >
-                  <ShoppingCart className="text-[24px]" />
-                  <div className="absolute right-0 top-0 flex h-[16px] min-w-[16px] items-center justify-center rounded-full border-2 border-white bg-action-positive px-1 text-[10px] font-bold leading-none text-white">
-                    {itemCount}
-                  </div>
+                  <ShoppingCart className="h-6 w-6 stroke-[2.25]" />
+                  {itemCount > 0 ? (
+                    <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-white bg-action-commerce px-1 text-[10px] font-bold leading-none text-white">
+                      {itemCount}
+                    </span>
+                  ) : null}
                 </Link>
               </div>
             </Container>

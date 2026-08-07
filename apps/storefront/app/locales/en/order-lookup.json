@@ -6,8 +6,12 @@
   "heading": "Order Lookup",
   "description": "Enter the order number and phone number used when placing the order to check its status.",
 
+  "form_heading": "Lookup details",
+  "form_help": "Use the same details from your order.",
   "order_number_label": "Order Number",
+  "order_number_placeholder": "For example: ORD-123456",
   "phone_label": "Phone Number",
+  "phone_placeholder": "Phone number used for the order",
   "submit": "Look Up Order",
   "submitting": "Looking up...",
 
@@ -19,6 +23,7 @@
   "payment": "Payment",
   "customer": "Customer",
   "address": "Address",
+  "items_heading": "Items in this order",
   "quantity_abbr": "Qty:",
   "preview": "Preview",
 
@@ -30,5 +35,6 @@
   "dialog_customization": "Customization Info",
   "dialog_close": "Close",
 
+  "empty_heading": "Your order details",
   "empty_state": "Search results will appear here once you enter a valid order number and phone number."
 }

@@ -86,6 +86,7 @@ export function ProductDetailLayout({
       dynamicFonts={dynamicFonts as DynamicFontFamily[]}
       watermark
       className={`border-0 min-h-0 rounded-none ${galleryMediaFrameClassName}`}
+      viewportClassName="bg-white bg-none"
       resolveFontUrl={backendFontUrl}
       resolveStaticFontUrl={backendStaticFontUrl}
       selectedVariantId={selectedVariant?.id ?? null}
@@ -100,7 +101,7 @@ export function ProductDetailLayout({
   );
   const galleryImageNode = mainMedia?.contentUrl ? (
     <div
-      className={`flex items-center justify-center p-6 ${galleryMediaFrameClassName}`}
+      className={`flex items-center justify-center bg-white p-6 ${galleryMediaFrameClassName}`}
     >
       <img
         className="h-full w-full object-contain transition-transform duration-700"
@@ -110,7 +111,7 @@ export function ProductDetailLayout({
     </div>
   ) : (
     <div
-      className={`flex items-center justify-center text-on-surface-variant ${galleryMediaFrameClassName}`}
+      className={`flex items-center justify-center bg-white text-on-surface-variant ${galleryMediaFrameClassName}`}
     >
       Product image unavailable
     </div>

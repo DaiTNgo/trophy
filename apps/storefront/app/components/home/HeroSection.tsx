@@ -22,7 +22,11 @@ const HERO_IMAGES = [
 export function HeroSection() {
   const { t } = useTranslation("home");
   const slides = t("hero_slides", { returnObjects: true }) as {
-    eyebrow: string; headlines: string[]; body: string; cta: string; cta2: string;
+    eyebrow: string;
+    headlines: string[];
+    body: string;
+    cta: string;
+    cta2: string;
   }[];
   const [api, setApi] = useState<CarouselApi>();
   const [current, setCurrent] = useState(0);
@@ -55,20 +59,19 @@ export function HeroSection() {
                 </div>
                 <div className="absolute inset-0 z-10 bg-gradient-to-r from-[color:color-mix(in_srgb,var(--brand-hero)_94%,transparent)] via-[color:color-mix(in_srgb,var(--brand-hero)_60%,transparent)] to-transparent" />
                 <div className="absolute inset-x-0 bottom-0 z-10 h-32 bg-gradient-to-t from-[color:color-mix(in_srgb,var(--brand-hero)_70%,transparent)] to-transparent" />
-                <Container className="py-24">
-                  <div className="relative z-20 mx-auto w-full max-w-container-max px-margin-mobile py-24 md:px-margin-desktop">
-                    <div className="max-w-xl">
-                      <div className="mb-5 flex items-center gap-3">
-                        <div className="h-[3px] w-16 bg-brand-accent" />
+                <Container className="py-12 md:py-16">
+                  <div className="relative z-20 mx-auto w-full max-w-container-max px-margin-mobile md:px-margin-desktop">
+                    <div className="max-w-2xl">
+                      <div className="mb-5">
                         <span className="font-label-md text-label-md uppercase tracking-[0.35em] text-brand-accent">
                           {slide.eyebrow}
                         </span>
                       </div>
-                      <h1 className="mb-6 font-heading uppercase leading-none tracking-wide text-white">
+                      <h1 className="mb-6 font-heading font-semibold uppercase tracking-wide text-white">
                         {slide.headlines.map((line, j) => (
                           <span
                             key={line}
-                            className={`block text-[32px] leading-[1.15] sm:text-[40px] md:text-[56px] lg:text-[72px] ${j === 2 ? "text-brand-accent" : ""}`}
+                            className={`block text-[42px] leading-tight sm:text-[52px] md:text-[60px] lg:text-[64px] ${j === slide.headlines.length - 1 ? "text-brand-accent" : ""}`}
                           >
                             {line}
                           </span>
@@ -80,18 +83,17 @@ export function HeroSection() {
                       <div className="mb-10 flex flex-col items-start gap-3 sm:flex-row sm:gap-4">
                         <Link
                           to="/products"
-                          className="rounded-lg border-2 border-transparent bg-action-support px-5 py-3 text-center font-label-md text-label-md uppercase tracking-widest text-white transition-all duration-300 hover:bg-action-support-hover md:px-8 md:py-4"
+                          className="rounded-lg border-2 border-transparent bg-action-support px-5 py-3 text-center font-label-md text-label-md uppercase tracking-widest text-white transition-all duration-300 hover:bg-action-support-hover active:translate-y-px md:px-8 md:py-4"
                         >
                           {slide.cta}
                         </Link>
                         <Link
                           to="/contact"
-                          className="rounded-lg border-2 border-white/60 px-5 py-3 text-center font-label-md text-label-md uppercase tracking-widest text-white transition-all duration-300 hover:border-brand-accent hover:bg-white/10 md:px-8 md:py-4"
+                          className="rounded-lg border-2 border-white/60 px-5 py-3 text-center font-label-md text-label-md uppercase tracking-widest text-white transition-all duration-300 hover:border-brand-accent hover:bg-white/10 active:translate-y-px md:px-8 md:py-4"
                         >
                           {slide.cta2}
                         </Link>
                       </div>
-
                     </div>
                   </div>
                 </Container>
@@ -110,18 +112,20 @@ export function HeroSection() {
                   ? "w-8 bg-brand-accent"
                   : "w-2 bg-white/50 hover:bg-white/80"
               }`}
-              aria-label={`Go to slide ${i + 1}`}
+              aria-label={t("hero_slide_aria_label", { slide: i + 1 })}
             />
           ))}
         </div>
 
         <CarouselPrevious
           variant="ghost"
+          aria-label={t("carousel_previous")}
           className="absolute left-4 top-1/2 z-30 hidden h-11 w-11 -translate-y-1/2 rounded-full bg-white/15 text-white backdrop-blur-sm transition-all hover:bg-white/30 md:inline-flex"
           classNameIfDisabled="hidden"
         />
         <CarouselNext
           variant="ghost"
+          aria-label={t("carousel_next")}
           className="absolute right-4 top-1/2 z-30 hidden h-11 w-11 -translate-y-1/2 rounded-full bg-white/15 text-white backdrop-blur-sm transition-all hover:bg-white/30 md:inline-flex"
           classNameIfDisabled="hidden"
         />

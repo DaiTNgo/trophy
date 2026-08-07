@@ -7,6 +7,8 @@
   "navbar_more_contact": "Contact Info",
   "navbar_more_about": "About Us",
   "navbar_more_order_lookup": "Order Lookup",
+  "navbar_cart_one": "Cart, {{count}} item",
+  "navbar_cart_other": "Cart, {{count}} items",
 
   "search_placeholder": "Search products, categories...",
   "search_clear": "Clear search",

@@ -5,14 +5,24 @@ import { getLocale } from "../i18n.server";
 import { ProductCustomizationPreview } from "@trophy/customization-react";
 import type { DynamicFontFamily } from "@trophy/customization";
 import type { Route } from "./+types/order-lookup";
-import { lookupStorefrontOrder } from "../lib/api";
+import {
+  backendFontUrl,
+  backendStaticFontUrl,
+  lookupStorefrontOrder,
+} from "../lib/api";
 import {
   getOrderItemPreviewCustomizationValues,
   selectOrderItemPreview,
 } from "../lib/order-item-preview";
 import { getGenericProductPath } from "../lib/storefront-paths";
 import { formatCurrency } from "../lib/utils";
-import { backendFontUrl, backendStaticFontUrl } from "../lib/api";
+
+import {
+  ClipboardCheck,
+  LoaderCircle,
+  PackageSearch,
+  Search,
+} from "lucide-react";
 import {
   Dialog,
   DialogClose,
@@ -23,6 +33,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import Container from "@/components/container";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 export async function loader({ context }: Route.LoaderArgs) {
   const locale = getLocale(context);
@@ -32,23 +44,38 @@ export async function loader({ context }: Route.LoaderArgs) {
 export function meta({ loaderData }: Route.MetaArgs) {
   const isEn = loaderData?.locale === "en";
   return [
-    { title: isEn ? "Order Lookup | Phùng Thị" : "Tra Cứu Đơn Hàng | Phùng Thị" },
-    { name: "description", content: isEn ? "Look up your order using order number and phone number." : "Tra cứu đơn hàng bằng mã đơn và số điện thoại." },
+    {
+      title: isEn ? "Order Lookup | Phùng Thị" : "Tra Cứu Đơn Hàng | Phùng Thị",
+    },
+    {
+      name: "description",
+      content: isEn
+        ? "Look up your order using order number and phone number."
+        : "Tra cứu đơn hàng bằng mã đơn và số điện thoại.",
+    },
   ];
 }
 
 export default function OrderLookupRoute() {
   const { t } = useTranslation("orderLookup");
   const [searchParams] = useSearchParams();
-  const [orderNumber, setOrderNumber] = useState(searchParams.get("orderNumber") ?? "");
+  const [orderNumber, setOrderNumber] = useState(
+    searchParams.get("orderNumber") ?? "",
+  );
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [result, setResult] = useState<Awaited<ReturnType<typeof lookupStorefrontOrder>> | null>(null);
+  const [result, setResult] = useState<Awaited<
+    ReturnType<typeof lookupStorefrontOrder>
+  > | null>(null);
   const [selectedItem, setSelectedItem] = useState<
-    Awaited<ReturnType<typeof lookupStorefrontOrder>>["order"]["items"][number] | null
+    | Awaited<
+        ReturnType<typeof lookupStorefrontOrder>
+      >["order"]["items"][number]
+    | null
   >(null);
-  const [isCustomizationFullscreen, setIsCustomizationFullscreen] = useState(false);
+  const [isCustomizationFullscreen, setIsCustomizationFullscreen] =
+    useState(false);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -68,102 +95,187 @@ export default function OrderLookupRoute() {
   }
 
   return (
-    <div className="min-h-screen bg-surface text-on-background">
-      <Container className="py-8 md:py-10">
-        <div className="mb-14">
-          <div className="mb-3 flex items-center gap-3">
-            <div className="h-[3px] w-10 bg-brand-accent" />
-            <span className="font-label-md text-label-md uppercase tracking-[0.35em] text-brand-accent">
-              {t("eyebrow")}
-            </span>
-          </div>
-          <h1 className="mb-4 font-heading text-[36px] uppercase leading-10 text-on-surface md:text-[44px]">
+    <div className="min-h-[100dvh] bg-surface-base text-on-surface">
+      <Container className="py-10 md:py-16">
+        <header className="max-w-2xl">
+          <p className="font-label-md text-label-md uppercase tracking-[0.22em] text-brand-accent">
+            {t("eyebrow")}
+          </p>
+          <h1 className="mt-3 font-heading text-headline-lg uppercase leading-none text-brand-hero md:text-display-sm">
             {t("heading")}
           </h1>
-          <div className="mb-6 h-[3px] w-16 bg-brand-support" />
-          <p className="max-w-2xl font-body-lg text-body-lg leading-relaxed text-on-surface-variant">
+          <p className="mt-4 max-w-xl font-body-lg text-body-lg leading-relaxed text-on-surface-variant">
             {t("description")}
           </p>
-        </div>
+        </header>
 
-        <main className="grid gap-10 lg:grid-cols-[420px_minmax(0,1fr)]">
-          <section className="rounded-[28px] border border-outline bg-white p-8">
-            <form onSubmit={handleSubmit} className="space-y-5">
-              <label className="block">
-                <span className="mb-2 block text-sm font-medium text-on-surface-variant">{t("order_number_label")}</span>
-                <input
+        <main className="mt-10 grid gap-6 lg:grid-cols-[minmax(0,380px)_minmax(0,1fr)] lg:gap-10">
+          <section
+            className="self-start rounded-2xl border border-border-subtle bg-surface-panel p-5 sm:p-6"
+            aria-labelledby="lookup-form-title"
+          >
+            <div className="flex items-center gap-3">
+              <div className="flex size-10 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+                <PackageSearch className="size-5" aria-hidden="true" />
+              </div>
+              <div>
+                <h2
+                  id="lookup-form-title"
+                  className="font-heading text-title-lg uppercase text-on-surface"
+                >
+                  {t("form_heading")}
+                </h2>
+                <p className="mt-0.5 text-sm text-on-surface-variant">
+                  {t("form_help")}
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handleSubmit} className="mt-6 space-y-5">
+              <label className="block space-y-2">
+                <span className="text-sm font-semibold text-on-surface">
+                  {t("order_number_label")}
+                </span>
+                <Input
                   value={orderNumber}
                   onChange={(event) => setOrderNumber(event.target.value)}
+                  placeholder={t("order_number_placeholder")}
+                  autoComplete="off"
                   required
-                  className="w-full rounded-xl border border-outline bg-surface-container-low px-4 py-4"
+                  className="h-12 rounded-xl border-border-strong/30 bg-white px-4 text-base placeholder:text-text-muted focus-visible:border-primary focus-visible:ring-primary"
                 />
               </label>
-              <label className="block">
-                <span className="mb-2 block text-sm font-medium text-on-surface-variant">{t("phone_label")}</span>
-                <input
+              <label className="block space-y-2">
+                <span className="text-sm font-semibold text-on-surface">
+                  {t("phone_label")}
+                </span>
+                <Input
+                  type="tel"
                   value={phone}
                   onChange={(event) => setPhone(event.target.value)}
+                  placeholder={t("phone_placeholder")}
+                  autoComplete="tel"
+                  inputMode="tel"
                   required
-                  className="w-full rounded-xl border border-outline bg-surface-container-low px-4 py-4"
+                  className="h-12 rounded-xl border-border-strong/30 bg-white px-4 text-base placeholder:text-text-muted focus-visible:border-primary focus-visible:ring-primary"
                 />
               </label>
-              <button
+              <Button
                 type="submit"
                 disabled={loading}
-                className="w-full rounded-full bg-primary px-6 py-4 text-sm font-semibold uppercase tracking-wide text-white disabled:cursor-not-allowed disabled:opacity-60"
+                className="h-12 w-full rounded-full bg-primary px-6 font-semibold text-primary-foreground hover:bg-brand-strong active:translate-y-px"
               >
+                {loading ? (
+                  <LoaderCircle
+                    className="size-4 animate-spin"
+                    aria-hidden="true"
+                  />
+                ) : (
+                  <Search className="size-4" aria-hidden="true" />
+                )}
                 {loading ? t("submitting") : t("submit")}
-              </button>
+              </Button>
             </form>
 
             {error ? (
-              <div className="mt-5 rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+              <div
+                role="alert"
+                className="mt-5 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm font-medium text-destructive"
+              >
                 {error}
               </div>
             ) : null}
           </section>
 
-          <section className="rounded-[28px] border border-outline bg-white p-8 shadow-sm">
-            {result ? (
-              <div className="space-y-6">
-                <div className="flex items-start justify-between gap-4 border-b border-outline pb-6">
-                  <div>
-                    <p className="text-sm uppercase tracking-wide text-on-surface-variant">{t("order_number")}</p>
-                    <h2 className="mt-1 font-headline-md text-2xl text-on-surface">{result.order.orderNumber}</h2>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm uppercase tracking-wide text-on-surface-variant">{t("total")}</p>
-                    <p className="mt-1 font-headline-md text-2xl text-primary">{formatCurrency(result.order.totalAmount)}</p>
-                  </div>
+          <section
+            className="min-h-[380px] rounded-2xl border border-border-subtle bg-white p-5 sm:p-6 md:p-8"
+            aria-live="polite"
+            aria-labelledby="lookup-results-title"
+          >
+            {loading ? (
+              <div className="space-y-6" aria-label={t("submitting")}>
+                <div className="h-5 w-32 animate-pulse rounded bg-surface-subtle" />
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="h-20 animate-pulse rounded-xl bg-surface-subtle" />
+                  <div className="h-20 animate-pulse rounded-xl bg-surface-subtle" />
                 </div>
-
-                <div className="grid gap-4 md:grid-cols-2">
+                <div className="h-28 animate-pulse rounded-xl bg-surface-subtle" />
+              </div>
+            ) : result ? (
+              <div className="space-y-7">
+                <div className="flex flex-col gap-4 border-b border-border-subtle pb-6 sm:flex-row sm:items-start sm:justify-between">
                   <div>
-                    <p className="text-sm uppercase tracking-wide text-on-surface-variant">{t("status")}</p>
-                    <p className="mt-1 font-semibold capitalize text-on-surface">{result.order.status}</p>
+                    <p className="text-sm text-on-surface-variant">
+                      {t("order_number")}
+                    </p>
+                    <h2
+                      id="lookup-results-title"
+                      className="mt-1 font-heading text-headline-md uppercase text-brand-hero"
+                    >
+                      {result.order.orderNumber}
+                    </h2>
                   </div>
-                  <div>
-                    <p className="text-sm uppercase tracking-wide text-on-surface-variant">{t("payment")}</p>
-                    <p className="mt-1 font-semibold capitalize text-on-surface">{result.order.paymentStatus}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm uppercase tracking-wide text-on-surface-variant">{t("customer")}</p>
-                    <p className="mt-1 font-semibold text-on-surface">{result.order.customer.name}</p>
-                    <p className="text-sm text-on-surface-variant">{result.order.customer.phoneMasked}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm uppercase tracking-wide text-on-surface-variant">{t("address")}</p>
-                    <p className="mt-1 text-on-surface">
-                      {result.order.primaryAddress?.line1}
-                      {result.order.primaryAddress?.city ? `, ${result.order.primaryAddress.city}` : ""}
+                  <div className="sm:text-right">
+                    <p className="text-sm text-on-surface-variant">
+                      {t("total")}
+                    </p>
+                    <p className="mt-1 font-body-lg text-title-lg font-bold text-primary">
+                      {formatCurrency(result.order.totalAmount)}
                     </p>
                   </div>
                 </div>
 
-                <div className="space-y-4 border-t border-outline pt-6">
-                  {result.order.items.map((item, index) => (
-                    <div key={`${item.productTitle}-${index}`} className="rounded-2xl border border-outline p-5">
-                      <div className="flex items-start justify-between gap-4">
+                <div className="grid gap-x-8 gap-y-6 sm:grid-cols-2">
+                  <div>
+                    <p className="text-sm text-on-surface-variant">
+                      {t("status")}
+                    </p>
+                    <p className="mt-1 font-semibold capitalize text-on-surface">
+                      {result.order.status}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-on-surface-variant">
+                      {t("payment")}
+                    </p>
+                    <p className="mt-1 font-semibold capitalize text-on-surface">
+                      {result.order.paymentStatus}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-on-surface-variant">
+                      {t("customer")}
+                    </p>
+                    <p className="mt-1 font-semibold text-on-surface">
+                      {result.order.customer.name}
+                    </p>
+                    <p className="text-sm text-on-surface-variant">
+                      {result.order.customer.phoneMasked}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-on-surface-variant">
+                      {t("address")}
+                    </p>
+                    <p className="mt-1 text-on-surface">
+                      {result.order.primaryAddress?.line1}
+                      {result.order.primaryAddress?.city
+                        ? `, ${result.order.primaryAddress.city}`
+                        : ""}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="border-t border-border-subtle pt-6">
+                  <h3 className="font-heading text-title-lg uppercase text-on-surface">
+                    {t("items_heading")}
+                  </h3>
+                  <div className="mt-3 divide-y divide-border-subtle">
+                    {result.order.items.map((item, index) => (
+                      <article
+                        key={`${item.productTitle}-${index}`}
+                        className="flex flex-col gap-4 py-5 first:pt-0 sm:flex-row sm:items-start sm:justify-between"
+                      >
                         <div>
                           <Link
                             to={
@@ -171,49 +283,78 @@ export default function OrderLookupRoute() {
                                 ? getGenericProductPath(item.productHandle)
                                 : "#"
                             }
-                            className="font-semibold text-on-surface hover:text-primary"
+                            className="font-semibold text-on-surface transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                           >
                             {item.productTitle}
                           </Link>
-                          <p className="text-sm text-on-surface-variant">{item.variantTitle}</p>
-                          <p className="text-sm text-on-surface-variant">{t("quantity_abbr")} {item.quantity}</p>
+                          <p className="mt-1 text-sm text-on-surface-variant">
+                            {item.variantTitle}
+                          </p>
+                          <p className="mt-1 text-sm text-on-surface-variant">
+                            {t("quantity_abbr")} {item.quantity}
+                          </p>
+                          {getOrderItemPreviewCustomizationValues(
+                            item.customizationValues,
+                          ).length > 0 ? (
+                            <div className="mt-3 space-y-1 text-sm text-on-surface-variant">
+                              {getOrderItemPreviewCustomizationValues(
+                                item.customizationValues,
+                              ).map((entry) => (
+                                <p key={entry.fieldId}>
+                                  <span className="font-medium text-on-surface">
+                                    {entry.label}:
+                                  </span>{" "}
+                                  {entry.valueSummary}
+                                </p>
+                              ))}
+                            </div>
+                          ) : null}
                         </div>
-                        <div className="flex shrink-0 flex-col items-end gap-3 text-right">
-                          <p className="font-semibold text-on-surface">{formatCurrency(item.lineSubtotalAmount)}</p>
-                          <button
+                        <div className="flex shrink-0 items-center gap-4 sm:flex-col sm:items-end">
+                          <p className="font-semibold text-on-surface">
+                            {formatCurrency(item.lineSubtotalAmount)}
+                          </p>
+                          <Button
                             type="button"
-                            onClick={() => setSelectedItem(selectOrderItemPreview(result.order.items, index))}
-                            className="rounded-full border border-primary px-4 py-2 text-xs font-semibold uppercase tracking-wide text-primary transition-colors hover:bg-primary hover:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              setSelectedItem(
+                                selectOrderItemPreview(
+                                  result.order.items,
+                                  index,
+                                ),
+                              )
+                            }
+                            className="rounded-full border-primary px-4 font-semibold text-primary hover:bg-primary hover:text-primary-foreground active:translate-y-px"
                           >
+                            <ClipboardCheck
+                              className="size-4"
+                              aria-hidden="true"
+                            />
                             {t("preview")}
-                          </button>
+                          </Button>
                         </div>
-                      </div>
-                      {getOrderItemPreviewCustomizationValues(item.customizationValues).length > 0 ? (
-                        <div className="mt-4 space-y-1 text-sm text-on-surface-variant">
-                          {getOrderItemPreviewCustomizationValues(item.customizationValues).map((entry) => (
-                            <p key={entry.fieldId}>
-                              <span className="font-medium text-on-surface">{entry.label}:</span> {entry.valueSummary}
-                            </p>
-                          ))}
-                        </div>
-                      ) : null}
-                    </div>
-                  ))}
+                      </article>
+                    ))}
+                  </div>
                 </div>
 
                 <Dialog
                   modal={false}
                   open={selectedItem !== null}
                   onOpenChange={(open) => {
-                    if (!open && !isCustomizationFullscreen) setSelectedItem(null);
+                    if (!open && !isCustomizationFullscreen)
+                      setSelectedItem(null);
                   }}
                 >
                   <DialogContent
                     showOverlay={!isCustomizationFullscreen}
                     aria-hidden={isCustomizationFullscreen || undefined}
                     className={`max-h-[min(720px,calc(100vh-2rem))] overflow-y-auto ${
-                      isCustomizationFullscreen ? "pointer-events-none opacity-0" : ""
+                      isCustomizationFullscreen
+                        ? "pointer-events-none opacity-0"
+                        : ""
                     }`}
                     onPointerDownOutside={(event) => {
                       if (isCustomizationFullscreen) event.preventDefault();
@@ -226,10 +367,13 @@ export default function OrderLookupRoute() {
                       <>
                         <DialogHeader>
                           <DialogTitle>{selectedItem.productTitle}</DialogTitle>
-                          <DialogDescription>{t("dialog_title")}</DialogDescription>
+                          <DialogDescription>
+                            {t("dialog_title")}
+                          </DialogDescription>
                         </DialogHeader>
 
-                        {selectedItem.previewImageUrl && !selectedItem.customizationPreview ? (
+                        {selectedItem.previewImageUrl &&
+                        !selectedItem.customizationPreview ? (
                           <div className="overflow-hidden rounded-xl border border-outline bg-surface-container-low">
                             <img
                               src={selectedItem.previewImageUrl}
@@ -241,7 +385,9 @@ export default function OrderLookupRoute() {
 
                         {selectedItem.customizationPreview ? (
                           <ProductCustomizationPreview
-                            template={selectedItem.customizationPreview.template}
+                            template={
+                              selectedItem.customizationPreview.template
+                            }
                             values={selectedItem.customizationPreview.values}
                             dynamicFonts={[] as DynamicFontFamily[]}
                             watermark
@@ -257,32 +403,59 @@ export default function OrderLookupRoute() {
                         <div className="space-y-4 text-sm">
                           <div className="grid gap-3 sm:grid-cols-2">
                             <div>
-                              <p className="text-on-surface-variant">{t("dialog_variant")}</p>
-                              <p className="font-medium text-on-surface">{selectedItem.variantTitle}</p>
+                              <p className="text-on-surface-variant">
+                                {t("dialog_variant")}
+                              </p>
+                              <p className="font-medium text-on-surface">
+                                {selectedItem.variantTitle}
+                              </p>
                             </div>
                             {selectedItem.sku ? (
                               <div>
-                                <p className="text-on-surface-variant">{t("dialog_sku")}</p>
-                                <p className="font-medium text-on-surface">{selectedItem.sku}</p>
+                                <p className="text-on-surface-variant">
+                                  {t("dialog_sku")}
+                                </p>
+                                <p className="font-medium text-on-surface">
+                                  {selectedItem.sku}
+                                </p>
                               </div>
                             ) : null}
                             <div>
-                              <p className="text-on-surface-variant">{t("dialog_quantity")}</p>
-                              <p className="font-medium text-on-surface">{selectedItem.quantity}</p>
+                              <p className="text-on-surface-variant">
+                                {t("dialog_quantity")}
+                              </p>
+                              <p className="font-medium text-on-surface">
+                                {selectedItem.quantity}
+                              </p>
                             </div>
                             <div>
-                              <p className="text-on-surface-variant">{t("dialog_line_total")}</p>
-                              <p className="font-medium text-primary">{formatCurrency(selectedItem.lineSubtotalAmount)}</p>
+                              <p className="text-on-surface-variant">
+                                {t("dialog_line_total")}
+                              </p>
+                              <p className="font-medium text-primary">
+                                {formatCurrency(
+                                  selectedItem.lineSubtotalAmount,
+                                )}
+                              </p>
                             </div>
                           </div>
 
-                          {getOrderItemPreviewCustomizationValues(selectedItem.customizationValues).length > 0 ? (
+                          {getOrderItemPreviewCustomizationValues(
+                            selectedItem.customizationValues,
+                          ).length > 0 ? (
                             <div className="border-t border-outline pt-4">
-                              <p className="mb-2 font-medium text-on-surface">{t("dialog_customization")}</p>
+                              <p className="mb-2 font-medium text-on-surface">
+                                {t("dialog_customization")}
+                              </p>
                               <div className="space-y-2 text-on-surface-variant">
-                                {getOrderItemPreviewCustomizationValues(selectedItem.customizationValues).map((entry) => (
+                                {getOrderItemPreviewCustomizationValues(
+                                  selectedItem.customizationValues,
+                                ).map((entry) => (
                                   <p key={entry.fieldId}>
-                                    <span className="font-medium text-on-surface">{entry.label}:</span> {entry.valueSummary}
+                                    <span className="font-medium text-on-surface">
+                                      {entry.label}:
+                                    </span>{" "}
+                                    {entry.valueSummary}
                                   </p>
                                 ))}
                               </div>
@@ -306,8 +479,19 @@ export default function OrderLookupRoute() {
                 </Dialog>
               </div>
             ) : (
-              <div className="flex h-full min-h-[320px] items-center justify-center text-center text-on-surface-variant">
-                {t("empty_state")}
+              <div className="flex min-h-[320px] flex-col items-center justify-center px-6 text-center">
+                <div className="flex size-12 items-center justify-center rounded-xl bg-surface-subtle text-primary">
+                  <PackageSearch className="size-6" aria-hidden="true" />
+                </div>
+                <h2
+                  id="lookup-results-title"
+                  className="mt-5 font-heading text-title-lg uppercase text-on-surface"
+                >
+                  {t("empty_heading")}
+                </h2>
+                <p className="mt-2 max-w-md text-sm leading-relaxed text-on-surface-variant">
+                  {t("empty_state")}
+                </p>
               </div>
             )}
           </section>
