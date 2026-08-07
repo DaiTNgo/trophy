@@ -1,4 +1,4 @@
-import { asc } from 'drizzle-orm'
+import { asc, eq } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { toAbsoluteAssetUrl } from '../../lib/url'
 import { getDb } from '../../db/client'
@@ -27,6 +27,7 @@ export const storefrontCategoriesRoute = new Hono<AppEnv>()
         imageUrl: productCategories.imageUrl
       })
       .from(productCategories)
+      .where(eq(productCategories.visibility, 'public'))
       .orderBy(asc(productCategories.position), asc(productCategories.id))
 
     const resolvedItems = await hydrateAndResolveTranslations(db, 'product_category', items, i => String(i.id), [{fieldName: 'name', objectKey: 'name'}, {fieldName: 'description', objectKey: 'description'}], [{fieldName: 'name', objectKey: 'name'}, {fieldName: 'description', objectKey: 'description'}], locale)

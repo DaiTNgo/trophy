@@ -23,6 +23,7 @@ type Category = {
   handle: string;
   parentId: number | null;
   imageUrl: string | null;
+  visibility?: "public" | "hidden";
   isSystem?: boolean;
 };
 
@@ -93,7 +94,6 @@ export function CategoriesListPage() {
               <Table.Row>
                 <Table.HeaderCell className="pl-6">Name</Table.HeaderCell>
                 <Table.HeaderCell>Handle</Table.HeaderCell>
-                <Table.HeaderCell>Status</Table.HeaderCell>
                 <Table.HeaderCell>Visibility</Table.HeaderCell>
                 <Table.HeaderCell className="pr-6 w-12" />
               </Table.Row>
@@ -101,13 +101,13 @@ export function CategoriesListPage() {
             <Table.Body>
               {isLoading ? (
                 <Table.Row>
-                  <Table.Cell {...({ colSpan: 5 } as any)} className="text-center py-8 text-ui-fg-muted">
+                  <Table.Cell {...({ colSpan: 4 } as any)} className="text-center py-8 text-ui-fg-muted">
                     Loading...
                   </Table.Cell>
                 </Table.Row>
               ) : categories.length === 0 ? (
                 <Table.Row>
-                  <Table.Cell {...({ colSpan: 5 } as any)} className="text-center py-8 text-ui-fg-muted">
+                  <Table.Cell {...({ colSpan: 4 } as any)} className="text-center py-8 text-ui-fg-muted">
                     No categories found.
                   </Table.Cell>
                 </Table.Row>
@@ -131,10 +131,9 @@ export function CategoriesListPage() {
                       </Text>
                     </Table.Cell>
                     <Table.Cell>
-                      <StatusBadge color="green">Active</StatusBadge>
-                    </Table.Cell>
-                    <Table.Cell>
-                      <StatusBadge color="green">Public</StatusBadge>
+                      <StatusBadge color={category.visibility === "hidden" ? "orange" : "green"}>
+                        {category.visibility === "hidden" ? "Hidden" : "Public"}
+                      </StatusBadge>
                     </Table.Cell>
                     <Table.Cell className="pr-6">
                       <DropdownMenu>

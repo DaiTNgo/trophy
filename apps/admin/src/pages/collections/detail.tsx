@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { useNavigate, useParams } from "react-router";
+import { Link, useNavigate, useParams } from "react-router";
 import { useBreadcrumbs } from "../../hooks/use-breadcrumbs";
 import {
   Button,
@@ -11,15 +11,31 @@ import {
   Table,
   DropdownMenu,
   Drawer,
+  Select,
 } from "@medusajs/ui";
 import { backendFetch } from "../../lib/fetch";
-import { fetchProducts, assignProductsToCollection } from "../../lib/products-client";
+import {
+  fetchProducts,
+  assignProductsToCollection,
+} from "../../lib/products-client";
 import { ProductSelectorDrawer } from "../../components/product-selector-drawer";
 import { uploadProductVariantMedia } from "../../lib/product-assets-client";
 import { MediaPreview } from "../../components/ui/media-preview";
 import { convertPdfToImageFile } from "../../lib/pdf-preview";
-import { LocalizedTextField, createEmptyLocalizedText, type AdminLocale, type LocalizedTextValue } from "../../components/ui/medusa";
-import { Upload, X, MoreHorizontal, Pencil, Trash, AlertCircle, Plus } from "lucide-react";
+import {
+  LocalizedTextField,
+  createEmptyLocalizedText,
+  type AdminLocale,
+  type LocalizedTextValue,
+} from "../../components/ui/medusa";
+import {
+  Upload,
+  X,
+  MoreHorizontal,
+  Pencil,
+  Trash,
+  AlertCircle,
+} from "lucide-react";
 
 export function CollectionDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -27,13 +43,16 @@ export function CollectionDetailPage() {
   const navigate = useNavigate();
   const { setBreadcrumbs } = useBreadcrumbs();
 
-  const [title, setTitle] = useState<LocalizedTextValue>(() => createEmptyLocalizedText());
+  const [title, setTitle] = useState<LocalizedTextValue>(() =>
+    createEmptyLocalizedText(),
+  );
   const [titleLocale, setTitleLocale] = useState<AdminLocale>("vi");
   const [handle, setHandle] = useState("");
+  const [visibility, setVisibility] = useState<"public" | "hidden">("public");
   const [imageUrl, setImageUrl] = useState("");
   const [previewUrl, setPreviewUrl] = useState("");
   const [file, setFile] = useState<File | null>(null);
-  
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [products, setProducts] = useState<any[]>([]);
@@ -59,15 +78,27 @@ export function CollectionDetailPage() {
       try {
         const [collRes, prodRes] = await Promise.all([
           backendFetch("/api/admin/product-metadata/collections"),
-          fetchProducts({ collectionId: id })
+          fetchProducts({ collectionId: id }),
         ]);
 
         if (collRes.ok) {
           const data = await collRes.json();
-          const collection = data.items.find((c: any) => c.id.toString() === id);
+          const collection = data.items.find(
+            (c: any) => c.id.toString() === id,
+          );
           if (collection) {
-            setTitle(typeof collection.title === "string" ? { vi: collection.title, en: "" } : { vi: collection.title.vi ?? "", en: collection.title.en ?? "" });
+            setTitle(
+              typeof collection.title === "string"
+                ? { vi: collection.title, en: "" }
+                : {
+                    vi: collection.title.vi ?? "",
+                    en: collection.title.en ?? "",
+                  },
+            );
             setHandle(collection.handle || "");
+            setVisibility(
+              collection.visibility === "hidden" ? "hidden" : "public",
+            );
             setImageUrl(collection.imageUrl || "");
             setPreviewUrl(collection.imageUrl || "");
           }
@@ -87,17 +118,20 @@ export function CollectionDetailPage() {
     if (title && !isNew) {
       setBreadcrumbs([
         { label: "Collections", path: "/collections" },
-        { label: title.vi || title.en || "Untitled", path: `/collections/${id}` }
+        {
+          label: title.vi || title.en || "Untitled",
+          path: `/collections/${id}`,
+        },
       ]);
     } else if (isNew) {
       setBreadcrumbs([
         { label: "Collections", path: "/collections" },
-        { label: "New Collection", path: `/collections/new` }
+        { label: "New Collection", path: `/collections/new` },
       ]);
     } else {
       setBreadcrumbs([
         { label: "Collections", path: "/collections" },
-        { label: "Loading...", path: `/collections/${id}` }
+        { label: "Loading...", path: `/collections/${id}` },
       ]);
     }
   }, [title, isNew, id, setBreadcrumbs]);
@@ -109,17 +143,17 @@ export function CollectionDetailPage() {
 
   async function handleAssignProducts(selectedIds: string[]) {
     if (!id) return;
-    
+
     const currentProductIds = new Set(products.map((p) => p.id.toString()));
     const newProductIds = new Set(selectedIds);
-    
+
     const addProductIds = Array.from(newProductIds)
-      .filter(pId => !currentProductIds.has(pId))
-      .map(pId => parseInt(pId, 10));
-      
+      .filter((pId) => !currentProductIds.has(pId))
+      .map((pId) => parseInt(pId, 10));
+
     const removeProductIds = Array.from(currentProductIds)
-      .filter(pId => !newProductIds.has(pId))
-      .map(pId => parseInt(pId, 10));
+      .filter((pId) => !newProductIds.has(pId))
+      .map((pId) => parseInt(pId, 10));
 
     try {
       await assignProductsToCollection(id, { addProductIds, removeProductIds });
@@ -141,7 +175,7 @@ export function CollectionDetailPage() {
         fileToProcess = await convertPdfToImageFile(selectedFile);
       }
       setFile(fileToProcess);
-      
+
       const newPreviewUrl = URL.createObjectURL(fileToProcess);
       setPreviewUrl(newPreviewUrl);
       setImageUrl(""); // Clear the existing imageUrl since we have a new file
@@ -165,25 +199,26 @@ export function CollectionDetailPage() {
     setIsSaving(true);
     try {
       let finalImageUrl = imageUrl;
-      
+
       if (file) {
         const media = await uploadProductVariantMedia(file);
         finalImageUrl = media.contentUrl;
       }
 
-      const payload: any = { 
-        title: { vi: title.vi, en: title.en || undefined }, 
-        handle: handle || null, 
-        imageUrl: finalImageUrl || null 
+      const payload: any = {
+        title: { vi: title.vi, en: title.en || undefined },
+        handle: handle || null,
+        imageUrl: finalImageUrl || null,
+        visibility,
       };
-      
+
       const res = await backendFetch(
         `/api/admin/product-metadata/collections${isNew ? "" : `/${id}`}`,
         {
           method: isNew ? "POST" : "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
-        }
+        },
       );
 
       if (res.ok) {
@@ -206,12 +241,15 @@ export function CollectionDetailPage() {
 
   async function handleDelete() {
     if (!confirm("Are you sure you want to delete this collection?")) return;
-    
+
     setIsSaving(true);
     try {
-      const res = await backendFetch(`/api/admin/product-metadata/collections/${id}`, {
-        method: "DELETE",
-      });
+      const res = await backendFetch(
+        `/api/admin/product-metadata/collections/${id}`,
+        {
+          method: "DELETE",
+        },
+      );
 
       if (res.ok) {
         navigate("/collections");
@@ -246,17 +284,26 @@ export function CollectionDetailPage() {
                   </Heading>
                   <DropdownMenu>
                     <DropdownMenu.Trigger asChild>
-                      <Button variant="secondary" size="small" className="px-2 flex items-center justify-center h-[28px]">
+                      <Button
+                        variant="secondary"
+                        size="small"
+                        className="px-2 flex items-center justify-center h-[28px]"
+                      >
                         <span className="sr-only">More</span>
                         <MoreHorizontal className="h-4 w-4" />
                       </Button>
                     </DropdownMenu.Trigger>
                     <DropdownMenu.Content align="end">
-                      <DropdownMenu.Item onClick={() => setIsEditDrawerOpen(true)}>
+                      <DropdownMenu.Item
+                        onClick={() => setIsEditDrawerOpen(true)}
+                      >
                         <Pencil className="mr-2 h-4 w-4" />
                         Edit Collection
                       </DropdownMenu.Item>
-                      <DropdownMenu.Item onClick={handleDelete} className="text-ui-fg-danger">
+                      <DropdownMenu.Item
+                        onClick={handleDelete}
+                        className="text-ui-fg-danger"
+                      >
                         <Trash className="mr-2 h-4 w-4" />
                         Delete Collection
                       </DropdownMenu.Item>
@@ -269,6 +316,14 @@ export function CollectionDetailPage() {
                       Handle
                     </Text>
                     <Text size="small">{handle || "-"}</Text>
+                  </div>
+                  <div className="flex items-center justify-between border-t border-ui-border-base px-6 py-4">
+                    <Text size="small" className="text-ui-fg-subtle">
+                      Visibility
+                    </Text>
+                    <Text size="small">
+                      {visibility === "hidden" ? "Hidden" : "Public"}
+                    </Text>
                   </div>
                 </div>
               </div>
@@ -286,7 +341,12 @@ export function CollectionDetailPage() {
                     <div className="relative h-48 w-48 overflow-hidden rounded-lg border border-ui-border-base bg-ui-bg-subtle">
                       <MediaPreview
                         src={previewUrl}
-                        mimeType={file?.type || (previewUrl.toLowerCase().endsWith(".pdf") ? "application/pdf" : "image/jpeg")}
+                        mimeType={
+                          file?.type ||
+                          (previewUrl.toLowerCase().endsWith(".pdf")
+                            ? "application/pdf"
+                            : "image/jpeg")
+                        }
                         className="h-full w-full object-cover"
                         alt="Collection Preview"
                       />
@@ -316,10 +376,18 @@ export function CollectionDetailPage() {
                     onChange={handleFileSelect}
                   />
                   <div className="flex gap-2">
-                    <Button variant="secondary" size="small" onClick={() => fileInputRef.current?.click()}>
+                    <Button
+                      variant="secondary"
+                      size="small"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
                       {previewUrl ? "Replace" : "Upload"}
                     </Button>
-                    <Button size="small" onClick={handleSave} isLoading={isSaving}>
+                    <Button
+                      size="small"
+                      onClick={handleSave}
+                      isLoading={isSaving}
+                    >
                       Save Media
                     </Button>
                   </div>
@@ -334,9 +402,13 @@ export function CollectionDetailPage() {
                 <Heading level="h2" className="text-xl font-semibold">
                   Products
                 </Heading>
-                <DropdownMenu>
+                {/* <DropdownMenu>
                   <DropdownMenu.Trigger asChild>
-                    <Button variant="secondary" size="small" className="px-2 flex items-center justify-center h-[28px]">
+                    <Button
+                      variant="secondary"
+                      size="small"
+                      className="px-2 flex items-center justify-center h-[28px]"
+                    >
                       <span className="sr-only">More</span>
                       <MoreHorizontal className="h-4 w-4" />
                     </Button>
@@ -347,7 +419,14 @@ export function CollectionDetailPage() {
                       Add
                     </DropdownMenu.Item>
                   </DropdownMenu.Content>
-                </DropdownMenu>
+                </DropdownMenu> */}
+                <Button
+                  variant="secondary"
+                  size="small"
+                  onClick={() => setIsDrawerOpen(true)}
+                >
+                  Add filter
+                </Button>
               </div>
               <div className="flex flex-col border-t border-ui-border-base">
                 {products.length === 0 ? (
@@ -358,8 +437,12 @@ export function CollectionDetailPage() {
                   <Table>
                     <Table.Header>
                       <Table.Row>
-                        <Table.HeaderCell className="pl-6">Product</Table.HeaderCell>
-                        <Table.HeaderCell className="pr-6">Status</Table.HeaderCell>
+                        <Table.HeaderCell className="pl-6">
+                          Product
+                        </Table.HeaderCell>
+                        <Table.HeaderCell className="pr-6">
+                          Status
+                        </Table.HeaderCell>
                       </Table.Row>
                     </Table.Header>
                     <Table.Body>
@@ -376,9 +459,14 @@ export function CollectionDetailPage() {
                               ) : (
                                 <div className="w-8 h-8 bg-ui-bg-component rounded" />
                               )}
-                              <Text size="small" weight="plus">
-                                {product.title}
-                              </Text>
+                              <Link
+                                to={`/products/${product.id}`}
+                                className="text-ui-fg-base font-medium hover:text-ui-fg-interactive"
+                              >
+                                <Text size="small" weight="plus">
+                                  {product.title}
+                                </Text>
+                              </Link>
                             </div>
                           </Table.Cell>
                           <Table.Cell className="pr-6">
@@ -416,6 +504,26 @@ export function CollectionDetailPage() {
                 </div>
 
                 <div className="flex flex-col gap-y-2">
+                  <Label htmlFor="edit-visibility" className="text-ui-fg-base">
+                    Visibility
+                  </Label>
+                  <Select
+                    value={visibility}
+                    onValueChange={(value) =>
+                      setVisibility(value as "public" | "hidden")
+                    }
+                  >
+                    <Select.Trigger id="edit-visibility">
+                      <Select.Value />
+                    </Select.Trigger>
+                    <Select.Content>
+                      <Select.Item value="public">Public</Select.Item>
+                      <Select.Item value="hidden">Hidden</Select.Item>
+                    </Select.Content>
+                  </Select>
+                </div>
+
+                <div className="flex flex-col gap-y-2">
                   <Label htmlFor="edit-handle" className="text-ui-fg-base">
                     Handle (optional)
                   </Label>
@@ -431,7 +539,13 @@ export function CollectionDetailPage() {
                 <Drawer.Close asChild>
                   <Button variant="secondary">Cancel</Button>
                 </Drawer.Close>
-                <Button onClick={async () => { await handleSave(); setIsEditDrawerOpen(false); }} isLoading={isSaving}>
+                <Button
+                  onClick={async () => {
+                    await handleSave();
+                    setIsEditDrawerOpen(false);
+                  }}
+                  isLoading={isSaving}
+                >
                   Save
                 </Button>
               </Drawer.Footer>
@@ -451,7 +565,10 @@ export function CollectionDetailPage() {
         <>
           <Container>
             <div className="flex flex-col gap-y-3">
-              <Text size="small" className="text-ui-fg-muted uppercase tracking-wider">
+              <Text
+                size="small"
+                className="text-ui-fg-muted uppercase tracking-wider"
+              >
                 New Collection
               </Text>
               <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -462,10 +579,17 @@ export function CollectionDetailPage() {
                   </Text>
                 </div>
                 <div className="flex gap-2">
-                  <Button variant="secondary" onClick={() => navigate("/collections")}>
+                  <Button
+                    variant="secondary"
+                    onClick={() => navigate("/collections")}
+                  >
                     Cancel
                   </Button>
-                  <Button variant="primary" onClick={handleSave} isLoading={isSaving}>
+                  <Button
+                    variant="primary"
+                    onClick={handleSave}
+                    isLoading={isSaving}
+                  >
                     Save
                   </Button>
                 </div>
@@ -475,21 +599,21 @@ export function CollectionDetailPage() {
 
           <Container>
             <div className="flex flex-col gap-y-6 max-w-2xl">
-                <div className="flex flex-col gap-y-2">
-                  <Label htmlFor="title" className="text-ui-fg-base">
-                    Title
-                  </Label>
-                  <LocalizedTextField
-                    id="title"
-                    value={title}
-                    locale={titleLocale}
-                    onLocaleChange={setTitleLocale}
-                    onChange={setTitle}
-                    placeholder={{ vi: "Tieu de", en: "Title" }}
-                    helperText="Vietnamese is required. English is optional."
-                    requiredLocales={["vi"]}
-                  />
-                </div>
+              <div className="flex flex-col gap-y-2">
+                <Label htmlFor="title" className="text-ui-fg-base">
+                  Title
+                </Label>
+                <LocalizedTextField
+                  id="title"
+                  value={title}
+                  locale={titleLocale}
+                  onLocaleChange={setTitleLocale}
+                  onChange={setTitle}
+                  placeholder={{ vi: "Tieu de", en: "Title" }}
+                  helperText="Vietnamese is required. English is optional."
+                  requiredLocales={["vi"]}
+                />
+              </div>
 
               <div className="flex flex-col gap-y-2">
                 <Label htmlFor="handle" className="text-ui-fg-base">
@@ -504,12 +628,39 @@ export function CollectionDetailPage() {
               </div>
 
               <div className="flex flex-col gap-y-2">
-                <Label className="text-ui-fg-base">Collection Image (optional)</Label>
+                <Label htmlFor="visibility" className="text-ui-fg-base">
+                  Visibility
+                </Label>
+                <Select
+                  value={visibility}
+                  onValueChange={(value) =>
+                    setVisibility(value as "public" | "hidden")
+                  }
+                >
+                  <Select.Trigger id="visibility">
+                    <Select.Value />
+                  </Select.Trigger>
+                  <Select.Content>
+                    <Select.Item value="public">Public</Select.Item>
+                    <Select.Item value="hidden">Hidden</Select.Item>
+                  </Select.Content>
+                </Select>
+              </div>
+
+              <div className="flex flex-col gap-y-2">
+                <Label className="text-ui-fg-base">
+                  Collection Image (optional)
+                </Label>
                 {previewUrl ? (
                   <div className="relative overflow-hidden rounded-lg border border-ui-border-base bg-ui-bg-subtle w-48 h-48">
                     <MediaPreview
                       src={previewUrl}
-                      mimeType={file?.type || (previewUrl.toLowerCase().endsWith(".pdf") ? "application/pdf" : "image/jpeg")}
+                      mimeType={
+                        file?.type ||
+                        (previewUrl.toLowerCase().endsWith(".pdf")
+                          ? "application/pdf"
+                          : "image/jpeg")
+                      }
                       className="h-full w-full object-cover"
                       alt="Collection Preview"
                     />
@@ -539,8 +690,6 @@ export function CollectionDetailPage() {
                   onChange={handleFileSelect}
                 />
               </div>
-
-
             </div>
           </Container>
         </>

@@ -472,7 +472,8 @@ export function OrdersListPage() {
               <Text size="small" className="text-ui-fg-muted">No orders matched your current search.</Text>
             </div>
           ) : (
-            <Table>
+            <div className="overflow-x-auto">
+            <Table className="min-w-[760px]">
               <Table.Header>
                 <Table.Row>
                   <Table.HeaderCell>Order</Table.HeaderCell>
@@ -529,6 +530,7 @@ export function OrdersListPage() {
                 ))}
               </Table.Body>
             </Table>
+            </div>
           )}
         </div>
 

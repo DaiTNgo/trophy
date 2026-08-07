@@ -16,8 +16,8 @@ export default [
     route("order-confirmation", "routes/order-confirmation.tsx"),
     route("order-lookup", "routes/order-lookup.tsx"),
     route("collections/:handle", "routes/collections.$handle.tsx"),
+    route("*", "routes/catchall.tsx"),
   ]),
   route("checkout", "routes/checkout.tsx"),
   route("api/locale", "routes/api.locale.ts"),
-  route("*", "routes/catchall.tsx"),
 ] satisfies RouteConfig;

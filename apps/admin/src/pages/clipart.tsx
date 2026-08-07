@@ -12,7 +12,7 @@ import {
   Table,
   Text,
 } from "@medusajs/ui";
-import { ArrowDown, ArrowUp, MoreHorizontal, Plus, Search } from "lucide-react";
+import { MoreHorizontal, Plus, Search } from "lucide-react";
 import type { ClipartCategory } from "../hooks/use-brand-assets";
 import { useBreadcrumbs } from "../hooks/use-breadcrumbs";
 import { backendFetch } from "../lib/fetch";
@@ -163,7 +163,6 @@ export function ClipartPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [search, setSearch] = useState("");
-  const [isReorderingCategoryId, setIsReorderingCategoryId] = useState<string | null>(null);
   const [categoryActionId, setCategoryActionId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -191,37 +190,6 @@ export function ClipartPage() {
   useEffect(() => {
     loadCategories();
   }, []);
-
-  async function handleReorderCategory(categoryId: string, offset: -1 | 1) {
-    const currentIndex = categories.findIndex((category) => category.id === categoryId);
-    const targetIndex = currentIndex + offset;
-
-    if (currentIndex < 0 || targetIndex < 0 || targetIndex >= categories.length) {
-      return;
-    }
-
-    const nextCategoryIds = categories.map((category) => category.id);
-    const [moved] = nextCategoryIds.splice(currentIndex, 1);
-    nextCategoryIds.splice(targetIndex, 0, moved);
-
-    setIsReorderingCategoryId(categoryId);
-    setErrorMessage(null);
-    try {
-      const res = await backendFetch("/api/admin/customization/clipart/categories/reorder", {
-        method: "POST",
-        body: JSON.stringify({ categoryIds: nextCategoryIds }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => null);
-        throw new Error(data?.error || "Failed to reorder clipart categories");
-      }
-      await loadCategories();
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : "Failed to reorder clipart categories");
-    } finally {
-      setIsReorderingCategoryId(null);
-    }
-  }
 
   async function handleToggleCategoryActive(category: ClipartCategory, nextActive: boolean) {
     setCategoryActionId(category.id);
@@ -252,7 +220,7 @@ export function ClipartPage() {
   return (
     <Container className="overflow-hidden p-0">
       <div className="flex flex-col">
-        <div className="border-b border-ui-border-base px-6 py-4">
+        <div className="border-b border-ui-border-base px-4 py-4 sm:px-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="flex flex-col gap-y-1">
               <Heading level="h2" className="text-xl font-semibold">
@@ -269,7 +237,7 @@ export function ClipartPage() {
           </div>
         </div>
 
-        <div className="flex items-center justify-end border-b border-ui-border-base px-6 py-4">
+        <div className="flex items-center justify-end border-b border-ui-border-base px-4 py-4 sm:px-6">
           <div className="relative">
             <div className="absolute left-2.5 top-1/2 -translate-y-1/2 text-ui-fg-muted">
               <Search className="h-4 w-4" />
@@ -286,7 +254,7 @@ export function ClipartPage() {
         </div>
 
         {errorMessage ? (
-          <div className="border-b border-ui-border-base px-6 py-4">
+          <div className="border-b border-ui-border-base px-4 py-4 sm:px-6">
             <div className="rounded-md border border-ui-border-error bg-ui-bg-error p-3">
               <Text size="small">{errorMessage}</Text>
             </div>
@@ -301,26 +269,24 @@ export function ClipartPage() {
                 <Table.HeaderCell>Status</Table.HeaderCell>
                 <Table.HeaderCell>Active assets</Table.HeaderCell>
                 <Table.HeaderCell>Updated</Table.HeaderCell>
-                <Table.HeaderCell>Order</Table.HeaderCell>
                 <Table.HeaderCell className="pr-6 w-12" />
               </Table.Row>
             </Table.Header>
             <Table.Body>
               {isLoading ? (
                 <Table.Row>
-                  <Table.Cell {...({ colSpan: 6 } as any)} className="py-8 text-center text-ui-fg-muted">
+                  <Table.Cell {...({ colSpan: 5 } as any)} className="py-8 text-center text-ui-fg-muted">
                     Loading...
                   </Table.Cell>
                 </Table.Row>
               ) : filteredCategories.length === 0 ? (
                 <Table.Row>
-                  <Table.Cell {...({ colSpan: 6 } as any)} className="py-8 text-center text-ui-fg-muted">
+                  <Table.Cell {...({ colSpan: 5 } as any)} className="py-8 text-center text-ui-fg-muted">
                     {categories.length === 0 ? "No clipart categories found." : "No categories match this search."}
                   </Table.Cell>
                 </Table.Row>
               ) : (
                 filteredCategories.map((category) => {
-                  const actualIndex = categories.findIndex((entry) => entry.id === category.id);
                   return (
                   <Table.Row key={category.id}>
                     <Table.Cell className="pl-6">
@@ -345,29 +311,6 @@ export function ClipartPage() {
                       <Text size="small" className="text-ui-fg-subtle">
                         {formatUpdatedAt(category.updatedAt)}
                       </Text>
-                    </Table.Cell>
-                    <Table.Cell>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="secondary"
-                          size="small"
-                          onClick={() => handleReorderCategory(category.id, -1)}
-                          disabled={actualIndex === 0 || isReorderingCategoryId === category.id}
-                          isLoading={isReorderingCategoryId === category.id}
-                          className="px-2"
-                        >
-                          <ArrowUp className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="secondary"
-                          size="small"
-                          onClick={() => handleReorderCategory(category.id, 1)}
-                          disabled={actualIndex === categories.length - 1 || isReorderingCategoryId === category.id}
-                          className="px-2"
-                        >
-                          <ArrowDown className="h-4 w-4" />
-                        </Button>
-                      </div>
                     </Table.Cell>
                     <Table.Cell className="pr-6">
                       <DropdownMenu>

@@ -51,6 +51,7 @@ function quoteFontFamily(fontId: string) {
 export function useBrowserTextMeasure(fontIds: string[]) {
   const [fontRevision, setFontRevision] = useState(0);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const fontIdsKey = fontIds.join("\u0000");
 
   const measureText = useCallback(
     (text: string, fontSizePt: number, fontId: string) => {
@@ -77,7 +78,7 @@ export function useBrowserTextMeasure(fontIds: string[]) {
     };
     const loadFonts = async () => {
       await Promise.all(
-        fontIds.map((fontId) =>
+        (fontIdsKey ? fontIdsKey.split("\u0000") : []).map((fontId) =>
           document.fonts.load(`16px ${quoteFontFamily(fontId)}`, "Aa"),
         ),
       );
@@ -90,7 +91,7 @@ export function useBrowserTextMeasure(fontIds: string[]) {
       cancelled = true;
       document.fonts.removeEventListener("loadingdone", refreshMeasurements);
     };
-  }, [fontIds]);
+  }, [fontIdsKey]);
 
   return { measureText, fontRevision };
 }

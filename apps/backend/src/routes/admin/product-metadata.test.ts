@@ -45,8 +45,10 @@ function createQueryChain({
       return chain;
     }),
     run: vi.fn(async () => undefined),
-    then: (resolve: (value: unknown) => unknown, reject?: (error: unknown) => unknown) =>
-      Promise.resolve(selectQueue.shift() ?? []).then(resolve, reject),
+    then: (
+      resolve: (value: unknown) => unknown,
+      reject?: (error: unknown) => unknown,
+    ) => Promise.resolve(selectQueue.shift() ?? []).then(resolve, reject),
   };
 
   return chain;
@@ -62,9 +64,15 @@ function createMockDb() {
     selectQueue,
     mutations,
     select: vi.fn(() => createQueryChain({ getQueue, selectQueue, mutations })),
-    insert: vi.fn(() => createQueryChain({ getQueue, selectQueue, mutations, kind: "insert" })),
-    update: vi.fn(() => createQueryChain({ getQueue, selectQueue, mutations, kind: "update" })),
-    delete: vi.fn(() => createQueryChain({ getQueue, selectQueue, mutations, kind: "delete" })),
+    insert: vi.fn(() =>
+      createQueryChain({ getQueue, selectQueue, mutations, kind: "insert" }),
+    ),
+    update: vi.fn(() =>
+      createQueryChain({ getQueue, selectQueue, mutations, kind: "update" }),
+    ),
+    delete: vi.fn(() =>
+      createQueryChain({ getQueue, selectQueue, mutations, kind: "delete" }),
+    ),
     batch: vi.fn(async () => undefined),
   };
 
@@ -78,6 +86,90 @@ describe("product metadata routes", () => {
     db = createMockDb();
     vi.mocked(getDb).mockReturnValue(db as never);
     vi.mocked(upsertTranslations).mockClear();
+  });
+
+  it("creates collections as public by default", async () => {
+    db.getQueue.push(null, {
+      id: 21,
+      title: "Public Collection",
+      handle: "public-collection",
+      imageUrl: null,
+      position: 0,
+      visibility: "public",
+    });
+
+    const res = await productMetadataRoute.request("/collections", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: { vi: "Public Collection" } }),
+    });
+
+    expect(res.status).toBe(201);
+    await expect(res.json()).resolves.toMatchObject({
+      item: { visibility: "public" },
+    });
+    expect(db.mutations).toContainEqual(
+      expect.objectContaining({
+        kind: "insert",
+        values: expect.objectContaining({ visibility: "public" }),
+      }),
+    );
+  });
+
+  it("updates collection visibility and rejects invalid values", async () => {
+    db.getQueue.push(
+      {
+        id: 22,
+        title: "Collection",
+        handle: "collection",
+        visibility: "public",
+      },
+      {
+        id: 22,
+        title: "Collection",
+        handle: "collection",
+        imageUrl: null,
+        position: 0,
+        visibility: "hidden",
+      },
+    );
+
+    const update = await productMetadataRoute.request("/collections/22", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ visibility: "hidden" }),
+    });
+
+    expect(update.status).toBe(200);
+    await expect(update.json()).resolves.toMatchObject({
+      item: { visibility: "hidden" },
+    });
+    expect(db.mutations).toContainEqual(
+      expect.objectContaining({
+        kind: "update",
+        set: { visibility: "hidden" },
+      }),
+    );
+
+    const invalid = await productMetadataRoute.request("/collections/22", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ visibility: "draft" }),
+    });
+
+    expect(invalid.status).toBe(400);
+  });
+
+  it("returns 404 when updating a missing collection", async () => {
+    db.getQueue.push(null);
+
+    const res = await productMetadataRoute.request("/collections/404", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ visibility: "hidden" }),
+    });
+
+    expect(res.status).toBe(404);
   });
 
   it("creates a category with optional description translations", async () => {
@@ -105,7 +197,8 @@ describe("product metadata routes", () => {
       db.mutations.some(
         (entry: MutationRecord) =>
           entry.kind === "insert" &&
-          (entry.values as { description?: string | null } | undefined)?.description === "Danh muc ve cup",
+          (entry.values as { description?: string | null } | undefined)
+            ?.description === "Danh muc ve cup",
       ),
     ).toBe(true);
     expect(vi.mocked(upsertTranslations)).toHaveBeenCalledWith(
@@ -115,6 +208,52 @@ describe("product metadata routes", () => {
       "description",
       { vi: "Danh muc ve cup", en: "Trophy category" },
     );
+  });
+
+  it("defaults category visibility to public and accepts hidden updates", async () => {
+    db.getQueue.push(null, {
+      id: 13,
+      name: "Hidden Awards",
+      description: null,
+      handle: "hidden-awards",
+      imageUrl: null,
+      visibility: "public",
+      position: 0,
+    });
+    const created = await productMetadataRoute.request("/categories", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: { vi: "Hidden Awards" } }),
+    });
+
+    expect(created.status).toBe(201);
+    expect(db.mutations).toContainEqual(expect.objectContaining({
+      kind: "insert",
+      values: expect.objectContaining({ visibility: "public" }),
+    }));
+
+    db.getQueue.push(
+      { id: 13, name: "Hidden Awards", handle: "hidden-awards", visibility: "public" },
+      { id: 13, name: "Hidden Awards", handle: "hidden-awards", visibility: "hidden" },
+    );
+    const updated = await productMetadataRoute.request("/categories/13", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ visibility: "hidden" }),
+    });
+
+    expect(updated.status).toBe(200);
+    await expect(updated.json()).resolves.toMatchObject({ item: { visibility: "hidden" } });
+  });
+
+  it("rejects invalid category visibility values", async () => {
+    const response = await productMetadataRoute.request("/categories/13", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ visibility: "draft" }),
+    });
+
+    expect(response.status).toBe(400);
   });
 
   it("clears a category description when the admin submits null", async () => {
@@ -152,7 +291,8 @@ describe("product metadata routes", () => {
       db.mutations.some(
         (entry: MutationRecord) =>
           entry.kind === "update" &&
-          (entry.set as { description?: string | null } | undefined)?.description === null,
+          (entry.set as { description?: string | null } | undefined)
+            ?.description === null,
       ),
     ).toBe(true);
     expect(vi.mocked(upsertTranslations)).toHaveBeenCalledWith(
@@ -226,9 +366,20 @@ describe("product metadata routes", () => {
     expect(db.mutations).toHaveLength(0);
   });
 
-  it("allows only image and position updates for the system customization category", async () => {
-    db.getQueue.push({ id: 9, handle: "customization" });
+  it("allows visibility updates for the system customization category", async () => {
+    db.getQueue.push(
+      { id: 9, handle: "customization", name: "Customization", visibility: "public" },
+      { id: 9, handle: "customization", name: "Customization", visibility: "hidden" },
+    );
 
+    const visibility = await productMetadataRoute.request("/categories/9", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ visibility: "hidden" }),
+    });
+    expect(visibility.status).toBe(200);
+
+    db.getQueue.push({ id: 9, handle: "customization" });
     const rejected = await productMetadataRoute.request("/categories/9", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -236,6 +387,6 @@ describe("product metadata routes", () => {
     });
 
     expect(rejected.status).toBe(409);
-    expect(db.mutations).toHaveLength(0);
+    expect(db.mutations).toHaveLength(1);
   });
 });

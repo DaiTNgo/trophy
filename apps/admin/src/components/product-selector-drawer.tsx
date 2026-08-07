@@ -78,7 +78,7 @@ export function ProductSelectorDrawer({
           <Drawer.Title>{title}</Drawer.Title>
           <Drawer.Description>{description}</Drawer.Description>
         </Drawer.Header>
-        <Drawer.Body className="p-4 flex flex-col gap-4 overflow-y-auto">
+        <Drawer.Body className="min-h-0 p-4 flex flex-col gap-4 overflow-hidden">
           <Input
             placeholder="Search products..."
             value={search}
@@ -87,7 +87,7 @@ export function ProductSelectorDrawer({
           {isLoading ? (
             <Text>Loading products...</Text>
           ) : (
-            <div className="border rounded-md overflow-hidden">
+            <div className="min-h-0 flex-1 border rounded-md overflow-y-auto">
               <Table>
                 <Table.Header>
                   <Table.Row>

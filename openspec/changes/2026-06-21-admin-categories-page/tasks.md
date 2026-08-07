@@ -1,4 +1,7 @@
 1. Add admin categories page with tree navigation, create flow, and edit drawer or detail panel behavior.
+   - [x] Follow-up: fix product-list scrolling in the Edit Category Products drawer.
+   - [x] Follow-up: link category detail Products table entries to their admin Product Detail pages.
+   - [x] Follow-up: remove unused row-selection checkboxes and the placeholder Sales Channels column from the category detail Products table while retaining assignment checkboxes in the product selector drawer.
    - [x] Follow-up: restore optional category media upload in the create-category `Details` tab so new categories can persist `imageUrl` during create.
    - [x] Follow-up: add category media preview and edit controls to the category detail/edit flow so operators can update `imageUrl` after create.
    - [x] Follow-up: move category media editing out of the edit drawer and onto the detail page for faster edits.

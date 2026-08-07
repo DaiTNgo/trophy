@@ -7,6 +7,7 @@ import {
   Text,
   IconButton,
   ProgressTabs,
+  Select,
 } from "@medusajs/ui";
 import { useNavigate } from "react-router";
 import { backendFetch } from "../../../lib/fetch";
@@ -37,6 +38,7 @@ export function CreateCollectionModal({
   );
   const [titleLocale, setTitleLocale] = useState<AdminLocale>("vi");
   const [handle, setHandle] = useState("");
+  const [visibility, setVisibility] = useState<"public" | "hidden">("public");
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState("");
   const [isSaving, setIsSaving] = useState(false);
@@ -48,6 +50,7 @@ export function CreateCollectionModal({
       setTitle(createEmptyLocalizedText());
       setTitleLocale("vi");
       setHandle("");
+      setVisibility("public");
       setFile(null);
       setPreviewUrl("");
     }
@@ -108,6 +111,7 @@ export function CreateCollectionModal({
             title: { vi: vietnameseTitle, en: title.en || undefined },
             handle: handle || undefined,
             imageUrl: finalImageUrl || undefined,
+            visibility,
           }),
         },
       );
@@ -186,6 +190,26 @@ export function CreateCollectionModal({
                         />
                       </div>
                     </div>
+                  </div>
+
+                  <div className="flex max-w-xs flex-col gap-y-2">
+                    <Label htmlFor="collection-visibility" weight="plus">
+                      Visibility
+                    </Label>
+                    <Select
+                      value={visibility}
+                      onValueChange={(value) =>
+                        setVisibility(value as "public" | "hidden")
+                      }
+                    >
+                      <Select.Trigger id="collection-visibility">
+                        <Select.Value />
+                      </Select.Trigger>
+                      <Select.Content>
+                        <Select.Item value="public">Public</Select.Item>
+                        <Select.Item value="hidden">Hidden</Select.Item>
+                      </Select.Content>
+                    </Select>
                   </div>
 
                   <div className="flex flex-col gap-y-4">

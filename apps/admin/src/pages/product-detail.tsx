@@ -71,8 +71,8 @@ export function ProductDetailPage() {
 
   return (
     <div className="flex flex-col gap-y-6">
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="flex flex-col gap-y-6">
+      <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="flex min-w-0 flex-col gap-y-6">
           <ProductDetailOverview product={product} mutate={mutate} />
           <ProductDetailThumbnail product={product} mutate={mutate} />
           <ProductDetailOptions product={product} mutate={mutate} />
@@ -80,7 +80,7 @@ export function ProductDetailPage() {
           <ProductDetailCustomization product={product} mutate={mutate} />
         </div>
 
-        <div className="flex flex-col gap-y-6">
+        <div className="flex min-w-0 flex-col gap-y-6">
           <ProductDetailOrganize product={product} mutate={mutate} />
           <ProductDetailAttributes product={product} mutate={mutate} />
         </div>

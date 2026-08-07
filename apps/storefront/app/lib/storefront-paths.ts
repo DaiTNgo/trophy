@@ -14,11 +14,11 @@ export function getCategoryProductPath(
 }
 
 export function getCategoryProductRedirectPath(
-  categoryHandle: string,
+  _categoryHandle: string,
   productHandle: string,
   search = "",
 ) {
-  return `${getCategoryProductPath(categoryHandle, productHandle)}${search}`;
+  return `${getGenericProductPath(productHandle)}${search}`;
 }
 
 export function getProductPath({
@@ -28,10 +28,6 @@ export function getProductPath({
   productHandle: string;
   categoryHandle?: string | null;
 }) {
-  if (categoryHandle) {
-    return getCategoryProductPath(categoryHandle, productHandle);
-  }
-
   return getGenericProductPath(productHandle);
 }
 

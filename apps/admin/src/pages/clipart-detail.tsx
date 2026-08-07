@@ -207,17 +207,17 @@ export function ClipartDetailPage() {
     }
   }
 
-  async function handleToggleAssetActive(asset: BrandClipartAsset, nextActive: boolean) {
+  async function handleDeleteAsset(asset: BrandClipartAsset) {
+    if (!window.confirm(`Delete ${asset.name}?`)) return;
     setAssetActionId(asset.id);
     setErrorMessage(null);
     try {
       const res = await backendFetch(`/api/admin/customization/clipart/assets/${asset.id}`, {
-        method: "PATCH",
-        body: JSON.stringify({ active: nextActive }),
+        method: "DELETE",
       });
       if (!res.ok) {
         const data = await res.json().catch(() => null);
-        throw new Error(data?.error || "Failed to update clipart asset");
+        throw new Error(data?.error || "Failed to delete clipart asset");
       }
       if (editingAssetId === asset.id) {
         setEditingAssetId(null);
@@ -225,7 +225,7 @@ export function ClipartDetailPage() {
       }
       await loadAssets();
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : "Failed to update clipart asset");
+      setErrorMessage(error instanceof Error ? error.message : "Failed to delete clipart asset");
     } finally {
       setAssetActionId(null);
     }
@@ -263,7 +263,7 @@ export function ClipartDetailPage() {
   return (
     <div className="flex flex-col gap-4">
       <Container className="p-0 overflow-hidden">
-        <div className="flex flex-col gap-4 border-b border-ui-border-base px-6 py-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex flex-col gap-4 border-b border-ui-border-base px-4 py-4 sm:px-6 lg:flex-row lg:items-start lg:justify-between">
           <div className="flex flex-col gap-y-3">
             <div>
               <Button variant="transparent" size="small" onClick={() => navigate("/customization/clipart")} className="px-0">
@@ -291,7 +291,7 @@ export function ClipartDetailPage() {
         </div>
 
         {errorMessage ? (
-          <div className="border-b border-ui-border-base px-6 py-4">
+          <div className="border-b border-ui-border-base px-4 py-4 sm:px-6">
             <div className="rounded-md border border-ui-border-error bg-ui-bg-error p-3">
               <Text size="small">{errorMessage}</Text>
             </div>
@@ -365,28 +365,28 @@ export function ClipartDetailPage() {
                 Rename clipart, review original filenames, and control whether each asset stays available to shoppers.
               </Text>
             </div>
-            <Table>
-              <Table.Header>
-                <Table.Row>
-                  <Table.HeaderCell>Preview</Table.HeaderCell>
-                  <Table.HeaderCell>Name</Table.HeaderCell>
-                  <Table.HeaderCell>Filename</Table.HeaderCell>
-                  <Table.HeaderCell>Type</Table.HeaderCell>
-                  <Table.HeaderCell>Source</Table.HeaderCell>
-                  <Table.HeaderCell>State</Table.HeaderCell>
-                  <Table.HeaderCell />
-                </Table.Row>
-              </Table.Header>
-              <Table.Body>
+            <div className="overflow-x-auto">
+              <Table className="min-w-[900px]">
+                <Table.Header>
+                  <Table.Row>
+                    <Table.HeaderCell>Preview</Table.HeaderCell>
+                    <Table.HeaderCell>Name</Table.HeaderCell>
+                    <Table.HeaderCell>Filename</Table.HeaderCell>
+                    <Table.HeaderCell>Type</Table.HeaderCell>
+                    <Table.HeaderCell>Source</Table.HeaderCell>
+                    <Table.HeaderCell />
+                  </Table.Row>
+                </Table.Header>
+                <Table.Body>
                 {isLoadingAssets ? (
                   <Table.Row>
-                    <Table.Cell {...({ colSpan: 7 } as any)} className="py-8 text-center text-ui-fg-muted">
+                    <Table.Cell {...({ colSpan: 6 } as any)} className="py-8 text-center text-ui-fg-muted">
                       Loading media...
                     </Table.Cell>
                   </Table.Row>
                 ) : assets.length === 0 ? (
                   <Table.Row>
-                    <Table.Cell {...({ colSpan: 7 } as any)} className="py-8 text-center text-ui-fg-muted">
+                    <Table.Cell {...({ colSpan: 6 } as any)} className="py-8 text-center text-ui-fg-muted">
                       No clipart media uploaded for this category yet.
                     </Table.Cell>
                   </Table.Row>
@@ -448,11 +448,6 @@ export function ClipartDetailPage() {
                             ? `${asset.sourceWidthPx}x${asset.sourceHeightPx}`
                             : "Unknown"}
                         </Table.Cell>
-                        <Table.Cell>
-                          <StatusBadge color={asset.active ? "green" : "orange"}>
-                            {asset.active ? "Active" : "Inactive"}
-                          </StatusBadge>
-                        </Table.Cell>
                         <Table.Cell className="text-right">
                           <div className="flex items-center justify-end gap-2">
                             <Button variant="secondary" size="small" onClick={() => beginRename(asset)} disabled={assetActionId === asset.id}>
@@ -461,10 +456,10 @@ export function ClipartDetailPage() {
                             <Button
                               variant="secondary"
                               size="small"
-                              onClick={() => handleToggleAssetActive(asset, !asset.active)}
+                              onClick={() => handleDeleteAsset(asset)}
                               isLoading={assetActionId === asset.id}
                             >
-                              {asset.active ? <Trash2 className="h-4 w-4" /> : "Reactivate"}
+                              <Trash2 className="h-4 w-4" />
                             </Button>
                           </div>
                         </Table.Cell>
@@ -472,8 +467,9 @@ export function ClipartDetailPage() {
                     );
                   })
                 )}
-              </Table.Body>
-            </Table>
+                </Table.Body>
+              </Table>
+            </div>
           </section>
         </div>
       </Container>

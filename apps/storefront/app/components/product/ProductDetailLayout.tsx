@@ -156,8 +156,8 @@ export function ProductDetailLayout({
     <div className="bg-white font-body-md text-on-surface">
       <ProductBreadcrumbs
         title={getLocalized(product.title, locale)}
-        categoryTitle={getLocalized(activeCategory.name, locale)}
-        categoryHandle={activeCategory.handle}
+        categoryTitle={activeCategory ? getLocalized(activeCategory.name, locale) : null}
+        categoryHandle={activeCategory?.handle}
       />
       <Container className="py-8">
         {revisionNotice ? (

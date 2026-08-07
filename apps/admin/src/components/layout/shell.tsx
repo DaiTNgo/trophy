@@ -28,6 +28,6 @@ export function Topbar({ children }: { children: ReactNode }) {
 
 export function Gutter({ children }: { children: ReactNode }) {
   return (
-    <main className="min-w-0 flex-1 overflow-y-auto p-6">{children}</main>
+    <main className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto p-4 sm:p-6">{children}</main>
   );
 }

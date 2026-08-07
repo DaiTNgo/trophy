@@ -34,10 +34,12 @@ import {
   type ResolveCustomizationStaticFontUrl,
 } from "./index";
 
+const EMPTY_DYNAMIC_FONTS: DynamicFontFamily[] = [];
+
 export function ProductCustomizationPreview({
   template,
   values,
-  dynamicFonts = [],
+  dynamicFonts = EMPTY_DYNAMIC_FONTS,
   selectedVariantId,
   watermark = false,
   readOnly = false,
