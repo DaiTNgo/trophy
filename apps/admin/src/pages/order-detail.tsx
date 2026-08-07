@@ -90,9 +90,9 @@ export function OrderDetailPage() {
 
   return (
     <div className="flex flex-col gap-y-4">
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+      <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
         {/* Left Column - Main Content */}
-        <div className="flex flex-col gap-y-4">
+        <div className="flex min-w-0 flex-col gap-y-4">
           <OrderDetailHeader
             order={order}
             isUpdating={Boolean(updatingAction)}
@@ -109,9 +109,9 @@ export function OrderDetailPage() {
           />
         </div>
 
-        <OrderDetailSidebar
-          order={order}
-        />
+        <div className="min-w-0">
+          <OrderDetailSidebar order={order} />
+        </div>
       </div>
       {activePreviewItem ? (
         <OrderCustomizationPreviewModal

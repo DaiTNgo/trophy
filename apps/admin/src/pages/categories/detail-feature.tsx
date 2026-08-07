@@ -37,7 +37,6 @@ import {
   Pencil,
   Trash,
   AlertCircle,
-  Plus,
   Info,
 } from "lucide-react";
 

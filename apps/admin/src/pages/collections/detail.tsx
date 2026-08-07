@@ -35,7 +35,6 @@ import {
   Pencil,
   Trash,
   AlertCircle,
-  Plus,
 } from "lucide-react";
 
 export function CollectionDetailPage() {
