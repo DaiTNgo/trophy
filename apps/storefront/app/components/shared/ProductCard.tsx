@@ -66,7 +66,7 @@ export function ProductCard({
               src={imgSrc}
               alt={imageAlt}
               loading="lazy"
-              sizes="(min-width: 1536px) calc((100vw - 64px) / 6), (min-width: 1280px) calc((100vw - 64px) / 5), (min-width: 1024px) calc((100vw - 64px) / 4), (min-width: 640px) calc((100vw - 64px) / 3), calc((100vw - 48px) / 2)"
+              sizes="(min-width: 1024px) 210px, (min-width: 640px) calc((100vw - 64px) / 3), calc((100vw - 48px) / 2)"
             />
           ) : (
             <div className="absolute inset-0 flex items-center justify-center bg-surface-subtle">

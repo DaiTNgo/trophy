@@ -164,7 +164,7 @@ export default function AboutRoute() {
               {t("process_desc")}
             </p>
 
-            <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-4">
+            <div className="grid auto-rows-fr grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-4">
               {steps.map((step, i) => {
                 const StepIcon = STEP_ICONS[i];
                 return (
@@ -173,14 +173,14 @@ export default function AboutRoute() {
                     className="group reveal rounded-xl border border-brand-accent/20 bg-brand-strong/[0.03] luxury-shadow transition-all duration-500 hover:-translate-y-1 hover:border-brand-accent/40 hover:bg-brand-strong/[0.06] hover:luxury-shadow-lg"
                     style={{ animationDelay: `${i * 100}ms` }}
                   >
-                    <div className="flex flex-col items-center p-8 text-center">
+                    <div className="flex h-full flex-col items-center p-8 text-center">
                       <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-brand-strong to-brand-support shadow-lg shadow-brand-strong/20 transition-transform duration-500 group-hover:scale-110 group-hover:rotate-3">
                         <StepIcon className="text-[24px] text-white" />
                       </div>
                       <h3 className="mb-3 font-heading text-[22px] uppercase text-on-surface">
                         {step.title}
                       </h3>
-                      <p className="font-body-md text-body-md leading-relaxed text-on-surface-variant">
+                      <p className="flex-1 font-body-md text-body-md leading-relaxed text-on-surface-variant">
                         {step.body}
                       </p>
                     </div>
