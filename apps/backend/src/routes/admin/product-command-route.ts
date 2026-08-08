@@ -6,14 +6,20 @@ import { getDb } from '../../db/client'
 import {
   productCategories,
   productCategoryLinks,
+  productAttributes,
   productCollections,
   productCustomizations,
   productOptionValues,
   productOptions,
+  productVariantAttributes,
+  productVariantCustomizationMedia,
+  productVariantMedia,
   productVariantOptionValues,
   productVariants,
-  products
+  products,
+  productAssets
 } from '../../db/schema'
+import { buildCatalogVariantCustomizationBackgroundKey, buildCatalogVariantMediaKey } from '../../lib/r2-media-keys'
 import type { AppEnv } from '../../lib/env'
 import { jsonError, parseJson, parseParams } from '../../lib/validation'
 import { persistCustomizationTranslations } from '../../lib/customization-translation'
@@ -25,7 +31,6 @@ import { enqueueMisaProductSync, syncMisaProductVariants } from './product-misa-
 import {
   insertVariantCustomizationMedia,
   insertVariantMedia,
-  loadProductAssetsById
 } from './product-media'
 import { replaceAttributes, replaceOptions } from './product-mutations'
 import { readProduct } from './product-reader'
@@ -36,9 +41,9 @@ import {
   validateCustomizationPublishReadiness
 } from './product-customization-service'
 import { normalizeFullCreateDefaultOptionGraph } from './product-default-graph'
+import { extensionForMimeType, fullCreateAssetInput, parseFullCreateMultipart } from './product-full-create-multipart'
 import {
   createProductSchema,
-  fullCreateProductSchema,
   idParamsSchema,
   nullableLocalizedPatch,
   organizeSchema,
@@ -151,6 +156,29 @@ const defaultLocalizedText = (value: string) => ({ vi: value, en: value })
 const localizedInputValue = (value: string | { vi: string }) =>
   typeof value === 'string' ? value : value.vi
 
+const compensateCreatedProduct = async (db: ReturnType<typeof getDb>, productId: number) => {
+  const variantIds = (await db.select({ id: productVariants.id }).from(productVariants).where(eq(productVariants.productId, productId))).map((row) => row.id)
+  const optionIds = (await db.select({ id: productOptions.id }).from(productOptions).where(eq(productOptions.productId, productId))).map((row) => row.id)
+  const optionValueIds = optionIds.length > 0
+    ? (await db.select({ id: productOptionValues.id }).from(productOptionValues).where(inArray(productOptionValues.optionId, optionIds))).map((row) => row.id)
+    : []
+  if (variantIds.length > 0) {
+    await db.delete(productVariantOptionValues).where(inArray(productVariantOptionValues.variantId, variantIds))
+    await db.delete(productVariantAttributes).where(inArray(productVariantAttributes.variantId, variantIds))
+    await db.delete(productVariantMedia).where(inArray(productVariantMedia.variantId, variantIds))
+    await db.delete(productVariantCustomizationMedia).where(inArray(productVariantCustomizationMedia.variantId, variantIds))
+  }
+  if (optionValueIds.length > 0) await db.delete(productVariantOptionValues).where(inArray(productVariantOptionValues.optionValueId, optionValueIds))
+  if (optionIds.length > 0) await db.delete(productOptionValues).where(inArray(productOptionValues.optionId, optionIds))
+  await db.delete(productAssets).where(eq(productAssets.ownerKey, `catalog:${productId}`))
+  await db.delete(productVariants).where(eq(productVariants.productId, productId))
+  await db.delete(productOptions).where(eq(productOptions.productId, productId))
+  await db.delete(productAttributes).where(eq(productAttributes.productId, productId))
+  await db.delete(productCustomizations).where(eq(productCustomizations.productId, productId))
+  await db.delete(productCategoryLinks).where(eq(productCategoryLinks.productId, productId))
+  await db.delete(products).where(eq(products.id, productId))
+}
+
 export const productCommandRoute = new Hono<AppEnv>()
   .post('/', async (c) => {
     const parsed = await parseJson(c, createProductSchema)
@@ -260,13 +288,18 @@ export const productCommandRoute = new Hono<AppEnv>()
     return c.json({ item: product }, 201)
   })
   .post('/full-create', async (c) => {
-    const parsed = await parseJson(c, fullCreateProductSchema)
+    const multipart = await parseFullCreateMultipart(c.req.raw)
+    if (!multipart.success) return jsonError(c, 400, multipart.error)
 
-    if (!parsed.success) {
-      return parsed.response
-    }
-
-    const normalizedInput = normalizeFullCreateDefaultOptionGraph(parsed.output)
+    const input = multipart.input
+    const parsed = { output: input }
+    const normalizedInput = normalizeFullCreateDefaultOptionGraph(input)
+    const mediaByAssetId = new Map([...multipart.media.values()].map((media) => [media.id, media]))
+    const normalizedAssetVariants = normalizedInput.variants.map((variant) => ({
+      ...variant,
+      media: variant.media.map((media) => ({ assetId: multipart.media.get(media.mediaId)!.id })),
+      customizationMedia: variant.customizationMedia ? { assetId: multipart.media.get(variant.customizationMedia.mediaId)!.id } : null
+    }))
 
     if (
       new Set(
@@ -279,18 +312,10 @@ export const productCommandRoute = new Hono<AppEnv>()
     }
 
     const db = getDb(c.env)
-    const allAssetIds = [
-      ...new Set(
-        normalizedInput.variants.flatMap((variant) => [
-          ...variant.media.map((media) => media.assetId),
-          ...(variant.customizationMedia?.assetId ? [variant.customizationMedia.assetId] : [])
-        ])
-      )
-    ]
-    const assetsById = await loadProductAssetsById(db, allAssetIds)
-    if (assetsById.size !== allAssetIds.length) {
-      return jsonError(c, 404, 'One or more variant media assets were not found')
-    }
+    const assetsById = new Map([...multipart.media.values()].map((media) => [media.id, {
+      id: media.id, ownerKey: 'catalog', objectKey: '', fileName: media.fileName, mimeType: media.mimeType,
+      widthPx: media.widthPx, heightPx: media.heightPx, byteSize: media.byteSize, createdAt: nowIso()
+    }]))
 
     if (parsed.output.customization?.enabled) {
       const draftValidation = validateProductCustomizationDraft({
@@ -305,7 +330,7 @@ export const productCommandRoute = new Hono<AppEnv>()
       if (parsed.output.mode === 'publish') {
         const publishCustomizationError = validateCustomizationPublishReadiness({
           customization: parsed.output.customization,
-          submittedVariants: normalizedInput.variants,
+          submittedVariants: normalizedAssetVariants,
           assetsById
         })
 
@@ -315,6 +340,9 @@ export const productCommandRoute = new Hono<AppEnv>()
       }
     }
 
+    let insertedProductId: number | null = null
+    const writtenObjectKeys: string[] = []
+    try {
     const handle = await ensureUniqueHandle(
       db,
       parsed.output.details.handle ??
@@ -344,6 +372,7 @@ export const productCommandRoute = new Hono<AppEnv>()
       })
       .returning()
       .get()
+    insertedProductId = insertedProduct.id
 
     await upsertTranslations(
       db,
@@ -398,7 +427,7 @@ export const productCommandRoute = new Hono<AppEnv>()
       normalizedInput.options
     )
     if (replaceOptionsError) {
-      return jsonError(c, replaceOptionsError.status, replaceOptionsError.error)
+      throw new Error(replaceOptionsError.error)
     }
 
     const optionValueLookup = await loadOptionValueLookup(db, insertedProduct.id)
@@ -426,11 +455,7 @@ export const productCommandRoute = new Hono<AppEnv>()
         )
 
         if (!optionValueId) {
-          return jsonError(
-            c,
-            409,
-            `Variant ${localizedInputValue(variant.title)} references an unknown option value: ${selection.optionTitle} / ${selection.value}`
-          )
+          throw new Error(`Variant ${localizedInputValue(variant.title)} references an unknown option value: ${selection.optionTitle} / ${selection.value}`)
         }
 
         optionValueIds.push(optionValueId)
@@ -450,22 +475,41 @@ export const productCommandRoute = new Hono<AppEnv>()
 
     const replaceVariantsError = await replaceVariants(db, insertedProduct.id, variantInput)
     if (replaceVariantsError) {
-      return jsonError(c, replaceVariantsError.status, replaceVariantsError.error)
+      throw new Error(replaceVariantsError.error)
     }
 
     const persistedProduct = await readProduct(c, db, insertedProduct.id)
     if (!persistedProduct) {
-      return jsonError(c, 500, 'Created product could not be loaded')
+      throw new Error('Created product could not be loaded')
     }
 
-    await insertVariantMedia(db, persistedProduct.variants, normalizedInput.variants)
-    await insertVariantCustomizationMedia(db, persistedProduct.variants, normalizedInput.variants)
+    const assetRows = [] as Array<typeof productAssets.$inferInsert>
+    for (const [variantIndex, variant] of persistedProduct.variants.entries()) {
+      const submittedVariant = normalizedAssetVariants[variantIndex]
+      for (const media of submittedVariant.media) {
+        const source = mediaByAssetId.get(media.assetId)!
+        const objectKey = buildCatalogVariantMediaKey({ productId: insertedProduct.id, variantId: variant.id, assetId: source.id, extension: extensionForMimeType(source.mimeType) })
+        await c.env.CUSTOMIZATION_ASSETS.put(objectKey, source.buffer, { httpMetadata: { contentType: source.mimeType } })
+        writtenObjectKeys.push(objectKey)
+        assetRows.push(fullCreateAssetInput(source, objectKey, insertedProduct.id))
+      }
+      if (submittedVariant.customizationMedia) {
+        const source = mediaByAssetId.get(submittedVariant.customizationMedia.assetId)!
+        const objectKey = buildCatalogVariantCustomizationBackgroundKey({ productId: insertedProduct.id, variantId: variant.id, assetId: source.id, extension: extensionForMimeType(source.mimeType) })
+        await c.env.CUSTOMIZATION_ASSETS.put(objectKey, source.buffer, { httpMetadata: { contentType: source.mimeType } })
+        writtenObjectKeys.push(objectKey)
+        assetRows.push(fullCreateAssetInput(source, objectKey, insertedProduct.id))
+      }
+    }
+    if (assetRows.length > 0) await db.insert(productAssets).values(assetRows)
+    await insertVariantMedia(db, persistedProduct.variants, normalizedAssetVariants)
+    await insertVariantCustomizationMedia(db, persistedProduct.variants, normalizedAssetVariants)
 
     if (parsed.output.customization?.enabled) {
       const customizationRow = buildProductCustomizationInsert({
         productId: insertedProduct.id,
         customization: parsed.output.customization,
-        submittedVariants: normalizedInput.variants,
+        submittedVariants: normalizedAssetVariants,
         assetsById
       })
 
@@ -481,12 +525,12 @@ export const productCommandRoute = new Hono<AppEnv>()
     if (parsed.output.mode === 'publish') {
       const publishCandidate = await readProduct(c, db, insertedProduct.id)
       if (!publishCandidate) {
-        return jsonError(c, 500, 'Created product could not be loaded for publish')
+        throw new Error('Created product could not be loaded for publish')
       }
 
       const publishError = validatePublishable(publishCandidate)
       if (publishError) {
-        return jsonError(c, 409, publishError)
+        throw new Error(publishError)
       }
 
       await db
@@ -502,6 +546,18 @@ export const productCommandRoute = new Hono<AppEnv>()
 
     const product = await readProduct(c, db, insertedProduct.id)
     return c.json({ item: product }, 201)
+    } catch (error) {
+      if (insertedProductId !== null) {
+        await Promise.allSettled([
+          compensateCreatedProduct(db, insertedProductId),
+          ...writtenObjectKeys.map((objectKey) => c.env.CUSTOMIZATION_ASSETS.delete(objectKey))
+        ]).then((results) => {
+          const failures = results.filter((result) => result.status === 'rejected')
+          if (failures.length > 0) console.error('full-create cleanup failed', { productId: insertedProductId, objectKeys: writtenObjectKeys, failures: failures.map((failure) => String(failure.reason)) })
+        })
+      }
+      return jsonError(c, 500, error instanceof Error ? error.message : 'Unable to create product')
+    }
   })
   .patch('/:id', async (c) => {
     const params = parseParams(c, idParamsSchema)

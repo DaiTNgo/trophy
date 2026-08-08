@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   Badge,
   Button,
@@ -16,7 +17,6 @@ import {
   Boxes,
   DollarSign,
   Image as ImageIcon,
-  ImagePlus,
   MoreHorizontal,
   Pencil,
   RefreshCw,
@@ -28,10 +28,12 @@ import { LocalizedTextField } from "../../components/ui/medusa";
 import type { CatalogProduct } from "../../types";
 import { VariantBatchDrawer } from "./product-detail-variant-batch-drawer";
 import { useProductDetailVariants } from "./use-product-detail-variants";
+import { VariantMediaManager } from "./variant-media-manager";
 
 type ProductDetailVariantsProps = {
   product: CatalogProduct;
   mutate: () => Promise<void>;
+  updateProduct: (updater: (current: CatalogProduct) => CatalogProduct) => void;
 };
 
 const misaStatus = {
@@ -40,18 +42,19 @@ const misaStatus = {
   failed: { label: "Failed", color: "red" as const },
 };
 
-export function ProductDetailVariants({ product, mutate }: ProductDetailVariantsProps) {
+export function ProductDetailVariants({ product, mutate, updateProduct }: ProductDetailVariantsProps) {
   const state = useProductDetailVariants({ product, mutate });
   const {
     priceOpen, setPriceOpen, stockOpen, setStockOpen, variantOpen, setVariantOpen,
     priceRows, setPriceRows, stockRows, setStockRows, variantForm, setVariantForm,
     variantTitleLocale, setVariantTitleLocale, variantAttributeLocale, setVariantAttributeLocale,
-    isSavingPrices, isSavingStock, isSavingVariant, isUploadingVariantMedia,
-    variantMediaInputRef, variantCustomizationMediaInputRef, openPrices, openStock,
+    isSavingPrices, isSavingStock, isSavingVariant, openPrices, openStock,
     openVariantEditor, updateVariantAttribute, savePrices, saveStock, saveVariant,
-    handleVariantMediaUpload, handleCustomizationMediaUpload, handleDeleteVariant,
+    handleDeleteVariant,
     handleSyncVariantToMisa, syncingMisaVariantId,
   } = state;
+  const [mediaVariantId, setMediaVariantId] = useState<string | null>(null);
+  const mediaVariant = product.variants.find((variant) => variant.id === mediaVariantId) ?? null;
 
   return (
     <Container className="p-0 overflow-hidden">
@@ -184,6 +187,10 @@ export function ProductDetailVariants({ product, mutate }: ProductDetailVariants
                           <Pencil className="mr-2 h-4 w-4" />
                           Edit
                         </DropdownMenu.Item>
+                        <DropdownMenu.Item onClick={() => setMediaVariantId(variant.id)}>
+                          <ImageIcon className="mr-2 h-4 w-4" />
+                          Manage media
+                        </DropdownMenu.Item>
                         {product.status === "Published" ? (
                           <DropdownMenu.Item
                             onClick={() => void handleSyncVariantToMisa(Number(variant.id))}
@@ -284,58 +291,6 @@ export function ProductDetailVariants({ product, mutate }: ProductDetailVariants
                   </div>
                 </div>
               </section>
-
-              {product.customization?.enabled ? (
-                <section className="space-y-4">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div>
-                      <Heading level="h3" className="text-base font-medium">
-                        Customization Media
-                      </Heading>
-                      <Text size="small" className="text-ui-fg-subtle">
-                        This separate image is the customization canvas for this variant.
-                      </Text>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      size="small"
-                      onClick={() => variantCustomizationMediaInputRef.current?.click()}
-                      isLoading={isUploadingVariantMedia}
-                    >
-                      <ImagePlus className="h-4 w-4" />
-                      {variantForm.customizationMedia ? "Replace customization media" : "Upload customization media"}
-                    </Button>
-                  </div>
-                  <input
-                    ref={variantCustomizationMediaInputRef}
-                    type="file"
-                    accept="image/png,image/jpeg,image/webp,application/pdf"
-                    className="hidden"
-                    onChange={(event) => {
-                      void handleCustomizationMediaUpload(event.target.files);
-                      event.target.value = "";
-                    }}
-                  />
-                  {variantForm.customizationMedia ? (
-                    <div className="flex items-center gap-3 rounded-lg border border-ui-border-base p-3">
-                      <MediaPreview
-                        src={variantForm.customizationMedia.url}
-                        mimeType={variantForm.customizationMedia.mimeType}
-                        alt={variantForm.customizationMedia.fileName}
-                        className="h-20 w-20 rounded border object-contain"
-                      />
-                      <Text size="small" className="line-clamp-2">
-                        {variantForm.customizationMedia.fileName}
-                      </Text>
-                    </div>
-                  ) : (
-                    <div className="rounded-lg border border-dashed border-ui-border-base bg-ui-bg-subtle px-4 py-6 text-center">
-                      <Text size="small" className="text-ui-fg-subtle">No customization canvas uploaded.</Text>
-                    </div>
-                  )}
-                </section>
-              ) : null}
 
               <section className="space-y-4">
                 <div>
@@ -457,78 +412,6 @@ export function ProductDetailVariants({ product, mutate }: ProductDetailVariants
               </section>
 
               <section className="space-y-4">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div>
-                    <Heading level="h3" className="text-base font-medium">
-                      Media
-                    </Heading>
-                    <Text size="small" className="text-ui-fg-subtle">
-                      Upload images or PDFs for the variant preview.
-                    </Text>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="small"
-                    onClick={() => variantMediaInputRef.current?.click()}
-                    isLoading={isUploadingVariantMedia}
-                  >
-                    <ImagePlus className="h-4 w-4" />
-                    Upload media
-                  </Button>
-                </div>
-                <input
-                  ref={variantMediaInputRef}
-                  type="file"
-                  accept="image/png,image/jpeg,application/pdf"
-                  multiple
-                  className="hidden"
-                  onChange={(event) => {
-                    void handleVariantMediaUpload(event.target.files);
-                    event.target.value = "";
-                  }}
-                />
-                {variantForm.media.length === 0 ? (
-                  <div className="rounded-lg border border-dashed border-ui-border-base bg-ui-bg-subtle px-4 py-6 text-center">
-                    <ImageIcon className="mx-auto h-5 w-5 text-ui-fg-muted" />
-                    <Text size="small" className="mt-2 text-ui-fg-subtle">
-                      No variant media selected.
-                    </Text>
-                  </div>
-                ) : (
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    {variantForm.media.map((asset, index) => (
-                      <div key={`${asset.assetId}-${index}`} className="overflow-hidden rounded-lg border border-ui-border-base">
-                        <MediaPreview
-                          src={asset.url}
-                          mimeType={asset.mimeType}
-                          alt={asset.fileName}
-                          className="h-32 w-full object-contain bg-ui-bg-subtle"
-                        />
-                        <div className="flex items-center justify-between gap-3 px-3 py-3">
-                          <Text size="small" weight="plus" className="line-clamp-1">
-                            {asset.fileName}
-                          </Text>
-                          <IconButton
-                            type="button"
-                            variant="transparent"
-                            onClick={() =>
-                              setVariantForm((current) => ({
-                                ...current,
-                                media: current.media.filter((_, currentIndex) => currentIndex !== index),
-                              }))
-                            }
-                          >
-                            <Trash className="h-4 w-4 text-ui-fg-error" />
-                          </IconButton>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </section>
-
-              <section className="space-y-4">
                 <div>
                   <Heading level="h3" className="text-base font-medium">
                     Inventory
@@ -587,6 +470,7 @@ export function ProductDetailVariants({ product, mutate }: ProductDetailVariants
           </FocusModal.Footer>
         </FocusModal.Content>
       </FocusModal>
+      {mediaVariant ? <VariantMediaManager product={product} variant={mediaVariant} open={Boolean(mediaVariant)} onOpenChange={(open) => { if (!open) setMediaVariantId(null); }} updateProduct={updateProduct} /> : null}
 
     </Container>
   );

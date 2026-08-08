@@ -1,12 +1,35 @@
-import { eq } from 'drizzle-orm'
+import { eq, inArray } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { getDb } from '../../db/client'
-import { products } from '../../db/schema'
+import { productAssets, productMedia, products } from '../../db/schema'
+import { allowedMimeTypes, extensionForMimeType, MAX_ASSET_BYTES } from '../../lib/asset-utils'
 import type { AppEnv } from '../../lib/env'
+import { readImageDimensions } from '../../lib/image-dimensions'
+import { buildCatalogProductMediaKey } from '../../lib/r2-media-keys'
 import { jsonError, parseJson, parseParams } from '../../lib/validation'
-import { replaceAttributes, replaceMedia } from './product-mutations'
+import { replaceAttributes } from './product-mutations'
 import { readProduct } from './product-reader'
-import { attributesSchema, idParamsSchema, mediaSchema } from './product-schemas'
+import { attributesSchema, idParamsSchema, productThumbnailSchema } from './product-schemas'
+
+async function parseProductMediaFiles(request: Request) {
+  const form = await request.formData().catch(() => null)
+  if (!form) return { error: 'Multipart form data is required' } as const
+  const files = form.getAll('files').filter((value): value is File => value instanceof File)
+  if (files.length === 0 || files.length !== [...form.values()].filter((value) => value instanceof File).length) {
+    return { error: 'One or more files are required' } as const
+  }
+  const result: Array<{ id: string; fileName: string; mimeType: string; widthPx: number; heightPx: number; byteSize: number; buffer: ArrayBuffer }> = []
+  for (const file of files) {
+    const mimeType = file.type.trim().toLowerCase()
+    if (!allowedMimeTypes.has(mimeType)) return { error: 'Only PNG, JPEG, WEBP, and PDF product assets are supported' } as const
+    if (file.size <= 0 || file.size > MAX_ASSET_BYTES) return { error: 'Product asset exceeds the 20 MB limit' } as const
+    const buffer = await file.arrayBuffer()
+    const dimensions = mimeType === 'application/pdf' ? { width: 800, height: 1131 } : readImageDimensions(mimeType, new Uint8Array(buffer))
+    if (!dimensions || dimensions.width < 1 || dimensions.height < 1) return { error: 'Media data is invalid or unsupported' } as const
+    result.push({ id: crypto.randomUUID(), fileName: file.name, mimeType, widthPx: dimensions.width, heightPx: dimensions.height, byteSize: buffer.byteLength, buffer })
+  }
+  return { files: result } as const
+}
 
 export const productContentRoute = new Hono<AppEnv>()
   .put('/:id/attributes', async (c) => {
@@ -32,26 +55,60 @@ export const productContentRoute = new Hono<AppEnv>()
 
     return c.json({ item: await readProduct(c, db, params.output.id) }, 200)
   })
-  .put('/:id/media', async (c) => {
+  .post('/:id/media/upload', async (c) => {
     const params = parseParams(c, idParamsSchema)
     if (!params.success) return params.response
-
-    const parsed = await parseJson(c, mediaSchema)
-    if (!parsed.success) return parsed.response
-
     const db = getDb(c.env)
-    const exists = await db
-      .select({ id: products.id })
-      .from(products)
-      .where(eq(products.id, params.output.id))
-      .get()
-    if (!exists) return jsonError(c, 404, 'Product not found')
-
-    await replaceMedia(db, params.output.id, parsed.output.items)
-    await db
-      .update(products)
-      .set({ updatedAt: new Date().toISOString() })
-      .where(eq(products.id, params.output.id))
-
-    return c.json({ item: await readProduct(c, db, params.output.id) }, 200)
+    const product = await readProduct(c, db, params.output.id)
+    if (!product) return jsonError(c, 404, 'Product not found')
+    const parsedFiles = await parseProductMediaFiles(c.req.raw)
+    if ('error' in parsedFiles) return jsonError(c, 400, parsedFiles.error ?? 'Invalid thumbnail upload')
+    if (parsedFiles.files.length !== 1) return jsonError(c, 400, 'Upload exactly one thumbnail file')
+    const positionStart = product.media.length
+    const writtenKeys: string[] = []
+    const insertedAssetIds: string[] = []
+    try {
+      for (const [offset, file] of parsedFiles.files.entries()) {
+        const objectKey = buildCatalogProductMediaKey({ productId: product.id, assetId: file.id, extension: extensionForMimeType(file.mimeType) })
+        await c.env.CUSTOMIZATION_ASSETS.put(objectKey, file.buffer, { httpMetadata: { contentType: file.mimeType } })
+        writtenKeys.push(objectKey)
+        await db.insert(productAssets).values({ id: file.id, ownerKey: `catalog:${product.id}:media`, objectKey, fileName: file.fileName, mimeType: file.mimeType, widthPx: file.widthPx, heightPx: file.heightPx, byteSize: file.byteSize })
+        insertedAssetIds.push(file.id)
+      await db.insert(productMedia).values({ productId: product.id, assetId: file.id, position: positionStart + offset })
+      await db.update(products).set({ thumbnailAssetId: file.id, updatedAt: new Date().toISOString() }).where(eq(products.id, product.id))
+      }
+    } catch (error) {
+      await Promise.allSettled(writtenKeys.map((key) => c.env.CUSTOMIZATION_ASSETS.delete(key)))
+      if (insertedAssetIds.length) await db.delete(productMedia).where(inArray(productMedia.assetId, insertedAssetIds))
+      if (insertedAssetIds.length) await db.delete(productAssets).where(inArray(productAssets.id, insertedAssetIds))
+      console.error('product media upload failed', { productId: product.id, writtenKeys, insertedAssetIds, error })
+      return jsonError(c, 500, 'Unable to upload Product Media')
+    }
+    return c.json({ item: await readProduct(c, db, product.id) }, 200)
+  })
+  .put('/:id/thumbnail', async (c) => {
+    const params = parseParams(c, idParamsSchema)
+    if (!params.success) return params.response
+    const parsed = await parseJson(c, productThumbnailSchema)
+    if (!parsed.success) return parsed.response
+    const db = getDb(c.env)
+    const product = await readProduct(c, db, params.output.id)
+    if (!product) return jsonError(c, 404, 'Product not found')
+    if (parsed.output.assetId) {
+      const variantAssetIds = new Set(product.variants.flatMap((variant) => [
+        ...variant.media.map((media) => media.id),
+        ...(variant.customizationMedia ? [variant.customizationMedia.id] : []),
+      ]))
+      const ownedAsset = await db.select().from(productAssets).where(eq(productAssets.id, parsed.output.assetId)).get()
+      const isProductOwnedThumbnail = ownedAsset?.ownerKey === `catalog:${product.id}:media`
+      if (!variantAssetIds.has(parsed.output.assetId) && !isProductOwnedThumbnail) {
+        return jsonError(c, 409, 'Product Thumbnail must be a Variant Media, Customization Background, or product-owned thumbnail asset')
+      }
+      const alreadyReferenced = product.media.some((media) => media.assetId === parsed.output.assetId)
+      if (!alreadyReferenced) {
+        await db.insert(productMedia).values({ productId: product.id, assetId: parsed.output.assetId, position: product.media.length })
+      }
+    }
+    await db.update(products).set({ thumbnailAssetId: parsed.output.assetId ?? null, updatedAt: new Date().toISOString() }).where(eq(products.id, product.id))
+    return c.json({ item: await readProduct(c, db, product.id) }, 200)
   })

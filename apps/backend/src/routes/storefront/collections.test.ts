@@ -337,8 +337,6 @@ describe("GET /api/storefront/collections/:handle/products", () => {
 
     expect(res.status).toBe(200);
     const body = (await res.json()) as any;
-    expect(body.items[0].thumbnail).toBe(
-      "http://localhost/api/assets/products/product-media/content",
-    );
+    expect(body.items[0].thumbnail).toBeNull();
   });
 });

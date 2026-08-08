@@ -32,6 +32,22 @@ pnpm --filter backend db:migrate:local
 pnpm --filter backend db:migrate:remote
 ```
 
+## Troubleshooting
+
+### `Cannot add a NOT NULL column with default value NULL`
+
+SQLite/D1 cannot add a required column to a populated table when existing rows
+have no value for it. Do not rename `product_media.url` to `asset_id`: a legacy
+URL is not a product asset ID. The Product Media migration rebuilds the table
+without legacy URL rows, which is the intended development-mode data reset.
+
+If migration generation emits `ALTER TABLE product_media ADD asset_id text NOT
+NULL`, replace that sequence with a table rebuild before applying it. Then run:
+
+```txt
+pnpm --filter backend db:migrate:local
+```
+
 Create the first super-admin account via the admin UI at `/onboarding`. Alternatively, POST to the bootstrap endpoint directly:
 
 ```txt

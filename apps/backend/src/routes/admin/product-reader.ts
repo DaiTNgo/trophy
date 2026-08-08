@@ -77,8 +77,18 @@ export async function readProduct(
       .where(eq(productAttributes.productId, productId))
       .orderBy(asc(productAttributes.position), asc(productAttributes.id)),
     db
-      .select()
+      .select({
+        id: productMedia.id,
+        assetId: productMedia.assetId,
+        position: productMedia.position,
+        fileName: productAssets.fileName,
+        mimeType: productAssets.mimeType,
+        widthPx: productAssets.widthPx,
+        heightPx: productAssets.heightPx,
+        byteSize: productAssets.byteSize
+      })
       .from(productMedia)
+      .innerJoin(productAssets, eq(productMedia.assetId, productAssets.id))
       .where(eq(productMedia.productId, productId))
       .orderBy(asc(productMedia.position), asc(productMedia.id)),
     db
@@ -320,7 +330,10 @@ export async function readProduct(
     collection,
     categories: categoryRows,
     attributes: attributeRows,
-    media: mediaRows.map((media) => ({ ...media, url: toAbsoluteAssetUrl(c, media.url) as string })),
+    media: mediaRows.map((media) => ({
+      ...media,
+      contentUrl: toAbsoluteAssetUrl(c, `/api/assets/products/${media.assetId}/content`) as string
+    })),
     options: optionRows.map((option) => ({
       ...option,
       values: optionValuesByOptionId.get(option.id) ?? []

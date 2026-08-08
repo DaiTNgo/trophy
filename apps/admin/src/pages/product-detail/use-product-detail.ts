@@ -36,5 +36,8 @@ export function useProductDetail() {
     isLoading,
     error,
     mutate: loadProduct,
+    updateProduct: (updater: (current: CatalogProduct) => CatalogProduct) => {
+      setProduct((current) => current ? updater(current) : current);
+    },
   };
 }

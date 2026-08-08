@@ -1,4 +1,4 @@
-import type { CatalogProduct, LocalizedTextValue } from "../types";
+import type { CatalogProduct, LocalizedTextValue, ProductVariantMedia } from "../types";
 import { backendClient } from "./backend-client";
 import { backendFetch } from "./fetch";
 
@@ -20,7 +20,16 @@ type ApiProduct = {
   categories: Array<{ id: number; name: LocalizedInput }>;
   collection: { id: number; title: LocalizedInput } | null;
   attributes: Array<{ name: LocalizedInput; value: LocalizedInput }>;
-  media: Array<{ url: string }>;
+  thumbnailAssetId?: string | null;
+  media: Array<{
+    assetId: string;
+    fileName: string;
+    mimeType: string;
+    widthPx: number | null;
+    heightPx: number | null;
+    byteSize: number;
+    contentUrl: string;
+  }>;
   options: Array<{
     id: number;
     title: LocalizedInput;
@@ -69,6 +78,26 @@ type ApiProduct = {
   updatedAt: string;
 };
 
+type ApiManagedVariantMedia = {
+  id: number;
+  media: Array<{
+    id: string;
+    fileName: string;
+    mimeType: string;
+    widthPx: number;
+    heightPx: number;
+    byteSize: number;
+    contentUrl: string;
+  }>;
+  customizationMedia: ApiManagedVariantMedia["media"][number] | null;
+};
+
+export type ManagedVariantMedia = {
+  id: string;
+  media: ProductVariantMedia[];
+  customizationMedia: ProductVariantMedia | null;
+};
+
 function mapApiProductStatus(status: ApiProduct["status"]): CatalogProduct["status"] {
   switch (status) {
     case "published":
@@ -83,7 +112,7 @@ function mapApiProductStatus(status: ApiProduct["status"]): CatalogProduct["stat
   }
 }
 
-type CreateFullProductPayload = {
+export type CreateFullProductPayload = {
   mode: "draft" | "publish";
   details: {
     title: LocalizedInput;
@@ -106,8 +135,8 @@ type CreateFullProductPayload = {
     isDefault?: boolean;
     optionValues: Array<{ optionTitle: string; value: string }>;
     attributes?: Array<{ name: LocalizedInput; value: LocalizedInput; unit?: string | null }>;
-    media: Array<{ assetId: string }>;
-    customizationMedia?: { assetId: string } | null;
+    media: Array<{ mediaId: string; file: File }>;
+    customizationMedia?: { mediaId: string; file: File } | null;
   }>;
   customization?: {
     enabled: boolean;
@@ -119,12 +148,27 @@ type CreateFullProductPayload = {
 };
 
 export async function createFullProduct(payload: CreateFullProductPayload) {
+  const formData = new FormData();
+  const multipartPayload = {
+    ...payload,
+    variants: payload.variants.map((variant) => ({
+      ...variant,
+      media: variant.media.map(({ mediaId }) => ({ mediaId })),
+      customizationMedia: variant.customizationMedia
+        ? { mediaId: variant.customizationMedia.mediaId }
+        : null,
+    })),
+  };
+  formData.append("payload", JSON.stringify(multipartPayload));
+  payload.variants.forEach((variant) => {
+    variant.media.forEach(({ mediaId, file }) => formData.append(mediaId, file));
+    if (variant.customizationMedia) {
+      formData.append(variant.customizationMedia.mediaId, variant.customizationMedia.file);
+    }
+  });
   const response = await backendFetch("/api/admin/products/full-create", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(payload),
+    body: formData,
   });
 
   const body = (await response.json().catch(() => null)) as
@@ -555,16 +599,52 @@ export async function updateProductVariantCustomizationMedia(
   return body.item as ApiProduct;
 }
 
-export async function updateProductMedia(id: string, items: Array<{ url: string }>) {
-  const response = await backendFetch(`/api/admin/products/${id}/media`, {
-    method: "PUT",
+async function readProductCommandResponse(response: Response, fallback: string) {
+  const body = await response.json().catch(() => null) as { item?: ApiProduct; error?: string } | null;
+  if (!response.ok || !body?.item) throw new Error(body?.error || fallback);
+  return body.item;
+}
 
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ items }),
+async function readManagedVariantMediaResponse(response: Response, fallback: string): Promise<ManagedVariantMedia> {
+  const body = await response.json().catch(() => null) as { variant?: ApiManagedVariantMedia; error?: string } | null;
+  if (!response.ok || !body?.variant) throw new Error(body?.error || fallback);
+  const toMedia = (media: ApiManagedVariantMedia["media"][number]): ProductVariantMedia => ({ ...media });
+  return {
+    id: String(body.variant.id),
+    media: body.variant.media.map(toMedia),
+    customizationMedia: body.variant.customizationMedia ? toMedia(body.variant.customizationMedia) : null,
+  };
+}
+
+export async function uploadProductMedia(id: string, files: File[]) {
+  const formData = new FormData();
+  files.forEach((file) => formData.append("files", file));
+  const response = await backendFetch(`/api/admin/products/${id}/media/upload`, { method: "POST", body: formData });
+  return readProductCommandResponse(response, "Failed to upload Product Media.");
+}
+
+export async function setProductThumbnail(id: string, assetId: string | null) {
+  const response = await backendFetch(`/api/admin/products/${id}/thumbnail`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ assetId }) });
+  return readProductCommandResponse(response, "Failed to set Product Thumbnail.");
+}
+
+export async function uploadManagedVariantMedia(id: string, variantId: number, files: File[]) {
+  const formData = new FormData(); files.forEach((file) => formData.append("files", file));
+  const response = await backendFetch(`/api/admin/products/${id}/variants/${variantId}/media/upload`, { method: "POST", body: formData });
+  return readManagedVariantMediaResponse(response, "Failed to upload Variant Media.");
+}
+
+export async function removeManagedVariantMedia(id: string, variantId: number, assetId: string) {
+  const response = await backendClient.api.admin.products[":id"].variants[":variantId"].media[":assetId"].$delete({
+    param: { id, variantId: String(variantId), assetId },
   });
-  if (!response.ok) throw new Error("Failed to update product media.");
-  const body = await response.json();
-  return body.item as ApiProduct;
+  return readManagedVariantMediaResponse(response, "Failed to remove Variant Media.");
+}
+
+export async function replaceVariantCustomizationBackground(id: string, variantId: number, file: File) {
+  const formData = new FormData(); formData.append("files", file);
+  const response = await backendFetch(`/api/admin/products/${id}/variants/${variantId}/customization-media/replace`, { method: "POST", body: formData });
+  return readManagedVariantMediaResponse(response, "Failed to replace Customization Background.");
 }
 
 export async function updateProductCustomization(id: string, payload: {
@@ -719,7 +799,16 @@ export function mapApiProductToCatalogProduct(product: Partial<ApiProduct> & Pic
     collectionId: product.collection?.id ?? null,
     categories: (product.categories || []).map((c) => toLocalized(c.name).vi),
     categoryIds: (product.categories || []).map((c) => c.id),
-    media: (product.media || []).map((m) => m.url),
+    media: (product.media || []).map((media) => ({
+      id: media.assetId,
+      fileName: media.fileName,
+      mimeType: media.mimeType,
+      widthPx: media.widthPx ?? 0,
+      heightPx: media.heightPx ?? 0,
+      byteSize: media.byteSize,
+      contentUrl: media.contentUrl,
+    })),
+    thumbnailAssetId: product.thumbnailAssetId ?? null,
     attributes: (product.attributes || []).map((a) => ({
       key: toLocalized(a.name),
       value: toLocalized(a.value),

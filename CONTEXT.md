@@ -164,6 +164,10 @@ _Avoid_: post-delete order check, local-first MISA deletion
 An explicit operator action that changes one part of variant-related data, such as option values, variant details, prices, stock, or media, without replacing unrelated variant state.
 _Avoid_: full variant replace, regenerate variants
 
+**Variant Media Management**:
+The independent operator workflow for a persisted Product Variant's Gallery Media and Customization Background. Upload immediately creates and attaches an asset; removal immediately detaches and deletes its asset. It is separate from saving Variant Details, and closing or cancelling Variant Details does not roll back completed media actions.
+_Avoid_: pending variant media, media saved with variant details, variant-media rollback on cancel
+
 **Shop by Product**:
 A flat storefront browsing group based on the physical product kind shoppers want to buy, such as trophies, medals, plaques, or cups. It is modeled with product categories and is not a nested category tree.
 _Avoid_: product type, category hierarchy, internal type
@@ -237,20 +241,20 @@ The rule that all Customization Backgrounds for a customizable product must have
 _Avoid_: same-size warning, image dimension hint
 
 **Customization Background**:
-The one independently uploaded asset owned by a variant and explicitly designated as its Background Choice for shopper customization. It is not Gallery Media, cannot be shared with another variant, and only Customization Backgrounds are subject to the Background Size Contract.
+The one independently uploaded asset owned by a variant and explicitly designated as its Background Choice for shopper customization. It is not Gallery Media, cannot be shared with another variant, and only Customization Backgrounds are subject to the Background Size Contract. It has no delete action; an operator can only replace it after client-side and authoritative server-side dimension validation succeeds.
 _Avoid_: gallery image, all variant media, upload background
 
-**Product Reference Media**:
-Gallery Media curated at the product level for thumbnails and product galleries. An item can be uploaded specifically for the product or can reference an asset owned by one of the product's variants; it is not used as a customization canvas.
-_Avoid_: customization background, canvas media, duplicate variant upload
-
 **Variant Media**:
-Media owned by exactly one product variant and shown for that variant. It can also be selected into Product Reference Media without creating a second R2 object.
+Media owned by exactly one product variant and shown for that variant. New items append in the operator's selected-file order. It can be selected as a Product Thumbnail without creating a second R2 object.
 _Avoid_: product media upload, shared gallery file, customization background
 
 **Product Thumbnail**:
-The explicitly selected Product Reference Media item used to represent a product. If its referenced Variant Media is deleted, the thumbnail becomes empty and does not fall back to another gallery item.
+The explicitly selected Variant Media, Customization Background, or product-owned thumbnail asset used to represent a product. If its asset is deleted or replaced, the thumbnail becomes empty and does not fall back to another asset.
 _Avoid_: first gallery image, automatic thumbnail fallback, variant default image
+
+**Product Media**:
+The thumbnail selection surface for one Product. Operators choose a Variant Media or Customization Background asset, or upload one product-owned thumbnail asset; references never duplicate the source R2 object. It is not a gallery and has no ordering.
+_Avoid_: product gallery, copied variant media, product media URL list
 
 **Product Media Carousel**:
 The shopper-facing ordered image sequence for the selected variant: its Customization Media first, followed by that variant's Gallery Media in gallery position order. Next/Previous navigation changes the visible image within this sequence and does not change the selected variant.
@@ -268,9 +272,53 @@ _Avoid_: order customization, purchased design, cart asset
 The immutable customization data and shopper-uploaded media preserved for one created order item, so production can reproduce the purchased result after its draft and catalog state change.
 _Avoid_: cart draft, live customization, product asset
 
+**Order Customization Background**:
+The immutable copy of the selected variant's Customization Background stored only with an Order Item that has an Order Customization Snapshot. It is not a reference to the current catalog background.
+_Avoid_: live variant background, product media reference, order preview fallback
+
+**Order Clipart Snapshot**:
+The immutable copy of a Clipart Asset selected by a shopper and stored with an Order Customization Snapshot. It allows the source Clipart Library asset to be permanently deleted without affecting a past order.
+_Avoid_: live clipart reference, deactivated clipart, reusable library asset
+
+**Order Font Reference**:
+The saved font family ID and display name used by an Order Customization Snapshot. It references the shared Brand Font file rather than copying it into the order; a missing shared file is reported as an unavailable font.
+_Avoid_: order font copy, embedded font binary, live font name lookup
+
+**Order Media Transfer**:
+The per-customized-order-item process that copies its required media into the order namespace. An order may be created with a failed transfer so an operator can repair and retry it; this failure does not invalidate the sale.
+_Avoid_: failed checkout, incomplete order rejection, media copy as payment state
+
 **Customization Publish Readiness**:
 The product-level condition that a customizable product must satisfy before it can be published, including one Customization Background for every variant, matching background dimensions, and a valid customization editor model. Draft products may be incomplete but cannot open the customization editor until its required backgrounds are available.
 _Avoid_: template publish validation, customization status
+
+**Customization Setup Session**:
+The unsaved admin FocusModal workflow for enabling customization on a published product. It stages each variant's Customization Background and the template, then submits one atomic multipart command that validates all state before creating an active customization record. Closing or failing validation leaves the product without customization enabled or newly created assets. It is distinct from a Shopper Customization Draft.
+_Avoid_: persisted setup state, active customization, unpublished product, shopper draft
+
+**Customization Activation**:
+The explicit completion action in a Customization Setup Session that creates a valid customization record and makes it available in the shopper purchase flow. It performs final publish-readiness validation without changing the Product's published status; a failed activation does not persist customization.
+_Avoid_: enable toggle, product republish, persisted invalid customization
+
+**Customization Deactivation**:
+The operator action that removes an active customization flow from storefront while retaining its saved template and every variant's Customization Background. While deactivated, Variant Media Management does not display or allow edits to those backgrounds. New variants may be created without a background, making later reactivation incomplete. It does not affect Product Thumbnail selection. Deactivation is required before permanent customization deletion.
+_Avoid_: customization deletion, background cleanup, thumbnail reset, inactive background editing
+
+**Permanent Customization Deletion**:
+The explicit destructive action available only after Customization Deactivation. It removes the saved customization record, template layers and form fields, customization translations, every variant's Customization Background association and asset, and any Product Media reference to those assets. A Product Thumbnail referencing a deleted background is cleared. Enabling customization later starts a new Customization Setup Session without reusing prior backgrounds.
+_Avoid_: deactivate, retained background, partial customization deletion
+
+**Atomic Variant Creation**:
+The admin flow that creates a Product Variant and its initially selected Gallery Media and Customization Background in one multipart command. Its modal has Information and Media tabs because a new variant has no persisted media owner yet. When the product has active customization, a valid same-sized Customization Background is required; successful creation preserves the active shopper flow. After creation, media changes use independent Variant Media Management.
+_Avoid_: temporary uploaded asset, create-then-attach asset, media saved with variant edit
+
+**Customization-Safe Variant Deletion**:
+The deletion of one variant from an active customizable product without deactivating customization. The deleted variant's background leaves with it; the active Background Size Contract continues to apply only to remaining variants.
+_Avoid_: automatic customization deactivation, orphaned active variant, deleted-background validation
+
+**Customization Reactivation**:
+The operator action that restores a deactivated saved customization. When every current variant already has a valid matching Customization Background, it activates immediately without opening setup. If any variant lacks a background, it opens a FocusModal to collect the missing backgrounds and activates only after all validation succeeds.
+_Avoid_: always-open setup modal, activate incomplete customization, background editing from Manage Media while deactivated
 
 **Shopper Text Field**:
 A text customization field that a shopper fills for one customizable product, such as a winner name, team name, year, inscription, or award message. It is defined by an admin-owned text layer and form field, then captured as shopper-entered order item data.

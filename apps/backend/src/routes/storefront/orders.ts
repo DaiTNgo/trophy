@@ -16,12 +16,11 @@ import { localeSchema, DEFAULT_LOCALE } from "../../lib/locale";
 import {
   orderItems,
   orders,
-  productMedia,
+  products,
   productCustomizations,
   productVariantCustomizationMedia,
   productVariantMedia,
   productVariants,
-  products,
 } from "../../db/schema";
 import type { AppEnv } from "../../lib/env";
 import {
@@ -168,16 +167,13 @@ async function lookupVariantById(db: DbType, variantId: number): Promise<Variant
   return variant ?? null;
 }
 
-async function lookupProductFirstMedia(db: DbType, productId: number) {
-  const media = await db
-    .select()
-    .from(productMedia)
-    .where(eq(productMedia.productId, productId))
-    .orderBy(asc(productMedia.position), asc(productMedia.id))
-    .limit(1)
+async function lookupProductThumbnailAssetId(db: DbType, productId: number) {
+  const product = await db
+    .select({ thumbnailAssetId: products.thumbnailAssetId })
+    .from(products)
+    .where(eq(products.id, productId))
     .get();
-
-  return media ?? null;
+  return product?.thumbnailAssetId ?? null;
 }
 
 async function lookupVariantForProduct(
@@ -537,13 +533,10 @@ export const storefrontOrdersRoute = new Hono<AppEnv>()
         }
 
         const customization = await lookupProductCustomization(db, item.productId);
-        const productFirstMedia = await lookupProductFirstMedia(db, item.productId);
-        const firstMedia = await lookupVariantFirstMedia(db, item.variantId);
-        const thumbnail = productFirstMedia
-          ? toAbsoluteAssetUrl(c, productFirstMedia.url) as string
-          : firstMedia
-            ? toAbsoluteAssetUrl(c, `/api/assets/products/${firstMedia.assetId}/content`) as string
-            : null;
+        const thumbnailAssetId = await lookupProductThumbnailAssetId(db, item.productId);
+        const thumbnail = thumbnailAssetId
+          ? toAbsoluteAssetUrl(c, `/api/assets/products/${thumbnailAssetId}/content`) as string
+          : null;
 
         if (variant.priceAmount === null || variant.priceAmount === undefined) {
           return {

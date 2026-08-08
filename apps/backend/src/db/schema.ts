@@ -168,6 +168,7 @@ export const products = sqliteTable(
     description: text("description"),
     status: text("status").notNull().default("draft"),
     collectionId: integer("collection_id"),
+    thumbnailAssetId: text("thumbnail_asset_id"),
     createdAt: text("created_at")
       .notNull()
       .default(sql`CURRENT_TIMESTAMP`),
@@ -317,10 +318,11 @@ export const productAttributes = sqliteTable("product_attributes", {
 export const productMedia = sqliteTable("product_media", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   productId: integer("product_id").notNull(),
-  url: text("url").notNull(),
-  alt: text("alt"),
+  assetId: text("asset_id").notNull(),
   position: integer("position").notNull(),
-});
+}, (table) => [
+  uniqueIndex("product_media_product_asset_idx").on(table.productId, table.assetId),
+]);
 
 export const productAssets = sqliteTable(
   "product_assets",
@@ -424,6 +426,14 @@ export const customizationDesignRevisions = sqliteTable(
 export const customizationAssets = sqliteTable("customization_assets", {
   id: text("id").primaryKey(),
   ownerKey: text("owner_key").notNull(),
+  // Null on legacy rows. New shopper uploads use `shopper_draft` and expiry.
+  ownershipType: text("ownership_type"),
+  shopperDraftId: text("shopper_draft_id"),
+  shopperFieldId: text("shopper_field_id"),
+  expiresAt: integer("expires_at", { mode: "timestamp_ms" }),
+  expiryProtected: integer("expiry_protected", { mode: "boolean" })
+    .notNull()
+    .default(false),
   objectKey: text("object_key").notNull(),
   previewObjectKey: text("preview_object_key"),
   mimeType: text("mime_type").notNull(),
@@ -436,7 +446,9 @@ export const customizationAssets = sqliteTable("customization_assets", {
   createdAt: text("created_at")
     .notNull()
     .default(sql`CURRENT_TIMESTAMP`),
-});
+}, (table) => [
+  index("customization_assets_expiry_idx").on(table.ownershipType, table.expiresAt, table.expiryProtected),
+]);
 
 export const customizationClipartCategories = sqliteTable(
   "customization_clipart_categories",
@@ -550,6 +562,51 @@ export const orderItems = sqliteTable("order_items", {
     .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
     .notNull(),
 });
+
+export const orderItemMediaTransfers = sqliteTable(
+  "order_item_media_transfers",
+  {
+    id: text("id").primaryKey(),
+    orderItemId: integer("order_item_id").notNull(),
+    status: text("status").notNull().default("pending"),
+    lastError: text("last_error"),
+    attemptCount: integer("attempt_count").notNull().default(0),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+      .notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+      .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [uniqueIndex("order_item_media_transfers_item_idx").on(table.orderItemId)],
+);
+
+export const orderItemMediaTransferAssets = sqliteTable(
+  "order_item_media_transfer_assets",
+  {
+    id: text("id").primaryKey(),
+    transferId: text("transfer_id").notNull(),
+    role: text("role").notNull(),
+    fieldId: text("field_id"),
+    sourceAssetId: text("source_asset_id").notNull(),
+    sourceObjectKey: text("source_object_key").notNull(),
+    targetObjectKey: text("target_object_key").notNull(),
+    status: text("status").notNull().default("pending"),
+    lastError: text("last_error"),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+      .notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+      .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    index("order_item_media_transfer_assets_transfer_idx").on(table.transferId),
+    uniqueIndex("order_item_media_transfer_assets_target_idx").on(table.targetObjectKey),
+  ],
+);
 
 // ─── Customization Exports ─────────────────────────────────────────────────────
 

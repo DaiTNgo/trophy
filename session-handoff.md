@@ -176,3 +176,6 @@
 - Verified with storefront tests (26), typecheck, build, `git diff --check`, and a live unknown-URL request returning HTTP 404.
 - Design and implementation plan: `docs/plans/2026-08-07-storefront-not-found-design.md` and `docs/superpowers/plans/2026-08-07-storefront-not-found.md`.
 - `feature_list.json` is pre-existing invalid JSON and remains untouched.
+# R2 Media Ownership Design — 2026-08-07
+
+The R2 design review is documented in `docs/adr/0009-shopper-draft-asset-retention.md` and terminology is in `CONTEXT.md`. It is a design-only change; no production code was edited or verified. Implement future work from the ADR: semantic new-object keys only (no migration), order-owned copies only for customized item background/uploads/clipart, seven-day shopper-draft lifecycle with failed-transfer protection, and retryable order-media transfer failures. Current backend has no scheduled Worker handler or cron configuration. Current permanent product deletion does not remove `product_assets` or R2 objects. `feature_list.json` is invalid baseline JSON; leave it untouched unless repaired separately.

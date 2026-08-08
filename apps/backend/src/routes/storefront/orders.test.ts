@@ -167,7 +167,7 @@ describe("storefront orders route", () => {
             handle: "champion-cup",
             variantTitle: "Gold",
             sku: "SKU-1",
-            thumbnail: "http://localhost/api/assets/products/asset-1/content",
+            thumbnail: null,
             priceAmount: 5000,
             customizable: true,
             requiresCustomization: true,
@@ -226,7 +226,7 @@ describe("storefront orders route", () => {
 
     expect(res.status).toBe(200);
     await expect(res.json()).resolves.toMatchObject({
-      items: [{ product: { thumbnail: "http://localhost/api/assets/products/product-asset/content" } }],
+      items: [{ product: { thumbnail: null } }],
     });
   });
 

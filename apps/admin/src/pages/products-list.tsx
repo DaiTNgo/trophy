@@ -320,7 +320,7 @@ export function ProductsListPage() {
                           {product.media?.[0] && (
                             <div className="h-8 w-6 overflow-hidden rounded bg-ui-bg-subtle flex-shrink-0">
                               <img
-                                src={product.media[0]}
+                                src={product.media[0].contentUrl}
                                 alt={product.title?.vi || product.title?.en}
                                 className="h-full w-full object-cover"
                               />

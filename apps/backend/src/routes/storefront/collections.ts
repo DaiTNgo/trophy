@@ -79,6 +79,7 @@ async function loadListingPage(
         subtitle: products.subtitle,
         handle: products.handle,
         status: products.status,
+        thumbnailAssetId: products.thumbnailAssetId,
       })
       .from(products)
       .where(whereClause)
@@ -127,7 +128,7 @@ async function loadListingPage(
       ? db
           .select({
             productId: productMedia.productId,
-            url: productMedia.url,
+            assetId: productMedia.assetId,
             position: productMedia.position,
           })
           .from(productMedia)
@@ -138,7 +139,7 @@ async function loadListingPage(
             asc(productMedia.id),
           )
       : Promise.resolve(
-          [] as Array<{ productId: number; url: string; position: number }>,
+          [] as Array<{ productId: number; assetId: string; position: number }>,
         ),
     productIds.length > 0
       ? db
@@ -244,7 +245,7 @@ async function loadListingPage(
 
   const productMediaByProductId = new Map<
     number,
-    Array<{ url: string; position: number }>
+    Array<{ assetId: string; position: number }>
   >();
   for (const row of productMediaRows) {
     const current = productMediaByProductId.get(row.productId) ?? [];
@@ -283,7 +284,7 @@ async function loadListingPage(
       variantMediaByVariantId,
       customizationByProductId.get(item.id)?.enabled ?? false,
       variantCustomizationMediaByVariantId,
-      productMediaByProductId.get(item.id) ?? [],
+      item.thumbnailAssetId ?? null,
     ),
   );
 

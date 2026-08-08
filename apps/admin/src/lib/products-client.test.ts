@@ -7,7 +7,7 @@ vi.mock("./fetch", () => ({
   backendFetch: (...args: unknown[]) => backendFetchMock(...args),
 }));
 
-import { createProductOption, mapApiProductToCatalogProduct } from "./products-client";
+import { createFullProduct, createProductOption, mapApiProductToCatalogProduct } from "./products-client";
 
 const apiProduct = {
   id: 10,
@@ -92,5 +92,19 @@ describe("mapApiProductToCatalogProduct", () => {
         }),
       }),
     );
+  });
+
+  it("maps declared media IDs and files into a multipart full-create request", async () => {
+    backendFetchMock.mockResolvedValue({ ok: true, json: async () => ({ item: apiProduct }) });
+    const file = new File(["image"], "cup.png", { type: "image/png" });
+    await createFullProduct({
+      mode: "draft", details: { title: { vi: "Cup", en: "" }, handle: null }, organization: {}, attributes: [], options: [],
+      variants: [{ title: "Default", sku: null, priceAmount: null, inventoryQuantity: 0, allowBackorder: false, optionValues: [], media: [{ mediaId: "11111111-1111-4111-8111-111111111111", file }], customizationMedia: null }],
+    });
+    const options = backendFetchMock.mock.calls[0][1];
+    expect(options.body).toBeInstanceOf(FormData);
+    const form = options.body as FormData;
+    expect(form.get("11111111-1111-4111-8111-111111111111")).toBe(file);
+    expect(JSON.parse(form.get("payload") as string).variants[0].media).toEqual([{ mediaId: "11111111-1111-4111-8111-111111111111" }]);
   });
 });

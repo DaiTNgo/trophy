@@ -1,4 +1,4 @@
-# Shopper Draft Asset Retention
+# Semantic R2 Media Ownership
 
 Shopper-uploaded customization media belongs to a Shopper Customization Draft before checkout and to an Order Customization Snapshot after order creation. Unconverted draft media is retained for seven days, then removed from R2 and its D1 asset record; order snapshot media is not subject to that draft retention rule. R2 lifecycle expiry handles the `shopper-drafts/` prefix, while a scheduled Worker cleanup reconciles the corresponding D1 records.
 
@@ -13,3 +13,19 @@ Product Draft media has no automatic retention period. It is removed only throug
 The backend continues to accept PDF catalog assets for direct API clients. The admin product flows convert PDF input to WebP before upload, so their normal R2 objects are raster media.
 
 Deleting an asset removes any Product Reference Media entry that references it. If that entry was the explicitly selected Product Thumbnail, the thumbnail is cleared rather than replaced by another gallery item.
+
+Permanently deleting a product removes its catalog records, product-specific and variant-owned catalog assets, and every R2 object under `catalog/products/{product-id}/`. It never removes shopper-uploaded order snapshot media under `orders/`.
+
+At checkout, only an Order Item with a customization snapshot copies media into `orders/{order-number}-{order-id}/items/{order-item-id}/`: its selected variant Customization Background is copied from `catalog/products/{product-id}/variants/{variant-id}/customization-background/`, while its shopper uploads use `uploads/{field-id}/{asset-id}.source.{ext}` and selected clipart uses `clipart/{field-id}/{source-asset-id}.source.{ext}`. A non-customized order item copies no catalog or variant media. The Order Customization Snapshot references these order-owned copies, so later catalog media replacement, permanent product deletion, or clipart library cleanup cannot alter a purchased design.
+
+Order snapshots do not copy Brand Font TTF files. They retain the selected font family ID and display name, then load the shared Brand Font when available; an unavailable font is reported to the operator without invalidating the order record.
+
+Order-owned media has no time-based retention policy. It remains in `orders/` until the associated order is permanently deleted, at which point the order records and its complete R2 prefix are deleted together.
+
+An Order Media Transfer failure does not reject checkout. The order is created with a retryable, per-item transfer error that is visible to admin so an operator can repair the required media without losing the sale.
+
+Shopper-draft source media attached to an order with an incomplete transfer is exempt from the seven-day draft retention policy. It is retained until the transfer succeeds or the associated order is permanently deleted.
+
+This layout refactor excludes Customization Template assets. Their existing upload flow and R2 keys remain unchanged; the semantic ownership work is limited to shopper/order media, catalog media, clipart, and brand fonts.
+
+Existing objects and their D1 keys are not migrated. The new layout applies only to newly uploaded media; old records remain readable through their stored keys until they are explicitly deleted.

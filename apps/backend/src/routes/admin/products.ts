@@ -13,6 +13,7 @@ import { productVariantCreateRoute } from './product-variant-create-route'
 import { productVariantDeleteRoute } from './product-variant-delete-route'
 import { productVariantDetailRoute } from './product-variant-detail-route'
 import { productVariantMediaRoute } from './product-variant-media-route'
+import { productVariantMediaManagementRoute } from './product-variant-media-management-route'
 import { productVariantMisaRoute } from './product-variant-misa-route'
 import { productVariantReplacementRoute } from './product-variant-replacement-route'
 
@@ -29,6 +30,7 @@ export const productsRoute = new Hono<AppEnv>()
   .route('/', productVariantMisaRoute)
   .route('/', productVariantCreateRoute)
   .route('/', productVariantMediaRoute)
+  .route('/', productVariantMediaManagementRoute)
   .route('/', productVariantReplacementRoute)
   .route('/', productCustomizationRoute)
   .route('/', productLifecycleRoute)

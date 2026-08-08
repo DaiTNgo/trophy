@@ -382,10 +382,6 @@ export function createMockProduct(existingProducts: CatalogProduct[], input: Cre
   const today = "2026-06-21";
   const optionDefinitions = getEffectiveOptionDefinitions(input.values, input.optionDefinitions);
   const variantRows = getEffectiveVariantRows(input.values, input.variantRows, input.optionDefinitions);
-  const media = input.values.media
-    .split("\n")
-    .map((value) => value.trim())
-    .filter(Boolean);
   const attributes = input.attributes.filter((attribute) => attribute.key.vi.trim() !== "" && attribute.value.vi.trim() !== "");
   const highestInventory = variantRows.reduce((total, variant) => total + variant.inventory, 0);
   const leadPrice = variantRows[0]?.price ?? 0;
@@ -412,7 +408,7 @@ export function createMockProduct(existingProducts: CatalogProduct[], input: Cre
     collectionId: null,
     categories: input.values.categories,
     categoryIds: [],
-    media,
+    media: [],
     attributes,
     optionDefinitions,
     variants,
@@ -439,10 +435,7 @@ export function buildUpdatedProduct(current: CatalogProduct, input: CreateProduc
     category: input.values.categories[0] ?? "Unassigned",
     collection: input.values.collection,
     categories: input.values.categories,
-    media: input.values.media
-      .split("\n")
-      .map((value) => value.trim())
-      .filter(Boolean),
+    media: [],
     attributes: input.attributes.filter((attribute) => attribute.key.vi.trim() !== "" && attribute.value.vi.trim() !== ""),
     optionDefinitions,
     variants: variantRows.map((variant, index) => ({
