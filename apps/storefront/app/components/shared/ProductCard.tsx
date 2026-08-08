@@ -54,7 +54,7 @@ export function ProductCard({
 
   if (variant === "listing") {
     return (
-      <div className="group flex h-full flex-col items-center text-center">
+      <div className="group flex h-full flex-col rounded-lg p-3 transition-shadow duration-300 hover:shadow-[0_2px_28px_rgba(36,65,89,0.22)]">
         <Link
           to={productHref}
           className="relative mb-4 flex aspect-square w-full items-center justify-center overflow-hidden bg-surface-base px-3"
@@ -75,9 +75,9 @@ export function ProductCard({
           )}
         </Link>
 
-        <div className="flex flex-1 flex-col items-center px-1">
-          <Link to={productHref} className="mb-0.5 w-full">
-            <h3 className="mx-auto min-h-[40px] max-w-[260px] font-body-md text-[13px] font-bold leading-[20px] text-text-base transition-colors line-clamp-2 group-hover:text-brand-support md:text-[14px]">
+        <div className="flex w-full flex-1 flex-col px-1">
+          <Link to={productHref} className="mb-1 w-full">
+            <h3 className="min-h-[24px] max-w-[260px] font-body-md text-[16px] font-semibold leading-[24px] text-text-base transition-colors line-clamp-1 group-hover:line-clamp-none">
               {title}
             </h3>
           </Link>
@@ -98,7 +98,7 @@ export function ProductCard({
           )}
           */}
 
-          <span className="font-body-md text-[13px] font-bold leading-5 text-text-base">
+          <span className="font-body-md text-[16px] font-semibold leading-5 text-brand-accent">
             {isContactPrice ? (
               <span className="text-action-support">
                 <Headset className="inline h-3.5 w-3.5 align-text-bottom" /> Liên Hệ
@@ -114,7 +114,7 @@ export function ProductCard({
 
   if (variant === "featured") {
     return (
-      <div className="flex h-full flex-col items-center text-center">
+      <div className="flex h-full flex-col rounded-lg p-3 transition-shadow duration-300 hover:shadow-[0_2px_28px_rgba(36,65,89,0.22)]">
         <Link
           to={productHref}
           className="relative mb-5 flex aspect-square w-full items-center justify-center overflow-hidden bg-surface-base"
@@ -135,9 +135,9 @@ export function ProductCard({
           )}
         </Link>
 
-        <div className="flex flex-1 flex-col items-center px-1">
+        <div className="flex w-full flex-1 flex-col px-1">
           <Link to={productHref} className="mb-1 w-full">
-            <h3 className="min-h-[44px] font-body-md text-[15px] font-bold leading-[22px] text-text-base transition-colors line-clamp-2 hover:text-action-support">
+            <h3 className="min-h-[24px] font-body-md text-[16px] font-semibold leading-[24px] text-text-base transition-colors line-clamp-1 hover:line-clamp-none">
               {title}
             </h3>
           </Link>
@@ -158,7 +158,7 @@ export function ProductCard({
           )}
           */}
 
-          <span className="font-body-md text-[16px] font-bold leading-6 text-text-base">
+          <span className="font-body-md text-[16px] font-semibold leading-6 text-brand-accent">
             {isContactPrice ? (
               <span className="text-action-support">
                 <Headset className="inline h-4 w-4 align-text-bottom" /> Liên Hệ

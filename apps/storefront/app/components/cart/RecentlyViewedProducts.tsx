@@ -93,7 +93,7 @@ export function RecentlyViewedProducts({ items }: RecentlyViewedProductsProps) {
           opts={{ align: "start", dragFree: true }}
           className="w-full"
         >
-          <CarouselContent className="-ml-4">
+          <CarouselContent className="-ml-4 pt-4">
             {items.map((item) => (
               <CarouselItem
                 key={`${item.productId}-${item.handle}`}
