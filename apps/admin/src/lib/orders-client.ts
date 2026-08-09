@@ -59,9 +59,10 @@ export type AdminOrderDetail = {
     address?: string;
   } | null;
   misa: {
-    syncStatus: "pending" | "synced" | "failed";
+    syncStatus: "pending" | "synced" | "failed" | "disconnected" | "missing";
     contactId: string | null;
     saleOrderId: string | null;
+    saleOrderNo: string | null;
     lastError: string | null;
     attemptCount: number;
     syncedAt: string | null;
@@ -119,8 +120,7 @@ export type AdminOrderDetail = {
 };
 
 export type AdminOrderStatusUpdate = {
-  status?: "pending" | "confirmed" | "cancelled";
-  paymentStatus?: "pending" | "paid" | "failed" | "refunded" | "cancelled";
+  paymentStatus?: "pending" | "paid" | "failed" | "refunded";
   fulfillmentStatus?: "unfulfilled" | "partially_fulfilled" | "fulfilled";
 };
 
@@ -176,6 +176,39 @@ export async function updateAdminOrderStatus(
 
   const body = await readJson<{ order: AdminOrderDetail }>(response);
   return body.order;
+}
+
+export async function purgeAdminOrder(orderNumber: string) {
+  const response = await backendFetch(`/api/admin/orders/${encodeURIComponent(orderNumber)}`, {
+    method: "DELETE",
+  });
+
+  if (!response.ok) {
+    const body = (await response.json().catch(() => null)) as { error?: string; message?: string } | null;
+    throw new Error(body?.error ?? body?.message ?? "Failed to permanently delete order");
+  }
+}
+
+export async function runAdminOrderMisaAction(
+  orderNumber: string,
+  action: "connect" | "refresh" | "disconnect",
+) {
+  const response = await backendFetch(
+    `/api/admin/orders/${encodeURIComponent(orderNumber)}/misa/${action}`,
+    { method: "POST" },
+  );
+  if (!response.ok) {
+    const body = (await response.json().catch(() => null)) as { error?: string; message?: string } | null;
+    throw new Error(body?.error ?? body?.message ?? "Failed to update MISA connection");
+  }
+  const body = await readJson<{ order: AdminOrderDetail }>(response);
+  return body.order;
+}
+
+export async function checkAdminOrderMisaLink(orderNumber: string) {
+  const response = await backendFetch(`/api/admin/orders/${encodeURIComponent(orderNumber)}/misa/check`, { method: "POST" });
+  if (!response.ok) throw new Error("Failed to check MISA link");
+  return (await readJson<{ misa: AdminOrderDetail["misa"] }>(response)).misa;
 }
 
 export async function updateAdminOrderItemProductionStatus(

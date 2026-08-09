@@ -1,6 +1,5 @@
 import type {
   AdminOrderDetail,
-  AdminOrderStatusUpdate,
 } from "../../lib/orders-client";
 
 export type OrderDetailItem = AdminOrderDetail["items"][number];
@@ -114,15 +113,4 @@ export function getProductionSummary(items: OrderDetailItem[]) {
   }
 
   return "Customized items are ready for production.";
-}
-
-export function getCancelOrderUpdate(
-  order: AdminOrderDetail,
-): AdminOrderStatusUpdate {
-  return {
-    status: "cancelled",
-    ...(order.paymentStatus === "pending"
-      ? { paymentStatus: "cancelled" }
-      : {}),
-  };
 }

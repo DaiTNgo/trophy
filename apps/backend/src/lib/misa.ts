@@ -4,7 +4,10 @@ import { orderItems, orders } from "../db/schema";
 import type { AppBindings } from "./env";
 import {
   normalizePhoneForLookup,
+  parseDifferentShippingAddress,
+  parseOrderAddress,
   parseVariantSnapshot,
+  parseVatDetails,
 } from "./order-utils";
 
 const DEFAULT_MISA_API_BASE_URL = "https://crmconnect.misa.vn/api/v2";
@@ -45,6 +48,11 @@ export type MisaContact = {
   mobile: string | null;
 };
 
+export type MisaSaleOrder = {
+  id: string | null;
+  sale_order_no: string;
+};
+
 export type MisaSaleOrderPayload = {
   sale_order_no: string;
   sale_order_name: string;
@@ -54,6 +62,16 @@ export type MisaSaleOrderPayload = {
   sale_order_amount: number;
   description: string;
   form_layout: "Mẫu tiêu chuẩn";
+  billing_address?: string;
+  billing_country?: string;
+  billing_province?: string;
+  billing_street?: string;
+  billing_code?: string;
+  shipping_address?: string;
+  shipping_country?: string;
+  shipping_province?: string;
+  shipping_street?: string;
+  shipping_code?: string;
   sale_order_product_mappings: Array<{
     product_code: string;
     amount: number;
@@ -72,6 +90,24 @@ type MisaResponse = {
   error_message?: string | null;
   ErrorMessage?: string | null;
 };
+
+export class MisaRequestError extends Error {
+  readonly status: number;
+  readonly method: string;
+  readonly resource: string;
+
+  constructor(
+    message: string,
+    status: number,
+    { method = 'GET', resource = '' }: { method?: string; resource?: string } = {},
+  ) {
+    super(message);
+    this.name = "MisaRequestError";
+    this.status = status;
+    this.method = method;
+    this.resource = resource;
+  }
+}
 
 type MisaOrderSource = {
   order: typeof orders.$inferSelect;
@@ -98,6 +134,7 @@ function asRecord(value: unknown): Record<string, unknown> | null {
 }
 
 function extractId(value: unknown): string | null {
+  if (typeof value === "string" || typeof value === "number") return String(value);
   const record = asRecord(value);
   if (!record) return null;
   for (const key of ["id", "ID", "record_id", "recordId"]) {
@@ -125,22 +162,28 @@ function responseError(payload: MisaResponse, status: number) {
       const infos = record?.validate_infos ?? record?.validate_result;
       if (!Array.isArray(infos)) continue;
       for (const info of infos) {
-        const message = asRecord(info)?.error_message ?? asRecord(info)?.ErrorMessage;
-        if (typeof message === "string" && message) return message;
+        const validation = asRecord(info);
+        const message = validation?.error_message ?? validation?.ErrorMessage;
+        const fieldName = validation?.field_name ?? validation?.FieldName;
+        if (typeof message === "string" && message) {
+          return typeof fieldName === "string" && fieldName
+            ? `${fieldName}: ${message}`
+            : message;
+        }
       }
     }
   }
   return `MISA request failed with HTTP ${status}`;
 }
 
-async function readResponse(response: Response): Promise<MisaResponse> {
+async function readResponse(response: Response, request: { method: string; resource: string }): Promise<MisaResponse> {
   const payload = await response.json().catch(() => ({})) as MisaResponse;
   const failedResult = Array.isArray(payload.results)
     ? payload.results.find((item) => asRecord(item)?.success === false)
     : null;
   const failed = !response.ok || payload.success === false ||
     (payload.code !== undefined && ![0, 200].includes(Number(payload.code))) || Boolean(failedResult);
-  if (failed) throw new Error(responseError(payload, response.status));
+  if (failed) throw new MisaRequestError(responseError(payload, response.status), response.status, request);
   return payload;
 }
 
@@ -150,7 +193,7 @@ async function requestToken(config: NonNullable<ReturnType<typeof getConfig>>) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ client_id: config.clientId, client_secret: config.clientSecret }),
   });
-  const payload = await readResponse(response);
+  const payload = await readResponse(response, { method: 'POST', resource: '/Account' });
   if (typeof payload.data !== "string" || !payload.data) throw new Error("MISA token response did not contain a token");
   return payload.data;
 }
@@ -168,7 +211,19 @@ async function misaFetch(
   headers.set("Clientid", config.clientId);
   if (init.body && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
   const response = await fetch(config.baseUrl + resource, { ...init, headers });
-  return readResponse(response);
+  try {
+    return await readResponse(response, { method: init.method ?? 'GET', resource });
+  } catch (error) {
+    if (error instanceof MisaRequestError) {
+      console.error("MISA request rejected", {
+        method: error.method,
+        resource: error.resource,
+        status: error.status,
+        message: error.message,
+      });
+    }
+    throw error;
+  }
 }
 
 function normalizeProduct(value: unknown): MisaProduct | null {
@@ -199,6 +254,16 @@ function normalizeContact(value: unknown): MisaContact | null {
   };
 }
 
+function normalizeSaleOrder(value: unknown): MisaSaleOrder | null {
+  const record = asRecord(value);
+  if (!record || typeof record.sale_order_no !== "string" || !record.sale_order_no.trim()) return null;
+  const id = record.id ?? record.ID;
+  return {
+    id: typeof id === "number" || typeof id === "string" ? String(id) : null,
+    sale_order_no: record.sale_order_no,
+  };
+}
+
 export async function findMisaProductsByCodes(bindings: AppBindings, codes: string[]) {
   if (codes.length === 0) return [];
   const params = new URLSearchParams();
@@ -217,6 +282,26 @@ export async function findMisaContactsByCodes(bindings: AppBindings, codes: stri
   return Array.isArray(payload.data)
     ? payload.data.map(normalizeContact).filter((item): item is MisaContact => item !== null)
     : [];
+}
+
+export async function findMisaSaleOrdersByCodes(bindings: AppBindings, codes: string[]) {
+  if (codes.length === 0) return [];
+  const params = new URLSearchParams();
+  for (const code of codes) params.append("code", code);
+  const payload = await misaFetch(bindings, "/SaleOrders/code?" + params.toString());
+  return Array.isArray(payload.data)
+    ? payload.data.map(normalizeSaleOrder).filter((item): item is MisaSaleOrder => item !== null)
+    : [];
+}
+
+export async function checkMisaSaleOrderById(bindings: AppBindings, saleOrderId: string) {
+  const params = new URLSearchParams({ ids: saleOrderId });
+  const payload = await misaFetch(bindings, "/SaleOrders/id?" + params.toString());
+  const values = Array.isArray(payload.data) ? payload.data : payload.data ? [payload.data] : [];
+  return {
+    found: values.some((value) => extractId(value) === saleOrderId),
+    responseHadData: payload.data !== undefined,
+  };
 }
 
 async function fetchMisaContactsPage(bindings: AppBindings, page: number) {
@@ -279,6 +364,12 @@ export async function deleteMisaProducts(bindings: AppBindings, ids: number[]) {
   return misaFetch(bindings, "/Products", { method: "DELETE", body: JSON.stringify(ids) });
 }
 
+/** Deletes SaleOrders only. Contacts are deliberately retained in MISA. */
+export async function deleteMisaSaleOrders(bindings: AppBindings, ids: number[]) {
+  if (ids.length === 0) return null;
+  return misaFetch(bindings, "/SaleOrders", { method: "DELETE", body: JSON.stringify(ids) });
+}
+
 export async function deleteMisaProductsByCodes(bindings: AppBindings, codes: string[]) {
   const existing = await findMisaProductsByCodes(bindings, codes);
   const ids = existing.map((product) => Number(product.id)).filter((id) => Number.isInteger(id) && id > 0);
@@ -293,13 +384,57 @@ function localized(value: unknown) {
   return typeof record?.vi === "string" ? record.vi.trim() : "";
 }
 
-export function buildMisaCreateProductsPayload(source: { title: unknown; variants: Array<{ id: number; title: unknown }> }) {
+function compactText(parts: Array<string | null | undefined>) {
+  return parts.map((part) => part?.trim()).filter((part): part is string => Boolean(part)).join(", ");
+}
+
+function formatOrderAddress(address: ReturnType<typeof parseOrderAddress>) {
+  if (!address) return null;
+  return compactText([
+    address.line1,
+    address.line2,
+    address.city,
+    address.province,
+    address.postalCode,
+    address.country,
+  ]);
+}
+
+function buildMisaOrderDescription(source: MisaOrderSource) {
+  const note = source.order.notes?.trim() || "Trophy checkout order";
+  const vat = parseVatDetails(source.order.vatDetailsJson);
+  const billingAddress = parseOrderAddress(source.order.primaryAddressJson);
+  const differentShippingAddress = parseDifferentShippingAddress(source.order.shippingAddressJson);
+  const shippingAddress = differentShippingAddress?.address ?? billingAddress;
+  const paymentReference = Number.isInteger(source.order.id) && source.order.id > 0
+    ? `MA THANH TOAN: PT-${source.order.id}`
+    : null;
+  const addressLines = [
+    formatOrderAddress(billingAddress) ? `DIA CHI THANH TOAN\n${formatOrderAddress(billingAddress)}` : null,
+    formatOrderAddress(shippingAddress) ? `DIA CHI GIAO HANG\n${formatOrderAddress(shippingAddress)}` : null,
+  ].filter((value): value is string => Boolean(value));
+  if (!vat || !Object.values(vat).some(Boolean)) {
+    return [paymentReference, ...addressLines, `GHI CHU KHACH\n${note}`].filter(Boolean).join("\n\n");
+  }
+
+  const vatLines = [
+    "YEU CAU XUAT HOA DON",
+    ...(vat.type ? [`Loai: ${vat.type}`] : []),
+    ...(vat.name ? [`Don vi: ${vat.name}`] : []),
+    ...(vat.taxId ? [`MST: ${vat.taxId}`] : []),
+    ...(vat.email ? [`Email hoa don: ${vat.email}`] : []),
+    ...(vat.address ? [`Dia chi hoa don: ${vat.address}`] : []),
+  ];
+  return [paymentReference, ...addressLines, vatLines.join("\n"), `GHI CHU KHACH\n${note}`].filter(Boolean).join("\n\n");
+}
+
+export function buildMisaCreateProductsPayload(source: { title: unknown; variants: Array<{ id: number; title: unknown; misaProductCode?: string | null }> }) {
   const title = localized(source.title);
   return source.variants.map((variant) => {
     const name = [title, localized(variant.title)].filter(Boolean).join(" - ");
     if (!name) throw new Error("Every variant needs a product name before publishing to MISA");
     return {
-      product_code: String(variant.id),
+      product_code: variant.misaProductCode ?? String(variant.id),
       product_name: name,
       inactive: false,
       usage_unit: "Cái",
@@ -320,14 +455,22 @@ export function buildMisaContactPayload(source: MisaOrderSource, includeEmail = 
   };
 }
 
-export function buildMisaSaleOrderPayload(source: MisaOrderSource, contactCode?: string): MisaSaleOrderPayload {
+export function buildMisaSaleOrderPayload(
+  source: MisaOrderSource,
+  contactCode?: string,
+  saleOrderNumber = source.order.orderNumber,
+): MisaSaleOrderPayload {
+  const billingAddress = parseOrderAddress(source.order.primaryAddressJson);
+  const differentShippingAddress = parseDifferentShippingAddress(source.order.shippingAddressJson);
+  const shippingAddress = differentShippingAddress?.address ?? billingAddress;
+  const shippingAddressText = formatOrderAddress(shippingAddress);
   const mappings = source.items.map((item) => {
     const variant = parseVariantSnapshot(item.variantSnapshotJson);
     if (!variant || !Number.isInteger(variant.id) || variant.id <= 0) {
       throw new Error(`Order ${source.order.orderNumber} item ${item.id} has no variant ID for MISA`);
     }
     return {
-      product_code: String(variant.id),
+      product_code: variant.misaProductCode ?? String(variant.id),
       amount: item.quantity,
       price: String(item.unitPriceAmount),
       to_currency: item.lineSubtotalAmount,
@@ -335,24 +478,25 @@ export function buildMisaSaleOrderPayload(source: MisaOrderSource, contactCode?:
     };
   });
   return {
-    sale_order_no: source.order.orderNumber,
-    sale_order_name: `Trophy order ${source.order.orderNumber}`,
+    sale_order_no: `PT-${saleOrderNumber}`,
+    sale_order_name: `Trophy order ${saleOrderNumber}`,
     contact_name: contactCode ?? `TROPHY-${normalizePhoneForLookup(source.order.customerPhone)}`,
     phone: normalizePhoneForLookup(source.order.customerPhone),
     total_summary: String(source.order.totalAmount),
     sale_order_amount: source.order.totalAmount,
-    description: source.order.notes ?? "Trophy checkout order",
+    description: buildMisaOrderDescription(source),
     form_layout: "Mẫu tiêu chuẩn",
+    ...(shippingAddressText ? { shipping_address: shippingAddressText } : {}),
     sale_order_product_mappings: mappings,
   };
 }
 
-export async function syncMisaOrder(bindings: AppBindings, orderId: number) {
-  const db = getDb(bindings);
-  const order = await db.select().from(orders).where(eq(orders.id, orderId)).get();
-  if (!order) throw new Error("Order not found");
-  const items = await db.select().from(orderItems).where(eq(orderItems.orderId, orderId));
-  const source = { order, items } satisfies MisaOrderSource;
+function isDuplicateSaleOrderError(error: unknown) {
+  if (!(error instanceof MisaRequestError)) return false;
+  return /trùng|duplicate|sale_order_no/i.test(error.message);
+}
+
+async function ensureMisaContact(bindings: AppBindings, source: MisaOrderSource) {
   const contact = buildMisaContactPayload(source);
   const existingContacts = await findMisaContactsByCodes(bindings, [contact.contact_code]);
   const existingByCode = existingContacts.find((item) => item.contact_code === contact.contact_code);
@@ -368,10 +512,90 @@ export async function syncMisaOrder(bindings: AppBindings, orderId: number) {
   const contactResponse = existingContact
     ? null
     : await misaFetch(bindings, "/Contacts", { method: "POST", body: JSON.stringify([contactToCreate]) });
-  const saleOrder = buildMisaSaleOrderPayload(source, existingContact?.contact_code);
-  const saleOrderResponse = await misaFetch(bindings, "/SaleOrders", { method: "POST", body: JSON.stringify([saleOrder]) });
   return {
     contactId: existingContact?.id ?? (contactResponse ? extractId(contactResponse) : null),
-    saleOrderId: extractId(saleOrderResponse),
+    contactCode: existingContact?.contact_code ?? contactToCreate.contact_code,
   };
+}
+
+async function createMisaSaleOrder(
+  bindings: AppBindings,
+  source: MisaOrderSource,
+  contactCode: string,
+  saleOrderNumber: string,
+) {
+  const saleOrder = buildMisaSaleOrderPayload(source, contactCode, saleOrderNumber);
+
+  const response = await misaFetch(bindings, "/SaleOrders", {
+    method: "POST",
+    body: JSON.stringify([saleOrder]),
+  });
+
+
+  const saleOrderId = extractId(response);
+
+    console.info('createMisaSaleOrder: ', response);
+    console.info('saleOrderId: ', saleOrderId);
+  if (!saleOrderId) throw new Error("MISA SaleOrder create response did not contain an ID");
+
+  return { saleOrderId, saleOrderNumber };
+}
+
+export async function syncMisaOrder(bindings: AppBindings, orderId: number) {
+  const db = getDb(bindings);
+  const order = await db.select().from(orders).where(eq(orders.id, orderId)).get();
+  if (!order) throw new Error("Order not found");
+  const items = await db.select().from(orderItems).where(eq(orderItems.orderId, orderId));
+  const source = { order, items } satisfies MisaOrderSource;
+  const originalNumber = order.orderNumber;
+  const linkedNumber = order.misaSaleOrderNo ?? originalNumber;
+  const existing = (await findMisaSaleOrdersByCodes(bindings, [...new Set([linkedNumber, originalNumber])]))
+    .find((saleOrder) => saleOrder.sale_order_no === linkedNumber)
+    ?? (linkedNumber !== originalNumber
+      ? (await findMisaSaleOrdersByCodes(bindings, [originalNumber]))
+        .find((saleOrder) => saleOrder.sale_order_no === originalNumber)
+      : undefined);
+  if (existing) {
+    if (!existing.id) throw new Error("MISA SaleOrder lookup did not contain an ID");
+    return {
+      contactId: order.misaContactId,
+      saleOrderId: existing.id,
+      saleOrderNumber: existing.sale_order_no,
+    };
+  }
+
+  const contact = await ensureMisaContact(bindings, source);
+  try {
+    return { contactId: contact.contactId, ...await createMisaSaleOrder(bindings, source, contact.contactCode, originalNumber) };
+  } catch (error) {
+    console.error("MISA SaleOrder synchronization failed", {
+      orderId,
+      orderNumber: originalNumber,
+      productCodes: source.items.map((item) => parseVariantSnapshot(item.variantSnapshotJson)?.misaProductCode ?? parseVariantSnapshot(item.variantSnapshotJson)?.id),
+      message: error instanceof Error ? error.message : "Unknown error",
+    });
+    if (!isDuplicateSaleOrderError(error)) throw error;
+  }
+
+  const afterDuplicate = (await findMisaSaleOrdersByCodes(bindings, [originalNumber]))
+    .find((saleOrder) => saleOrder.sale_order_no === originalNumber);
+  if (afterDuplicate) {
+    if (!afterDuplicate.id) throw new Error("MISA SaleOrder lookup did not contain an ID");
+    return {
+      contactId: contact.contactId,
+      saleOrderId: afterDuplicate.id,
+      saleOrderNumber: afterDuplicate.sale_order_no,
+    };
+  }
+
+  for (let revision = 2; revision <= 99; revision += 1) {
+    const saleOrderNumber = `${originalNumber}-R${revision}`;
+    try {
+      return { contactId: contact.contactId, ...await createMisaSaleOrder(bindings, source, contact.contactCode, saleOrderNumber) };
+    } catch (error) {
+      if (!isDuplicateSaleOrderError(error)) throw error;
+    }
+  }
+
+  throw new Error("MISA SaleOrder revision limit reached");
 }

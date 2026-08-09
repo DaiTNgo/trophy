@@ -16,7 +16,7 @@
 
 ## 3. Immutable Customized Order Media
 
-- [ ] 3.1 Extract all required media references from an accepted customization snapshot: selected variant background, shopper uploads, and selected clipart.
+- [x] 3.1 Extract all required media references from an accepted customization snapshot: selected variant background, shopper uploads, and selected clipart.
 - [ ] 3.2 Copy the required media for customized items into semantic order paths, update the order snapshot to order-owned URLs, and leave non-customized items without copied media.
 - [ ] 3.3 Snapshot dynamic font family IDs with display names without copying Brand Font binaries, and return an operator-visible unavailable-font state when shared files are missing.
 - [ ] 3.4 Persist transfer progress and failures per order item; make repeated copy/retry operations idempotent.
@@ -29,8 +29,8 @@
 
 - [ ] 4.1 Update storefront customization uploads to create seven-day shopper-draft records under semantic draft paths and reject/repair unavailable expired uploads before checkout.
 - [ ] 4.2 Protect shopper-draft sources attached to pending or failed order transfers; release/delete those sources after successful transfer according to the finalized cleanup policy.
-- [ ] 4.3 Add a bounded, idempotent scheduled cleanup service that reconciles expired, unprotected shopper-draft R2 objects and D1 records, including partial-deletion retries and observability.
-- [ ] 4.4 Add the Worker `scheduled()` handler and daily `triggers.crons` configuration without changing Customization Template asset behavior.
+- [x] 4.3 Add a bounded, idempotent scheduled cleanup service that reconciles expired, unprotected shopper-draft R2 objects and D1 records, including partial-deletion retries and observability.
+- [x] 4.4 Add the Worker `scheduled()` handler and daily `triggers.crons` configuration without changing Customization Template asset behavior.
 - [ ] 4.5 Add backend tests for seven-day expiry, protection, retry-safe cleanup, R2 deletion failure, and scheduled-handler dispatch.
 - [ ] 4.6 Add storefront tests for expired-upload recovery and successful checkout responses carrying a media-transfer warning.
 

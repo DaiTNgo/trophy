@@ -32,6 +32,15 @@ function getUploadToken() {
   return token;
 }
 
+function getShopperDraftId() {
+  const storageKey = "trophy-shopper-customization-draft-id";
+  const existing = window.sessionStorage.getItem(storageKey);
+  if (existing) return existing;
+  const draftId = crypto.randomUUID();
+  window.sessionStorage.setItem(storageKey, draftId);
+  return draftId;
+}
+
 export function useProductDetailState({
   product,
   dynamicFonts,
@@ -531,6 +540,8 @@ export function useProductDetailState({
       const asset = await uploadStorefrontCustomizationAsset(
         file,
         getUploadToken(),
+        getShopperDraftId(),
+        field.id,
       );
 
       return {

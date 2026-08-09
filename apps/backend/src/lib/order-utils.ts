@@ -8,10 +8,10 @@ import type {
 export type OrderAddressSnapshot = {
   line1: string;
   line2?: string;
-  city: string;
+  city?: string;
   province?: string;
   postalCode?: string;
-  country: string;
+  country?: string;
 };
 
 export type DifferentShippingAddressSnapshot = {
@@ -41,6 +41,7 @@ export type StoredVariantSnapshot = {
   title: string;
   sku: string | null;
   priceAmount: number | null;
+  misaProductCode?: string | null;
 };
 
 export type StoredBackgroundSnapshot = {

@@ -61,7 +61,7 @@ export function ProductCard({
         >
           {imgSrc ? (
             <img
-              className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.035]"
+              className="absolute inset-0 h-full w-full object-contain transition-transform duration-500 group-hover:scale-[1.035]"
               data-alt={imageAlt}
               src={imgSrc}
               alt={imageAlt}

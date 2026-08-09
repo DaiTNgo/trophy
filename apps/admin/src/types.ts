@@ -103,7 +103,7 @@ export type ProductVariant = {
   title: string;
   titleTranslations?: LocalizedTextValue;
   sku: string;
-  misaSyncStatus?: "pending" | "synced" | "failed";
+  misaSyncStatus?: "pending" | "synced" | "failed" | "disconnected" | "missing";
   misaLastError?: string | null;
   price: number;
   inventory: number;

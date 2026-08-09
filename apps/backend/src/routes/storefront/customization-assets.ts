@@ -9,6 +9,8 @@ import {
 } from "../../lib/asset-utils";
 import type { AppEnv } from "../../lib/env";
 import { readImageDimensions } from "../../lib/image-dimensions";
+import { buildShopperDraftUploadKey } from "../../lib/r2-media-keys";
+import { shopperDraftExpiry } from "../../lib/order-media-transfer";
 import { toAbsoluteAssetUrl } from "../../lib/url";
 import { jsonError } from "../../lib/validation";
 
@@ -61,6 +63,12 @@ export const customizationAssetsRoute = new Hono<AppEnv>()
       return jsonError(c, 401, "X-Upload-Token is required");
     }
 
+    const shopperDraftId = cleanOwnerKey(c.req.header("x-shopper-draft-id") ?? "");
+    const shopperFieldId = cleanOwnerKey(c.req.header("x-shopper-field-id") ?? "");
+    if (!shopperDraftId || !shopperFieldId) {
+      return jsonError(c, 400, "X-Shopper-Draft-Id and X-Shopper-Field-Id are required");
+    }
+
     if (buffer.byteLength === 0 || buffer.byteLength > MAX_ASSET_BYTES) {
       return jsonError(c, 413, "Customization asset size is invalid or exceeds the 20 MB limit");
     }
@@ -85,7 +93,12 @@ export const customizationAssetsRoute = new Hono<AppEnv>()
     }
 
     const id = crypto.randomUUID();
-    const objectKey = `uploads/${ownerKey}/${id}/original.${extensionForMimeType(mimeType)}`;
+    const objectKey = buildShopperDraftUploadKey({
+      draftId: shopperDraftId,
+      fieldId: shopperFieldId,
+      assetId: id,
+      extension: extensionForMimeType(mimeType),
+    });
     let previewObjectKey: string | undefined;
 
     await c.env.CUSTOMIZATION_ASSETS.put(objectKey, buffer, {
@@ -100,12 +113,13 @@ export const customizationAssetsRoute = new Hono<AppEnv>()
     });
 
     if (previewBuffer) {
-      previewObjectKey = `uploads/${ownerKey}/${id}/preview.png`;
+      previewObjectKey = objectKey.replace(/\.source\.[a-z0-9]+$/, ".preview.png");
       await c.env.CUSTOMIZATION_ASSETS.put(previewObjectKey, previewBuffer, {
         httpMetadata: { contentType: "image/png" },
         customMetadata: {
-          assetId: id,
-          ownerKey,
+        assetId: id,
+        draftId: shopperDraftId,
+        fieldId: shopperFieldId,
           type: "preview",
         },
       });
@@ -114,6 +128,10 @@ export const customizationAssetsRoute = new Hono<AppEnv>()
     await getDb(c.env).insert(customizationAssets).values({
       id,
       ownerKey,
+      ownershipType: "shopper_draft",
+      shopperDraftId,
+      shopperFieldId,
+      expiresAt: shopperDraftExpiry(new Date()),
       objectKey,
       previewObjectKey,
       mimeType,

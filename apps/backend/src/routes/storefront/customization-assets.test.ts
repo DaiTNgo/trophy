@@ -58,7 +58,11 @@ describe("storefront customization assets routes", () => {
       {
         method: "POST",
         body: formData,
-        headers: { "x-upload-token": "token-123" }
+        headers: {
+          "x-upload-token": "token-123",
+          "x-shopper-draft-id": "draft-123",
+          "x-shopper-field-id": "team-logo",
+        }
       },
       env,
     );
@@ -67,6 +71,11 @@ describe("storefront customization assets routes", () => {
     const data = await res.json() as any;
     expect(data.asset).toBeDefined();
     expect(data.asset.contentUrl).toMatch(/^http:\/\/localhost:8787\/api\/assets\/customizations\/[^\/]+\/content$/);
+    expect(env.CUSTOMIZATION_ASSETS.put).toHaveBeenCalledWith(
+      expect.stringMatching(/^shopper-drafts\/draft-123\/uploads\/team-logo\/.+\.source\.png$/),
+      expect.any(ArrayBuffer),
+      expect.any(Object),
+    );
   });
 
   it("returns absolute previewUrl when thumbnail is provided", async () => {
@@ -96,7 +105,11 @@ describe("storefront customization assets routes", () => {
       {
         method: "POST",
         body: formData,
-        headers: { "x-upload-token": "token-123" }
+        headers: {
+          "x-upload-token": "token-123",
+          "x-shopper-draft-id": "draft-123",
+          "x-shopper-field-id": "team-logo",
+        }
       },
       env,
     );
@@ -106,5 +119,19 @@ describe("storefront customization assets routes", () => {
     expect(data.asset).toBeDefined();
     expect(data.asset.contentUrl).toMatch(/^http:\/\/localhost:8787\/api\/assets\/customizations\/[^\/]+\/content$/);
     expect(data.asset.previewUrl).toMatch(/^http:\/\/localhost:8787\/api\/assets\/customizations\/[^\/]+\/preview$/);
+  });
+
+  it("rejects uploads without a shopper draft and field owner", async () => {
+    const res = await storefrontRoute.request(
+      "http://localhost:8787/customizations/assets",
+      {
+        method: "POST",
+        body: new Uint8Array([1, 2, 3]),
+        headers: { "content-type": "image/png", "x-upload-token": "token-123" },
+      },
+      env,
+    );
+
+    expect(res.status).toBe(400);
   });
 });

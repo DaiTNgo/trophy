@@ -97,8 +97,8 @@ export async function fileToBackground(file: File): Promise<BackgroundAsset> {
         filename: file.name,
         mimeType: file.type,
         previewUrl,
-        widthPx: viewport.width / 2,
-        heightPx: viewport.height / 2,
+        widthPx: Math.round(viewport.width / 2),
+        heightPx: Math.round(viewport.height / 2),
         pdfPageCount: pdf.numPages,
         pendingPdfUpload: true,
       };

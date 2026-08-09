@@ -3,6 +3,8 @@ import { Hono } from 'hono'
 import { getDb } from '../../db/client'
 import {
   productAttributes,
+  productAssets,
+  catalogTranslations,
   productCategoryLinks,
   productCustomizations,
   productMedia,
@@ -13,11 +15,14 @@ import {
   productVariantMedia,
   productVariantOptionValues,
   productVariants,
+  misaDeletionJobs,
+  r2CleanupJobs,
   products
 } from '../../db/schema'
 import type { AppEnv } from '../../lib/env'
 import { jsonError, parseParams } from '../../lib/validation'
-import { deleteMisaProducts, isMisaConfigured } from '../../lib/misa'
+import { misaDeletionJobValues } from '../../lib/misa-deletion-outbox'
+import { r2CleanupJobValues } from '../../lib/r2-cleanup-outbox'
 import { syncMisaProductVariants } from './product-misa-sync'
 import { validatePublishable } from './product-publishability'
 import { readProduct } from './product-reader'
@@ -113,19 +118,21 @@ export const productLifecycleRoute = new Hono<AppEnv>()
 
     const product = await readProduct(c, db, current.id, { includeTrashed: true })
     if (!product) return jsonError(c, 404, 'Product not found')
+    const assetIds = [...new Set([
+      ...product.media.map((media) => media.assetId),
+      ...product.variants.flatMap((variant) => [
+        ...variant.media.map((media) => media.id),
+        ...(variant.customizationMedia ? [variant.customizationMedia.id] : []),
+      ]),
+      ...(current.thumbnailAssetId ? [current.thumbnailAssetId] : []),
+    ].filter((assetId): assetId is string => typeof assetId === 'string'))]
+    const assets = assetIds.length > 0
+      ? await db.select().from(productAssets).where(inArray(productAssets.id, assetIds))
+      : []
     const storedIds = product.variants
       .filter((variant) => variant.misaSyncStatus === 'synced')
       .map((variant) => variant.misaProductId)
       .filter((value): value is number => typeof value === 'number' && Number.isInteger(value) && value > 0)
-    if (storedIds.length > 0) {
-      if (!isMisaConfigured(c.env)) return jsonError(c, 503, 'MISA integration is not configured')
-      try {
-        await deleteMisaProducts(c.env, storedIds)
-      } catch (error) {
-        return jsonError(c, 502, error instanceof Error ? error.message : 'Unable to delete MISA products')
-      }
-    }
-
     const optionRows = await db
       .select({ id: productOptions.id })
       .from(productOptions)
@@ -136,20 +143,39 @@ export const productLifecycleRoute = new Hono<AppEnv>()
       : []
     const valueIds = valueRows.map((row) => row.id)
     const variantIds = product.variants.map((variant) => variant.id)
-    if (variantIds.length > 0) {
-      await db.delete(productVariantOptionValues).where(inArray(productVariantOptionValues.variantId, variantIds))
-      await db.delete(productVariantAttributes).where(inArray(productVariantAttributes.variantId, variantIds))
-      await db.delete(productVariantMedia).where(inArray(productVariantMedia.variantId, variantIds))
-      await db.delete(productVariantCustomizationMedia).where(inArray(productVariantCustomizationMedia.variantId, variantIds))
-    }
-    if (valueIds.length > 0) await db.delete(productVariantOptionValues).where(inArray(productVariantOptionValues.optionValueId, valueIds))
-    if (optionIds.length > 0) await db.delete(productOptionValues).where(inArray(productOptionValues.optionId, optionIds))
-    await db.delete(productVariants).where(eq(productVariants.productId, current.id))
-    await db.delete(productOptions).where(eq(productOptions.productId, current.id))
-    await db.delete(productAttributes).where(eq(productAttributes.productId, current.id))
-    await db.delete(productMedia).where(eq(productMedia.productId, current.id))
-    await db.delete(productCustomizations).where(eq(productCustomizations.productId, current.id))
-    await db.delete(productCategoryLinks).where(eq(productCategoryLinks.productId, current.id))
-    await db.delete(products).where(eq(products.id, current.id))
+    const translationDeletes = [
+      ['product', [String(current.id)]],
+      ['product_attribute', product.attributes.map((attribute) => String(attribute.id))],
+      ['product_option', product.options.map((option) => String(option.id))],
+      ['product_option_value', product.options.flatMap((option) => option.values.map((value) => String(value.id)))],
+      ['product_variant', variantIds.map(String)],
+      ['product_variant_attribute', product.variants.flatMap((variant) => variant.attributes.map((attribute) => String(attribute.id)))],
+    ] as const
+    await db.batch([
+      ...(variantIds.length > 0 ? [
+        db.delete(productVariantOptionValues).where(inArray(productVariantOptionValues.variantId, variantIds)),
+        db.delete(productVariantAttributes).where(inArray(productVariantAttributes.variantId, variantIds)),
+        db.delete(productVariantMedia).where(inArray(productVariantMedia.variantId, variantIds)),
+        db.delete(productVariantCustomizationMedia).where(inArray(productVariantCustomizationMedia.variantId, variantIds)),
+      ] : []),
+      ...(valueIds.length > 0 ? [db.delete(productVariantOptionValues).where(inArray(productVariantOptionValues.optionValueId, valueIds))] : []),
+      ...(optionIds.length > 0 ? [db.delete(productOptionValues).where(inArray(productOptionValues.optionId, optionIds))] : []),
+      db.delete(productVariants).where(eq(productVariants.productId, current.id)),
+      db.delete(productOptions).where(eq(productOptions.productId, current.id)),
+      db.delete(productAttributes).where(eq(productAttributes.productId, current.id)),
+      db.delete(productMedia).where(eq(productMedia.productId, current.id)),
+      ...(assetIds.length > 0 ? [db.delete(productAssets).where(inArray(productAssets.id, assetIds))] : []),
+      db.delete(productCustomizations).where(eq(productCustomizations.productId, current.id)),
+      db.delete(productCategoryLinks).where(eq(productCategoryLinks.productId, current.id)),
+      ...(storedIds.length > 0 ? [db.insert(misaDeletionJobs).values(misaDeletionJobValues(storedIds))] : []),
+      ...(assets.length > 0 ? [db.insert(r2CleanupJobs).values(r2CleanupJobValues(assets.map((asset) => asset.objectKey)))] : []),
+      ...translationDeletes.flatMap(([ownerType, ownerKeys]) => ownerKeys.length > 0
+        ? [db.delete(catalogTranslations).where(and(
+            eq(catalogTranslations.ownerType, ownerType),
+            inArray(catalogTranslations.ownerKey, ownerKeys),
+          ))]
+        : []),
+      db.delete(products).where(eq(products.id, current.id)),
+    ] as any)
     return c.json({ deleted: true, id: current.id }, 200)
   })

@@ -20,7 +20,7 @@ export type CorsPolicy = {
 };
 
 export const SESSION_CORS_POLICY: CorsPolicy = {
-  allowHeaders: ["Content-Type", "Authorization"],
+  allowHeaders: ["Content-Type", "Authorization", "If-Match"],
   allowMethods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
   credentials: true,
   exposeHeaders: ["Content-Length"],

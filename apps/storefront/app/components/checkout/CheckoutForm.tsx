@@ -56,8 +56,6 @@ function CustomerInformationSection() {
       true,
       "md:col-span-2",
     ],
-    ["shipping.primaryAddress.city", "Tỉnh / Thành phố", "", "text", true, ""],
-    ["shipping.primaryAddress.province", "Quận / Huyện", "", "text", false, ""],
   ] as const;
   return (
     <section>
@@ -122,15 +120,9 @@ function PaymentMethodSection({
             </p>
           </div>
           <div className="pl-9 text-sm font-normal text-on-surface-variant">
-            <p className="mb-2">
-              Thực hiện thanh toán vào ngay tài khoản ngân hàng:
-            </p>
-            <p className="font-bold text-on-surface">STK: 9987996745</p>
-            <p>Ngân hàng Vietcombank</p>
-            <p>Chủ Tài khoản: Nguyen Tuan Thanh</p>
             <p className="mt-2 italic">
-              Vui lòng sử dụng Mã đơn hàng của bạn trong phần Nội dung thanh
-              toán. Đơn hàng sẽ đươc giao sau khi tiền đã chuyển.
+              Sau khi đặt hàng, thông tin chuyển khoản và mã nội dung thanh
+              toán sẽ hiển thị ngay trên màn hình này.
             </p>
           </div>
         </Label>
@@ -308,7 +300,11 @@ export function CheckoutForm({
               disabled={submitting || hasInvalidLines}
               className="w-full rounded-md bg-action-positive py-8 font-label-md text-label-md uppercase tracking-widest text-white shadow-xl transition-all hover:bg-action-positive-hover hover:shadow-2xl active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {submitting ? "Đang gửi đơn..." : "Đặt hàng ngay"}
+              {submitting
+                ? "Đang gửi đơn..."
+                : paymentMethod === "bank_transfer"
+                  ? "Đặt hàng và nhận thông tin chuyển khoản"
+                  : "Đặt hàng ngay"}
             </Button>
           </div>
         </div>

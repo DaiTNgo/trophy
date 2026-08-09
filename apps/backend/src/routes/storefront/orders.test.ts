@@ -6,7 +6,7 @@ vi.mock("../../db/client", () => ({
 }));
 
 import { getDb } from "../../db/client";
-import { storefrontOrdersRoute } from "./orders";
+import { createCheckoutAccessToken, storefrontOrdersRoute } from "./orders";
 
 function createQueryChain({
   getQueue,
@@ -37,12 +37,14 @@ function createMockDb() {
   const getQueue: unknown[] = [];
   const selectQueue: unknown[] = [];
   const valuesCalls: unknown[] = [];
+  const updateValuesCalls: unknown[] = [];
   const returningQueue: unknown[] = [];
 
   const db: any = {
     getQueue,
     selectQueue,
     valuesCalls,
+    updateValuesCalls,
     returningQueue,
     select: vi.fn(() => createQueryChain({ getQueue, selectQueue })),
     insert: vi.fn(() => {
@@ -52,6 +54,14 @@ function createMockDb() {
         return chain;
       });
       chain.returning = vi.fn(async () => returningQueue.shift() ?? []);
+      return chain;
+    }),
+    update: vi.fn(() => {
+      const chain = createQueryChain({ getQueue, selectQueue });
+      chain.set = vi.fn((value: unknown) => {
+        updateValuesCalls.push(value);
+        return chain;
+      });
       return chain;
     }),
   };
@@ -81,6 +91,7 @@ describe("storefront orders route", () => {
       },
       shipToDifferentAddress: false,
     },
+    payment: { method: "bank_transfer" },
     notes: "Please call before delivery.",
     vat: {
       type: "Company",
@@ -98,7 +109,7 @@ describe("storefront orders route", () => {
     ],
   };
 
-  it("creates an order without requiring payment.method and normalizes the stored phone", async () => {
+  it("creates a bank transfer order, stores the selected payment method, and returns signed checkout access", async () => {
     db.getQueue.push(
       { id: 1, title: "Champion Cup", handle: "champion-cup", status: "published" },
       { id: 10, productId: 1, title: "Gold", sku: "SKU-1", priceAmount: 5000 },
@@ -115,15 +126,61 @@ describe("storefront orders route", () => {
 
     expect(res.status).toBe(201);
     const body = (await res.json()) as any;
-    expect(body.order.orderNumber).toMatch(/^ORD-[A-Z0-9]+-[A-Z0-9]+$/);
+    expect(body.order.orderNumber).toBe("123");
+    expect(body.order.paymentReference).toBe("PT-123");
     expect(body.order.paymentStatus).toBe("pending");
 
     expect(db.valuesCalls[0]).toMatchObject({
-      paymentMethod: "manual",
+      paymentMethod: "bank_transfer",
       customerPhone: "0123456789",
       notes: "Please call before delivery.",
       vatDetailsJson: JSON.stringify(validPayload.vat),
     });
+    expect(db.updateValuesCalls[0]).toEqual({ orderNumber: "123" });
+    expect(body.order.checkoutAccessToken).toMatch(/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/);
+    expect(body.order.checkoutAccessExpiresAt).toBeTruthy();
+  });
+
+  it("returns payment instructions only with a valid signed checkout token", async () => {
+    const orderNumber = "ORD-ABC-1234";
+    const bindings = { BETTER_AUTH_SECRET: "test-secret" } as never;
+    const { token } = await createCheckoutAccessToken(bindings, orderNumber);
+    db.getQueue.push({
+      id: 123,
+      orderNumber,
+      totalAmount: 10000,
+      currencyCode: "VND",
+      paymentMethod: "bank_transfer",
+      paymentStatus: "pending",
+      createdAt: new Date("2026-08-09T00:00:00.000Z"),
+    });
+
+    const res = await storefrontOrdersRoute.request(
+      `/payment-instructions?orderNumber=${orderNumber}&accessToken=${encodeURIComponent(token)}`,
+      undefined,
+      bindings,
+    );
+
+    expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toEqual({
+      order: {
+        orderNumber,
+        paymentReference: "PT-123",
+        totalAmount: 10000,
+        currencyCode: "VND",
+        paymentMethod: "bank_transfer",
+        paymentStatus: "pending",
+        createdAt: "2026-08-09T00:00:00.000Z",
+      },
+    });
+  });
+
+  it("rejects payment instructions with an invalid checkout token", async () => {
+    const res = await storefrontOrdersRoute.request(
+      "/payment-instructions?orderNumber=ORD-ABC-1234&accessToken=invalid.token",
+    );
+
+    expect(res.status).toBe(404);
   });
 
   it("returns 400 for structural validation errors", async () => {

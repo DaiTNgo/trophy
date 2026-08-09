@@ -20,7 +20,7 @@ function extension(value: string) {
 type SourceObject = { extension: string };
 type ShopperDraftObject = SourceObject & { draftId: string; fieldId: string; assetId: string };
 type CatalogProductObject = SourceObject & { productId: number; assetId: string };
-type CatalogVariantObject = CatalogProductObject & { variantId: number };
+type CatalogVariantObject = CatalogProductObject & { variantId: string | number };
 type OrderObject = { orderNumber: string; orderId: number; itemId: number };
 
 export function buildShopperDraftUploadKey({ draftId, fieldId, assetId, extension: fileExtension }: ShopperDraftObject) {

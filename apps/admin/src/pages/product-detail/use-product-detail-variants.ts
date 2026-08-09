@@ -2,18 +2,23 @@ import { useState } from "react";
 import { toast } from "@medusajs/ui";
 import { createLocalizedText } from "../../components/ui/medusa";
 import {
-  createProductVariant,
+  atomicCreateVariant,
   deleteProductVariant,
+  disconnectProductVariantFromMisa,
   syncProductVariantToMisa,
   updateProductVariantDetails,
   updateProductVariantPrices,
   updateProductVariantStock,
+  mapApiProductToCatalogProduct,
+  ProductCommandError,
 } from "../../lib/products-client";
+import { convertPdfToImageFile } from "../../lib/pdf-preview";
 import type { AdminLocale, CatalogProduct, LocalizedTextValue, ProductAttribute } from "../../types";
 
 type ProductDetailVariantsProps = {
   product: CatalogProduct;
   mutate: () => Promise<void>;
+  updateProduct: (updater: (current: CatalogProduct) => CatalogProduct) => void;
 };
 
 export type VariantFormState = {
@@ -25,7 +30,23 @@ export type VariantFormState = {
   allowBackorder: boolean;
   optionSelections: Record<string, string>;
   attributes: ProductAttribute[];
+  galleryMedia: File[];
+  customizationBackground: File | null;
 };
+
+async function readImageDimensions(file: File) {
+  const url = URL.createObjectURL(file);
+  try {
+    const image = new window.Image();
+    return await new Promise<{ width: number; height: number }>((resolve, reject) => {
+      image.onload = () => resolve({ width: image.naturalWidth, height: image.naturalHeight });
+      image.onerror = reject;
+      image.src = url;
+    });
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
 
 
 function buildVariantForm(product: CatalogProduct, variant?: CatalogProduct["variants"][number]): VariantFormState {
@@ -55,10 +76,12 @@ function buildVariantForm(product: CatalogProduct, variant?: CatalogProduct["var
     allowBackorder: variant?.allowBackorder ?? false,
     optionSelections,
     attributes,
+    galleryMedia: [],
+    customizationBackground: null,
   };
 }
 
-export function useProductDetailVariants({ product, mutate }: ProductDetailVariantsProps) {
+export function useProductDetailVariants({ product, mutate, updateProduct }: ProductDetailVariantsProps) {
   const [priceOpen, setPriceOpen] = useState(false);
   const [stockOpen, setStockOpen] = useState(false);
   const [variantOpen, setVariantOpen] = useState(false);
@@ -216,6 +239,7 @@ export function useProductDetailVariants({ product, mutate }: ProductDetailVaria
         throw new Error("Enter a valid inventory quantity.");
       }
 
+      let productWasPatched = false;
       if (variantForm.id) {
         await updateProductVariantDetails(product.id, variantForm.id, {
           title: {
@@ -230,7 +254,32 @@ export function useProductDetailVariants({ product, mutate }: ProductDetailVaria
         await updateProductVariantPrices(product.id, [{ id: variantForm.id, priceAmount }]);
         await updateProductVariantStock(product.id, [{ id: variantForm.id, inventoryQuantity }]);
       } else {
-        await createProductVariant(product.id, {
+        const galleryMedia = await Promise.all(
+          variantForm.galleryMedia.map((file) =>
+            file.type === "application/pdf" ? convertPdfToImageFile(file) : file,
+          ),
+        );
+        const customizationBackground =
+          variantForm.customizationBackground?.type === "application/pdf"
+            ? await convertPdfToImageFile(variantForm.customizationBackground)
+            : variantForm.customizationBackground;
+
+        if (product.customization?.enabled && !customizationBackground) {
+          throw new Error("A Customization Background is required while customization is active.");
+        }
+        const customizationDimensions = customizationBackground
+          ? await readImageDimensions(customizationBackground).catch(() => null)
+          : null;
+        if (product.customization?.enabled && variantForm.customizationBackground) {
+          if (
+            !customizationDimensions ||
+            customizationDimensions.width !== product.customization.canvasWidthPx ||
+            customizationDimensions.height !== product.customization.canvasHeightPx
+          ) {
+            throw new Error(`Customization Background must be ${product.customization.canvasWidthPx} x ${product.customization.canvasHeightPx} px.`);
+          }
+        }
+        const next = await atomicCreateVariant(product.id, product.updatedAt, {
           title: {
             vi: variantForm.titleTranslations.vi.trim(),
             en: variantForm.titleTranslations.en.trim(),
@@ -241,14 +290,27 @@ export function useProductDetailVariants({ product, mutate }: ProductDetailVaria
           allowBackorder: variantForm.allowBackorder,
           optionValueIds,
           attributes: normalizedAttributes,
-          media: [],
-          customizationMedia: null,
+          galleryMedia: galleryMedia.map((file) => ({
+            mediaId: crypto.randomUUID(),
+            file,
+          })),
+          customizationMedia: customizationBackground
+            ? {
+                mediaId: crypto.randomUUID(),
+                file: customizationBackground,
+                widthPx: customizationDimensions?.width ?? 0,
+                heightPx: customizationDimensions?.height ?? 0,
+              }
+            : null,
         });
+        updateProduct(() => mapApiProductToCatalogProduct(next));
+        productWasPatched = true;
       }
 
-      await mutate();
+      if (!productWasPatched) await mutate();
       setVariantOpen(false);
     } catch (error) {
+      if (error instanceof ProductCommandError && error.status === 409) await mutate();
       const message = error instanceof Error ? error.message : "Failed to save variant details.";
       toast.error("Variant details could not be saved", {
         description: `${message} Complete the variant title, option values, attributes, price, and inventory fields, then try again.`,
@@ -264,9 +326,10 @@ export function useProductDetailVariants({ product, mutate }: ProductDetailVaria
     }
 
     try {
-      await deleteProductVariant(product.id, variantId);
+      await deleteProductVariant(product.id, variantId, product.updatedAt);
       await mutate();
     } catch (error) {
+      if (error instanceof ProductCommandError && error.status === 409) await mutate();
       const message = error instanceof Error ? error.message : "Failed to delete variant.";
       toast.error("Variant could not be deleted", {
         description: `${message} Refresh the product and try again.`,
@@ -294,6 +357,19 @@ export function useProductDetailVariants({ product, mutate }: ProductDetailVaria
     }
   }
 
+  async function handleDisconnectVariantFromMisa(variantId: number) {
+    setSyncingMisaVariantId(variantId);
+    try {
+      await disconnectProductVariantFromMisa(product.id, variantId);
+      await mutate();
+      toast.success("Variant disconnected from MISA");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to disconnect variant from MISA.");
+    } finally {
+      setSyncingMisaVariantId(null);
+    }
+  }
+
   return {
     priceOpen, setPriceOpen, stockOpen, setStockOpen, variantOpen, setVariantOpen,
     priceRows, setPriceRows, stockRows, setStockRows, variantForm, setVariantForm,
@@ -301,6 +377,6 @@ export function useProductDetailVariants({ product, mutate }: ProductDetailVaria
     isSavingPrices, isSavingStock, isSavingVariant, syncingMisaVariantId,
     openPrices, openStock,
     openVariantEditor, updateVariantAttribute, savePrices, saveStock, saveVariant,
-    handleDeleteVariant, handleSyncVariantToMisa,
+    handleDeleteVariant, handleSyncVariantToMisa, handleDisconnectVariantFromMisa,
   };
 }

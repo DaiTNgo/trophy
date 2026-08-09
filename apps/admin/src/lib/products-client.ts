@@ -4,6 +4,16 @@ import { backendFetch } from "./fetch";
 
 type LocalizedInput = string | { vi: string; en?: string | null };
 
+export class ProductCommandError extends Error {
+  readonly status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "ProductCommandError";
+    this.status = status;
+  }
+}
+
 const toLocalized = (v: LocalizedInput | null | undefined): LocalizedTextValue => {
   if (!v) return { vi: "", en: "" };
   if (typeof v === "string") return { vi: v, en: "" };
@@ -40,7 +50,7 @@ type ApiProduct = {
     title: LocalizedInput;
     sku: string | null;
     misaProductId: number | null;
-    misaSyncStatus: "pending" | "synced" | "failed";
+    misaSyncStatus: "pending" | "synced" | "failed" | "disconnected" | "missing";
     misaLastError: string | null;
     priceAmount: number | null;
     inventoryQuantity: number;
@@ -439,34 +449,6 @@ export async function updateProductVariants(id: string, items: Array<{
   return body.item as ApiProduct;
 }
 
-export async function createProductVariant(
-  id: string,
-  payload: {
-    title: LocalizedInput;
-    sku: string | null;
-    priceAmount: number | null;
-    inventoryQuantity: number;
-    allowBackorder: boolean;
-    optionValueIds: number[];
-    attributes?: Array<{ name: LocalizedInput; value: LocalizedInput; unit?: string | null }>;
-    media?: Array<{ assetId: string }>;
-    customizationMedia?: { assetId: string } | null;
-  },
-) {
-  const response = await backendFetch(`/api/admin/products/${id}/variants`, {
-    method: "POST",
-
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  if (!response.ok) {
-    const err = await response.json().catch(() => null);
-    throw new Error(err?.error || "Failed to create product variant.");
-  }
-  const body = await response.json();
-  return body.item as ApiProduct;
-}
-
 export async function updateProductVariantDetails(
   id: string,
   variantId: number,
@@ -492,14 +474,14 @@ export async function updateProductVariantDetails(
   return body.item as ApiProduct;
 }
 
-export async function deleteProductVariant(id: string, variantId: number) {
+export async function deleteProductVariant(id: string, variantId: number, revision: string) {
   const response = await backendFetch(`/api/admin/products/${id}/variants/${variantId}`, {
     method: "DELETE",
-
+    headers: revisionHeaders(revision),
   });
   if (!response.ok) {
     const err = await response.json().catch(() => null);
-    throw new Error(err?.error || "Failed to delete product variant.");
+    throw new ProductCommandError(err?.error || "Failed to delete product variant.", response.status);
   }
   const body = await response.json();
   return body.item as ApiProduct;
@@ -521,6 +503,20 @@ export async function syncProductVariantToMisa(
     throw new Error(body.error || "Failed to synchronize the variant with MISA.");
   }
   return { item: body.item, sync: body.sync };
+}
+
+export async function disconnectProductVariantFromMisa(id: string, variantId: number) {
+  const response = await backendFetch(`/api/admin/products/${id}/variants/${variantId}/misa-disconnect`, { method: "POST" });
+  const body = await response.json().catch(() => null) as { item?: ApiProduct; error?: string } | null;
+  if (!response.ok || !body?.item) throw new Error(body?.error || "Failed to disconnect variant from MISA.");
+  return body.item;
+}
+
+export async function checkProductMisaLinks(id: string) {
+  const response = await backendFetch(`/api/admin/products/${id}/misa-check`, { method: "POST" });
+  const body = await response.json().catch(() => null) as { variants?: Array<{ id: number; misaSyncStatus: ApiProduct["variants"][number]["misaSyncStatus"]; misaLastError: string | null }>; error?: string } | null;
+  if (!response.ok || !body?.variants) throw new Error(body?.error || "Failed to check MISA product links.");
+  return body.variants;
 }
 
 export async function updateProductVariantPrices(
@@ -601,7 +597,7 @@ export async function updateProductVariantCustomizationMedia(
 
 async function readProductCommandResponse(response: Response, fallback: string) {
   const body = await response.json().catch(() => null) as { item?: ApiProduct; error?: string } | null;
-  if (!response.ok || !body?.item) throw new Error(body?.error || fallback);
+  if (!response.ok || !body?.item) throw new ProductCommandError(body?.error || fallback, response.status);
   return body.item;
 }
 
@@ -647,7 +643,7 @@ export async function replaceVariantCustomizationBackground(id: string, variantI
   return readManagedVariantMediaResponse(response, "Failed to replace Customization Background.");
 }
 
-export async function updateProductCustomization(id: string, payload: {
+export async function updateProductCustomization(id: string, revision: string, payload: {
   enabled: boolean;
   layers?: unknown[];
   formFields?: unknown[];
@@ -655,15 +651,125 @@ export async function updateProductCustomization(id: string, payload: {
   const response = await backendFetch(`/api/admin/products/${id}/customization`, {
     method: "PUT",
 
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...revisionHeaders(revision) },
     body: JSON.stringify(payload),
   });
   if (!response.ok) {
     const err = await response.json().catch(() => null);
-    throw new Error(err?.error || "Failed to update customization.");
+    throw new ProductCommandError(err?.error || "Failed to update customization.", response.status);
   }
   const body = await response.json();
   return body.item as ApiProduct;
+}
+
+export type CustomizationActivationInput = {
+  layers: unknown[];
+  formFields: unknown[];
+  backgrounds: Array<{ variantId: string; file: File; widthPx: number; heightPx: number }>;
+};
+
+const revisionHeaders = (revision: string) => ({ "If-Match": revision });
+
+export async function activateCustomization(id: string, revision: string, input: CustomizationActivationInput) {
+  const formData = new FormData();
+  formData.append("payload", JSON.stringify({
+    layers: input.layers,
+    formFields: input.formFields,
+    backgrounds: Object.fromEntries(input.backgrounds.map(({ variantId, widthPx, heightPx }) => [variantId, { widthPx, heightPx }])),
+  }));
+  input.backgrounds.forEach(({ variantId, file }) => formData.append(variantId, file));
+  const response = await backendFetch(`/api/admin/products/${id}/customization/activate`, {
+    method: "POST",
+    body: formData,
+    headers: revisionHeaders(revision),
+  });
+  return readProductCommandResponse(response, "Failed to activate customization.");
+}
+
+export async function deactivateCustomization(id: string, revision: string) {
+  const response = await backendFetch(`/api/admin/products/${id}/customization/deactivate`, { method: "POST", headers: revisionHeaders(revision) });
+  return readProductCommandResponse(response, "Failed to deactivate customization.");
+}
+
+export type ReactivationResult = { item: ApiProduct } | { missingBackgroundVariantIds: number[]; error: string };
+
+export async function reactivateCustomization(id: string, revision: string): Promise<ReactivationResult> {
+  const response = await backendFetch(`/api/admin/products/${id}/customization/reactivate`, { method: "POST", headers: revisionHeaders(revision) });
+  const body = await response.json().catch(() => null) as
+    | { item?: ApiProduct; missingBackgroundVariantIds?: number[]; error?: string }
+    | null;
+  if (response.ok && body?.item) return { item: body.item };
+  if (body?.missingBackgroundVariantIds) {
+    return { missingBackgroundVariantIds: body.missingBackgroundVariantIds, error: body.error ?? "Customization needs repair." };
+  }
+  throw new ProductCommandError(body?.error ?? "Failed to reactivate customization.", response.status);
+}
+
+export async function repairCustomization(id: string, revision: string, input: CustomizationActivationInput) {
+  const formData = new FormData();
+  formData.append("payload", JSON.stringify({
+    layers: input.layers,
+    formFields: input.formFields,
+    backgrounds: Object.fromEntries(input.backgrounds.map(({ variantId, widthPx, heightPx }) => [variantId, { widthPx, heightPx }])),
+  }));
+  input.backgrounds.forEach(({ variantId, file }) => formData.append(variantId, file));
+  const response = await backendFetch(`/api/admin/products/${id}/customization/repair`, {
+    method: "POST",
+    body: formData,
+    headers: revisionHeaders(revision),
+  });
+  return readProductCommandResponse(response, "Failed to repair customization.");
+}
+
+export async function permanentlyDeleteCustomization(id: string, revision: string) {
+  const response = await backendFetch(`/api/admin/products/${id}/customization/permanent`, { method: "DELETE", headers: revisionHeaders(revision) });
+  return readProductCommandResponse(response, "Failed to delete customization permanently.");
+}
+
+export async function atomicCreateVariant(
+  id: string,
+  revision: string,
+  payload: {
+    title: LocalizedInput;
+    sku: string | null;
+    priceAmount: number | null;
+    inventoryQuantity: number;
+    allowBackorder: boolean;
+    optionValueIds: number[];
+    attributes?: Array<{ name: LocalizedInput; value: LocalizedInput; unit?: string | null }>;
+    galleryMedia: Array<{ mediaId: string; file: File }>;
+    customizationMedia?: { mediaId: string; file: File; widthPx: number; heightPx: number } | null;
+  },
+) {
+  const formData = new FormData();
+  formData.append(
+    "payload",
+    JSON.stringify({
+      title: payload.title,
+      sku: payload.sku,
+      priceAmount: payload.priceAmount,
+      inventoryQuantity: payload.inventoryQuantity,
+      allowBackorder: payload.allowBackorder,
+      optionValueIds: payload.optionValueIds,
+      attributes: payload.attributes ?? [],
+      galleryMedia: payload.galleryMedia.map(({ mediaId }) => ({ mediaId })),
+      customizationMedia: payload.customizationMedia ? {
+        mediaId: payload.customizationMedia.mediaId,
+        widthPx: payload.customizationMedia.widthPx,
+        heightPx: payload.customizationMedia.heightPx,
+      } : null,
+    }),
+  );
+  payload.galleryMedia.forEach(({ mediaId, file }) => formData.append(mediaId, file));
+  if (payload.customizationMedia) {
+    formData.append(payload.customizationMedia.mediaId, payload.customizationMedia.file);
+  }
+  const response = await backendFetch(`/api/admin/products/${id}/variants/atomic-create`, {
+    method: "POST",
+    body: formData,
+    headers: revisionHeaders(revision),
+  });
+  return readProductCommandResponse(response, "Failed to create the variant.");
 }
 
 export async function publishProduct(id: string) {

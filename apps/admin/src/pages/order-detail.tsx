@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router";
+import { Link, useNavigate, useParams } from "react-router";
 import { Button, Container, Heading, Text } from "@medusajs/ui";
 import { ArrowLeft } from "@medusajs/icons";
 import { useBreadcrumbs } from "../hooks/use-breadcrumbs";
@@ -12,6 +12,7 @@ import type { OrderDetailItem } from "./order-detail/order-detail-utils";
 
 export function OrderDetailPage() {
   const { orderNumber } = useParams();
+  const navigate = useNavigate();
   const { setBreadcrumbs } = useBreadcrumbs();
 
   useEffect(() => {
@@ -30,6 +31,8 @@ export function OrderDetailPage() {
     error,
     updatingAction,
     updateOrderStatus,
+    purgeOrder,
+    runMisaAction,
     markItemReadyForProduction,
     markItemPendingReview,
   } = useOrderDetail(orderNumber);
@@ -96,7 +99,11 @@ export function OrderDetailPage() {
           <OrderDetailHeader
             order={order}
             isUpdating={Boolean(updatingAction)}
-            onUpdateStatus={updateOrderStatus}
+            onPurge={async () => {
+              if (await purgeOrder()) {
+                navigate("/orders");
+              }
+            }}
           />
 
           <OrderDetailMainContent
@@ -110,7 +117,11 @@ export function OrderDetailPage() {
         </div>
 
         <div className="min-w-0">
-          <OrderDetailSidebar order={order} />
+          <OrderDetailSidebar
+            order={order}
+            updatingAction={updatingAction}
+            onMisaAction={runMisaAction}
+          />
         </div>
       </div>
       {activePreviewItem ? (

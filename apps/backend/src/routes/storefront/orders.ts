@@ -42,16 +42,16 @@ import { isMisaConfigured, syncMisaOrder } from "../../lib/misa";
 type OrderStatus = "pending" | "confirmed" | "cancelled";
 type PaymentStatus = "pending" | "paid" | "failed" | "refunded";
 type FulfillmentStatus = "unfulfilled" | "partially_fulfilled" | "fulfilled";
-type PaymentMethod = "manual";
+type PaymentMethod = "bank_transfer" | "cash_on_delivery";
 type ProductionStatus = "not_required" | "pending_review" | "ready";
 
 const addressSchema = v.object({
   line1: v.pipe(v.string(), v.trim(), v.minLength(1, "Address line is required"), v.maxLength(500)),
   line2: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(500))),
-  city: v.pipe(v.string(), v.trim(), v.minLength(1, "City is required"), v.maxLength(255)),
+  city: v.optional(v.pipe(v.string(), v.trim(), v.minLength(1, "City is required"), v.maxLength(255))),
   province: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(255))),
   postalCode: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(20))),
-  country: v.pipe(v.string(), v.trim(), v.minLength(1, "Country is required"), v.maxLength(100)),
+  country: v.optional(v.pipe(v.string(), v.trim(), v.minLength(1, "Country is required"), v.maxLength(100))),
 });
 
 const differentShippingAddressSchema = v.object({
@@ -81,6 +81,9 @@ const createOrderSchema = v.object({
     primaryAddress: addressSchema,
     shipToDifferentAddress: v.boolean(),
     differentAddress: v.optional(differentShippingAddressSchema),
+  }),
+  payment: v.object({
+    method: v.picklist(["bank_transfer", "cash_on_delivery"]),
   }),
   items: v.pipe(v.array(orderItemInputSchema), v.minLength(1, "At least one item is required")),
   notes: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(2000, "Order note is too long"))),
@@ -114,6 +117,11 @@ const lookupOrderSchema = v.object({
   phone: v.pipe(v.string(), v.trim(), v.minLength(1, "Phone is required"), v.maxLength(50)),
 });
 
+const paymentInstructionsQuerySchema = v.object({
+  orderNumber: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(255)),
+  accessToken: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(2048)),
+});
+
 type CreateOrderInput = v.InferOutput<typeof createOrderSchema>;
 type OrderItemInput = v.InferOutput<typeof orderItemInputSchema>;
 type ResolveCartLinesInput = v.InferOutput<typeof resolveCartLinesSchema>;
@@ -127,6 +135,9 @@ type VariantCustomizationMediaRow =
 type CustomizationRow = typeof productCustomizations.$inferSelect;
 type OrderRow = typeof orders.$inferSelect;
 type OrderItemRow = typeof orderItems.$inferSelect;
+
+const CHECKOUT_ACCESS_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const LOCAL_CHECKOUT_ACCESS_SECRET = "trophy-local-checkout-access-secret";
 
 type BackgroundSnapshot = {
   assetId: string;
@@ -392,6 +403,7 @@ async function validateAndBuildItemSnapshot(
     title: variant.title,
     sku: variant.sku,
     priceAmount: variant.priceAmount,
+    misaProductCode: variant.misaProductCode ?? String(variant.id),
   };
 
   return {
@@ -406,10 +418,85 @@ async function validateAndBuildItemSnapshot(
   };
 }
 
-function generateOrderNumber() {
-  const ts = Date.now().toString(36).toUpperCase();
-  const rand = Math.random().toString(36).slice(2, 6).toUpperCase();
-  return `ORD-${ts}-${rand}`;
+function paymentReferenceForOrderId(orderId: number) {
+  return `PT-${orderId}`;
+}
+
+function toBase64Url(value: string) {
+  return btoa(value).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/g, "");
+}
+
+function fromBase64Url(value: string) {
+  const padded = value.replaceAll("-", "+").replaceAll("_", "/").padEnd(Math.ceil(value.length / 4) * 4, "=");
+  return atob(padded);
+}
+
+function bytesToBase64Url(bytes: Uint8Array) {
+  return toBase64Url(String.fromCharCode(...bytes));
+}
+
+function base64UrlToBytes(value: string) {
+  return Uint8Array.from(fromBase64Url(value), (character) => character.charCodeAt(0));
+}
+
+async function signCheckoutAccessToken(payload: string, secret: string) {
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(`trophy-checkout-access:${secret}`),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const signature = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(payload));
+  return bytesToBase64Url(new Uint8Array(signature));
+}
+
+export async function createCheckoutAccessToken(
+  bindings: AppEnv["Bindings"] | undefined,
+  orderNumber: string,
+  now = Date.now(),
+) {
+  const payload = toBase64Url(JSON.stringify({ orderNumber, expiresAt: now + CHECKOUT_ACCESS_TTL_MS }));
+  const signature = await signCheckoutAccessToken(payload, bindings?.BETTER_AUTH_SECRET ?? LOCAL_CHECKOUT_ACCESS_SECRET);
+  return { token: `${payload}.${signature}`, expiresAt: new Date(now + CHECKOUT_ACCESS_TTL_MS) };
+}
+
+async function verifyCheckoutAccessToken(
+  bindings: AppEnv["Bindings"] | undefined,
+  orderNumber: string,
+  token: string,
+) {
+  const [payload, signature, extra] = token.split(".");
+  if (!payload || !signature || extra) return false;
+
+  let claims: { orderNumber?: unknown; expiresAt?: unknown };
+  try {
+    claims = JSON.parse(fromBase64Url(payload)) as { orderNumber?: unknown; expiresAt?: unknown };
+  } catch {
+    return false;
+  }
+  if (
+    claims.orderNumber !== orderNumber ||
+    typeof claims.expiresAt !== "number" ||
+    !Number.isInteger(claims.expiresAt) ||
+    claims.expiresAt < Date.now()
+  ) return false;
+
+  let expected: Uint8Array;
+  let received: Uint8Array;
+  try {
+    expected = base64UrlToBytes(await signCheckoutAccessToken(
+      payload,
+      bindings?.BETTER_AUTH_SECRET ?? LOCAL_CHECKOUT_ACCESS_SECRET,
+    ));
+    received = base64UrlToBytes(signature);
+  } catch {
+    return false;
+  }
+  if (expected.length !== received.length) return false;
+  let difference = 0;
+  for (let index = 0; index < expected.length; index += 1) difference |= expected[index]! ^ received[index]!;
+  return difference === 0;
 }
 
 async function loadOrderWithItemsByNumber(db: DbType, orderNumber: string) {
@@ -604,6 +691,32 @@ export const storefrontOrdersRoute = new Hono<AppEnv>()
 
     return c.json(buildLookupOrderResponse(loaded.order, loaded.items), 200);
   })
+  .get("/payment-instructions", async (c) => {
+    const parsed = v.safeParse(paymentInstructionsQuerySchema, {
+      orderNumber: c.req.query("orderNumber"),
+      accessToken: c.req.query("accessToken"),
+    });
+    if (!parsed.success) return jsonError(c, 400, "Invalid payment instruction access");
+    if (!await verifyCheckoutAccessToken(c.env, parsed.output.orderNumber, parsed.output.accessToken)) {
+      return jsonError(c, 404, "Payment instructions not found");
+    }
+
+    const order = await getDb(c.env).select().from(orders)
+      .where(eq(orders.orderNumber, parsed.output.orderNumber)).get();
+    if (!order) return jsonError(c, 404, "Payment instructions not found");
+
+    return c.json({
+      order: {
+        orderNumber: order.orderNumber,
+        paymentReference: paymentReferenceForOrderId(order.id),
+        totalAmount: order.totalAmount,
+        currencyCode: order.currencyCode,
+        paymentMethod: order.paymentMethod,
+        paymentStatus: order.paymentStatus,
+        createdAt: order.createdAt.toISOString(),
+      },
+    }, 200);
+  })
   .post("/", async (c) => {
     const parsed = await parseJson(c, createOrderSchema);
     if (!parsed.success) {
@@ -657,7 +770,6 @@ export const storefrontOrdersRoute = new Hono<AppEnv>()
     const subtotalAmount = validatedItems.reduce((sum, item) => sum + item.lineSubtotal, 0);
     const totalAmount = subtotalAmount;
     const itemCount = validatedItems.reduce((sum, item) => sum + item.input.quantity, 0);
-    const orderNumber = generateOrderNumber();
     const now = Date.now();
 
     const primaryAddressJson = JSON.stringify(input.shipping.primaryAddress);
@@ -672,11 +784,13 @@ export const storefrontOrdersRoute = new Hono<AppEnv>()
     const [insertedOrder] = await db
       .insert(orders)
       .values({
-        orderNumber,
+        // `orderNumber` is non-nullable, but the final increment number exists
+        // only after SQLite assigns the row ID. This value never leaves the request.
+        orderNumber: `creating-${crypto.randomUUID()}`,
         status: "pending" satisfies OrderStatus,
         paymentStatus: "pending" satisfies PaymentStatus,
         fulfillmentStatus: "unfulfilled" satisfies FulfillmentStatus,
-        paymentMethod: "manual" satisfies PaymentMethod,
+        paymentMethod: input.payment.method satisfies PaymentMethod,
         customerName: input.customer.name,
         customerPhone: normalizedCustomerPhone,
         customerEmail: input.customer.email ?? null,
@@ -697,6 +811,12 @@ export const storefrontOrdersRoute = new Hono<AppEnv>()
     if (!insertedOrder) {
       return jsonError(c, 422, "Failed to create order");
     }
+
+    const orderNumber = String(insertedOrder.id);
+    await db
+      .update(orders)
+      .set({ orderNumber })
+      .where(eq(orders.id, insertedOrder.id));
 
     for (const item of validatedItems) {
       await db.insert(orderItems).values({
@@ -722,6 +842,7 @@ export const storefrontOrdersRoute = new Hono<AppEnv>()
           misaSyncStatus: "synced",
           misaContactId: synced.contactId,
           misaSaleOrderId: synced.saleOrderId,
+          misaSaleOrderNo: synced.saleOrderNumber,
           misaLastError: null,
           misaAttemptCount: 1,
           misaSyncedAt: new Date(),
@@ -735,11 +856,13 @@ export const storefrontOrdersRoute = new Hono<AppEnv>()
       }
     }
 
+    const checkoutAccess = await createCheckoutAccessToken(c.env, orderNumber);
     return c.json(
       {
         order: {
           id: insertedOrder.id,
           orderNumber,
+          paymentReference: paymentReferenceForOrderId(insertedOrder.id),
           status: "pending" satisfies OrderStatus,
           paymentStatus: "pending" satisfies PaymentStatus,
           fulfillmentStatus: "unfulfilled" satisfies FulfillmentStatus,
@@ -747,6 +870,8 @@ export const storefrontOrdersRoute = new Hono<AppEnv>()
           currencyCode: "VND",
           itemCount,
           createdAt: new Date(now).toISOString(),
+          checkoutAccessToken: checkoutAccess.token,
+          checkoutAccessExpiresAt: checkoutAccess.expiresAt.toISOString(),
         },
       },
       201,

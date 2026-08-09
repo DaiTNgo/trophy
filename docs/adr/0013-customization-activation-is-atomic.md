@@ -33,6 +33,17 @@ requires confirmation. It removes the customization record, template data and
 translations, all variant Customization Background associations and assets,
 Product Media references to those assets, and a matching Product Thumbnail.
 
+An activation, repair, or reactivation holds a short-lived Customization
+Operation Lease on its Product while it performs R2 work. Variant mutations
+must reject with a retryable conflict while that lease is live. The final D1
+batch clears only its own lease token; an expired lease is claimable after an
+interrupted request.
+
+Customization Background canvas dimensions are declared and validated by the
+Admin client, including PDF backgrounds. The backend persists and compares
+that declared metadata for consistency; it does not decode media to derive a
+second canvas-size source of truth.
+
 ## Consequences
 
 - Published products remain purchasable as ordinary products while initial
@@ -43,3 +54,5 @@ Product Media references to those assets, and a matching Product Thumbnail.
 - Admin routes need dedicated multipart commands for initial activation and
   reactivation repair, rather than reusing the immediate persisted-variant
   media commands.
+- A lifecycle command can briefly reject conflicting Variant changes, but an
+  interrupted command becomes recoverable when its lease expires.

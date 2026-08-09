@@ -2,6 +2,55 @@ import { hydrateTranslations, upsertTranslations, hydrateAndResolveTranslations 
 import type { Locale } from './locale'
 import type { Database } from '../db/client'
 
+export type CustomizationTranslationWrite = {
+  ownerType: 'customization_form_field' | 'customization_layer'
+  ownerKey: string
+  fieldName: 'label' | 'helpText' | 'placeholder'
+  values: Record<string, string | null | undefined>
+}
+
+/**
+ * Converts localized editor values to their stored Vietnamese values and
+ * returns the translation mutations for the caller's enclosing D1 batch.
+ */
+export function prepareCustomizationTranslations(customization: any): CustomizationTranslationWrite[] {
+  const writes: CustomizationTranslationWrite[] = []
+  const collect = (
+    ownerType: CustomizationTranslationWrite['ownerType'],
+    ownerKey: string,
+    fieldName: CustomizationTranslationWrite['fieldName'],
+    target: Record<string, unknown>,
+  ) => {
+    const value = target[fieldName]
+    if (!value || typeof value !== 'object' || !('vi' in value)) return
+    const values = value as Record<string, string | null | undefined>
+    writes.push({ ownerType, ownerKey, fieldName, values })
+    target[fieldName] = values.vi ?? null
+  }
+
+  for (const field of customization?.formFields ?? []) {
+    collect('customization_form_field', String(field.id), 'label', field)
+    collect('customization_form_field', String(field.id), 'helpText', field)
+    collect('customization_form_field', String(field.id), 'placeholder', field)
+  }
+
+  for (const layer of customization?.layers ?? []) {
+    if (layer.type !== 'text') continue
+    for (const option of layer.text.colorPolicy?.mode === 'shopper_selectable'
+      ? layer.text.colorPolicy.options
+      : []) {
+      collect('customization_layer', `${layer.id}:color:${option.value}`, 'label', option)
+    }
+    for (const option of layer.text.fontPolicy?.mode === 'shopper_selectable'
+      ? layer.text.fontPolicy.options
+      : []) {
+      collect('customization_layer', `${layer.id}:font:${option.value}`, 'label', option)
+    }
+  }
+
+  return writes
+}
+
 export async function hydrateCustomization(db: Database, customization: any) {
   if (!customization) return
 

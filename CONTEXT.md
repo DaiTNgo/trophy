@@ -157,7 +157,12 @@ When a product title or variant title changes, Trophy updates the existing MISA 
 _Avoid_: delete-and-recreate MISA product, SKU-based MISA update
 
 **Variant MISA Deletion**:
-Deleting a Product Variant with a synchronized MISA Product Record is permitted only when no historical Order Item references that variant. Trophy checks that condition locally, then deletes the MISA Product Record; it deletes the local Product Variant only after MISA succeeds.
+The local removal of a Product Variant or permanent removal of a Product is the authoritative catalog outcome. If it owns synchronized MISA Product Records, Trophy commits the local deletion and a durable MISA Deletion Job together; remote deletion is retried asynchronously and does not reverse or block the catalog outcome.
+_Avoid_: synchronous MISA-gated deletion, rollback catalog deletion for MISA
+
+**MISA Deletion Job**:
+Durable work to remove one MISA Product Record after its owning Trophy catalog record has been permanently removed. A job records retry state and the most recent error. It is distinct from MISA Synchronization State, which applies only to an extant Product Variant.
+_Avoid_: pending variant sync, remote-delete request
 _Avoid_: post-delete order check, local-first MISA deletion
 
 **Variant Management Action**:
@@ -237,8 +242,16 @@ A product variant that can support shopper-facing customization because it has e
 _Avoid_: valid variant, completed variant
 
 **Background Size Contract**:
-The rule that all Customization Backgrounds for a customizable product must have identical pixel width and height, allowing one customization template to render consistently across every variant background.
+The rule that all Customization Backgrounds for a customizable product declare identical canvas width and height, allowing one customization template to render consistently across every variant background. The admin client supplies and validates this canvas metadata before save; the backend only verifies that submitted and saved declarations agree.
 _Avoid_: same-size warning, image dimension hint
+
+**Declared Background Dimensions**:
+The width and height metadata supplied by the admin client for a Customization Background. It is the canvas-size source of truth, including for PDF backgrounds; it is not media dimensions inferred or decoded by the backend.
+_Avoid_: backend-derived canvas size, fixed PDF canvas size
+
+**Customization Operation Lease**:
+A short-lived, server-held reservation for a Product while activation, repair, or reactivation is in progress. It prevents conflicting Variant changes until the lifecycle operation commits or the reservation expires after an interrupted request.
+_Avoid_: permanent product lock, browser-tab lock, revision timestamp
 
 **Customization Background**:
 The one independently uploaded asset owned by a variant and explicitly designated as its Background Choice for shopper customization. It is not Gallery Media, cannot be shared with another variant, and only Customization Backgrounds are subject to the Background Size Contract. It has no delete action; an operator can only replace it after client-side and authoritative server-side dimension validation succeeds.
@@ -271,6 +284,18 @@ _Avoid_: order customization, purchased design, cart asset
 **Order Customization Snapshot**:
 The immutable customization data and shopper-uploaded media preserved for one created order item, so production can reproduce the purchased result after its draft and catalog state change.
 _Avoid_: cart draft, live customization, product asset
+
+**Abandoned Checkout Order**:
+A created order that remains pending payment and unfulfilled, with no operational work started. It may be removed only through a deliberate admin purge.
+_Avoid_: cancelled order, failed payment, order draft
+
+**Order Cancellation**:
+The irreversible operational closure of an order that preserves its record for reconciliation and history. Trophy has no administrator cancellation action while MISA is the operational system of record; any future cancellation flow must synchronize with MISA. A cancelled order is never eligible for Order Purge, which applies only to an Abandoned Checkout Order that is still pending.
+_Avoid_: delete order, purge order, refund
+
+**Order Purge**:
+An explicit super-admin action that permanently removes an Abandoned Checkout Order and its dependent Trophy data. It never runs automatically. When a MISA SaleOrder exists, Trophy removes local data only after MISA confirms its deletion or reports that the record is already absent; an order that never created a MISA SaleOrder may be removed locally. It removes only the SaleOrder, never the customer's MISA Contact.
+_Avoid_: automatic cleanup, cancel order, archive order
 
 **Order Customization Background**:
 The immutable copy of the selected variant's Customization Background stored only with an Order Item that has an Order Customization Snapshot. It is not a reference to the current catalog background.

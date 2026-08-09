@@ -34,10 +34,17 @@ export type StorefrontCustomizationAsset = {
 export async function uploadStorefrontCustomizationAsset(
   file: File,
   uploadToken: string,
+  shopperDraftId: string,
+  shopperFieldId: string,
 ): Promise<StorefrontCustomizationAsset> {
   const response = await fetchBackendWithLog("uploadStorefrontCustomizationAsset", backendUrl("/api/storefront/customizations/assets"), {
     method: "POST",
-    headers: { "Content-Type": file.type, "X-Upload-Token": uploadToken },
+    headers: {
+      "Content-Type": file.type,
+      "X-Upload-Token": uploadToken,
+      "X-Shopper-Draft-Id": shopperDraftId,
+      "X-Shopper-Field-Id": shopperFieldId,
+    },
     body: file,
   });
   const payload = (await response.json()) as {
@@ -322,6 +329,9 @@ export type StorefrontOrderRequest = {
       };
     };
   };
+  payment: {
+    method: "bank_transfer" | "cash_on_delivery";
+  };
   notes?: string;
   vat?: {
     type?: string;
@@ -344,12 +354,27 @@ export type StorefrontOrderResponse = {
   order: {
     id: number;
     orderNumber: string;
+    paymentReference: string;
     status: string;
     paymentStatus: string;
     fulfillmentStatus: string;
     totalAmount: number;
     currencyCode: string;
     itemCount: number;
+    createdAt: string;
+    checkoutAccessToken: string;
+    checkoutAccessExpiresAt: string;
+  };
+};
+
+export type StorefrontPaymentInstructionsResponse = {
+  order: {
+    orderNumber: string;
+    paymentReference: string;
+    totalAmount: number;
+    currencyCode: string;
+    paymentMethod: "bank_transfer" | "cash_on_delivery" | string;
+    paymentStatus: string;
     createdAt: string;
   };
 };
@@ -454,6 +479,25 @@ export async function createStorefrontOrder(
     throw new Response("Failed to create order", { status: res.status });
   }
 
+  return res.json();
+}
+
+export async function fetchStorefrontPaymentInstructions(payload: {
+  orderNumber: string;
+  accessToken: string;
+}): Promise<StorefrontPaymentInstructionsResponse> {
+  const search = new URLSearchParams({
+    orderNumber: payload.orderNumber,
+    accessToken: payload.accessToken,
+  });
+  const res = await fetchBackendWithLog(
+    "fetchStorefrontPaymentInstructions",
+    backendUrl(`/api/storefront/orders/payment-instructions?${search}`),
+  );
+  if (!res.ok) {
+    const body = await res.json().catch(() => null) as { error?: string } | null;
+    throw new Error(body?.error ?? "Không thể tải hướng dẫn thanh toán.");
+  }
   return res.json();
 }
 

@@ -38,6 +38,16 @@ The MISA sale order payload SHALL include the Trophy order number, customer/cont
 - **WHEN** Trophy sends an order item to MISA
 - **THEN** its `to_currency` equals the persisted line subtotal, not a fixed value
 
+#### Scenario: VAT request and addresses are preserved
+- **WHEN** checkout includes billing details, a different shipping address, a VAT invoice request, or a shopper note
+- **THEN** the MISA SaleOrder contains its documented billing/shipping address fields and a structured `description` containing the VAT request and shopper note
+- **AND THEN** Trophy does not mark the order as invoiced before an invoice has actually been issued
+
+#### Scenario: Bank transfer uses the created order number as the payment reference
+- **WHEN** checkout selects bank transfer and creates an order
+- **THEN** Trophy stores `bank_transfer` as the payment method, returns a short-lived signed access token, and exposes a `PT-<order id>` payment reference while sending the full order number to MISA as `sale_order_no`
+- **AND THEN** an invalid or expired token does not expose the order's payment instructions
+
 #### Scenario: Payload omits unsupported metadata
 - **WHEN** Trophy creates a MISA contact or sale order
 - **THEN** the payload omits Trophy-only or undocumented MISA fields and uses the standard `Mẫu tiêu chuẩn` form layout
@@ -52,3 +62,35 @@ The authenticated Admin Order Detail response and screen SHALL show the order MI
 #### Scenario: Admin investigates a failed synchronization
 - **WHEN** MISA synchronization for an order has failed
 - **THEN** Admin Order Detail displays `Failed`, the attempt count, and the latest MISA error
+
+### Requirement: Super-admin purges only abandoned checkout orders
+Trophy SHALL provide a manual permanent order purge only to a super-admin and only while an order remains `pending`, with pending payment and unfulfilled fulfillment. Admin cancellation SHALL not be available.
+
+#### Scenario: Purge removes an MISA SaleOrder before local data
+- **WHEN** a super-admin purges an eligible order with a numeric MISA SaleOrder ID
+- **THEN** Trophy deletes that SaleOrder in MISA before deleting local order rows
+- **AND THEN** Trophy never deletes the MISA Contact
+
+#### Scenario: MISA deletion cannot be completed
+- **WHEN** MISA rejects or cannot process the SaleOrder deletion for an eligible order
+- **THEN** Trophy preserves the local order
+
+#### Scenario: MISA SaleOrder has already been removed
+- **WHEN** MISA responds that the known SaleOrder is absent
+- **THEN** Trophy treats the remote deletion as complete and purges the eligible local order
+
+### Requirement: Super-admin manually reconciles an order MISA link
+Trophy SHALL permit only a super-admin to manually disconnect, connect, or refresh a SaleOrder link. These operations SHALL not run automatically.
+
+#### Scenario: Existing original SaleOrder is reused
+- **WHEN** a super-admin connects or retries an order and MISA returns the original `sale_order_no` with a valid ID
+- **THEN** Trophy stores that ID and MISA number as the current link without creating another SaleOrder
+
+#### Scenario: Original number cannot be created or re-linked
+- **WHEN** MISA reports the original SaleOrder number as duplicate but Trophy cannot retrieve a linkable original record
+- **THEN** Trophy may create a revision number in the form `<orderNumber>-R<n>` and stores the actual created number
+
+#### Scenario: Local disconnect retains MISA history
+- **WHEN** a super-admin disconnects a MISA link
+- **THEN** Trophy clears only its local SaleOrder link and marks the order `disconnected`
+- **AND THEN** Trophy does not delete the MISA SaleOrder or Contact

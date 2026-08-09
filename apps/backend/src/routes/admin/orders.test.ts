@@ -4,7 +4,16 @@ vi.mock("../../db/client", () => ({
   getDb: vi.fn(),
 }));
 
+vi.mock("../../lib/misa", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../lib/misa")>()),
+  checkMisaSaleOrderById: vi.fn(),
+  deleteMisaSaleOrders: vi.fn(),
+  isMisaConfigured: vi.fn(() => true),
+  syncMisaOrder: vi.fn(),
+}));
+
 import { getDb } from "../../db/client";
+import { checkMisaSaleOrderById, deleteMisaSaleOrders, MisaRequestError, syncMisaOrder } from "../../lib/misa";
 import { adminRoute } from "./index";
 
 function createQueryChain({
@@ -45,12 +54,15 @@ function createMockDb() {
     mutations,
     select: vi.fn(() => createQueryChain({ getQueue, selectQueue, mutations })),
     update: vi.fn(() => createQueryChain({ getQueue, selectQueue, mutations })),
+    delete: vi.fn(() => createQueryChain({ getQueue, selectQueue, mutations })),
+    insert: vi.fn(() => createQueryChain({ getQueue, selectQueue, mutations })),
+    batch: vi.fn(async () => []),
   };
 
   return db;
 }
 
-function queueAdminSession(getQueue: unknown[]) {
+function queueAdminSession(getQueue: unknown[], role = "super-admin") {
   getQueue.push({
     session: {
       id: "session-1",
@@ -63,7 +75,7 @@ function queueAdminSession(getQueue: unknown[]) {
       name: "admin",
       username: "admin",
       email: "admin@trophy.local",
-      role: "super-admin",
+      role,
       banned: false,
     },
   });
@@ -75,6 +87,35 @@ describe("admin orders routes", () => {
   beforeEach(() => {
     db = createMockDb();
     vi.mocked(getDb).mockReturnValue(db as never);
+    vi.mocked(deleteMisaSaleOrders).mockReset();
+    vi.mocked(checkMisaSaleOrderById).mockReset();
+    vi.mocked(syncMisaOrder).mockReset();
+  });
+
+  it("keeps a created SaleOrder synced when MISA returns 200 without lookup data", async () => {
+    const linkedOrder = {
+      id: 23,
+      orderNumber: "23",
+      misaSyncStatus: "synced",
+      misaContactId: "99",
+      misaSaleOrderId: "9663",
+      misaSaleOrderNo: "23",
+      misaLastError: null,
+      misaAttemptCount: 1,
+      misaSyncedAt: new Date("2026-08-09T12:50:00.000Z"),
+    };
+    queueAdminSession(db.getQueue);
+    db.getQueue.push(linkedOrder, { ...linkedOrder, misaSyncStatus: "synced", misaLastError: null });
+    vi.mocked(checkMisaSaleOrderById).mockResolvedValue({ found: false, responseHadData: false });
+
+    const res = await adminRoute.request("/orders/23/misa/check", {
+      method: "POST",
+      headers: { Authorization: "Bearer token-1" },
+    }, {} as never);
+
+    expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toMatchObject({ misa: { syncStatus: "synced", saleOrderId: "9663", lastError: null } });
+    expect(db.mutations).toContainEqual({ misaSyncStatus: "synced", misaLastError: null });
   });
 
   it("rejects unauthenticated order list access", async () => {
@@ -350,7 +391,7 @@ describe("admin orders routes", () => {
       {
         id: 5,
         orderNumber: "ORD-1",
-        status: "cancelled",
+        status: "pending",
         paymentStatus: "paid",
         fulfillmentStatus: "fulfilled",
         paymentMethod: "manual",
@@ -402,7 +443,6 @@ describe("admin orders routes", () => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          status: "cancelled",
           paymentStatus: "paid",
           fulfillmentStatus: "fulfilled",
         }),
@@ -413,44 +453,19 @@ describe("admin orders routes", () => {
     expect(res.status).toBe(200);
     expect(db.update).toHaveBeenCalledTimes(1);
     expect(db.mutations[0]).toMatchObject({
-      status: "cancelled",
       paymentStatus: "paid",
       fulfillmentStatus: "fulfilled",
     });
     expect(db.mutations[0].updatedAt).toBeInstanceOf(Date);
     const body = (await res.json()) as any;
-    expect(body.order.status).toBe("cancelled");
+    expect(body.order.status).toBe("pending");
     expect(body.order.paymentStatus).toBe("paid");
     expect(body.order.fulfillmentStatus).toBe("fulfilled");
     expect(body.order.items[0].productionStatus).toBe("not_required");
   });
 
-  it("allows cancelling pending payment when cancelling an admin order", async () => {
+  it("rejects cancellation status updates", async () => {
     queueAdminSession(db.getQueue);
-    db.getQueue.push(
-      { id: 5 },
-      {
-        id: 5,
-        orderNumber: "ORD-1",
-        status: "cancelled",
-        paymentStatus: "cancelled",
-        fulfillmentStatus: "unfulfilled",
-        paymentMethod: "manual",
-        customerName: "John Doe",
-        customerPhone: "0123456789",
-        customerEmail: "john@example.com",
-        primaryAddressJson: JSON.stringify({ line1: "123 Main St", city: "HCM", country: "VN" }),
-        shippingAddressJson: null,
-        shipToDifferentAddress: false,
-        subtotalAmount: 10000,
-        totalAmount: 10000,
-        currencyCode: "VND",
-        itemCount: 1,
-        createdAt: new Date("2026-07-05T00:00:00.000Z"),
-        updatedAt: new Date("2026-07-05T02:00:00.000Z"),
-      },
-    );
-    db.selectQueue.push([], [], []);
 
     const res = await adminRoute.request(
       "/orders/ORD-1/status",
@@ -468,14 +483,135 @@ describe("admin orders routes", () => {
       {} as never,
     );
 
+    expect(res.status).toBe(400);
+    expect(db.update).not.toHaveBeenCalled();
+  });
+
+  it("retries MISA synchronization for a super-admin and persists the reconciled link", async () => {
+    const order = {
+      id: 5, orderNumber: "123", status: "pending", paymentStatus: "pending", fulfillmentStatus: "unfulfilled",
+      paymentMethod: "bank_transfer", customerName: "John Doe", customerPhone: "0123456789", customerEmail: null,
+      notes: null, vatDetailsJson: null, primaryAddressJson: JSON.stringify({ line1: "123 Main", city: "HCM", country: "VN" }), shippingAddressJson: null,
+      subtotalAmount: 10000, totalAmount: 10000, currencyCode: "VND", itemCount: 1,
+      misaSyncStatus: "failed", misaContactId: "9", misaSaleOrderId: null, misaSaleOrderNo: null, misaLastError: "Timeout", misaAttemptCount: 1, misaSyncedAt: null,
+      createdAt: new Date("2026-08-09T00:00:00.000Z"), updatedAt: new Date("2026-08-09T00:00:00.000Z"),
+    };
+    queueAdminSession(db.getQueue);
+    queueAdminSession(db.getQueue);
+    db.getQueue.push(order, { ...order, misaSyncStatus: "synced", misaSaleOrderId: "1234", misaSaleOrderNo: "123", misaLastError: null, misaAttemptCount: 2, misaSyncedAt: new Date("2026-08-09T01:00:00.000Z") });
+    db.selectQueue.push([]);
+    vi.mocked(syncMisaOrder).mockResolvedValue({ contactId: "9", saleOrderId: "1234", saleOrderNumber: "123" });
+
+    const res = await adminRoute.request("/orders/123/misa/refresh", { method: "POST", headers: { Authorization: "Bearer token-1" } }, {} as never);
+
     expect(res.status).toBe(200);
-    expect(db.mutations[0]).toMatchObject({
-      status: "cancelled",
-      paymentStatus: "cancelled",
+    expect(vi.mocked(syncMisaOrder)).toHaveBeenCalledWith(expect.anything(), 5);
+    expect(db.mutations).toContainEqual(expect.objectContaining({ misaSyncStatus: "synced", misaSaleOrderNo: "123", misaSaleOrderId: "1234", misaAttemptCount: 2 }));
+  });
+
+  it("disconnects only the local MISA SaleOrder link", async () => {
+    const order = {
+      id: 5, orderNumber: "123", status: "pending", paymentStatus: "pending", fulfillmentStatus: "unfulfilled",
+      paymentMethod: "bank_transfer", customerName: "John Doe", customerPhone: "0123456789", customerEmail: null,
+      notes: null, vatDetailsJson: null, primaryAddressJson: JSON.stringify({ line1: "123 Main", city: "HCM", country: "VN" }), shippingAddressJson: null,
+      subtotalAmount: 10000, totalAmount: 10000, currencyCode: "VND", itemCount: 1,
+      misaSyncStatus: "synced", misaContactId: "9", misaSaleOrderId: "1234", misaSaleOrderNo: "123", misaLastError: null, misaAttemptCount: 1, misaSyncedAt: new Date("2026-08-09T00:00:00.000Z"),
+      createdAt: new Date("2026-08-09T00:00:00.000Z"), updatedAt: new Date("2026-08-09T00:00:00.000Z"),
+    };
+    queueAdminSession(db.getQueue);
+    queueAdminSession(db.getQueue);
+    db.getQueue.push(order, { ...order, misaSyncStatus: "disconnected", misaSaleOrderId: null, misaSaleOrderNo: null });
+    db.selectQueue.push([]);
+
+    const res = await adminRoute.request("/orders/123/misa/disconnect", { method: "POST", headers: { Authorization: "Bearer token-1" } }, {} as never);
+
+    expect(res.status).toBe(200);
+    expect(db.mutations).toContainEqual(expect.objectContaining({ misaSyncStatus: "disconnected", misaSaleOrderId: null, misaSaleOrderNo: null }));
+  });
+
+  it("allows a super-admin to purge an unsynced abandoned order locally", async () => {
+    queueAdminSession(db.getQueue);
+    queueAdminSession(db.getQueue);
+    db.getQueue.push({
+      id: 5,
+      orderNumber: "ORD-5",
+      status: "pending",
+      paymentStatus: "pending",
+      fulfillmentStatus: "unfulfilled",
+      misaSaleOrderId: null,
     });
-    const body = (await res.json()) as any;
-    expect(body.order.status).toBe("cancelled");
-    expect(body.order.paymentStatus).toBe("cancelled");
+    db.selectQueue.push([]);
+
+    const res = await adminRoute.request("/orders/ORD-5", {
+      method: "DELETE",
+      headers: { Authorization: "Bearer token-1" },
+    }, {} as never);
+
+    expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toEqual({ deleted: true });
+    expect(vi.mocked(deleteMisaSaleOrders)).not.toHaveBeenCalled();
+    expect(db.batch).toHaveBeenCalledTimes(1);
+  });
+
+  it("requires a super-admin to purge an order", async () => {
+    queueAdminSession(db.getQueue, "admin");
+    queueAdminSession(db.getQueue, "admin");
+
+    const res = await adminRoute.request("/orders/ORD-5", {
+      method: "DELETE",
+      headers: { Authorization: "Bearer token-1" },
+    }, {} as never);
+
+    expect(res.status).toBe(403);
+    expect(db.batch).not.toHaveBeenCalled();
+  });
+
+  it("deletes the MISA SaleOrder before purging a synced abandoned order", async () => {
+    queueAdminSession(db.getQueue);
+    queueAdminSession(db.getQueue);
+    db.getQueue.push({
+      id: 5,
+      orderNumber: "ORD-5",
+      status: "pending",
+      paymentStatus: "pending",
+      fulfillmentStatus: "unfulfilled",
+      misaSaleOrderId: "123",
+    });
+    db.selectQueue.push([]);
+
+    const res = await adminRoute.request("/orders/ORD-5", {
+      method: "DELETE",
+      headers: { Authorization: "Bearer token-1" },
+    }, {} as never);
+
+    expect(res.status).toBe(200);
+    expect(vi.mocked(deleteMisaSaleOrders)).toHaveBeenCalledWith(expect.anything(), [123]);
+    expect(db.batch).toHaveBeenCalledTimes(1);
+  });
+
+  it("treats an absent MISA SaleOrder as an idempotent purge", async () => {
+    queueAdminSession(db.getQueue);
+    queueAdminSession(db.getQueue);
+    db.getQueue.push({ id: 5, orderNumber: "ORD-5", status: "pending", paymentStatus: "pending", fulfillmentStatus: "unfulfilled", misaSaleOrderId: "123" });
+    db.selectQueue.push([]);
+    vi.mocked(deleteMisaSaleOrders).mockRejectedValue(new MisaRequestError("not found", 404));
+
+    const res = await adminRoute.request("/orders/ORD-5", { method: "DELETE", headers: { Authorization: "Bearer token-1" } }, {} as never);
+
+    expect(res.status).toBe(200);
+    expect(db.batch).toHaveBeenCalledTimes(1);
+  });
+
+  it("preserves the local order when MISA deletion fails", async () => {
+    queueAdminSession(db.getQueue);
+    queueAdminSession(db.getQueue);
+    db.getQueue.push({ id: 5, orderNumber: "ORD-5", status: "pending", paymentStatus: "pending", fulfillmentStatus: "unfulfilled", misaSaleOrderId: "123" });
+    vi.mocked(deleteMisaSaleOrders).mockRejectedValue(new MisaRequestError("MISA unavailable", 503));
+
+    const res = await adminRoute.request("/orders/ORD-5", { method: "DELETE", headers: { Authorization: "Bearer token-1" } }, {} as never);
+
+    expect(res.status).toBe(502);
+    expect(db.batch).not.toHaveBeenCalled();
   });
 
   it("marks an admin order item ready for production", async () => {

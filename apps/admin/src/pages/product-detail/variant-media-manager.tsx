@@ -15,6 +15,7 @@ import {
   replaceVariantCustomizationBackground,
   uploadManagedVariantMedia,
 } from "../../lib/products-client";
+import { convertPdfToImageFile } from "../../lib/pdf-preview";
 import { MediaPreview } from "../../components/ui/media-preview";
 
 type Props = {
@@ -81,11 +82,15 @@ export function VariantMediaManager({
     }
   }
   async function replaceBackground(file: File) {
+    const fileToUpload =
+      file.type === "application/pdf"
+        ? await convertPdfToImageFile(file)
+        : file;
     const sibling = product.variants.find(
       (item) => item.id !== variant.id && item.customizationMedia,
     )?.customizationMedia;
     if (sibling) {
-      const dimensions = await readDimensions(file).catch(() => null);
+      const dimensions = await readDimensions(fileToUpload).catch(() => null);
       if (
         !dimensions ||
         dimensions.width !== sibling.widthPx ||
@@ -101,8 +106,21 @@ export function VariantMediaManager({
       replaceVariantCustomizationBackground(
         product.id,
         Number(variant.id),
-        file,
+        fileToUpload,
       ),
+    );
+  }
+
+  async function uploadGallery(files: File[]) {
+    const filesToUpload = await Promise.all(
+      files.map((file) =>
+        file.type === "application/pdf" ? convertPdfToImageFile(file) : file,
+      ),
+    );
+    return uploadManagedVariantMedia(
+      product.id,
+      Number(variant.id),
+      filesToUpload,
     );
   }
   return (
@@ -143,13 +161,7 @@ export function VariantMediaManager({
                   const files = Array.from(event.target.files ?? []);
                   event.target.value = "";
                   if (files.length)
-                    void run("gallery", () =>
-                      uploadManagedVariantMedia(
-                        product.id,
-                        Number(variant.id),
-                        files,
-                      ),
-                    );
+                    void run("gallery", () => uploadGallery(files));
                 }}
               />
               {variant.media.length === 0 ? (
@@ -219,7 +231,7 @@ export function VariantMediaManager({
                   ref={backgroundInputRef}
                   type="file"
                   className="hidden"
-                  accept="image/png,image/jpeg,image/webp"
+                  accept="image/png,image/jpeg,image/webp,application/pdf"
                   onChange={(event) => {
                     const file = event.target.files?.[0];
                     event.target.value = "";

@@ -34,6 +34,12 @@
 - [x] 4.7 Look up and reuse an existing MISA Contact before checkout creates a Contact.
 - [x] 4.8 Reuse an existing MISA Contact by email when its contact code differs from the checkout phone-derived code.
 - [x] 4.9 Create a phone-only Contact when an existing MISA email belongs to a different phone number.
+- [x] 4.10 Map checkout billing/shipping addresses to documented SaleOrder fields and preserve VAT invoice requests with shopper notes in `description`.
+- [x] 4.11 Preserve the checkout payment method and return signed, short-lived same-screen payment instructions using the short `PT-<order id>` transfer reference while retaining the full MISA sale-order number.
+- [x] 4.12 Replace admin cancellation with a manual, super-admin-only MISA-first permanent purge for abandoned checkout orders; never delete MISA Contacts.
+- [x] 4.13 Use the assigned incrementing local order ID as the public order number and MISA `sale_order_no`.
+- [x] 4.14 Add super-admin manual MISA SaleOrder disconnect, connect, and retry/refresh reconciliation, including revision sale-order numbers and persisted MISA sale-order number.
+- [x] 4.15 Persist the real MISA create response ID and make automatic presence checks distinguish explicit absence from an inconclusive successful lookup.
 
 ## 5. Documentation and verification
 

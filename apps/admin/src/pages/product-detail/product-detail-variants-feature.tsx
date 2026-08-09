@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Badge,
   Button,
@@ -21,6 +21,8 @@ import {
   Pencil,
   RefreshCw,
   Trash,
+  Upload,
+  X,
 } from "lucide-react";
 import { DropdownMenu } from "@medusajs/ui";
 import { MediaPreview } from "../../components/ui/media-preview";
@@ -29,6 +31,9 @@ import type { CatalogProduct } from "../../types";
 import { VariantBatchDrawer } from "./product-detail-variant-batch-drawer";
 import { useProductDetailVariants } from "./use-product-detail-variants";
 import { VariantMediaManager } from "./variant-media-manager";
+import { useAuth } from "../../hooks/use-auth";
+import { isSuperAdmin } from "../../lib/auth-utils";
+import { checkProductMisaLinks } from "../../lib/products-client";
 
 type ProductDetailVariantsProps = {
   product: CatalogProduct;
@@ -40,10 +45,20 @@ const misaStatus = {
   synced: { label: "Synced", color: "green" as const },
   pending: { label: "Pending", color: "grey" as const },
   failed: { label: "Failed", color: "red" as const },
+  disconnected: { label: "Disconnected", color: "orange" as const },
+  missing: { label: "Missing", color: "red" as const },
 };
 
 export function ProductDetailVariants({ product, mutate, updateProduct }: ProductDetailVariantsProps) {
-  const state = useProductDetailVariants({ product, mutate });
+  const { user } = useAuth();
+  useEffect(() => { void checkProductMisaLinks(product.id).then((variants) => {
+    const byId = new Map(variants.map((variant) => [String(variant.id), variant]));
+    updateProduct((current) => ({ ...current, variants: current.variants.map((variant) => {
+      const checked = byId.get(variant.id);
+      return checked ? { ...variant, misaSyncStatus: checked.misaSyncStatus, misaLastError: checked.misaLastError } : variant;
+    }) }));
+  }).catch(() => undefined); }, [product.id]);
+  const state = useProductDetailVariants({ product, mutate, updateProduct });
   const {
     priceOpen, setPriceOpen, stockOpen, setStockOpen, variantOpen, setVariantOpen,
     priceRows, setPriceRows, stockRows, setStockRows, variantForm, setVariantForm,
@@ -51,10 +66,17 @@ export function ProductDetailVariants({ product, mutate, updateProduct }: Produc
     isSavingPrices, isSavingStock, isSavingVariant, openPrices, openStock,
     openVariantEditor, updateVariantAttribute, savePrices, saveStock, saveVariant,
     handleDeleteVariant,
-    handleSyncVariantToMisa, syncingMisaVariantId,
+    handleSyncVariantToMisa, handleDisconnectVariantFromMisa, syncingMisaVariantId,
   } = state;
   const [mediaVariantId, setMediaVariantId] = useState<string | null>(null);
+  const [variantTab, setVariantTab] = useState<"information" | "media">("information");
+  const galleryUploadRef = useRef<HTMLInputElement>(null);
+  const backgroundUploadRef = useRef<HTMLInputElement>(null);
   const mediaVariant = product.variants.find((variant) => variant.id === mediaVariantId) ?? null;
+  const openCreateVariant = () => {
+    setVariantTab("information");
+    openVariantEditor();
+  };
 
   return (
     <Container className="p-0 overflow-hidden">
@@ -82,7 +104,7 @@ export function ProductDetailVariants({ product, mutate, updateProduct }: Produc
                 </DropdownMenu.Item>
               </DropdownMenu.Content>
             </DropdownMenu>
-            <Button variant="secondary" size="small" className="h-[28px]" onClick={() => openVariantEditor()}>
+            <Button variant="secondary" size="small" className="h-[28px]" onClick={openCreateVariant}>
               Create
             </Button>
           </div>
@@ -191,13 +213,27 @@ export function ProductDetailVariants({ product, mutate, updateProduct }: Produc
                           <ImageIcon className="mr-2 h-4 w-4" />
                           Manage media
                         </DropdownMenu.Item>
-                        {product.status === "Published" ? (
+                        {product.status === "Published" && isSuperAdmin(user?.role) ? (
                           <DropdownMenu.Item
                             onClick={() => void handleSyncVariantToMisa(Number(variant.id))}
                             disabled={syncingMisaVariantId === Number(variant.id)}
                           >
                             <RefreshCw className="mr-2 h-4 w-4" />
-                            {syncingMisaVariantId === Number(variant.id) ? "Syncing MISA" : "Sync MISA"}
+                            {syncingMisaVariantId === Number(variant.id)
+                              ? "Syncing MISA"
+                              : variant.misaSyncStatus === "disconnected"
+                                ? "Connect MISA"
+                                : variant.misaSyncStatus === "failed"
+                                  ? "Retry MISA sync"
+                                  : "Refresh MISA link"}
+                          </DropdownMenu.Item>
+                        ) : null}
+                        {product.status === "Published" && isSuperAdmin(user?.role) && variant.misaSyncStatus !== "disconnected" ? (
+                          <DropdownMenu.Item
+                            onClick={() => void handleDisconnectVariantFromMisa(Number(variant.id))}
+                            disabled={syncingMisaVariantId === Number(variant.id)}
+                          >
+                            Disconnect MISA
                           </DropdownMenu.Item>
                         ) : null}
                         <DropdownMenu.Separator />
@@ -250,7 +286,13 @@ export function ProductDetailVariants({ product, mutate, updateProduct }: Produc
           </FocusModal.Header>
           <FocusModal.Body className="overflow-y-auto px-6 py-8">
             <div className="mx-auto flex w-full max-w-[760px] flex-col gap-8">
-
+              {!variantForm.id ? (
+                <div className="flex gap-1 border-b border-ui-border-base">
+                  <Button variant={variantTab === "information" ? "primary" : "transparent"} size="small" onClick={() => setVariantTab("information")}>Information</Button>
+                  <Button variant={variantTab === "media" ? "primary" : "transparent"} size="small" onClick={() => setVariantTab("media")}>Media</Button>
+                </div>
+              ) : null}
+              {variantForm.id || variantTab === "information" ? <>
               <section className="space-y-4">
                 <div>
                   <Heading level="h3" className="text-base font-medium">
@@ -454,6 +496,35 @@ export function ProductDetailVariants({ product, mutate, updateProduct }: Produc
                   </div>
                 </div>
               </section>
+              </> : (
+                <section className="space-y-5">
+                  <div>
+                    <Heading level="h3" className="text-base font-medium">Media</Heading>
+                    <Text size="small" className="text-ui-fg-subtle">Gallery Media is optional. A Customization Background is required only while customization is active.</Text>
+                  </div>
+                  <div className="space-y-2">
+                    <input ref={galleryUploadRef} type="file" className="hidden" accept="image/png,image/jpeg,image/webp,application/pdf" multiple onChange={(event) => {
+                      const files = Array.from(event.target.files ?? []);
+                      event.target.value = "";
+                      if (files.length) setVariantForm((current) => ({ ...current, galleryMedia: [...current.galleryMedia, ...files] }));
+                    }} />
+                    <div className="flex items-center justify-between gap-3">
+                      <div><Text size="small" weight="plus">Gallery Media</Text><Text size="xsmall" className="text-ui-fg-subtle">{variantForm.galleryMedia.length ? `${variantForm.galleryMedia.length} file(s) selected` : "No files selected"}</Text></div>
+                      <Button variant="secondary" size="small" onClick={() => galleryUploadRef.current?.click()}><Upload className="h-4 w-4" />Add files</Button>
+                    </div>
+                    {variantForm.galleryMedia.length ? <div className="flex flex-wrap gap-2">{variantForm.galleryMedia.map((file, index) => <div key={`${file.name}-${index}`} className="flex max-w-full items-center gap-1 border border-ui-border-base px-2 py-1"><Text size="xsmall" className="max-w-48 truncate">{file.name}</Text><IconButton variant="transparent" size="small" onClick={() => setVariantForm((current) => ({ ...current, galleryMedia: current.galleryMedia.filter((_, itemIndex) => itemIndex !== index) }))}><X className="h-3 w-3" /></IconButton></div>)}</div> : null}
+                  </div>
+                  <div className="space-y-2 border-t border-ui-border-base pt-5">
+                    <input ref={backgroundUploadRef} type="file" className="hidden" accept="image/png,image/jpeg,image/webp,application/pdf" onChange={(event) => {
+                      const file = event.target.files?.[0] ?? null;
+                      event.target.value = "";
+                      if (file) setVariantForm((current) => ({ ...current, customizationBackground: file }));
+                    }} />
+                    <div className="flex items-center justify-between gap-3"><div><Text size="small" weight="plus">Customization Background{product.customization?.enabled ? " *" : ""}</Text><Text size="xsmall" className="text-ui-fg-subtle">{variantForm.customizationBackground?.name ?? "No file selected"}</Text></div><Button variant="secondary" size="small" onClick={() => backgroundUploadRef.current?.click()}>{variantForm.customizationBackground ? "Replace" : "Choose"}</Button></div>
+                    {variantForm.customizationBackground ? <Button variant="transparent" size="small" onClick={() => setVariantForm((current) => ({ ...current, customizationBackground: null }))}>Remove</Button> : null}
+                  </div>
+                </section>
+              )}
             </div>
           </FocusModal.Body>
           <FocusModal.Footer>

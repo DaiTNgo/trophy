@@ -8,14 +8,17 @@ import {
   Rail,
 } from "../../components/customization/customization-template-panels";
 import { PreviewDialog } from "../../components/customization/customization-template-preview";
+import type { BackgroundAsset } from "@trophy/customization";
 import type { useCreateProduct } from "./use-create-product";
 
 type CreateProductCustomizationProps = {
   state: ReturnType<typeof useCreateProduct>;
+  onUploadBackground?: (background: BackgroundAsset, file?: File) => void;
 };
 
 export function CreateProductCustomization({
   state,
+  onUploadBackground = () => {},
 }: CreateProductCustomizationProps) {
   const {
     embeddedEditor,
@@ -69,7 +72,7 @@ export function CreateProductCustomization({
               onUpdateTemplate={embeddedEditor.updateTemplate}
               onUpdateField={embeddedEditor.updateField}
               onDelete={embeddedEditor.deleteSelectedLayer}
-              onUploadBackground={() => {}}
+              onUploadBackground={onUploadBackground}
               embeddedBackgrounds={{
                 items: previewBackgrounds,
                 selectedAssetId: selectedPreviewAssetId,
@@ -101,7 +104,7 @@ export function CreateProductCustomization({
           onPathEditingLayerChange={embeddedEditor.setPathEditingLayerId}
           onSelectVectorPoint={embeddedEditor.setSelectedVectorPointId}
           onUpdateLayer={embeddedEditor.updateLayer}
-          onUploadBackground={() => {}}
+          onUploadBackground={onUploadBackground}
           onAddVectorPoint={embeddedEditor.addVectorPoint}
           onUndoVectorPoint={embeddedEditor.undoVectorPoint}
           onCloseVectorShape={embeddedEditor.closeVectorShape}
