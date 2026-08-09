@@ -9,6 +9,7 @@ import {
 import {
   buildVariantCustomizationMediaInsertRows,
   buildVariantMediaInsertRows,
+  selectInitialProductThumbnailAssetId,
 } from "./product-media";
 
 type ProductAssetRow = typeof productAssets.$inferSelect;
@@ -113,6 +114,44 @@ const buildPublishableProduct = (
   }) as Parameters<typeof validatePublishable>[0];
 
 describe("product full-create helpers", () => {
+  it("selects customization media before gallery media for the first eligible variant", () => {
+    expect(
+      selectInitialProductThumbnailAssetId([
+        {
+          customizationMedia: { assetId: "background-first" },
+          media: [{ assetId: "gallery-first" }, { assetId: "gallery-second" }],
+        },
+        {
+          customizationMedia: { assetId: "background-later" },
+          media: [{ assetId: "gallery-later" }],
+        },
+      ]),
+    ).toBe("background-first");
+  });
+
+  it("selects the first gallery media when the eligible variant has no customization media", () => {
+    expect(
+      selectInitialProductThumbnailAssetId([
+        { media: [] },
+        { media: [{ assetId: "gallery-first" }, { assetId: "gallery-second" }] },
+      ]),
+    ).toBe("gallery-first");
+  });
+
+  it("uses a later variant when earlier variants have no eligible media", () => {
+    expect(
+      selectInitialProductThumbnailAssetId([
+        { media: [] },
+        { media: [], customizationMedia: null },
+        { media: [{ assetId: "gallery-later" }] },
+      ]),
+    ).toBe("gallery-later");
+  });
+
+  it("returns no thumbnail when no variant has eligible media", () => {
+    expect(selectInitialProductThumbnailAssetId([{ media: [] }, { media: [] }])).toBeNull();
+  });
+
   it("persists draft customization even when media is incomplete", () => {
     const row = buildProductCustomizationInsert({
       productId: 42,

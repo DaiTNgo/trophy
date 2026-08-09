@@ -1,5 +1,5 @@
 import { validateProductCustomizationDraft, type ProductCustomization } from '@trophy/customization'
-import { asc, eq, inArray } from 'drizzle-orm'
+import { eq, inArray } from 'drizzle-orm'
 import { upsertTranslations } from '../../lib/catalog-translation'
 import { Hono } from 'hono'
 import { getDb } from '../../db/client'
@@ -31,10 +31,9 @@ import { enqueueMisaProductSync, syncMisaProductVariants } from './product-misa-
 import {
   insertVariantCustomizationMedia,
   insertVariantMedia,
+  selectInitialProductThumbnailAssetId,
 } from './product-media'
-import { replaceAttributes, replaceOptions } from './product-mutations'
 import { readProduct } from './product-reader'
-import { replaceVariants } from './product-variant-mutations'
 import { validatePublishable } from './product-publishability'
 import {
   buildProductCustomizationInsert,
@@ -42,6 +41,13 @@ import {
 } from './product-customization-service'
 import { normalizeFullCreateDefaultOptionGraph } from './product-default-graph'
 import { extensionForMimeType, fullCreateAssetInput, parseFullCreateMultipart } from './product-full-create-multipart'
+import {
+  insertFullCreateAttributes,
+  insertFullCreateOptions,
+  insertFullCreateVariants,
+  persistFullCreateTranslations,
+  queueFullCreateTranslations,
+} from './product-full-create-persistence'
 import {
   createProductSchema,
   idParamsSchema,
@@ -126,30 +132,6 @@ const validateOrganizeReferences = async (
 
 const buildOptionSelectionKey = (optionTitle: string, value: string) =>
   `${optionTitle.trim().toLowerCase()}::${value.trim().toLowerCase()}`
-
-const loadOptionValueLookup = async (db: ReturnType<typeof getDb>, productId: number) => {
-  const optionRows = await db
-    .select()
-    .from(productOptions)
-    .where(eq(productOptions.productId, productId))
-    .orderBy(asc(productOptions.position), asc(productOptions.id))
-  const optionIds = optionRows.map((row) => row.id)
-  const optionValueRows =
-    optionIds.length > 0
-      ? await db
-          .select()
-          .from(productOptionValues)
-          .where(inArray(productOptionValues.optionId, optionIds))
-      : []
-  const optionById = new Map(optionRows.map((row) => [row.id, row]))
-
-  return new Map(
-    optionValueRows.map((row) => {
-      const option = optionById.get(row.optionId)
-      return [buildOptionSelectionKey(option?.title ?? '', row.value), row.id] as const
-    })
-  )
-}
 
 const defaultLocalizedText = (value: string) => ({ vi: value, en: value })
 
@@ -374,30 +356,13 @@ export const productCommandRoute = new Hono<AppEnv>()
       .get()
     insertedProductId = insertedProduct.id
 
-    await upsertTranslations(
-      db,
-      'product',
-      String(insertedProduct.id),
-      'title',
-      parsed.output.details.title
-    )
+    const translations = [] as Parameters<typeof queueFullCreateTranslations>[0]
+    queueFullCreateTranslations(translations, 'product', String(insertedProduct.id), 'title', parsed.output.details.title)
     if (parsed.output.details.subtitle) {
-      await upsertTranslations(
-        db,
-        'product',
-        String(insertedProduct.id),
-        'subtitle',
-        parsed.output.details.subtitle
-      )
+      queueFullCreateTranslations(translations, 'product', String(insertedProduct.id), 'subtitle', parsed.output.details.subtitle)
     }
     if (parsed.output.details.description) {
-      await upsertTranslations(
-        db,
-        'product',
-        String(insertedProduct.id),
-        'description',
-        parsed.output.details.description
-      )
+      queueFullCreateTranslations(translations, 'product', String(insertedProduct.id), 'description', parsed.output.details.description)
     }
 
     let categoryIds = [...new Set(parsed.output.organization.categoryIds ?? [])]
@@ -419,18 +384,8 @@ export const productCommandRoute = new Hono<AppEnv>()
       )
     }
 
-    await replaceAttributes(db, insertedProduct.id, parsed.output.attributes)
-
-    const replaceOptionsError = await replaceOptions(
-      db,
-      insertedProduct.id,
-      normalizedInput.options
-    )
-    if (replaceOptionsError) {
-      throw new Error(replaceOptionsError.error)
-    }
-
-    const optionValueLookup = await loadOptionValueLookup(db, insertedProduct.id)
+    await insertFullCreateAttributes(db, insertedProduct.id, parsed.output.attributes, translations)
+    const optionValueLookup = await insertFullCreateOptions(db, insertedProduct.id, normalizedInput.options, translations)
     const variantInput = [] as Array<{
       title: string | { vi: string; en?: string | null }
       sku?: string | null
@@ -446,6 +401,7 @@ export const productCommandRoute = new Hono<AppEnv>()
       }>
     }>
 
+    const seenOptionCombinations = new Set<string>()
     for (const variant of normalizedInput.variants) {
       const optionValueIds = [] as number[]
 
@@ -461,6 +417,15 @@ export const productCommandRoute = new Hono<AppEnv>()
         optionValueIds.push(optionValueId)
       }
 
+      if (optionValueIds.length !== normalizedInput.options.length) {
+        throw new Error(`Variant ${localizedInputValue(variant.title)} must include exactly one value for every option`)
+      }
+      const combinationKey = [...optionValueIds].sort((left, right) => left - right).join(':')
+      if (seenOptionCombinations.has(combinationKey)) {
+        throw new Error('Variant option combinations must be unique')
+      }
+      seenOptionCombinations.add(combinationKey)
+
       variantInput.push({
         title: variant.title,
         sku: variant.sku ?? null,
@@ -473,18 +438,11 @@ export const productCommandRoute = new Hono<AppEnv>()
       })
     }
 
-    const replaceVariantsError = await replaceVariants(db, insertedProduct.id, variantInput)
-    if (replaceVariantsError) {
-      throw new Error(replaceVariantsError.error)
-    }
-
-    const persistedProduct = await readProduct(c, db, insertedProduct.id)
-    if (!persistedProduct) {
-      throw new Error('Created product could not be loaded')
-    }
+    const persistedVariants = await insertFullCreateVariants(db, insertedProduct.id, variantInput, translations)
+    await persistFullCreateTranslations(db, translations)
 
     const assetRows = [] as Array<typeof productAssets.$inferInsert>
-    for (const [variantIndex, variant] of persistedProduct.variants.entries()) {
+    for (const [variantIndex, variant] of persistedVariants.entries()) {
       const submittedVariant = normalizedAssetVariants[variantIndex]
       for (const media of submittedVariant.media) {
         const source = mediaByAssetId.get(media.assetId)!
@@ -502,8 +460,24 @@ export const productCommandRoute = new Hono<AppEnv>()
       }
     }
     if (assetRows.length > 0) await db.insert(productAssets).values(assetRows)
-    await insertVariantMedia(db, persistedProduct.variants, normalizedAssetVariants)
-    await insertVariantCustomizationMedia(db, persistedProduct.variants, normalizedAssetVariants)
+    await insertVariantMedia(db, persistedVariants, normalizedAssetVariants)
+    await insertVariantCustomizationMedia(db, persistedVariants, normalizedAssetVariants)
+
+    const initialThumbnailAssetId = selectInitialProductThumbnailAssetId(normalizedAssetVariants)
+    if (initialThumbnailAssetId) {
+      try {
+        await db
+          .update(products)
+          .set({ thumbnailAssetId: initialThumbnailAssetId, updatedAt: nowIso() })
+          .where(eq(products.id, insertedProduct.id))
+      } catch (error) {
+        console.error('initial product thumbnail assignment failed', {
+          productId: insertedProduct.id,
+          assetId: initialThumbnailAssetId,
+          error,
+        })
+      }
+    }
 
     if (parsed.output.customization?.enabled) {
       const customizationRow = buildProductCustomizationInsert({

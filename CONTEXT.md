@@ -262,8 +262,12 @@ Media owned by exactly one product variant and shown for that variant. New items
 _Avoid_: product media upload, shared gallery file, customization background
 
 **Product Thumbnail**:
-The explicitly selected Variant Media, Customization Background, or product-owned thumbnail asset used to represent a product. If its asset is deleted or replaced, the thumbnail becomes empty and does not fall back to another asset.
-_Avoid_: first gallery image, automatic thumbnail fallback, variant default image
+The asset used to represent a product. On Product creation, it is initialized by referencing eligible media already owned by a created variant: either its Customization Background or Variant Media. After creation, an operator can explicitly select a Variant Media, Customization Background, or product-owned thumbnail asset. If the referenced asset is deleted or replaced, the thumbnail becomes empty and does not fall back to another asset.
+_Avoid_: product gallery copy, perpetual automatic thumbnail fallback, variant default image
+
+**Initial Product Thumbnail**:
+The Product Thumbnail reference assigned once by the Create Product workflow from eligible media of created variants in their creation order. It reuses the existing asset and does not create another R2 object. For each variant, the source priority is its Customization Background, then its first Variant Media in gallery position order. It is not recalculated after Product creation. It is empty when no created variant has eligible media or when its best-effort initialization fails; that failure does not prevent Product creation.
+_Avoid_: product-media upload, dynamic thumbnail fallback, copied variant asset
 
 **Product Media**:
 The thumbnail selection surface for one Product. Operators choose a Variant Media or Customization Background asset, or upload one product-owned thumbnail asset; references never duplicate the source R2 object. It is not a gallery and has no ordering.
