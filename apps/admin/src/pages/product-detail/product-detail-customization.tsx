@@ -108,21 +108,21 @@ function CustomizationBackgroundModal({
   const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({});
   const expectedCanvas =
     mode === "repair" &&
-    product.customization?.canvasWidthPx &&
-    product.customization?.canvasHeightPx
+      product.customization?.canvasWidthPx &&
+      product.customization?.canvasHeightPx
       ? {
-          widthPx: product.customization.canvasWidthPx,
-          heightPx: product.customization.canvasHeightPx,
-        }
+        widthPx: product.customization.canvasWidthPx,
+        heightPx: product.customization.canvasHeightPx,
+      }
       : undefined;
   const mediaReadiness =
     mode === "repair" && !expectedCanvas
       ? { ready: false as const }
       : stagedCustomizationMediaReadiness(
-          variants.map((variant) => variant.id),
-          files,
-          expectedCanvas,
-        );
+        variants.map((variant) => variant.id),
+        files,
+        expectedCanvas,
+      );
 
   useEffect(() => {
     const generatedUrls: string[] = [];
@@ -206,9 +206,9 @@ function CustomizationBackgroundModal({
     const size = dimensions && !isPdf
       ? dimensions
       : await readImageDimensions(fileToStage).then(({ width, height }) => ({
-          widthPx: width,
-          heightPx: height,
-        }));
+        widthPx: width,
+        heightPx: height,
+      }));
     setFiles((current) => ({
       ...current,
       [variantId]: {
@@ -251,9 +251,9 @@ function CustomizationBackgroundModal({
     const expected =
       mode === "repair"
         ? {
-            width: product.customization?.canvasWidthPx,
-            height: product.customization?.canvasHeightPx,
-          }
+          width: product.customization?.canvasWidthPx,
+          height: product.customization?.canvasHeightPx,
+        }
         : (dimensions?.[0] ?? null);
     if (
       !dimensions ||
@@ -281,15 +281,15 @@ function CustomizationBackgroundModal({
       const next =
         mode === "activate"
           ? await activateCustomization(product.id, product.updatedAt, {
-              layers: templateDraft.layers,
-              formFields: templateDraft.formFields,
-              backgrounds,
-            })
+            layers: templateDraft.layers,
+            formFields: templateDraft.formFields,
+            backgrounds,
+          })
           : await repairCustomization(product.id, product.updatedAt, {
-              layers: templateDraft.layers,
-              formFields: templateDraft.formFields,
-              backgrounds,
-            });
+            layers: templateDraft.layers,
+            formFields: templateDraft.formFields,
+            backgrounds,
+          });
       onSaved(mapApiProductToCatalogProduct(next));
       close(false);
       toast.success(
@@ -346,9 +346,10 @@ function CustomizationBackgroundModal({
               </ProgressTabs.Trigger>
             </ProgressTabs.List>
           </FocusModal.Header>
-          <FocusModal.Body className="overflow-y-auto py-6">
-              <ProgressTabs.Content value="media">
-                <div className="overflow-x-auto">
+          <FocusModal.Body className="overflow-y-auto flex flex-col">
+            <div className="flex-1 flex flex-col min-h-0">
+              <ProgressTabs.Content value="media" className="outline-none">
+                <div className="min-h-0 flex-1 overflow-x-auto overflow-y-auto">
                   <Table>
                     <Table.Header>
                       <Table.Row>
@@ -457,9 +458,8 @@ function CustomizationBackgroundModal({
               </ProgressTabs.Content>
               <ProgressTabs.Content
                 value="editor"
-                className=" flex min-h-0 flex-1 flex-col outline-none px-6 "
+                className="outline-none px-6 py-6 flex-1 flex flex-col min-h-0"
               >
-                <div className="h-[680px] min-h-0 flex-1">
                   <CreateProductCustomization
                     state={
                       {
@@ -472,8 +472,8 @@ function CustomizationBackgroundModal({
                     }
                     onUploadBackground={replaceSelectedBackground}
                   />
-                </div>
               </ProgressTabs.Content>
+            </div>
           </FocusModal.Body>
         </ProgressTabs>
         <FocusModal.Footer>
