@@ -96,7 +96,7 @@ describe("storefront orders route", () => {
     vat: {
       type: "Company",
       name: "Trophy Co.",
-      taxId: "0312345678",
+      taxId: "0314042508",
       email: "accounting@trophy.test",
       address: "1 Nguyen Hue, Ho Chi Minh City",
     },
@@ -194,6 +194,21 @@ describe("storefront orders route", () => {
     await expect(res.json()).resolves.toMatchObject({
       error: "Validation failed",
     });
+  });
+
+  it("rejects an invalid VAT tax ID before creating a checkout order", async () => {
+    const res = await storefrontOrdersRoute.request("/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ...validPayload,
+        vat: { ...validPayload.vat, taxId: "0312345678" },
+      }),
+    });
+
+    expect(res.status).toBe(422);
+    await expect(res.json()).resolves.toEqual({ error: "VAT tax ID is invalid" });
+    expect(db.valuesCalls).toEqual([]);
   });
 
   it("resolves a valid cart line with shopper-safe display data", async () => {

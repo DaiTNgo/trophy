@@ -25,6 +25,7 @@ import {
 import type { AppEnv } from "../../lib/env";
 import {
   buildCustomizationValueSummaries,
+  isValidVietnamTaxId,
   maskPhone,
   normalizePhoneForLookup,
   parseBackgroundSnapshot,
@@ -724,6 +725,9 @@ export const storefrontOrdersRoute = new Hono<AppEnv>()
     }
 
     const input: CreateOrderInput = parsed.output;
+    if (input.vat?.taxId && !isValidVietnamTaxId(input.vat.taxId)) {
+      return jsonError(c, 422, "VAT tax ID is invalid");
+    }
     if (input.shipping.shipToDifferentAddress && !input.shipping.differentAddress) {
       return jsonError(
         c,

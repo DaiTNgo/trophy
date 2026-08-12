@@ -4,6 +4,7 @@ import { orderItems, orders } from "../db/schema";
 import type { AppBindings } from "./env";
 import {
   normalizePhoneForLookup,
+  normalizeVietnamTaxId,
   parseDifferentShippingAddress,
   parseOrderAddress,
   parseVariantSnapshot,
@@ -439,10 +440,6 @@ function compactText(parts: Array<string | null | undefined>) {
   return parts.map((part) => part?.trim()).filter((part): part is string => Boolean(part)).join(", ");
 }
 
-function normalizeMisaTaxId(value: string) {
-  return value.replace(/\s+/g, "").toLocaleUpperCase();
-}
-
 function formatOrderAddress(address: ReturnType<typeof parseOrderAddress>) {
   if (!address) return null;
   return compactText([
@@ -532,7 +529,7 @@ export function buildMisaCreateProductsPayload(source: { title: unknown; variant
 export function buildMisaCustomerPayload(source: MisaOrderSource): MisaCustomerPayload {
   const phone = normalizePhoneForLookup(source.order.customerPhone);
   const vat = parseVatDetails(source.order.vatDetailsJson);
-  const taxId = vat?.taxId ? normalizeMisaTaxId(vat.taxId) : "";
+  const taxId = vat?.taxId ? normalizeVietnamTaxId(vat.taxId) : "";
   const isCompany = Boolean(taxId);
   const billingAddress = parseOrderAddress(source.order.primaryAddressJson);
   const differentShippingAddress = parseDifferentShippingAddress(source.order.shippingAddressJson);

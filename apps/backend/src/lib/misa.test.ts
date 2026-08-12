@@ -389,17 +389,17 @@ describe("MISA client", () => {
         shippingAddressJson: JSON.stringify({ recipientName: "John", recipientPhone: "090-456", address: { line1: "2 Le Loi", city: "Da Nang", country: "VN" } }),
         totalAmount: 10000,
         notes: "Please call before delivery.",
-        vatDetailsJson: JSON.stringify({ type: "Company", name: "Trophy Co.", taxId: "0312345678", email: "accounting@trophy.test", address: "1 Nguyen Hue, Ho Chi Minh City" }),
+        vatDetailsJson: JSON.stringify({ type: "Company", name: "Trophy Co.", taxId: "0314042508", email: "accounting@trophy.test", address: "1 Nguyen Hue, Ho Chi Minh City" }),
       },
       items: [{ id: 1, quantity: 1, unitPriceAmount: 10000, lineSubtotalAmount: 10000, variantSnapshotJson: JSON.stringify({ id: 42, sku: "SKU-1", title: "Gold" }) }],
     } as any;
 
     expect(buildMisaCustomerPayload(source)).toMatchObject({
       form_layout: "Mẫu tiêu chuẩn",
-      account_number: "TROPHY-TAX-0312345678",
+      account_number: "TROPHY-TAX-0314042508",
       account_name: "Trophy Co.",
       is_personal: false,
-      tax_code: "0312345678",
+      tax_code: "0314042508",
       office_tel: "090123",
       office_email: "accounting@trophy.test",
       billing_address: "1 Nguyen Hue, Ho Chi Minh City",
@@ -416,7 +416,7 @@ describe("MISA client", () => {
         "YEU CAU XUAT HOA DON",
         "Loai: Company",
         "Don vi: Trophy Co.",
-        "MST: 0312345678",
+        "MST: 0314042508",
         "Email hoa don: accounting@trophy.test",
         "Dia chi hoa don: 1 Nguyen Hue, Ho Chi Minh City",
         "",
@@ -435,16 +435,16 @@ describe("MISA client", () => {
         customerEmail: "jane@example.com",
         primaryAddressJson: null,
         shippingAddressJson: null,
-        vatDetailsJson: JSON.stringify({ name: "Trophy Co.", taxId: " 0312 345 678 " }),
+        vatDetailsJson: JSON.stringify({ name: "Trophy Co.", taxId: " 0314 042 508 " }),
       },
       items: [],
     } as any;
 
     expect(buildMisaCustomerPayload(source)).toMatchObject({
-      account_number: "TROPHY-TAX-0312345678",
+      account_number: "TROPHY-TAX-0314042508",
       account_name: "Trophy Co.",
       is_personal: false,
-      tax_code: "0312345678",
+      tax_code: "0314042508",
     });
   });
 
