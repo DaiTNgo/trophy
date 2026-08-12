@@ -367,6 +367,16 @@ export type StorefrontOrderResponse = {
   };
 };
 
+export class StorefrontOrderError extends Error {
+  readonly field: string | null;
+
+  constructor(message: string, field?: string | null) {
+    super(message);
+    this.name = "StorefrontOrderError";
+    this.field = field ?? null;
+  }
+}
+
 export type StorefrontPaymentInstructionsResponse = {
   order: {
     orderNumber: string;
@@ -472,9 +482,9 @@ export async function createStorefrontOrder(
   });
 
   if (!res.ok) {
-    const errData = await res.json().catch(() => null) as { error?: string } | null;
+    const errData = await res.json().catch(() => null) as { error?: string; field?: string } | null;
     if (errData?.error) {
-      throw new Error(errData.error);
+      throw new StorefrontOrderError(errData.error, errData.field);
     }
     throw new Response("Failed to create order", { status: res.status });
   }

@@ -8,6 +8,7 @@ import {
   resolveStorefrontCartLines,
   type StorefrontPaymentInstructionsResponse,
   type StorefrontResolvedCartLine,
+  StorefrontOrderError,
 } from "../lib/api";
 import { useCart } from "../hooks/use-cart";
 import type { CartLine } from "../lib/cart";
@@ -33,17 +34,6 @@ export function meta({}: Route.MetaArgs) {
 
 function getFormString(formData: FormData, name: string) {
   return String(formData.get(name) ?? "");
-}
-
-export function isValidVietnamTaxId(value: string) {
-  const taxId = value.replace(/[\s-]+/g, "");
-  if (!/^\d{10}(\d{3})?$/.test(taxId)) return false;
-
-  const weights = [31, 29, 23, 19, 17, 13, 7, 5, 3];
-  const sum = weights.reduce((total, weight, index) => total + Number(taxId[index]) * weight, 0);
-  const remainder = sum % 11;
-  const checkDigit = remainder === 0 ? 0 : 10 - remainder;
-  return checkDigit === Number(taxId[9]);
 }
 
 function getVatDetails(formData: FormData) {
@@ -232,7 +222,7 @@ export default function Checkout() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [vatChecked, setVatChecked] = useState(false);
-  const [vatTaxIdError, setVatTaxIdError] = useState("");
+  const [vatErrors, setVatErrors] = useState<Partial<Record<"name" | "taxId" | "email" | "address", string>>>({});
   const [showMobileSummary, setShowMobileSummary] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("bank_transfer");
   const [paymentInstructions, setPaymentInstructions] = useState<StorefrontPaymentInstructionsResponse["order"] | null>(null);
@@ -304,13 +294,7 @@ export default function Checkout() {
     if (hasInvalidLines || lines.length === 0 || submitting) return;
     const formData = new FormData(event.currentTarget);
     const vat = getVatDetails(formData);
-    if (vat?.taxId && !isValidVietnamTaxId(vat.taxId)) {
-      setVatTaxIdError("Mã số thuế không hợp lệ.");
-      const taxIdInput = event.currentTarget.elements.namedItem("vat.taxId");
-      if (taxIdInput instanceof HTMLInputElement) taxIdInput.focus();
-      return;
-    }
-    setVatTaxIdError("");
+    setVatErrors({});
     setSubmitting(true);
     setError("");
     try {
@@ -349,6 +333,13 @@ export default function Checkout() {
       if (locale === "en") paymentSearch.set("locale", "en");
       navigate(`/checkout?${paymentSearch}`, { replace: true });
     } catch (reason) {
+      if (reason instanceof StorefrontOrderError && reason.field?.startsWith("vat.")) {
+        const field = reason.field.slice(4) as "name" | "taxId" | "email" | "address";
+        setVatErrors({ [field]: reason.message });
+        const input = event.currentTarget.elements.namedItem(reason.field);
+        if (input instanceof HTMLInputElement) input.focus();
+        return;
+      }
       setError(
         reason instanceof Error ? reason.message : "Không thể tạo đơn hàng.",
       );
@@ -387,10 +378,10 @@ export default function Checkout() {
           vatChecked={vatChecked}
           onVatCheckedChange={(checked) => {
             setVatChecked(checked);
-            if (!checked) setVatTaxIdError("");
+            if (!checked) setVatErrors({});
           }}
-          vatTaxIdError={vatTaxIdError}
-          onVatTaxIdChange={() => setVatTaxIdError("")}
+          vatErrors={vatErrors}
+          onVatFieldChange={(field) => setVatErrors((current) => ({ ...current, [field]: "" }))}
           submitting={submitting}
           hasInvalidLines={hasInvalidLines}
         />

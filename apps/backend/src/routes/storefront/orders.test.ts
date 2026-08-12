@@ -5,7 +5,17 @@ vi.mock("../../db/client", () => ({
   getDb: vi.fn(),
 }));
 
+vi.mock("../../lib/misa", () => ({
+  isMisaConfigured: vi.fn(() => false),
+  syncMisaOrder: vi.fn(),
+  validateMisaCheckoutCustomer: vi.fn(),
+  MisaRequestError: class MisaRequestError extends Error {
+    resource = "/Customers";
+  },
+}));
+
 import { getDb } from "../../db/client";
+import { isMisaConfigured, MisaRequestError, validateMisaCheckoutCustomer } from "../../lib/misa";
 import { createCheckoutAccessToken, storefrontOrdersRoute } from "./orders";
 
 function createQueryChain({
@@ -75,6 +85,8 @@ describe("storefront orders route", () => {
   beforeEach(() => {
     db = createMockDb();
     vi.mocked(getDb).mockReturnValue(db as never);
+    vi.mocked(isMisaConfigured).mockReturnValue(false);
+    vi.mocked(validateMisaCheckoutCustomer).mockReset();
   });
 
   const validPayload = {
@@ -196,7 +208,17 @@ describe("storefront orders route", () => {
     });
   });
 
-  it("rejects an invalid VAT tax ID before creating a checkout order", async () => {
+  it("returns MISA VAT validation errors before creating a checkout order", async () => {
+    vi.mocked(isMisaConfigured).mockReturnValue(true);
+    vi.mocked(validateMisaCheckoutCustomer).mockRejectedValue(
+      new MisaRequestError("tax_code: Giá trị của trường không hợp lệ", 200, { resource: "/Customers" }),
+    );
+    db.getQueue.push(
+      { id: 1, title: "Champion Cup", handle: "champion-cup", status: "published" },
+      { id: 10, productId: 1, title: "Gold", sku: "SKU-1", priceAmount: 5000 },
+      { assetId: "asset-1", position: 0 },
+      null,
+    );
     const res = await storefrontOrdersRoute.request("/", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -207,7 +229,10 @@ describe("storefront orders route", () => {
     });
 
     expect(res.status).toBe(422);
-    await expect(res.json()).resolves.toEqual({ error: "VAT tax ID is invalid" });
+    await expect(res.json()).resolves.toEqual({
+      error: "tax_code: Giá trị của trường không hợp lệ",
+      field: "vat.taxId",
+    });
     expect(db.valuesCalls).toEqual([]);
   });
 

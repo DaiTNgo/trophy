@@ -139,7 +139,12 @@ export class MisaRequestError extends Error {
   }
 }
 
-type MisaOrderSource = {
+type MisaCustomerSource = {
+  order: Pick<typeof orders.$inferSelect,
+    "customerName" | "customerPhone" | "customerEmail" | "primaryAddressJson" | "shippingAddressJson" | "vatDetailsJson">;
+};
+
+type MisaOrderSource = MisaCustomerSource & {
   order: typeof orders.$inferSelect;
   items: Array<typeof orderItems.$inferSelect>;
 };
@@ -526,7 +531,7 @@ export function buildMisaCreateProductsPayload(source: { title: unknown; variant
   });
 }
 
-export function buildMisaCustomerPayload(source: MisaOrderSource): MisaCustomerPayload {
+export function buildMisaCustomerPayload(source: MisaCustomerSource): MisaCustomerPayload {
   const phone = normalizePhoneForLookup(source.order.customerPhone);
   const vat = parseVatDetails(source.order.vatDetailsJson);
   const taxId = vat?.taxId ? normalizeVietnamTaxId(vat.taxId) : "";
@@ -604,7 +609,7 @@ function isDuplicateSaleOrderError(error: unknown) {
   return /trùng|duplicate|sale_order_no/i.test(error.message);
 }
 
-async function ensureMisaCustomer(bindings: AppBindings, source: MisaOrderSource) {
+async function ensureMisaCustomer(bindings: AppBindings, source: MisaCustomerSource) {
   const customer = buildMisaCustomerPayload(source);
   const existing = await findMisaCustomersByCodes(bindings, [customer.account_number]);
   const existingCustomer = existing.find((item) => item.account_number === customer.account_number);
@@ -612,6 +617,10 @@ async function ensureMisaCustomer(bindings: AppBindings, source: MisaOrderSource
     await misaFetch(bindings, "/Customers", { method: "POST", body: JSON.stringify([customer]) });
   }
   return { customerCode: existingCustomer?.account_number ?? customer.account_number };
+}
+
+export async function validateMisaCheckoutCustomer(bindings: AppBindings, source: MisaCustomerSource) {
+  return ensureMisaCustomer(bindings, source);
 }
 
 async function ensureMisaContact(bindings: AppBindings, source: MisaOrderSource, accountCode: string) {

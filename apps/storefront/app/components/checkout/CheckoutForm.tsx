@@ -148,13 +148,13 @@ function PaymentMethodSection({
 function AdditionalRequirementsSection({
   vatChecked,
   onVatCheckedChange,
-  vatTaxIdError,
-  onVatTaxIdChange,
+  vatErrors,
+  onVatFieldChange,
 }: {
   vatChecked: boolean;
   onVatCheckedChange: (checked: boolean) => void;
-  vatTaxIdError: string;
-  onVatTaxIdChange: () => void;
+  vatErrors: Partial<Record<"name" | "taxId" | "email" | "address", string>>;
+  onVatFieldChange: (field: "name" | "taxId" | "email" | "address") => void;
 }) {
   return (
     <section className="mt-12">
@@ -199,9 +199,13 @@ function AdditionalRequirementsSection({
               </Label>
               <Input
                 name="vat.name"
-                className="border-outline-variant bg-white"
+                aria-describedby={vatErrors.name ? "vat-name-error" : undefined}
+                aria-invalid={Boolean(vatErrors.name)}
+                className="border-outline-variant bg-white aria-invalid:border-error aria-invalid:ring-error"
+                onChange={() => onVatFieldChange("name")}
                 type="text"
               />
+              {vatErrors.name ? <p id="vat-name-error" className="mt-1 text-sm text-error">{vatErrors.name}</p> : null}
             </div>
             <div>
               <Label className="mb-1 text-xs font-bold uppercase tracking-wider text-on-surface-variant">
@@ -209,15 +213,15 @@ function AdditionalRequirementsSection({
               </Label>
               <Input
                 name="vat.taxId"
-                aria-describedby={vatTaxIdError ? "vat-tax-id-error" : undefined}
-                aria-invalid={Boolean(vatTaxIdError)}
+                aria-describedby={vatErrors.taxId ? "vat-tax-id-error" : undefined}
+                aria-invalid={Boolean(vatErrors.taxId)}
                 className="border-outline-variant bg-white aria-invalid:border-error aria-invalid:ring-error"
-                onChange={onVatTaxIdChange}
+                onChange={() => onVatFieldChange("taxId")}
                 type="text"
               />
-              {vatTaxIdError ? (
+              {vatErrors.taxId ? (
                 <p id="vat-tax-id-error" className="mt-1 text-sm text-error">
-                  {vatTaxIdError}
+                  {vatErrors.taxId}
                 </p>
               ) : null}
             </div>
@@ -227,9 +231,13 @@ function AdditionalRequirementsSection({
               </Label>
               <Input
                 name="vat.email"
-                className="border-outline-variant bg-white"
+                aria-describedby={vatErrors.email ? "vat-email-error" : undefined}
+                aria-invalid={Boolean(vatErrors.email)}
+                className="border-outline-variant bg-white aria-invalid:border-error aria-invalid:ring-error"
+                onChange={() => onVatFieldChange("email")}
                 type="email"
               />
+              {vatErrors.email ? <p id="vat-email-error" className="mt-1 text-sm text-error">{vatErrors.email}</p> : null}
             </div>
             <div className="md:col-span-2">
               <Label className="mb-1 text-xs font-bold uppercase tracking-wider text-on-surface-variant">
@@ -237,9 +245,13 @@ function AdditionalRequirementsSection({
               </Label>
               <Input
                 name="vat.address"
-                className="border-outline-variant bg-white"
+                aria-describedby={vatErrors.address ? "vat-address-error" : undefined}
+                aria-invalid={Boolean(vatErrors.address)}
+                className="border-outline-variant bg-white aria-invalid:border-error aria-invalid:ring-error"
+                onChange={() => onVatFieldChange("address")}
                 type="text"
               />
+              {vatErrors.address ? <p id="vat-address-error" className="mt-1 text-sm text-error">{vatErrors.address}</p> : null}
             </div>
           </div>
         ) : null}
@@ -260,8 +272,8 @@ export function CheckoutForm({
   onPaymentMethodChange,
   vatChecked,
   onVatCheckedChange,
-  vatTaxIdError,
-  onVatTaxIdChange,
+  vatErrors,
+  onVatFieldChange,
   submitting,
   hasInvalidLines,
 }: {
@@ -276,8 +288,8 @@ export function CheckoutForm({
   onPaymentMethodChange: (value: string) => void;
   vatChecked: boolean;
   onVatCheckedChange: (checked: boolean) => void;
-  vatTaxIdError: string;
-  onVatTaxIdChange: () => void;
+  vatErrors: Partial<Record<"name" | "taxId" | "email" | "address", string>>;
+  onVatFieldChange: (field: "name" | "taxId" | "email" | "address") => void;
   submitting: boolean;
   hasInvalidLines: boolean;
 }) {
@@ -309,8 +321,8 @@ export function CheckoutForm({
           <AdditionalRequirementsSection
             vatChecked={vatChecked}
             onVatCheckedChange={onVatCheckedChange}
-            vatTaxIdError={vatTaxIdError}
-            onVatTaxIdChange={onVatTaxIdChange}
+            vatErrors={vatErrors}
+            onVatFieldChange={onVatFieldChange}
           />
           <div className="mt-10 lg:mt-12">
             <Button

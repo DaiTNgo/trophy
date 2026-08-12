@@ -8,9 +8,7 @@ When an existing Contact lacks or has a different `account_name`, checkout synch
 
 VAT checkout data now creates/reuses a company Customer when `vat.taxId` is populated. Its key is `TROPHY-TAX-<normalized MST>` and its MISA `tax_code` is the MST; `is_personal` is `false`; company name, invoice email, and invoice address come from the VAT fields. Without a tax ID, checkout retains the phone-keyed personal Customer. The Contact and SaleOrder use whichever Customer code was selected.
 
-Checkout validates a Vietnamese 10-digit MST or 13-digit dependent-unit MST checksum before persisting the order or calling MISA. It removes spaces/hyphens, rejects malformed/checksum-invalid values with `422 VAT tax ID is invalid`, and uses the normalized value for the MISA Customer key and `tax_code`. This is local syntax/checksum validation only; MISA remains the authority for an active registration and tenant-specific requirements.
-
-Storefront checkout mirrors this MST validation before making its order request. The VAT tax-ID field is focused and receives an inline Vietnamese error on failure; input changes and disabling VAT clear the error. The checkout API client now aligns with backend address validation by treating `city` and `country` as optional. Full `./init.sh` passes after this correction.
+MISA is the authority for VAT Customer validation. When a checkout includes `vat.taxId`, backend creates/reuses the MISA Customer before it persists the local order. MISA errors for `tax_code`, `account_name`, `office_email`, and `billing_address` return HTTP 422 with the mapped VAT form field; storefront focuses that input and renders MISA's message inline. No locally inferred MST checksum validation remains in browser or backend. The checkout API client aligns with backend address validation by treating `city` and `country` as optional. Full `./init.sh` passes after this correction.
 
 Verification for this addition: backend test suite (231 tests), backend check/build, and `git diff --check` pass. `./init.sh` stops at the existing storefront type error `apps/storefront/app/routes/checkout.tsx:305`, where an address value lacks `city` and `country`.
 

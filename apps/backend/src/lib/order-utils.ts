@@ -88,17 +88,6 @@ export function normalizeVietnamTaxId(value: string) {
   return value.replace(/[\s-]+/g, "");
 }
 
-export function isValidVietnamTaxId(value: string) {
-  const taxId = normalizeVietnamTaxId(value);
-  if (!/^\d{10}(\d{3})?$/.test(taxId)) return false;
-
-  const weights = [31, 29, 23, 19, 17, 13, 7, 5, 3];
-  const sum = weights.reduce((total, weight, index) => total + Number(taxId[index]) * weight, 0);
-  const remainder = sum % 11;
-  const checkDigit = remainder === 0 ? 0 : 10 - remainder;
-  return checkDigit === Number(taxId[9]);
-}
-
 export function maskPhone(value: string) {
   const normalized = normalizePhoneForLookup(value);
   if (normalized.length <= 4) {

@@ -42,8 +42,7 @@
 - [x] 4.15 Persist the real MISA create response ID and make automatic presence checks distinguish explicit absence from an inconclusive successful lookup.
 - [x] 4.16 Synchronize a phone-keyed MISA Customer before its Contact and SaleOrder so MISA displays the checkout Customer and recipient relationship.
 - [x] 4.17 Use checkout VAT tax IDs to create or reuse company Customers, while retaining phone-keyed personal Customers for ordinary checkout.
-- [x] 4.18 Validate Vietnamese VAT tax IDs before checkout persists an order or calls MISA.
-- [x] 4.19 Validate VAT tax IDs in storefront checkout before submitting the order request.
+- [x] 4.18 Validate VAT Customer fields through MISA before checkout persists an order, returning field-specific MISA errors to the form.
 
 ## 5. Documentation and verification
 

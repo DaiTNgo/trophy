@@ -25,7 +25,6 @@ import {
 import type { AppEnv } from "../../lib/env";
 import {
   buildCustomizationValueSummaries,
-  isValidVietnamTaxId,
   maskPhone,
   normalizePhoneForLookup,
   parseBackgroundSnapshot,
@@ -38,13 +37,28 @@ import {
   type StoredCustomizationSnapshot,
 } from "../../lib/order-utils";
 import { jsonError, parseJson } from "../../lib/validation";
-import { isMisaConfigured, syncMisaOrder } from "../../lib/misa";
+import {
+  isMisaConfigured,
+  MisaRequestError,
+  syncMisaOrder,
+  validateMisaCheckoutCustomer,
+} from "../../lib/misa";
 
 type OrderStatus = "pending" | "confirmed" | "cancelled";
 type PaymentStatus = "pending" | "paid" | "failed" | "refunded";
 type FulfillmentStatus = "unfulfilled" | "partially_fulfilled" | "fulfilled";
 type PaymentMethod = "bank_transfer" | "cash_on_delivery";
 type ProductionStatus = "not_required" | "pending_review" | "ready";
+
+function misaVatField(error: MisaRequestError) {
+  const fieldName = error.message.match(/^([a-z_]+):/)?.[1];
+  return {
+    account_name: "vat.name",
+    tax_code: "vat.taxId",
+    office_email: "vat.email",
+    billing_address: "vat.address",
+  }[fieldName ?? ""];
+}
 
 const addressSchema = v.object({
   line1: v.pipe(v.string(), v.trim(), v.minLength(1, "Address line is required"), v.maxLength(500)),
@@ -725,9 +739,6 @@ export const storefrontOrdersRoute = new Hono<AppEnv>()
     }
 
     const input: CreateOrderInput = parsed.output;
-    if (input.vat?.taxId && !isValidVietnamTaxId(input.vat.taxId)) {
-      return jsonError(c, 422, "VAT tax ID is invalid");
-    }
     if (input.shipping.shipToDifferentAddress && !input.shipping.differentAddress) {
       return jsonError(
         c,
@@ -784,6 +795,25 @@ export const storefrontOrdersRoute = new Hono<AppEnv>()
             recipientPhone: normalizePhoneForLookup(input.shipping.differentAddress.recipientPhone),
           })
         : null;
+
+    if (isMisaConfigured(c.env) && input.vat?.taxId) {
+      try {
+        await validateMisaCheckoutCustomer(c.env, {
+          order: {
+            customerName: input.customer.name,
+            customerPhone: normalizedCustomerPhone,
+            customerEmail: input.customer.email ?? null,
+            primaryAddressJson,
+            shippingAddressJson,
+            vatDetailsJson: JSON.stringify(input.vat),
+          },
+        });
+      } catch (error) {
+        if (error instanceof MisaRequestError && error.resource === "/Customers" && misaVatField(error)) {
+          return c.json({ error: error.message, field: misaVatField(error) }, 422);
+        }
+      }
+    }
 
     const [insertedOrder] = await db
       .insert(orders)
