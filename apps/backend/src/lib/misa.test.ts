@@ -394,6 +394,17 @@ describe("MISA client", () => {
       items: [{ id: 1, quantity: 1, unitPriceAmount: 10000, lineSubtotalAmount: 10000, variantSnapshotJson: JSON.stringify({ id: 42, sku: "SKU-1", title: "Gold" }) }],
     } as any;
 
+    expect(buildMisaCustomerPayload(source)).toMatchObject({
+      form_layout: "Mẫu tiêu chuẩn",
+      account_number: "TROPHY-TAX-0312345678",
+      account_name: "Trophy Co.",
+      is_personal: false,
+      tax_code: "0312345678",
+      office_tel: "090123",
+      office_email: "accounting@trophy.test",
+      billing_address: "1 Nguyen Hue, Ho Chi Minh City",
+      shipping_address: "2 Le Loi, Da Nang, VN",
+    });
     expect(buildMisaSaleOrderPayload(source)).toMatchObject({
       description: [
         "DIA CHI THANH TOAN",
@@ -413,6 +424,27 @@ describe("MISA client", () => {
         "Please call before delivery.",
       ].join("\n"),
       shipping_address: "2 Le Loi, Da Nang, VN",
+    });
+  });
+
+  it("uses a normalized VAT tax ID as the stable MISA company customer key", () => {
+    const source = {
+      order: {
+        customerName: "Jane",
+        customerPhone: "090-123",
+        customerEmail: "jane@example.com",
+        primaryAddressJson: null,
+        shippingAddressJson: null,
+        vatDetailsJson: JSON.stringify({ name: "Trophy Co.", taxId: " 0312 345 678 " }),
+      },
+      items: [],
+    } as any;
+
+    expect(buildMisaCustomerPayload(source)).toMatchObject({
+      account_number: "TROPHY-TAX-0312345678",
+      account_name: "Trophy Co.",
+      is_personal: false,
+      tax_code: "0312345678",
     });
   });
 

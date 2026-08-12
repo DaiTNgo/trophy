@@ -6,6 +6,8 @@ MISA checkout synchronization now creates or reuses a personal Customer before t
 
 When an existing Contact lacks or has a different `account_name`, checkout synchronization now updates it through `PUT /Contacts` before posting the SaleOrder. This repairs legacy Contacts that were created before Customer synchronization, so retrying MISA synchronization for the affected order is sufficient after deployment.
 
+VAT checkout data now creates/reuses a company Customer when `vat.taxId` is populated. Its key is `TROPHY-TAX-<normalized MST>` and its MISA `tax_code` is the MST; `is_personal` is `false`; company name, invoice email, and invoice address come from the VAT fields. Without a tax ID, checkout retains the phone-keyed personal Customer. The Contact and SaleOrder use whichever Customer code was selected.
+
 Verification for this addition: backend test suite (231 tests), backend check/build, and `git diff --check` pass. `./init.sh` stops at the existing storefront type error `apps/storefront/app/routes/checkout.tsx:305`, where an address value lacks `city` and `country`.
 
 Checkout now transfers the current VAT invoice request safely without treating it as an issued invoice. `buildMisaSaleOrderPayload` maps checkout `primaryAddress` to MISA billing fields, maps a different shipping address when present, and places invoice type, company name, tax ID, invoice email, invoice address, and the shopper note into the documented SaleOrder `description`. Do not add `is_invoiced` or `invoiced_amount` at checkout; that would claim an invoice has been issued.
