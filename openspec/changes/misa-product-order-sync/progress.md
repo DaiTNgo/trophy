@@ -2,6 +2,8 @@
 
 ## 2026-08-12 Customer and Contact order linkage
 
+- Added `docs/misa/README.md` and `docs/misa/openapi-v2-customer-contact-saleorder.md`. They convert the saved MISA Customer, Contact, and SaleOrder HTML field exports plus the current v2 OpenAPI into an indexed Markdown reference. The reference separates MISA's published contract from Trophy integration conventions, records documented lookup limitations, and lists the observed validation/duplicate error handling.
+
 - Checkout now finds or creates a personal MISA Customer before creating or reusing its Contact and SaleOrder. The stable Customer `account_number` is `TROPHY-<normalized phone>`; the Contact's `account_name` and SaleOrder's `account_name` both use that code, while SaleOrder `contact_name` uses the Contact code. This fills MISA's Customer and recipient/contact relationship for new checkout orders without adding a Trophy database column.
 - Customer and SaleOrder payloads now include documented billing and shipping address fields that can be derived from the persisted checkout snapshots. The Customer is created only when `GET /Customers/code` does not return its phone-keyed account; existing Customers and Contacts are reused.
 - Added regression coverage for Customer creation, Customer reuse, Contact association, SaleOrder references, and mapped address fields. Verification: `pnpm --filter backend test` (231 tests), `pnpm --filter backend check`, `pnpm --filter backend build`, and `git diff --check` pass. `./init.sh` passes install, backend, and admin build then stops at the pre-existing storefront type error in `apps/storefront/app/routes/checkout.tsx:305`: an address `{ line1 }` lacks required `city` and `country`.

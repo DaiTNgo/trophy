@@ -2,6 +2,8 @@
 
 ## Current state
 
+For MISA API comparison, start with `docs/misa/README.md` and `docs/misa/openapi-v2-customer-contact-saleorder.md`. The latter records the public v2 endpoints and field relationships for Customer, Contact, and SaleOrder, then explicitly separates them from Trophy's phone/MST code conventions and the deliberate no-mapping decision. The original saved field exports remain in the same folder.
+
 MISA checkout synchronization now creates or reuses a personal Customer before the Contact and SaleOrder. Customer identity is `TROPHY-<normalized phone>` in `account_number`; send that same value as Contact `account_name` and SaleOrder `account_name`, and continue using the Contact code as SaleOrder `contact_name`. This is the documented relationship MISA needs to display Customer and recipient/contact information. The mapping is in `apps/backend/src/lib/misa.ts`; regression coverage is in `apps/backend/src/lib/misa.test.ts`.
 
 When an existing Contact lacks or has a different `account_name`, checkout synchronization now updates it through `PUT /Contacts` before posting the SaleOrder. This repairs legacy Contacts that were created before Customer synchronization, so retrying MISA synchronization for the affected order is sufficient after deployment.

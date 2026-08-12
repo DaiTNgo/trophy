@@ -51,3 +51,4 @@
 - [x] 5.1 Document local/production configuration, prerequisite migration shape, MISA flow, and Bruno URLs in backend documentation.
 - [x] 5.2 Run backend tests, check, build, admin build, and the repository `./init.sh` verification.
 - [x] 5.3 Record final verification results and any residual MISA tenant/API assumptions in the change progress and handoff notes.
+- [x] 5.4 Parse the saved MISA Customer, Contact, and SaleOrder field exports into a Markdown API reference for future contract comparison.
