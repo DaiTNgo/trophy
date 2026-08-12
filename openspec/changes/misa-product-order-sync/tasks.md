@@ -43,7 +43,7 @@
 - [x] 4.16 Synchronize a phone-keyed MISA Customer before its Contact and SaleOrder so MISA displays the checkout Customer and recipient relationship.
 - [x] 4.17 Use checkout VAT tax IDs to create or reuse company Customers, while retaining phone-keyed personal Customers for ordinary checkout.
 - [x] 4.18 Validate VAT Customer fields through MISA before checkout persists an order, returning field-specific MISA errors to the form.
-- [x] 4.19 Reuse an existing MISA Customer found by VAT tax code when its account number was not created by Trophy.
+- [x] 4.19 Bypass only MISA duplicate VAT tax-code errors while returning other VAT validation errors to checkout.
 
 ## 5. Documentation and verification
 

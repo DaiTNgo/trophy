@@ -60,6 +60,10 @@ function misaVatField(error: MisaRequestError) {
   }[fieldName ?? ""];
 }
 
+function isDuplicateMisaTaxCode(error: MisaRequestError) {
+  return /^tax_code:/i.test(error.message) && /trùng|duplicate/i.test(error.message);
+}
+
 const addressSchema = v.object({
   line1: v.pipe(v.string(), v.trim(), v.minLength(1, "Address line is required"), v.maxLength(500)),
   line2: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(500))),
@@ -809,7 +813,8 @@ export const storefrontOrdersRoute = new Hono<AppEnv>()
           },
         });
       } catch (error) {
-        if (error instanceof MisaRequestError && error.resource === "/Customers" && misaVatField(error)) {
+        if (error instanceof MisaRequestError && error.resource === "/Customers" &&
+          misaVatField(error) && !isDuplicateMisaTaxCode(error)) {
           return c.json({ error: error.message, field: misaVatField(error) }, 422);
         }
       }

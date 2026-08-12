@@ -236,6 +236,29 @@ describe("storefront orders route", () => {
     expect(db.valuesCalls).toEqual([]);
   });
 
+  it("continues checkout when MISA reports a duplicate VAT tax ID", async () => {
+    vi.mocked(isMisaConfigured).mockReturnValue(true);
+    vi.mocked(validateMisaCheckoutCustomer).mockRejectedValue(
+      new MisaRequestError("tax_code: Giá trị của Mã số thuế đã bị trùng.", 200, { resource: "/Customers" }),
+    );
+    db.getQueue.push(
+      { id: 1, title: "Champion Cup", handle: "champion-cup", status: "published" },
+      { id: 10, productId: 1, title: "Gold", sku: "SKU-1", priceAmount: 5000 },
+      { assetId: "asset-1", position: 0 },
+      null,
+    );
+    db.returningQueue.push([{ id: 123, createdAt: new Date("2026-07-05T00:00:00.000Z") }]);
+
+    const res = await storefrontOrdersRoute.request("/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(validPayload),
+    }, { MISA_CLIENT_ID: "client", MISA_CLIENT_SECRET: "secret" } as never);
+
+    expect(res.status).toBe(201);
+    expect(db.valuesCalls[0]).toMatchObject({ vatDetailsJson: JSON.stringify(validPayload.vat) });
+  });
+
   it("resolves a valid cart line with shopper-safe display data", async () => {
     db.getQueue.push(
       { id: 1, title: "Champion Cup", handle: "champion-cup", status: "published" },

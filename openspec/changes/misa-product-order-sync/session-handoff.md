@@ -10,7 +10,7 @@ VAT checkout data now creates/reuses a company Customer when `vat.taxId` is popu
 
 MISA is the authority for VAT Customer validation. When a checkout includes `vat.taxId`, backend creates/reuses the MISA Customer before it persists the local order. MISA errors for `tax_code`, `account_name`, `office_email`, and `billing_address` return HTTP 422 with the mapped VAT form field; storefront focuses that input and renders MISA's message inline. No locally inferred MST checksum validation remains in browser or backend. The checkout API client aligns with backend address validation by treating `city` and `country` as optional. Full `./init.sh` passes after this correction.
 
-Customer lookup first uses Trophy's expected account number, then falls back to MISA's paginated Customers list for the same VAT `tax_code`. This supports manually created or imported MISA Customers whose account number differs from `TROPHY-TAX-<MST>` and prevents MISA's duplicate-tax-code rejection. Use the returned MISA account number for the Contact and SaleOrder relationship.
+MISA does not expose a reliable Customer lookup by VAT tax code. Do not scan paginated Customers to establish an integration link. When MISA rejects a Customer only because `tax_code` is duplicate, checkout bypasses that response and creates the local order for operator reconciliation; other VAT field errors continue to focus and render at the corresponding checkout input.
 
 Verification for this addition: backend test suite (231 tests), backend check/build, and `git diff --check` pass. `./init.sh` stops at the existing storefront type error `apps/storefront/app/routes/checkout.tsx:305`, where an address value lacks `city` and `country`.
 
