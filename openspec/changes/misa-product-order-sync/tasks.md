@@ -44,6 +44,7 @@
 - [x] 4.17 Use checkout VAT tax IDs to create or reuse company Customers, while retaining phone-keyed personal Customers for ordinary checkout.
 - [x] 4.18 Validate VAT Customer fields through MISA before checkout persists an order, returning field-specific MISA errors to the form.
 - [x] 4.19 Bypass only MISA duplicate VAT tax-code errors while returning other VAT validation errors to checkout.
+- [x] 4.20 Update existing Contacts with only the Customer-link fields to avoid unrelated MISA uniqueness validation.
 
 ## 5. Documentation and verification
 

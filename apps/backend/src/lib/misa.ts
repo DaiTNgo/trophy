@@ -642,7 +642,11 @@ async function ensureMisaContact(bindings: AppBindings, source: MisaOrderSource,
   if (existingContact && existingContact.account_name !== accountCode) {
     await misaFetch(bindings, "/Contacts", {
       method: "PUT",
-      body: JSON.stringify([{ ...contact, contact_code: existingContact.contact_code }]),
+      body: JSON.stringify([{
+        form_layout: "Mẫu tiêu chuẩn",
+        contact_code: existingContact.contact_code,
+        account_name: accountCode,
+      }]),
     });
   }
   return {

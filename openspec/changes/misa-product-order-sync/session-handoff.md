@@ -12,6 +12,8 @@ MISA is the authority for VAT Customer validation. When a checkout includes `vat
 
 MISA does not expose a reliable Customer lookup by VAT tax code. Do not scan paginated Customers to establish an integration link. When MISA rejects a Customer only because `tax_code` is duplicate, checkout bypasses that response and creates the local order for operator reconciliation; other VAT field errors continue to focus and render at the corresponding checkout input.
 
+When a pre-existing Contact needs linking to a Customer, `PUT /Contacts` sends only `form_layout`, its known `contact_code`, and `account_name`. Do not add email, phone, or name to this relationship-only update: MISA validates them unnecessarily and may reject duplicate values owned by another Contact.
+
 Verification for this addition: backend test suite (231 tests), backend check/build, and `git diff --check` pass. `./init.sh` stops at the existing storefront type error `apps/storefront/app/routes/checkout.tsx:305`, where an address value lacks `city` and `country`.
 
 Checkout now transfers the current VAT invoice request safely without treating it as an issued invoice. `buildMisaSaleOrderPayload` maps checkout `primaryAddress` to MISA billing fields, maps a different shipping address when present, and places invoice type, company name, tax ID, invoice email, invoice address, and the shopper note into the documented SaleOrder `description`. Do not add `is_invoiced` or `invoiced_amount` at checkout; that would claim an invoice has been issued.

@@ -181,7 +181,8 @@ describe("MISA client", () => {
 
     const contactRequest = fetchMock.mock.calls[7]?.[1] as RequestInit;
     expect(contactRequest.method).toBe("PUT");
-    expect(JSON.parse(String(contactRequest.body))).toMatchObject([{
+    expect(JSON.parse(String(contactRequest.body))).toEqual([{
+      form_layout: "Mẫu tiêu chuẩn",
       contact_code: "TROPHY-090123",
       account_name: "TROPHY-090123",
     }]);
