@@ -17,6 +17,7 @@ import {
   checkMisaSaleOrderById,
   syncMisaOrder,
   updateMisaProducts,
+  validateMisaCheckoutCustomer,
 } from "./misa";
 
 const bindings = {
@@ -116,6 +117,35 @@ describe("MISA client", () => {
 
     expect(fetchMock.mock.calls[1]?.[0]).toBe("https://crmconnect.misa.vn/api/v2/Contacts/code?code=TROPHY-090123");
     expect((fetchMock.mock.calls[1]?.[1] as RequestInit).method).toBeUndefined();
+  });
+
+  it("reuses a MISA Customer with a matching tax code and a different account number", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data: "token" }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data: [] }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data: "token" }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        total_records: 1,
+        data: [{ id: 33, account_number: "KH-MISA-33", account_name: "Trophy Co.", tax_code: "0314042508" }],
+      }), { status: 200 }));
+
+    await expect(validateMisaCheckoutCustomer(bindings, {
+      order: {
+        customerName: "Jane",
+        customerPhone: "090-123",
+        customerEmail: "jane@example.com",
+        primaryAddressJson: null,
+        shippingAddressJson: null,
+        vatDetailsJson: JSON.stringify({ name: "Trophy Co.", taxId: "0314042508" }),
+      },
+    } as never)).resolves.toEqual({ customerCode: "KH-MISA-33" });
+
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
+      "https://crmconnect.misa.vn/api/v2/Account",
+      "https://crmconnect.misa.vn/api/v2/Customers/code?code=TROPHY-TAX-0314042508",
+      "https://crmconnect.misa.vn/api/v2/Account",
+      "https://crmconnect.misa.vn/api/v2/Customers?page=0&pageSize=100&orderBy=modified_date&isDescending=true",
+    ]);
   });
 
   it("reuses an existing MISA contact without posting a duplicate during order synchronization", async () => {

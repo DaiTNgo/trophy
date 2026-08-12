@@ -109,6 +109,7 @@ export type MisaCustomer = {
   id: string | null;
   account_number: string;
   account_name: string;
+  tax_code: string | null;
 };
 
 type MisaResponse = {
@@ -298,6 +299,7 @@ function normalizeCustomer(value: unknown): MisaCustomer | null {
     id: typeof id === "number" || typeof id === "string" ? String(id) : null,
     account_number: record.account_number,
     account_name: typeof record.account_name === "string" ? record.account_name : record.account_number,
+    tax_code: typeof record.tax_code === "string" ? record.tax_code : null,
   };
 }
 
@@ -339,6 +341,29 @@ export async function findMisaCustomersByCodes(bindings: AppBindings, codes: str
   return Array.isArray(payload.data)
     ? payload.data.map(normalizeCustomer).filter((item): item is MisaCustomer => item !== null)
     : [];
+}
+
+async function fetchMisaCustomersPage(bindings: AppBindings, page: number) {
+  const params = new URLSearchParams({
+    page: String(page),
+    pageSize: "100",
+    orderBy: "modified_date",
+    isDescending: "true",
+  });
+  const payload = await misaFetch(bindings, "/Customers?" + params.toString());
+  const items = Array.isArray(payload.data)
+    ? payload.data.map(normalizeCustomer).filter((item): item is MisaCustomer => item !== null)
+    : [];
+  return { items, totalRecords: payload.total_records ?? items.length };
+}
+
+async function findMisaCustomerByTaxCode(bindings: AppBindings, taxCode: string) {
+  const normalizedTaxCode = normalizeVietnamTaxId(taxCode);
+  for (let page = 0; ; page += 1) {
+    const result = await fetchMisaCustomersPage(bindings, page);
+    const match = result.items.find((item) => item.tax_code && normalizeVietnamTaxId(item.tax_code) === normalizedTaxCode);
+    if (match || result.items.length === 0 || (page + 1) * 100 >= result.totalRecords) return match;
+  }
 }
 
 export async function findMisaSaleOrdersByCodes(bindings: AppBindings, codes: string[]) {
@@ -612,7 +637,8 @@ function isDuplicateSaleOrderError(error: unknown) {
 async function ensureMisaCustomer(bindings: AppBindings, source: MisaCustomerSource) {
   const customer = buildMisaCustomerPayload(source);
   const existing = await findMisaCustomersByCodes(bindings, [customer.account_number]);
-  const existingCustomer = existing.find((item) => item.account_number === customer.account_number);
+  const existingCustomer = existing.find((item) => item.account_number === customer.account_number)
+    ?? (customer.tax_code ? await findMisaCustomerByTaxCode(bindings, customer.tax_code) : undefined);
   if (!existingCustomer) {
     await misaFetch(bindings, "/Customers", { method: "POST", body: JSON.stringify([customer]) });
   }
