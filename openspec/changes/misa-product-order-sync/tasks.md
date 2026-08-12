@@ -40,6 +40,7 @@
 - [x] 4.13 Use the assigned incrementing local order ID as the public order number and MISA `sale_order_no`.
 - [x] 4.14 Add super-admin manual MISA SaleOrder disconnect, connect, and retry/refresh reconciliation, including revision sale-order numbers and persisted MISA sale-order number.
 - [x] 4.15 Persist the real MISA create response ID and make automatic presence checks distinguish explicit absence from an inconclusive successful lookup.
+- [ ] 4.16 Synchronize a phone-keyed MISA Customer before its Contact and SaleOrder so MISA displays the checkout Customer and recipient relationship.
 
 ## 5. Documentation and verification
 

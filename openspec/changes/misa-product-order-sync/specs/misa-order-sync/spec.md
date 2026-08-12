@@ -1,7 +1,12 @@
 ## ADDED Requirements
 
 ### Requirement: Checkout synchronizes the local order to MISA
-After a Trophy order is created successfully, the backend SHALL create or update the corresponding MISA contact and create a MISA sale order using the string form of each order item's Trophy variant ID as `product_code`.
+After a Trophy order is created successfully, the backend SHALL create or update the corresponding phone-keyed MISA Customer and Contact, then create a MISA sale order using the string form of each order item's Trophy variant ID as `product_code`.
+
+#### Scenario: Customer and recipient are linked on the SaleOrder
+- **WHEN** checkout creates an order with a customer name and phone number
+- **THEN** the backend reuses or creates a MISA Customer whose `account_number` is `TROPHY-<normalized phone>`
+- **AND THEN** it associates the MISA Contact and SaleOrder with that Customer using the documented Customer code fields
 
 #### Scenario: Successful order synchronization
 - **WHEN** checkout creates an order whose items have valid Trophy variant IDs and MISA is configured
