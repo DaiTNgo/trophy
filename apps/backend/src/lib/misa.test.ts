@@ -7,6 +7,7 @@ vi.mock("../db/client", () => ({
 import { getDb } from "../db/client";
 import {
   buildMisaCreateProductsPayload,
+  buildMisaCustomerPayload,
   buildMisaContactPayload,
   buildMisaSaleOrderPayload,
   createMisaProducts,
@@ -54,9 +55,13 @@ describe("MISA client", () => {
     const orderQuery = { from: vi.fn().mockReturnThis(), where: vi.fn().mockReturnThis(), get: vi.fn().mockResolvedValue(order) };
     const itemsQuery = { from: vi.fn().mockReturnThis(), where: vi.fn().mockReturnThis(), then: (resolve: (value: unknown) => unknown) => Promise.resolve([{ id: 1, quantity: 1, unitPriceAmount: 10000, lineSubtotalAmount: 10000, variantSnapshotJson: JSON.stringify({ id: 42, title: "Gold", sku: null }) }]).then(resolve) };
     vi.mocked(getDb).mockReturnValue({ select: vi.fn().mockReturnValueOnce(orderQuery).mockReturnValueOnce(itemsQuery) } as never);
-    vi.spyOn(globalThis, "fetch")
+    const fetchMock = vi.spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(new Response(JSON.stringify({ data: "token" }), { status: 200 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({ data: [] }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data: "token" }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data: [] }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data: "token" }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data: { id: 99 } }), { status: 200 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({ data: "token" }), { status: 200 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({ data: [] }), { status: 200 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({ data: "token" }), { status: 200 }))
@@ -65,6 +70,20 @@ describe("MISA client", () => {
       .mockResolvedValueOnce(new Response(JSON.stringify({ results: [{ success: true, data: 9655 }], code: 200 }), { status: 200 }));
 
     await expect(syncMisaOrder(bindings, 8)).resolves.toMatchObject({ saleOrderId: "9655" });
+
+    const customerRequest = fetchMock.mock.calls[5]?.[1] as RequestInit;
+    expect(JSON.parse(String(customerRequest.body))).toEqual([{
+      form_layout: "Mẫu tiêu chuẩn",
+      account_number: "TROPHY-090123",
+      account_name: "Jane",
+      is_personal: true,
+      office_tel: "090123",
+    }]);
+    const saleOrderRequest = fetchMock.mock.calls[11]?.[1] as RequestInit;
+    expect(JSON.parse(String(saleOrderRequest.body))).toMatchObject([{
+      account_name: "TROPHY-090123",
+      contact_name: "TROPHY-090123",
+    }]);
   });
 
   it("sends token and Clientid headers when creating a missing product", async () => {
@@ -92,7 +111,7 @@ describe("MISA client", () => {
       .mockResolvedValueOnce(new Response(JSON.stringify({ data: [{ id: 99, contact_code: "TROPHY-090123", contact_name: "Jane" }] }), { status: 200 }));
 
     await expect(findMisaContactsByCodes(bindings, ["TROPHY-090123"])).resolves.toEqual([
-      { id: "99", contact_code: "TROPHY-090123", contact_name: "Jane", email: null, mobile: null },
+      { id: "99", contact_code: "TROPHY-090123", contact_name: "Jane", account_name: null, email: null, mobile: null },
     ]);
 
     expect(fetchMock.mock.calls[1]?.[0]).toBe("https://crmconnect.misa.vn/api/v2/Contacts/code?code=TROPHY-090123");
@@ -137,7 +156,11 @@ describe("MISA client", () => {
       .mockResolvedValueOnce(new Response(JSON.stringify({ data: "token" }), { status: 200 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({ data: [] }), { status: 200 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({ data: "token" }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data: [{ id: 77, account_number: "TROPHY-090123", account_name: "Jane" }] }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data: "token" }), { status: 200 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({ data: [{ id: 99, contact_code: "TROPHY-090123", contact_name: "Jane" }] }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data: "token" }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data: [] }), { status: 200 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({ data: "token" }), { status: 200 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({ data: { id: 123 } }), { status: 200 }));
 
@@ -147,10 +170,26 @@ describe("MISA client", () => {
       "https://crmconnect.misa.vn/api/v2/Account",
       "https://crmconnect.misa.vn/api/v2/SaleOrders/code?code=ORD-5",
       "https://crmconnect.misa.vn/api/v2/Account",
+      "https://crmconnect.misa.vn/api/v2/Customers/code?code=TROPHY-090123",
+      "https://crmconnect.misa.vn/api/v2/Account",
       "https://crmconnect.misa.vn/api/v2/Contacts/code?code=TROPHY-090123",
+      "https://crmconnect.misa.vn/api/v2/Account",
+      "https://crmconnect.misa.vn/api/v2/Contacts",
       "https://crmconnect.misa.vn/api/v2/Account",
       "https://crmconnect.misa.vn/api/v2/SaleOrders",
     ]);
+
+    const contactRequest = fetchMock.mock.calls[7]?.[1] as RequestInit;
+    expect(contactRequest.method).toBe("PUT");
+    expect(JSON.parse(String(contactRequest.body))).toMatchObject([{
+      contact_code: "TROPHY-090123",
+      account_name: "TROPHY-090123",
+    }]);
+    const saleOrderRequest = fetchMock.mock.calls[9]?.[1] as RequestInit;
+    expect(JSON.parse(String(saleOrderRequest.body))).toMatchObject([{
+      account_name: "TROPHY-090123",
+      contact_name: "TROPHY-090123",
+    }]);
   });
 
   it("reconnects an order to an existing MISA SaleOrder before creating another", async () => {
@@ -205,6 +244,10 @@ describe("MISA client", () => {
       .mockResolvedValueOnce(new Response(JSON.stringify({ data: "token" }), { status: 200 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({ data: [] }), { status: 200 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({ data: "token" }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data: { id: 99 } }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data: "token" }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data: [] }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data: "token" }), { status: 200 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({ total_records: 1, data: [{ id: 100, contact_code: "MISA-EXISTING", contact_name: "Jane", email: "JANE@example.com", mobile: "090-999" }] }), { status: 200 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({ data: "token" }), { status: 200 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({ data: { id: 101 } }), { status: 200 }))
@@ -213,17 +256,18 @@ describe("MISA client", () => {
 
     await expect(syncMisaOrder(bindings, 6)).resolves.toEqual({ contactId: "101", saleOrderId: "124", saleOrderNumber: "ORD-6" });
 
-    const contactRequest = fetchMock.mock.calls[7]?.[1] as RequestInit;
+    const contactRequest = fetchMock.mock.calls[11]?.[1] as RequestInit;
     expect(JSON.parse(String(contactRequest.body))).toEqual([{
       form_layout: "Mẫu tiêu chuẩn",
       contact_code: "TROPHY-090123",
       contact_name: "Jane",
+      account_name: "TROPHY-090123",
       mobile: "090123",
     }]);
-    const saleOrderRequest = fetchMock.mock.calls[9]?.[1] as RequestInit;
-    expect(JSON.parse(String(saleOrderRequest.body))).toMatchObject([{ contact_name: "TROPHY-090123" }]);
-    expect(fetchMock.mock.calls[5]?.[0]).toBe("https://crmconnect.misa.vn/api/v2/Contacts?page=0&pageSize=100&orderBy=modified_date&isDescending=true");
-    expect(fetchMock.mock.calls[7]?.[0]).toBe("https://crmconnect.misa.vn/api/v2/Contacts");
+    const saleOrderRequest = fetchMock.mock.calls[13]?.[1] as RequestInit;
+    expect(JSON.parse(String(saleOrderRequest.body))).toMatchObject([{ account_name: "TROPHY-090123", contact_name: "TROPHY-090123" }]);
+    expect(fetchMock.mock.calls[9]?.[0]).toBe("https://crmconnect.misa.vn/api/v2/Contacts?page=0&pageSize=100&orderBy=modified_date&isDescending=true");
+    expect(fetchMock.mock.calls[11]?.[0]).toBe("https://crmconnect.misa.vn/api/v2/Contacts");
   });
 
   it("surfaces nested MISA validation failures", async () => {
@@ -265,23 +309,48 @@ describe("MISA client", () => {
       },
       items: [{ id: 1, quantity: 2, unitPriceAmount: 5000, lineSubtotalAmount: 10000, variantSnapshotJson: JSON.stringify({ id: 42, sku: "SKU-1", title: "Gold" }) }],
     } as any;
-    expect(buildMisaContactPayload(source)).toEqual({
+    expect(buildMisaCustomerPayload(source)).toEqual({
+      form_layout: "Mẫu tiêu chuẩn",
+      account_number: "TROPHY-090123",
+      account_name: "Jane",
+      is_personal: true,
+      office_tel: "090123",
+      office_email: "jane@example.com",
+      billing_address: "1 Main, HCM, VN",
+      billing_country: "VN",
+      billing_province: "HCM",
+      billing_street: "1 Main",
+      shipping_address: "1 Main, HCM, VN",
+      shipping_country: "VN",
+      shipping_province: "HCM",
+      shipping_street: "1 Main",
+    });
+    expect(buildMisaContactPayload(source, "TROPHY-090123")).toEqual({
       form_layout: "Mẫu tiêu chuẩn",
       contact_code: "TROPHY-090123",
       contact_name: "Jane",
+      account_name: "TROPHY-090123",
       mobile: "090123",
       email: "jane@example.com",
     });
     expect(buildMisaSaleOrderPayload(source)).toEqual({
       sale_order_no: "PT-ORD-1",
       sale_order_name: "Trophy order ORD-1",
+      account_name: "TROPHY-090123",
       contact_name: "TROPHY-090123",
       phone: "090123",
       sale_order_amount: 10000,
       total_summary: "10000",
       description: ["DIA CHI THANH TOAN", "1 Main, HCM, VN", "", "DIA CHI GIAO HANG", "1 Main, HCM, VN", "", "GHI CHU KHACH", "Trophy checkout order"].join("\n"),
       form_layout: "Mẫu tiêu chuẩn",
+      billing_address: "1 Main, HCM, VN",
+      billing_country: "VN",
+      billing_province: "HCM",
+      billing_street: "1 Main",
       shipping_address: "1 Main, HCM, VN",
+      shipping_country: "VN",
+      shipping_province: "HCM",
+      shipping_street: "1 Main",
       sale_order_product_mappings: [{ product_code: "42", amount: 2, price: "5000", to_currency: 10000, description: "Gold" }],
     });
     expect(() => buildMisaSaleOrderPayload({ ...source, items: [{ ...source.items[0], variantSnapshotJson: JSON.stringify({ title: "Gold", sku: "SKU-1" }) }] } as never)).toThrow("has no variant ID");

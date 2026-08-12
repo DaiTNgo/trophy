@@ -2,6 +2,12 @@
 
 ## Current state
 
+MISA checkout synchronization now creates or reuses a personal Customer before the Contact and SaleOrder. Customer identity is `TROPHY-<normalized phone>` in `account_number`; send that same value as Contact `account_name` and SaleOrder `account_name`, and continue using the Contact code as SaleOrder `contact_name`. This is the documented relationship MISA needs to display Customer and recipient/contact information. The mapping is in `apps/backend/src/lib/misa.ts`; regression coverage is in `apps/backend/src/lib/misa.test.ts`.
+
+When an existing Contact lacks or has a different `account_name`, checkout synchronization now updates it through `PUT /Contacts` before posting the SaleOrder. This repairs legacy Contacts that were created before Customer synchronization, so retrying MISA synchronization for the affected order is sufficient after deployment.
+
+Verification for this addition: backend test suite (231 tests), backend check/build, and `git diff --check` pass. `./init.sh` stops at the existing storefront type error `apps/storefront/app/routes/checkout.tsx:305`, where an address value lacks `city` and `country`.
+
 Checkout now transfers the current VAT invoice request safely without treating it as an issued invoice. `buildMisaSaleOrderPayload` maps checkout `primaryAddress` to MISA billing fields, maps a different shipping address when present, and places invoice type, company name, tax ID, invoice email, invoice address, and the shopper note into the documented SaleOrder `description`. Do not add `is_invoiced` or `invoiced_amount` at checkout; that would claim an invoice has been issued.
 
 The single-screen checkout now creates the order only when the shopper submits the form, then navigates back to `/checkout?order=...&access=...` to show payment instructions. The signed, seven-day `access` token is verified server-side using a domain-separated HMAC key based on `BETTER_AUTH_SECRET`; the endpoint returns only payment information, not customer/order-preview data. Transfer reconciliation uses `PT-<order id>` (for example, `PT-123`), while the full order number remains MISA `sale_order_no`; the MISA description carries the short payment reference too. The backend now persists `bank_transfer` or `cash_on_delivery` instead of the obsolete `manual` value for new checkout orders.

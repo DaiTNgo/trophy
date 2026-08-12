@@ -1,5 +1,12 @@
 # Progress
 
+## 2026-08-12 Customer and Contact order linkage
+
+- Checkout now finds or creates a personal MISA Customer before creating or reusing its Contact and SaleOrder. The stable Customer `account_number` is `TROPHY-<normalized phone>`; the Contact's `account_name` and SaleOrder's `account_name` both use that code, while SaleOrder `contact_name` uses the Contact code. This fills MISA's Customer and recipient/contact relationship for new checkout orders without adding a Trophy database column.
+- Customer and SaleOrder payloads now include documented billing and shipping address fields that can be derived from the persisted checkout snapshots. The Customer is created only when `GET /Customers/code` does not return its phone-keyed account; existing Customers and Contacts are reused.
+- Added regression coverage for Customer creation, Customer reuse, Contact association, SaleOrder references, and mapped address fields. Verification: `pnpm --filter backend test` (231 tests), `pnpm --filter backend check`, `pnpm --filter backend build`, and `git diff --check` pass. `./init.sh` passes install, backend, and admin build then stops at the pre-existing storefront type error in `apps/storefront/app/routes/checkout.tsx:305`: an address `{ line1 }` lacks required `city` and `country`.
+- Corrected existing-contact reconciliation: Contacts created before Customer linkage can lack `account_name`; previously they were reused unchanged, leaving MISA's recipient display blank. Sync now updates such Contacts through `PUT /Contacts` with the phone-keyed Customer code before posting the SaleOrder. Regression coverage asserts this update. Verification: backend test suite (231 tests), backend check/build, and `git diff --check` pass.
+
 ## 2026-08-09 SaleOrder presence-check correction
 
 - Confirmed against the configured MISA tenant that a successful `POST /SaleOrders` returns the created numeric ID in `results[].data` (for example `9663`). MISA SaleOrder lookup requires the plural query parameter `GET /SaleOrders/id?ids=9663`; the earlier `id` parameter returned a misleading HTTP 200 response without data. Lookup by `sale_order_no` can also return `data: []` for the same record, so the persisted MISA ID is the authoritative reconciliation key.
