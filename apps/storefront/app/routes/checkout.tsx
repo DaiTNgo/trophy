@@ -35,6 +35,17 @@ function getFormString(formData: FormData, name: string) {
   return String(formData.get(name) ?? "");
 }
 
+export function isValidVietnamTaxId(value: string) {
+  const taxId = value.replace(/[\s-]+/g, "");
+  if (!/^\d{10}(\d{3})?$/.test(taxId)) return false;
+
+  const weights = [31, 29, 23, 19, 17, 13, 7, 5, 3];
+  const sum = weights.reduce((total, weight, index) => total + Number(taxId[index]) * weight, 0);
+  const remainder = sum % 11;
+  const checkDigit = remainder === 0 ? 0 : 10 - remainder;
+  return checkDigit === Number(taxId[9]);
+}
+
 function getVatDetails(formData: FormData) {
   const vat = {
     type: getFormString(formData, "vat.type"),
@@ -221,6 +232,7 @@ export default function Checkout() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [vatChecked, setVatChecked] = useState(false);
+  const [vatTaxIdError, setVatTaxIdError] = useState("");
   const [showMobileSummary, setShowMobileSummary] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("bank_transfer");
   const [paymentInstructions, setPaymentInstructions] = useState<StorefrontPaymentInstructionsResponse["order"] | null>(null);
@@ -291,6 +303,14 @@ export default function Checkout() {
     event.preventDefault();
     if (hasInvalidLines || lines.length === 0 || submitting) return;
     const formData = new FormData(event.currentTarget);
+    const vat = getVatDetails(formData);
+    if (vat?.taxId && !isValidVietnamTaxId(vat.taxId)) {
+      setVatTaxIdError("Mã số thuế không hợp lệ.");
+      const taxIdInput = event.currentTarget.elements.namedItem("vat.taxId");
+      if (taxIdInput instanceof HTMLInputElement) taxIdInput.focus();
+      return;
+    }
+    setVatTaxIdError("");
     setSubmitting(true);
     setError("");
     try {
@@ -311,7 +331,7 @@ export default function Checkout() {
           method: paymentMethod === "cod" ? "cash_on_delivery" : "bank_transfer",
         },
         notes: getFormString(formData, "notes") || undefined,
-        vat: getVatDetails(formData),
+        vat,
         items: lines.map((line) => ({
           productId: line.productId,
           variantId: line.variantId,
@@ -365,7 +385,12 @@ export default function Checkout() {
           paymentMethod={paymentMethod}
           onPaymentMethodChange={setPaymentMethod}
           vatChecked={vatChecked}
-          onVatCheckedChange={setVatChecked}
+          onVatCheckedChange={(checked) => {
+            setVatChecked(checked);
+            if (!checked) setVatTaxIdError("");
+          }}
+          vatTaxIdError={vatTaxIdError}
+          onVatTaxIdChange={() => setVatTaxIdError("")}
           submitting={submitting}
           hasInvalidLines={hasInvalidLines}
         />

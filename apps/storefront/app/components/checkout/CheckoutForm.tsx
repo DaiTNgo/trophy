@@ -148,9 +148,13 @@ function PaymentMethodSection({
 function AdditionalRequirementsSection({
   vatChecked,
   onVatCheckedChange,
+  vatTaxIdError,
+  onVatTaxIdChange,
 }: {
   vatChecked: boolean;
   onVatCheckedChange: (checked: boolean) => void;
+  vatTaxIdError: string;
+  onVatTaxIdChange: () => void;
 }) {
   return (
     <section className="mt-12">
@@ -205,9 +209,17 @@ function AdditionalRequirementsSection({
               </Label>
               <Input
                 name="vat.taxId"
-                className="border-outline-variant bg-white"
+                aria-describedby={vatTaxIdError ? "vat-tax-id-error" : undefined}
+                aria-invalid={Boolean(vatTaxIdError)}
+                className="border-outline-variant bg-white aria-invalid:border-error aria-invalid:ring-error"
+                onChange={onVatTaxIdChange}
                 type="text"
               />
+              {vatTaxIdError ? (
+                <p id="vat-tax-id-error" className="mt-1 text-sm text-error">
+                  {vatTaxIdError}
+                </p>
+              ) : null}
             </div>
             <div>
               <Label className="mb-1 text-xs font-bold uppercase tracking-wider text-on-surface-variant">
@@ -248,6 +260,8 @@ export function CheckoutForm({
   onPaymentMethodChange,
   vatChecked,
   onVatCheckedChange,
+  vatTaxIdError,
+  onVatTaxIdChange,
   submitting,
   hasInvalidLines,
 }: {
@@ -262,6 +276,8 @@ export function CheckoutForm({
   onPaymentMethodChange: (value: string) => void;
   vatChecked: boolean;
   onVatCheckedChange: (checked: boolean) => void;
+  vatTaxIdError: string;
+  onVatTaxIdChange: () => void;
   submitting: boolean;
   hasInvalidLines: boolean;
 }) {
@@ -293,6 +309,8 @@ export function CheckoutForm({
           <AdditionalRequirementsSection
             vatChecked={vatChecked}
             onVatCheckedChange={onVatCheckedChange}
+            vatTaxIdError={vatTaxIdError}
+            onVatTaxIdChange={onVatTaxIdChange}
           />
           <div className="mt-10 lg:mt-12">
             <Button

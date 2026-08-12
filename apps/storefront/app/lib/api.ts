@@ -310,10 +310,10 @@ export type StorefrontOrderRequest = {
     primaryAddress: {
       line1: string;
       line2?: string;
-      city: string;
+      city?: string;
       province?: string;
       postalCode?: string;
-      country: string;
+      country?: string;
     };
     shipToDifferentAddress: boolean;
     differentAddress?: {
@@ -322,10 +322,10 @@ export type StorefrontOrderRequest = {
       address: {
         line1: string;
         line2?: string;
-        city: string;
+        city?: string;
         province?: string;
         postalCode?: string;
-        country: string;
+        country?: string;
       };
     };
   };

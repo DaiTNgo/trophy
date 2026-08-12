@@ -119,7 +119,7 @@ export function ProductCard({
         >
           {imgSrc ? (
             <img
-              className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 hover:scale-[1.04]"
+              className="absolute inset-0 h-full w-full object-contain transition-transform duration-500 hover:scale-[1.04]"
               data-alt={imageAlt}
               src={imgSrc}
               alt={imageAlt}
@@ -173,7 +173,7 @@ export function ProductCard({
       <Link to={productHref} className="relative w-full aspect-[4/5] sm:aspect-square mb-6 flex items-center justify-center overflow-hidden p-4">
         {imgSrc ? (
           <img
-            className="absolute inset-0 w-full h-full object-cover transition-transform duration-500"
+            className="absolute inset-0 w-full h-full object-contain transition-transform duration-500"
             data-alt={imageAlt}
             src={imgSrc}
             alt={imageAlt}

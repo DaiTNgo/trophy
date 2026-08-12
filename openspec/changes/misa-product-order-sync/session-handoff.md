@@ -10,6 +10,8 @@ VAT checkout data now creates/reuses a company Customer when `vat.taxId` is popu
 
 Checkout validates a Vietnamese 10-digit MST or 13-digit dependent-unit MST checksum before persisting the order or calling MISA. It removes spaces/hyphens, rejects malformed/checksum-invalid values with `422 VAT tax ID is invalid`, and uses the normalized value for the MISA Customer key and `tax_code`. This is local syntax/checksum validation only; MISA remains the authority for an active registration and tenant-specific requirements.
 
+Storefront checkout mirrors this MST validation before making its order request. The VAT tax-ID field is focused and receives an inline Vietnamese error on failure; input changes and disabling VAT clear the error. The checkout API client now aligns with backend address validation by treating `city` and `country` as optional. Full `./init.sh` passes after this correction.
+
 Verification for this addition: backend test suite (231 tests), backend check/build, and `git diff --check` pass. `./init.sh` stops at the existing storefront type error `apps/storefront/app/routes/checkout.tsx:305`, where an address value lacks `city` and `country`.
 
 Checkout now transfers the current VAT invoice request safely without treating it as an issued invoice. `buildMisaSaleOrderPayload` maps checkout `primaryAddress` to MISA billing fields, maps a different shipping address when present, and places invoice type, company name, tax ID, invoice email, invoice address, and the shopper note into the documented SaleOrder `description`. Do not add `is_invoiced` or `invoiced_amount` at checkout; that would claim an invoice has been issued.
