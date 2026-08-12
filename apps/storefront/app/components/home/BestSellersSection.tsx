@@ -97,7 +97,7 @@ export function BestSellersSection({
             opts={{ align: "start", dragFree: true }}
             className="w-full"
           >
-            <CarouselContent className="-ml-4 pt-4">
+            <CarouselContent className="ml-0 pt-4 pb-3">
               {displayProducts.map((product, index) => {
                 const imgSrc = product.thumbnail
                   ? backendAssetUrl(product.thumbnail)
@@ -106,7 +106,7 @@ export function BestSellersSection({
                 return (
                   <CarouselItem
                     key={product.id}
-                    className="basis-1/2 pl-4 md:basis-1/4"
+                    className="basis-1/2 px-2 md:basis-1/4"
                   >
                     <ProductCard
                       {...product}

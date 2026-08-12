@@ -7,6 +7,7 @@ import {
   ShieldCheck,
   Truck,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { FilterChips, type CategoryOption } from "./FilterChips";
 import { ProductCard } from "../shared/ProductCard";
 import { Pagination } from "../shared/Pagination";
@@ -30,6 +31,7 @@ type ProductListingShellProps = {
   description: string;
   featuredImageSrc?: string | null;
   featuredImageAlt?: string;
+  editorialDescription?: string;
   products: StorefrontProductItem[];
   locale?: string;
   totalItems: number;
@@ -293,7 +295,7 @@ function ListingResults({
 }) {
   return (
     <section className="bg-surface-base px-4 py-8 md:px-8 md:py-10">
-      <div className="mx-auto w-full max-w-[900px]">
+      <div className="mx-auto w-full max-w-[1180px]">
         {products.length === 0 ? (
           <EmptyListingState emptyState={emptyState} />
         ) : (
@@ -314,8 +316,14 @@ function ListingResults({
   );
 }
 
-function ListingEditorial({ title, locale }: { title: string; locale: string }) {
-  const isEnglish = locale === "en";
+function ListingEditorial({
+  title,
+  description,
+}: {
+  title: string;
+  description?: string;
+}) {
+  const { t } = useTranslation("products");
   const normalizedTitle = title.toUpperCase();
 
   return (
@@ -323,43 +331,37 @@ function ListingEditorial({ title, locale }: { title: string; locale: string }) 
       <div className="space-y-8 text-[13px] leading-6 text-text-base">
         <div>
           <h2 className="mb-4 font-heading text-[28px] uppercase leading-none text-brand-strong md:text-[34px]">
-            {isEnglish ? `More about ${normalizedTitle}` : `Tìm hiểu thêm về ${normalizedTitle}`}
+            {t("editorial_more_about", { category: normalizedTitle })}
           </h2>
-          <p className="mb-3">
-            {isEnglish
-              ? "Choose a product line by shape, material, finish, and customization needs. The listing above is built for quick comparison, so you can move from visual fit to price range without opening every product page."
-              : "Chọn dòng sản phẩm theo kiểu dáng, chất liệu, hoàn thiện và nhu cầu tùy chỉnh. Danh sách phía trên được thiết kế để so sánh nhanh, giúp bạn xem hình dáng và khoảng giá trước khi mở từng sản phẩm."}
-          </p>
-          <p>
-            {isEnglish
-              ? "For team awards, internal events, school competitions, and sales recognition, prioritize the display location first. Desk trophies, plaques, medals, and premium cups each read differently in photos, on stage, and in daily office display."
-              : "Với giải nội bộ, sự kiện trường học, giải đấu hoặc vinh danh doanh số, hãy bắt đầu từ nơi trưng bày. Cúp để bàn, bảng vinh danh, huy chương và cúp cao cấp tạo cảm giác rất khác nhau khi chụp ảnh, trao trên sân khấu hoặc đặt tại văn phòng."}
-          </p>
+          {description ? (
+            <p className="text-text-muted">{description}</p>
+          ) : (
+            <>
+              <p className="mb-3">{t("editorial_fallback_intro")}</p>
+              <p>{t("editorial_fallback_body")}</p>
+            </>
+          )}
         </div>
 
         <div>
           <h3 className="mb-3 font-heading text-[22px] uppercase leading-none text-brand-strong md:text-[26px]">
-            {isEnglish ? "Why choose Trophy products?" : "Vì sao chọn sản phẩm Trophy?"}
+            {t("editorial_why_choose_title")}
           </h3>
           <div className="grid gap-4 md:grid-cols-2">
             <div>
               <h4 className="mb-1 font-body-md text-[13px] font-bold uppercase text-text-base">
-                {isEnglish ? "Personalized details" : "Chi tiết cá nhân hóa"}
+                {t("editorial_personalized_title")}
               </h4>
               <p className="text-text-muted">
-                {isEnglish
-                  ? "Names, logos, event text, and artwork can be prepared for approval before production."
-                  : "Tên, logo, nội dung sự kiện và artwork có thể được chuẩn bị để duyệt trước khi sản xuất."}
+                {t("editorial_personalized_body")}
               </p>
             </div>
             <div>
               <h4 className="mb-1 font-body-md text-[13px] font-bold uppercase text-text-base">
-                {isEnglish ? "Clear product comparison" : "Dễ so sánh mẫu"}
+                {t("editorial_compare_title")}
               </h4>
               <p className="text-text-muted">
-                {isEnglish
-                  ? "The grid keeps image, rating, and price close together so shortlist decisions are faster."
-                  : "Grid giữ hình ảnh, đánh giá và giá gần nhau để chọn shortlist nhanh hơn."}
+                {t("editorial_compare_body")}
               </p>
             </div>
           </div>
@@ -367,27 +369,23 @@ function ListingEditorial({ title, locale }: { title: string; locale: string }) 
 
         <div>
           <h3 className="mb-4 text-center font-heading text-[22px] uppercase leading-none text-brand-strong md:text-[28px]">
-            FAQ
+            {t("editorial_faq_title")}
           </h3>
           <div className="space-y-4">
             <div>
               <h4 className="font-body-md text-[13px] font-bold text-text-base">
-                {isEnglish ? "Can I customize a product before ordering?" : "Tôi có thể tùy chỉnh sản phẩm trước khi đặt không?"}
+                {t("editorial_faq_customize_question")}
               </h4>
               <p className="mt-1 text-text-muted">
-                {isEnglish
-                  ? "Yes. Customizable products can collect text, image, logo, or artwork details depending on the product setup."
-                  : "Có. Các sản phẩm hỗ trợ tùy chỉnh có thể nhận nội dung chữ, hình ảnh, logo hoặc artwork tùy theo cấu hình sản phẩm."}
+                {t("editorial_faq_customize_answer")}
               </p>
             </div>
             <div>
               <h4 className="font-body-md text-[13px] font-bold text-text-base">
-                {isEnglish ? "What if I need help choosing a model?" : "Nếu chưa biết chọn mẫu nào thì sao?"}
+                {t("editorial_faq_help_question")}
               </h4>
               <p className="mt-1 text-text-muted">
-                {isEnglish
-                  ? "Use the category filters first, then contact the team with your event type, quantity, and target budget."
-                  : "Hãy lọc theo danh mục trước, sau đó gửi loại sự kiện, số lượng và ngân sách dự kiến để đội ngũ tư vấn mẫu phù hợp."}
+                {t("editorial_faq_help_answer")}
               </p>
             </div>
           </div>
@@ -404,6 +402,7 @@ export function ProductListingShell({
   description,
   featuredImageSrc,
   featuredImageAlt,
+  editorialDescription,
   products,
   locale = "vi",
   totalItems,
@@ -447,7 +446,10 @@ export function ProductListingShell({
           emptyState={emptyState}
         />
 
-        <ListingEditorial title={title} locale={locale} />
+        <ListingEditorial
+          title={title}
+          description={editorialDescription}
+        />
       </main>
     </div>
   );

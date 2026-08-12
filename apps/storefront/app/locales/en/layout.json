@@ -56,5 +56,9 @@
   "contact_fab_close": "Close",
   "contact_fab_open": "Contact",
 
-  "language_switcher_title": "Change Language"
+  "language_switcher_title": "Change Language",
+
+  "suggested_products_title": "You may also like",
+  "suggested_products_previous": "Previous suggested products",
+  "suggested_products_next": "Next suggested products"
 }

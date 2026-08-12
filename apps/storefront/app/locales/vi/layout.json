@@ -56,5 +56,9 @@
   "contact_fab_close": "Đóng",
   "contact_fab_open": "Liên hệ",
 
-  "language_switcher_title": "Change Language"
+  "language_switcher_title": "Change Language",
+
+  "suggested_products_title": "Sản Phẩm Tương Tự",
+  "suggested_products_previous": "Sản phẩm tương tự trước",
+  "suggested_products_next": "Sản phẩm tương tự tiếp theo"
 }

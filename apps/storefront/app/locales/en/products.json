@@ -1,0 +1,15 @@
+{
+  "editorial_more_about": "More about {{category}}",
+  "editorial_why_choose_title": "Why choose Trophy products?",
+  "editorial_personalized_title": "Personalized details",
+  "editorial_personalized_body": "Names, logos, event text, and artwork can be prepared for approval before production.",
+  "editorial_compare_title": "Clear product comparison",
+  "editorial_compare_body": "The grid keeps image, rating, and price close together so shortlist decisions are faster.",
+  "editorial_faq_title": "FAQ",
+  "editorial_faq_customize_question": "Can I customize a product before ordering?",
+  "editorial_faq_customize_answer": "Yes. Customizable products can collect text, image, logo, or artwork details depending on the product setup.",
+  "editorial_faq_help_question": "What if I need help choosing a model?",
+  "editorial_faq_help_answer": "Use the category filters first, then contact the team with your event type, quantity, and target budget.",
+  "editorial_fallback_intro": "Choose a product line by shape, material, finish, and customization needs. The listing above is built for quick comparison, so you can move from visual fit to price range without opening every product page.",
+  "editorial_fallback_body": "For team awards, internal events, school competitions, and sales recognition, prioritize the display location first. Desk trophies, plaques, medals, and premium cups each read differently in photos, on stage, and in daily office display."
+}

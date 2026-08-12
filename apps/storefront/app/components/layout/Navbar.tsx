@@ -202,14 +202,14 @@ export function Navbar({
 
               <DesktopSearch />
 
-              <div className="flex w-10 shrink-0 items-center justify-end gap-4 text-brand-strong lg:w-auto">
+              <div className="flex min-w-10 shrink-0 items-center justify-end gap-4 text-brand-strong lg:w-auto">
                 <LanguageSwitcher />
                 <NavbarMoreDropdown />
 
                 <Link
                   to="/cart"
                   aria-label={t("navbar_cart", { count: itemCount })}
-                  className="relative flex h-10 w-10 items-center justify-center rounded-md border border-action-positive bg-action-positive text-white transition-colors duration-200 hover:border-action-positive-hover hover:bg-action-positive-hover active:translate-y-px lg:h-12 lg:w-[88px] lg:rounded-xl"
+                  className="relative flex h-10 min-w-10 items-center justify-center rounded-md border border-action-positive bg-action-positive px-[7px] text-white transition-colors duration-200 hover:border-action-positive-hover hover:bg-action-positive-hover active:translate-y-px lg:h-12 lg:w-[88px] lg:px-0 lg:rounded-xl"
                 >
                   <ShoppingCart className="h-6 w-6 stroke-[2.25]" />
                   {itemCount > 0 ? (

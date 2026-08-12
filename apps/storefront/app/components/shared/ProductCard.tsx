@@ -1,5 +1,5 @@
 import { Link } from "react-router";
-import { Image, Headset } from "lucide-react"; // Star, StarHalf (rating UI, commented out)
+import { Image, Headset, Star, StarHalf } from "lucide-react";
 import { getGenericProductPath } from "@/lib/storefront-paths";
 import { formatCurrency } from "@/lib/utils";
 
@@ -54,7 +54,7 @@ export function ProductCard({
 
   if (variant === "listing") {
     return (
-      <div className="group flex h-full flex-col rounded-lg p-3 transition-shadow duration-300 hover:shadow-[0_2px_28px_rgba(36,65,89,0.22)]">
+      <div className="group flex h-full flex-col rounded-lg p-3 transition-shadow duration-300 hover:shadow-[0_0_10px_rgba(36,65,89,0.18)]">
         <Link
           to={productHref}
           className="relative mb-4 flex aspect-square w-full items-center justify-center overflow-hidden bg-surface-base px-3"
@@ -66,7 +66,7 @@ export function ProductCard({
               src={imgSrc}
               alt={imageAlt}
               loading="lazy"
-              sizes="(min-width: 1024px) 210px, (min-width: 640px) calc((100vw - 64px) / 3), calc((100vw - 48px) / 2)"
+              sizes="(min-width: 1024px) 249px, (min-width: 640px) calc((100vw - 64px) / 3), calc((100vw - 48px) / 2)"
             />
           ) : (
             <div className="absolute inset-0 flex items-center justify-center bg-surface-subtle">
@@ -75,14 +75,13 @@ export function ProductCard({
           )}
         </Link>
 
-        <div className="flex w-full flex-1 flex-col px-1">
+        <div className="flex w-full flex-1 flex-col items-center text-center px-1">
           <Link to={productHref} className="mb-1 w-full">
             <h3 className="min-h-[24px] max-w-[260px] font-body-md text-[16px] font-semibold leading-[24px] text-text-base transition-colors line-clamp-1 group-hover:line-clamp-none">
               {title}
             </h3>
           </Link>
 
-          {/* rating UI, commented out
           {(rating > 0 || reviewsCount > 0) && (
             <div className="mb-2 flex items-center justify-center gap-1.5">
               <div className="flex text-indicator-rating">
@@ -96,7 +95,6 @@ export function ProductCard({
               )}
             </div>
           )}
-          */}
 
           <span className="font-body-md text-[16px] font-semibold leading-5 text-brand-accent">
             {isContactPrice ? (
@@ -114,7 +112,7 @@ export function ProductCard({
 
   if (variant === "featured") {
     return (
-      <div className="flex h-full flex-col rounded-lg p-3 transition-shadow duration-300 hover:shadow-[0_2px_28px_rgba(36,65,89,0.22)]">
+      <div className="flex h-full flex-col rounded-lg p-3 transition-shadow duration-300 hover:shadow-[0_0_10px_rgba(36,65,89,0.18)]">
         <Link
           to={productHref}
           className="relative mb-5 flex aspect-square w-full items-center justify-center overflow-hidden bg-surface-base"
@@ -135,14 +133,13 @@ export function ProductCard({
           )}
         </Link>
 
-        <div className="flex w-full flex-1 flex-col px-1">
+        <div className="flex w-full flex-1 flex-col items-center text-center px-1">
           <Link to={productHref} className="mb-1 w-full">
             <h3 className="min-h-[24px] font-body-md text-[16px] font-semibold leading-[24px] text-text-base transition-colors line-clamp-1 hover:line-clamp-none">
               {title}
             </h3>
           </Link>
 
-          {/* rating UI, commented out
           {(rating > 0 || reviewsCount > 0) && (
             <div className="mb-3 flex items-center justify-center gap-2">
               <div className="flex text-indicator-rating">
@@ -156,7 +153,6 @@ export function ProductCard({
               )}
             </div>
           )}
-          */}
 
           <span className="font-body-md text-[16px] font-semibold leading-6 text-brand-accent">
             {isContactPrice ? (
@@ -194,7 +190,6 @@ export function ProductCard({
           <h3 className="font-bold text-on-surface text-sm sm:text-base hover:text-primary transition-colors line-clamp-2">{title}</h3>
         </Link>
 
-        {/* rating UI, commented out
         {(rating > 0 || reviewsCount > 0) && (
           <div className="flex items-center justify-center gap-2 mb-2">
             <div className="flex text-[#FFC107]">
@@ -208,7 +203,6 @@ export function ProductCard({
             )}
           </div>
         )}
-        */}
 
         <span className="font-bold text-on-surface mt-auto">
           {isContactPrice ? (

@@ -11,6 +11,7 @@ type CategoryProductsListingProps = {
   };
   categoryTitle: string;
   listingDescription: string;
+  editorialDescription?: string;
   products: StorefrontProductItem[];
   activeCategory: string;
   currentPage: number;
@@ -26,6 +27,7 @@ export function CategoryProductsListing({
   selectedCategory,
   categoryTitle,
   listingDescription,
+  editorialDescription,
   products,
   activeCategory,
   currentPage,
@@ -47,6 +49,7 @@ export function CategoryProductsListing({
       eyebrow={isEnglish ? "Shop by category" : "Mua theo danh mục"}
       title={categoryTitle}
       description={listingDescription}
+      editorialDescription={editorialDescription}
       featuredImageSrc={selectedCategory.imageUrl ?? products[0]?.thumbnail}
       featuredImageAlt={categoryTitle}
       products={products}
