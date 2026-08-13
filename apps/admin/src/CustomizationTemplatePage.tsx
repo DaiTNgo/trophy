@@ -75,7 +75,7 @@ export default function CustomizationTemplatePage() {
           ) : null}
         </div>
       ) : null}
-      <div className="grid min-h-0 flex-1 grid-cols-[56px_280px_minmax(0,1fr)_320px]">
+      <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)] grid-cols-[56px_280px_minmax(0,1fr)_320px]">
         <Rail activeTab={activeTab} onChange={setActiveTab} />
         <LeftPanel
           activeTab={activeTab}

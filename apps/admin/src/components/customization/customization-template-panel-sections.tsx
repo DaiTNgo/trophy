@@ -389,12 +389,14 @@ function SortablePanelItem({
 }) {
   const elementRef = useRef<HTMLDivElement | null>(null);
   const dragHandleRef = useRef<HTMLButtonElement | null>(null);
+  const scrollContainerRef = useContext(SortableScrollContainerContext);
   const [isDragging, setIsDragging] = useState(false);
   const [closestEdge, setClosestEdge] = useState<Edge | null>(null);
 
   useEffect(() => {
     const element = elementRef.current;
     const dragHandle = dragHandleRef.current;
+    const scrollContainer = scrollContainerRef?.current;
     if (!element || !dragHandle) return;
     const data = { kind, itemId: id };
 
@@ -423,6 +425,13 @@ function SortablePanelItem({
     }
 
     return combine(
+      scrollContainer
+        ? autoScrollForElements({
+            element: scrollContainer,
+            canScroll: ({ source }: any) => source.data.kind === kind,
+            getAllowedAxis: () => "vertical",
+          })
+        : () => {},
       draggable({
         element,
         dragHandle,
@@ -473,6 +482,8 @@ function SortablePanelItem({
 
 const SortableHandleContext =
   createContext<RefObject<HTMLButtonElement | null> | null>(null);
+const SortableScrollContainerContext =
+  createContext<RefObject<HTMLDivElement | null> | null>(null);
 
 function DragHandle({ label }: { label: string }) {
   const handleRef = useContext(SortableHandleContext);
@@ -633,6 +644,7 @@ import {
   type Edge,
 } from "@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge";
 import { reorderWithEdge } from "@atlaskit/pragmatic-drag-and-drop-hitbox/util/reorder-with-edge";
+import { autoScrollForElements } from "@atlaskit/pragmatic-drag-and-drop-auto-scroll/element";
 import {
   ArrowDown,
   ArrowUp,
@@ -664,3 +676,5 @@ const SHAPES: ShapeType[] = [
   "heart",
 ];
 type SortableListKind = "layers" | "form";
+
+export { SortableScrollContainerContext };

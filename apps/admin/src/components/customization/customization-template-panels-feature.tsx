@@ -4,6 +4,7 @@ import {
   PanelRight,
   Plus,
 } from "lucide-react";
+import { useRef } from "react";
 import {
   type CustomizationFormField,
   type CustomizationTemplate,
@@ -16,6 +17,7 @@ import {
   EmbeddedBackgroundPanel,
   FormPanel,
   LayersPanel,
+  SortableScrollContainerContext,
 } from "./customization-template-panel-sections";
 
 export function Rail({
@@ -79,8 +81,10 @@ export function LeftPanel(props: {
     onSelectAssetId: (assetId: string) => void;
   };
 }) {
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   return (
-    <aside className="overflow-y-auto border-r border-ui-border-base p-4">
+    <SortableScrollContainerContext.Provider value={scrollContainerRef}>
+    <aside ref={scrollContainerRef} className="overflow-y-auto border-r border-ui-border-base p-4">
       {props.activeTab === "blocks" ? (
         <BlocksPanel
           template={props.template}
@@ -126,5 +130,6 @@ export function LeftPanel(props: {
         )
       ) : null}
     </aside>
+    </SortableScrollContainerContext.Provider>
   );
 }
