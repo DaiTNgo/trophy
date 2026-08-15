@@ -176,7 +176,6 @@ export function OrderDetailSidebar({
                 </Text>
                 <div className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
                   {[
-                    ["Invoice type", order.vat.type],
                     ["Name", order.vat.name],
                     ["Tax ID", order.vat.taxId],
                     ["Email", order.vat.email],

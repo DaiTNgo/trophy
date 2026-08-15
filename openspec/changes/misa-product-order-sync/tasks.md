@@ -45,6 +45,7 @@
 - [x] 4.18 Validate VAT Customer fields through MISA before checkout persists an order, returning field-specific MISA errors to the form.
 - [x] 4.19 Bypass only MISA duplicate VAT tax-code errors while returning other VAT validation errors to checkout.
 - [x] 4.20 Update existing Contacts with only the Customer-link fields to avoid unrelated MISA uniqueness validation.
+- [x] 4.21 Require complete VAT invoice details at checkout, remove the un-mapped invoice-type input, and keep invoice email as the Customer email fallback.
 
 ## 5. Documentation and verification
 

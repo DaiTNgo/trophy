@@ -38,7 +38,6 @@ function getFormString(formData: FormData, name: string) {
 
 function getVatDetails(formData: FormData) {
   const vat = {
-    type: getFormString(formData, "vat.type"),
     name: getFormString(formData, "vat.name"),
     taxId: getFormString(formData, "vat.taxId"),
     email: getFormString(formData, "vat.email"),
@@ -315,6 +314,7 @@ export default function Checkout() {
           method: paymentMethod === "cod" ? "cash_on_delivery" : "bank_transfer",
         },
         notes: getFormString(formData, "notes") || undefined,
+        vatRequested: vatChecked,
         vat,
         items: lines.map((line) => ({
           productId: line.productId,

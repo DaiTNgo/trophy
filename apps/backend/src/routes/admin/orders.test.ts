@@ -183,7 +183,6 @@ describe("admin orders routes", () => {
       customerEmail: "john@example.com",
       notes: "Please call before delivery.",
       vatDetailsJson: JSON.stringify({
-        type: "Company",
         name: "Trophy Co.",
         taxId: "0312345678",
         email: "accounting@trophy.test",
@@ -263,7 +262,6 @@ describe("admin orders routes", () => {
     expect(body.order.customer.phone).toBe("0123456789");
     expect(body.order.notes).toBe("Please call before delivery.");
     expect(body.order.vat).toEqual({
-      type: "Company",
       name: "Trophy Co.",
       taxId: "0312345678",
       email: "accounting@trophy.test",

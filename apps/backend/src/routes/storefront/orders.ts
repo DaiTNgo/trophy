@@ -106,13 +106,13 @@ const createOrderSchema = v.object({
   }),
   items: v.pipe(v.array(orderItemInputSchema), v.minLength(1, "At least one item is required")),
   notes: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(2000, "Order note is too long"))),
+  vatRequested: v.optional(v.boolean(), false),
   vat: v.optional(
     v.object({
-      type: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(100))),
-      name: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(255))),
-      taxId: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(100))),
-      email: v.optional(v.pipe(v.string(), v.trim(), v.email("Invalid VAT email"), v.maxLength(255))),
-      address: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(1000))),
+      name: v.pipe(v.string(), v.trim(), v.minLength(1, "VAT name is required"), v.maxLength(255)),
+      taxId: v.pipe(v.string(), v.trim(), v.minLength(1, "VAT tax ID is required"), v.maxLength(100)),
+      email: v.pipe(v.string(), v.trim(), v.minLength(1, "VAT email is required"), v.email("Invalid VAT email"), v.maxLength(255)),
+      address: v.pipe(v.string(), v.trim(), v.minLength(1, "VAT address is required"), v.maxLength(1000)),
     }),
   ),
   locale: v.optional(localeSchema, DEFAULT_LOCALE),
@@ -743,6 +743,9 @@ export const storefrontOrdersRoute = new Hono<AppEnv>()
     }
 
     const input: CreateOrderInput = parsed.output;
+    if (input.vatRequested && !input.vat) {
+      return jsonError(c, 422, "VAT details are required when requesting a VAT invoice");
+    }
     if (input.shipping.shipToDifferentAddress && !input.shipping.differentAddress) {
       return jsonError(
         c,

@@ -182,17 +182,6 @@ function AdditionalRequirementsSection({
         </Label>
         {vatChecked ? (
           <div className="grid grid-cols-1 gap-4 rounded-md border border-outline-variant bg-surface-container-low p-4 md:grid-cols-2 lg:p-6">
-            <div className="md:col-span-2">
-              <Label className="mb-1 text-xs font-bold uppercase tracking-wider text-on-surface-variant">
-                Loại hóa đơn
-              </Label>
-              <Input
-                name="vat.type"
-                className="border-outline-variant bg-white"
-                placeholder="Cá nhân / Công ty"
-                type="text"
-              />
-            </div>
             <div>
               <Label className="mb-1 text-xs font-bold uppercase tracking-wider text-on-surface-variant">
                 Tên đơn vị/Cá nhân
@@ -203,6 +192,7 @@ function AdditionalRequirementsSection({
                 aria-invalid={Boolean(vatErrors.name)}
                 className="border-outline-variant bg-white aria-invalid:border-error aria-invalid:ring-error"
                 onChange={() => onVatFieldChange("name")}
+                required
                 type="text"
               />
               {vatErrors.name ? <p id="vat-name-error" className="mt-1 text-sm text-error">{vatErrors.name}</p> : null}
@@ -217,6 +207,7 @@ function AdditionalRequirementsSection({
                 aria-invalid={Boolean(vatErrors.taxId)}
                 className="border-outline-variant bg-white aria-invalid:border-error aria-invalid:ring-error"
                 onChange={() => onVatFieldChange("taxId")}
+                required
                 type="text"
               />
               {vatErrors.taxId ? (
@@ -235,6 +226,7 @@ function AdditionalRequirementsSection({
                 aria-invalid={Boolean(vatErrors.email)}
                 className="border-outline-variant bg-white aria-invalid:border-error aria-invalid:ring-error"
                 onChange={() => onVatFieldChange("email")}
+                required
                 type="email"
               />
               {vatErrors.email ? <p id="vat-email-error" className="mt-1 text-sm text-error">{vatErrors.email}</p> : null}
@@ -249,6 +241,7 @@ function AdditionalRequirementsSection({
                 aria-invalid={Boolean(vatErrors.address)}
                 className="border-outline-variant bg-white aria-invalid:border-error aria-invalid:ring-error"
                 onChange={() => onVatFieldChange("address")}
+                required
                 type="text"
               />
               {vatErrors.address ? <p id="vat-address-error" className="mt-1 text-sm text-error">{vatErrors.address}</p> : null}

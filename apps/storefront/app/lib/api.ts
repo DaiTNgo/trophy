@@ -333,12 +333,12 @@ export type StorefrontOrderRequest = {
     method: "bank_transfer" | "cash_on_delivery";
   };
   notes?: string;
+  vatRequested?: boolean;
   vat?: {
-    type?: string;
-    name?: string;
-    taxId?: string;
-    email?: string;
-    address?: string;
+    name: string;
+    taxId: string;
+    email: string;
+    address: string;
   };
   items: Array<{
     productId: number;

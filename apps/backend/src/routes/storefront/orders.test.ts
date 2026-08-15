@@ -106,7 +106,6 @@ describe("storefront orders route", () => {
     payment: { method: "bank_transfer" },
     notes: "Please call before delivery.",
     vat: {
-      type: "Company",
       name: "Trophy Co.",
       taxId: "0314042508",
       email: "accounting@trophy.test",
@@ -206,6 +205,38 @@ describe("storefront orders route", () => {
     await expect(res.json()).resolves.toMatchObject({
       error: "Validation failed",
     });
+  });
+
+  it("rejects a VAT invoice request without complete VAT details", async () => {
+    const res = await storefrontOrdersRoute.request("/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ...validPayload,
+        vatRequested: true,
+        vat: { ...validPayload.vat, email: "" },
+      }),
+    });
+
+    expect(res.status).toBe(400);
+    await expect(res.json()).resolves.toMatchObject({
+      error: "Validation failed",
+    });
+    expect(db.valuesCalls).toEqual([]);
+  });
+
+  it("rejects a VAT invoice request that omits VAT details", async () => {
+    const res = await storefrontOrdersRoute.request("/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...validPayload, vatRequested: true, vat: undefined }),
+    });
+
+    expect(res.status).toBe(422);
+    await expect(res.json()).resolves.toEqual({
+      error: "VAT details are required when requesting a VAT invoice",
+    });
+    expect(db.valuesCalls).toEqual([]);
   });
 
   it("returns MISA VAT validation errors before creating a checkout order", async () => {

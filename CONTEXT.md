@@ -395,6 +395,18 @@ _Avoid_: cart product snapshot, client order item, trusted cart item
 
 **Checkout-Ready Cart Line**:
 A cart line that has a concrete variant, a positive quantity, and all required customization values for customizable products. Checkout submits only checkout-ready cart lines to order creation.
+
+**MISA Checkout Customer**:
+The purchasing party represented in MISA for a Trophy checkout order. Without a VAT invoice request, it is the person identified by the basic checkout information. With a VAT invoice request, it is the invoice entity identified by the VAT information. It is distinct from the individual Contact.
+_Avoid_: always the delivery recipient, always the invoice company
+
+**MISA Checkout Contact**:
+The individual represented by the basic checkout information and linked to the MISA Checkout Customer. Trophy uses this Contact as the SaleOrder contact; it does not integrate tenant-only delivery-contact fields.
+_Avoid_: VAT customer, shipping-contact field
+
+**VAT Invoice Request**:
+A shopper's explicit request for a VAT invoice. It requires an invoice entity name, tax ID, invoice email, and invoice address before checkout can proceed. Tax-ID validity is authoritative in MISA; Trophy does not apply an inferred browser checksum.
+_Avoid_: issued invoice, optional VAT details
 _Avoid_: incomplete cart item, draft order item, partially customized cart line
 
 **Cart Line Merge**:

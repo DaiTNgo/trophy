@@ -506,11 +506,10 @@ function buildMisaOrderDescription(source: MisaOrderSource) {
 
   const vatLines = [
     "YEU CAU XUAT HOA DON",
-    ...(vat.type ? [`Loai: ${vat.type}`] : []),
-    ...(vat.name ? [`Don vi: ${vat.name}`] : []),
-    ...(vat.taxId ? [`MST: ${vat.taxId}`] : []),
-    ...(vat.email ? [`Email hoa don: ${vat.email}`] : []),
-    ...(vat.address ? [`Dia chi hoa don: ${vat.address}`] : []),
+    `Don vi: ${vat.name}`,
+    `MST: ${vat.taxId}`,
+    `Email hoa don: ${vat.email}`,
+    `Dia chi hoa don: ${vat.address}`,
   ];
   return [paymentReference, ...addressLines, vatLines.join("\n"), `GHI CHU KHACH\n${note}`].filter(Boolean).join("\n\n");
 }

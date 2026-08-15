@@ -390,7 +390,7 @@ describe("MISA client", () => {
         shippingAddressJson: JSON.stringify({ recipientName: "John", recipientPhone: "090-456", address: { line1: "2 Le Loi", city: "Da Nang", country: "VN" } }),
         totalAmount: 10000,
         notes: "Please call before delivery.",
-        vatDetailsJson: JSON.stringify({ type: "Company", name: "Trophy Co.", taxId: "0314042508", email: "accounting@trophy.test", address: "1 Nguyen Hue, Ho Chi Minh City" }),
+        vatDetailsJson: JSON.stringify({ name: "Trophy Co.", taxId: "0314042508", email: "accounting@trophy.test", address: "1 Nguyen Hue, Ho Chi Minh City" }),
       },
       items: [{ id: 1, quantity: 1, unitPriceAmount: 10000, lineSubtotalAmount: 10000, variantSnapshotJson: JSON.stringify({ id: 42, sku: "SKU-1", title: "Gold" }) }],
     } as any;
@@ -415,7 +415,6 @@ describe("MISA client", () => {
         "2 Le Loi, Da Nang, VN",
         "",
         "YEU CAU XUAT HOA DON",
-        "Loai: Company",
         "Don vi: Trophy Co.",
         "MST: 0314042508",
         "Email hoa don: accounting@trophy.test",

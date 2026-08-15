@@ -21,11 +21,10 @@ export type DifferentShippingAddressSnapshot = {
 };
 
 export type VatDetailsSnapshot = {
-  type?: string;
-  name?: string;
-  taxId?: string;
-  email?: string;
-  address?: string;
+  name: string;
+  taxId: string;
+  email: string;
+  address: string;
 };
 
 export type StoredProductSnapshot = {
