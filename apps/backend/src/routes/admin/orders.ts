@@ -87,7 +87,6 @@ function serializeAdminOrderDetail(
     vat,
     misa: {
       syncStatus: orderRow.misaSyncStatus,
-      contactId: orderRow.misaContactId,
       saleOrderId: orderRow.misaSaleOrderId,
       saleOrderNo: orderRow.misaSaleOrderNo,
       lastError: orderRow.misaLastError,
@@ -134,7 +133,6 @@ function serializeAdminOrderDetail(
 function serializeMisaStatus(order: OrderRow) {
   return {
     syncStatus: order.misaSyncStatus,
-    contactId: order.misaContactId,
     saleOrderId: order.misaSaleOrderId,
     saleOrderNo: order.misaSaleOrderNo,
     lastError: order.misaLastError,
@@ -190,7 +188,6 @@ async function synchronizeOrderWithMisa(
       .update(orders)
       .set({
         misaSyncStatus: "synced",
-        misaContactId: synced.contactId,
         misaSaleOrderId: synced.saleOrderId,
         misaSaleOrderNo: synced.saleOrderNumber,
         misaLastError: null,

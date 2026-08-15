@@ -2,6 +2,8 @@
 
 ## Current state
 
+Customer and Contact are intentionally headless integrations. Do not add a Customer ID mapping and do not persist or return a Contact ID. Both entities are derived from the order snapshot and their deterministic phone/MST codes. When MISA rejects a SaleOrder with “khách hàng đã bị xóa”, backend creates the Customer payload again and retries the same SaleOrder exactly once. Keep SaleOrder ID persistence: it belongs to the order reconciliation/purge flow, not Customer/Contact mapping.
+
 VAT invoice requests are now explicit in checkout. Selecting the checkbox requires invoice entity name, tax ID, invoice email, and invoice address; the old “invoice type” field has been removed from storefront, backend contract, stored VAT data, MISA description, and Admin Order Detail. The request includes `vatRequested` so backend rejects a client that declares VAT but omits the VAT object. The invoice email remains independent from optional basic checkout email and is preferred for MISA Customer `office_email`. For domain meaning: without VAT, Customer is the basic checkout person; with VAT, Customer is the invoice entity; the basic checkout person remains Contact and is selected by SaleOrder `contact_name`. Do not add or try `shipping_contact_name`; it is intentionally outside the integration scope. Full `./init.sh` passes with 236 backend tests.
 
 For MISA API comparison, start with `docs/misa/README.md` and `docs/misa/openapi-v2-customer-contact-saleorder.md`. The latter records the public v2 endpoints and field relationships for Customer, Contact, and SaleOrder, then explicitly separates them from Trophy's phone/MST code conventions and the deliberate no-mapping decision. The original saved field exports remain in the same folder.

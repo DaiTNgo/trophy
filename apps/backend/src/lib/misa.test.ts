@@ -51,7 +51,7 @@ describe("MISA client", () => {
   });
 
   it("stores the MISA SaleOrder ID returned in results data", async () => {
-    const order = { id: 8, orderNumber: "8", customerName: "Jane", customerPhone: "090-123", customerEmail: null, primaryAddressJson: null, shippingAddressJson: null, totalAmount: 10000, notes: null, vatDetailsJson: null, misaContactId: null };
+    const order = { id: 8, orderNumber: "8", customerName: "Jane", customerPhone: "090-123", customerEmail: null, primaryAddressJson: null, shippingAddressJson: null, totalAmount: 10000, notes: null, vatDetailsJson: null };
     const orderQuery = { from: vi.fn().mockReturnThis(), where: vi.fn().mockReturnThis(), get: vi.fn().mockResolvedValue(order) };
     const itemsQuery = { from: vi.fn().mockReturnThis(), where: vi.fn().mockReturnThis(), then: (resolve: (value: unknown) => unknown) => Promise.resolve([{ id: 1, quantity: 1, unitPriceAmount: 10000, lineSubtotalAmount: 10000, variantSnapshotJson: JSON.stringify({ id: 42, title: "Gold", sku: null }) }]).then(resolve) };
     vi.mocked(getDb).mockReturnValue({ select: vi.fn().mockReturnValueOnce(orderQuery).mockReturnValueOnce(itemsQuery) } as never);
@@ -111,7 +111,7 @@ describe("MISA client", () => {
       .mockResolvedValueOnce(new Response(JSON.stringify({ data: [{ id: 99, contact_code: "TROPHY-090123", contact_name: "Jane" }] }), { status: 200 }));
 
     await expect(findMisaContactsByCodes(bindings, ["TROPHY-090123"])).resolves.toEqual([
-      { id: "99", contact_code: "TROPHY-090123", contact_name: "Jane", account_name: null, email: null, mobile: null },
+      { contact_code: "TROPHY-090123", contact_name: "Jane", account_name: null, email: null, mobile: null },
     ]);
 
     expect(fetchMock.mock.calls[1]?.[0]).toBe("https://crmconnect.misa.vn/api/v2/Contacts/code?code=TROPHY-090123");
@@ -164,7 +164,7 @@ describe("MISA client", () => {
       .mockResolvedValueOnce(new Response(JSON.stringify({ data: "token" }), { status: 200 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({ data: { id: 123 } }), { status: 200 }));
 
-    await expect(syncMisaOrder(bindings, 5)).resolves.toEqual({ contactId: "99", saleOrderId: "123", saleOrderNumber: "ORD-5" });
+    await expect(syncMisaOrder(bindings, 5)).resolves.toEqual({ saleOrderId: "123", saleOrderNumber: "ORD-5" });
 
     expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
       "https://crmconnect.misa.vn/api/v2/Account",
@@ -194,7 +194,7 @@ describe("MISA client", () => {
   });
 
   it("reconnects an order to an existing MISA SaleOrder before creating another", async () => {
-    const order = { id: 7, orderNumber: "123", customerName: "Jane", customerPhone: "090-123", customerEmail: null, primaryAddressJson: null, shippingAddressJson: null, totalAmount: 10000, notes: null, vatDetailsJson: null, misaContactId: "99" };
+    const order = { id: 7, orderNumber: "123", customerName: "Jane", customerPhone: "090-123", customerEmail: null, primaryAddressJson: null, shippingAddressJson: null, totalAmount: 10000, notes: null, vatDetailsJson: null };
     const orderQuery = { from: vi.fn().mockReturnThis(), where: vi.fn().mockReturnThis(), get: vi.fn().mockResolvedValue(order) };
     const itemsQuery = { from: vi.fn().mockReturnThis(), where: vi.fn().mockReturnThis(), then: (resolve: (value: unknown) => unknown) => Promise.resolve([]).then(resolve) };
     vi.mocked(getDb).mockReturnValue({ select: vi.fn().mockReturnValueOnce(orderQuery).mockReturnValueOnce(itemsQuery) } as never);
@@ -203,11 +203,54 @@ describe("MISA client", () => {
       .mockResolvedValueOnce(new Response(JSON.stringify({ data: [{ id: 555, sale_order_no: "123" }] }), { status: 200 }));
 
     await expect(syncMisaOrder(bindings, 7)).resolves.toEqual({
-      contactId: "99",
       saleOrderId: "555",
       saleOrderNumber: "123",
     });
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("recreates a deleted MISA customer and retries the SaleOrder once", async () => {
+    const order = { id: 8, orderNumber: "124", customerName: "Jane", customerPhone: "090-123", customerEmail: null, primaryAddressJson: null, shippingAddressJson: null, totalAmount: 10000, notes: null, vatDetailsJson: null };
+    const orderQuery = { from: vi.fn().mockReturnThis(), where: vi.fn().mockReturnThis(), get: vi.fn().mockResolvedValue(order) };
+    const itemsQuery = { from: vi.fn().mockReturnThis(), where: vi.fn().mockReturnThis(), then: (resolve: (value: unknown) => unknown) => Promise.resolve([{ id: 1, quantity: 1, unitPriceAmount: 10000, lineSubtotalAmount: 10000, variantSnapshotJson: JSON.stringify({ id: 42, title: "Gold" }) }]).then(resolve) };
+    vi.mocked(getDb).mockReturnValue({ select: vi.fn().mockReturnValueOnce(orderQuery).mockReturnValueOnce(itemsQuery) } as never);
+
+    const fetchMock = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data: "token" }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data: [] }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data: "token" }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data: [{ account_number: "TROPHY-090123", account_name: "Jane" }] }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data: "token" }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data: [{ contact_code: "TROPHY-090123", contact_name: "Jane", account_name: "TROPHY-090123" }] }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data: "token" }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ success: false, error_message: "Không thể lưu do khách hàng đã bị xóa." }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data: "token" }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data: { id: 88 } }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data: "token" }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data: { id: 555 } }), { status: 200 }));
+
+    await expect(syncMisaOrder(bindings, 8)).resolves.toEqual({ saleOrderId: "555", saleOrderNumber: "124" });
+
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
+      "https://crmconnect.misa.vn/api/v2/Account",
+      "https://crmconnect.misa.vn/api/v2/SaleOrders/code?code=124",
+      "https://crmconnect.misa.vn/api/v2/Account",
+      "https://crmconnect.misa.vn/api/v2/Customers/code?code=TROPHY-090123",
+      "https://crmconnect.misa.vn/api/v2/Account",
+      "https://crmconnect.misa.vn/api/v2/Contacts/code?code=TROPHY-090123",
+      "https://crmconnect.misa.vn/api/v2/Account",
+      "https://crmconnect.misa.vn/api/v2/SaleOrders",
+      "https://crmconnect.misa.vn/api/v2/Account",
+      "https://crmconnect.misa.vn/api/v2/Customers",
+      "https://crmconnect.misa.vn/api/v2/Account",
+      "https://crmconnect.misa.vn/api/v2/SaleOrders",
+    ]);
+    const recreatedCustomer = fetchMock.mock.calls[9]?.[1] as RequestInit;
+    expect(JSON.parse(String(recreatedCustomer.body))).toMatchObject([{
+      account_number: "TROPHY-090123",
+      account_name: "Jane",
+      is_personal: true,
+    }]);
   });
 
   it("creates a phone-based contact without email when the matched MISA email has a different phone", async () => {
@@ -255,7 +298,7 @@ describe("MISA client", () => {
       .mockResolvedValueOnce(new Response(JSON.stringify({ data: "token" }), { status: 200 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({ data: { id: 124 } }), { status: 200 }));
 
-    await expect(syncMisaOrder(bindings, 6)).resolves.toEqual({ contactId: "101", saleOrderId: "124", saleOrderNumber: "ORD-6" });
+    await expect(syncMisaOrder(bindings, 6)).resolves.toEqual({ saleOrderId: "124", saleOrderNumber: "ORD-6" });
 
     const contactRequest = fetchMock.mock.calls[11]?.[1] as RequestInit;
     expect(JSON.parse(String(contactRequest.body))).toEqual([{

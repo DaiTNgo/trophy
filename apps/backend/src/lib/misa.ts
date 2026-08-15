@@ -43,7 +43,6 @@ export type MisaContactPayload = {
 };
 
 export type MisaContact = {
-  id: string | null;
   contact_code: string;
   contact_name: string;
   account_name: string | null;
@@ -106,7 +105,6 @@ export type MisaCustomerPayload = {
 };
 
 export type MisaCustomer = {
-  id: string | null;
   account_number: string;
   account_name: string;
 };
@@ -279,9 +277,7 @@ function normalizeProduct(value: unknown): MisaProduct | null {
 function normalizeContact(value: unknown): MisaContact | null {
   const record = asRecord(value);
   if (!record || typeof record.contact_code !== "string" || !record.contact_code.trim()) return null;
-  const id = record.id ?? record.ID;
   return {
-    id: typeof id === "number" || typeof id === "string" ? String(id) : null,
     contact_code: record.contact_code,
     contact_name: typeof record.contact_name === "string" ? record.contact_name : record.contact_code,
     account_name: typeof record.account_name === "string" ? record.account_name : null,
@@ -293,9 +289,7 @@ function normalizeContact(value: unknown): MisaContact | null {
 function normalizeCustomer(value: unknown): MisaCustomer | null {
   const record = asRecord(value);
   if (!record || typeof record.account_number !== "string" || !record.account_number.trim()) return null;
-  const id = record.id ?? record.ID;
   return {
-    id: typeof id === "number" || typeof id === "string" ? String(id) : null,
     account_number: record.account_number,
     account_name: typeof record.account_name === "string" ? record.account_name : record.account_number,
   };
@@ -618,6 +612,12 @@ async function ensureMisaCustomer(bindings: AppBindings, source: MisaCustomerSou
   return { customerCode: existingCustomer?.account_number ?? customer.account_number };
 }
 
+async function recreateMisaCustomer(bindings: AppBindings, source: MisaCustomerSource) {
+  const customer = buildMisaCustomerPayload(source);
+  await misaFetch(bindings, "/Customers", { method: "POST", body: JSON.stringify([customer]) });
+  return { customerCode: customer.account_number };
+}
+
 export async function validateMisaCheckoutCustomer(bindings: AppBindings, source: MisaCustomerSource) {
   return ensureMisaCustomer(bindings, source);
 }
@@ -635,9 +635,9 @@ async function ensureMisaContact(bindings: AppBindings, source: MisaOrderSource,
   const contactToCreate = matchedEmailHasDifferentPhone
     ? buildMisaContactPayload(source, accountCode, false)
     : contact;
-  const contactResponse = existingContact
-    ? null
-    : await misaFetch(bindings, "/Contacts", { method: "POST", body: JSON.stringify([contactToCreate]) });
+  if (!existingContact) {
+    await misaFetch(bindings, "/Contacts", { method: "POST", body: JSON.stringify([contactToCreate]) });
+  }
   if (existingContact && existingContact.account_name !== accountCode) {
     await misaFetch(bindings, "/Contacts", {
       method: "PUT",
@@ -649,7 +649,6 @@ async function ensureMisaContact(bindings: AppBindings, source: MisaOrderSource,
     });
   }
   return {
-    contactId: existingContact?.id ?? (contactResponse ? extractId(contactResponse) : null),
     contactCode: existingContact?.contact_code ?? contactToCreate.contact_code,
   };
 }
@@ -674,6 +673,26 @@ async function createMisaSaleOrder(
   return { saleOrderId, saleOrderNumber };
 }
 
+function isDeletedMisaCustomerError(error: unknown) {
+  return error instanceof MisaRequestError && /khách hàng đã bị xóa/i.test(error.message);
+}
+
+async function createMisaSaleOrderWithCustomerRecovery(
+  bindings: AppBindings,
+  source: MisaOrderSource,
+  accountCode: string,
+  contactCode: string,
+  saleOrderNumber: string,
+) {
+  try {
+    return await createMisaSaleOrder(bindings, source, accountCode, contactCode, saleOrderNumber);
+  } catch (error) {
+    if (!isDeletedMisaCustomerError(error)) throw error;
+    const recreatedCustomer = await recreateMisaCustomer(bindings, source);
+    return createMisaSaleOrder(bindings, source, recreatedCustomer.customerCode, contactCode, saleOrderNumber);
+  }
+}
+
 export async function syncMisaOrder(bindings: AppBindings, orderId: number) {
   const db = getDb(bindings);
   const order = await db.select().from(orders).where(eq(orders.id, orderId)).get();
@@ -691,7 +710,6 @@ export async function syncMisaOrder(bindings: AppBindings, orderId: number) {
   if (existing) {
     if (!existing.id) throw new Error("MISA SaleOrder lookup did not contain an ID");
     return {
-      contactId: order.misaContactId,
       saleOrderId: existing.id,
       saleOrderNumber: existing.sale_order_no,
     };
@@ -700,7 +718,7 @@ export async function syncMisaOrder(bindings: AppBindings, orderId: number) {
   const customer = await ensureMisaCustomer(bindings, source);
   const contact = await ensureMisaContact(bindings, source, customer.customerCode);
   try {
-    return { contactId: contact.contactId, ...await createMisaSaleOrder(bindings, source, customer.customerCode, contact.contactCode, originalNumber) };
+    return createMisaSaleOrderWithCustomerRecovery(bindings, source, customer.customerCode, contact.contactCode, originalNumber);
   } catch (error) {
     console.error("MISA SaleOrder synchronization failed", {
       orderId,
@@ -716,7 +734,6 @@ export async function syncMisaOrder(bindings: AppBindings, orderId: number) {
   if (afterDuplicate) {
     if (!afterDuplicate.id) throw new Error("MISA SaleOrder lookup did not contain an ID");
     return {
-      contactId: contact.contactId,
       saleOrderId: afterDuplicate.id,
       saleOrderNumber: afterDuplicate.sale_order_no,
     };
@@ -725,7 +742,7 @@ export async function syncMisaOrder(bindings: AppBindings, orderId: number) {
   for (let revision = 2; revision <= 99; revision += 1) {
     const saleOrderNumber = `${originalNumber}-R${revision}`;
     try {
-      return { contactId: contact.contactId, ...await createMisaSaleOrder(bindings, source, customer.customerCode, contact.contactCode, saleOrderNumber) };
+      return createMisaSaleOrderWithCustomerRecovery(bindings, source, customer.customerCode, contact.contactCode, saleOrderNumber);
     } catch (error) {
       if (!isDuplicateSaleOrderError(error)) throw error;
     }

@@ -18,6 +18,7 @@
 | Checkbox VAT được chọn | Checkout bắt buộc phải có thông tin VAT hợp lệ, gồm MST; Customer là Customer VAT, mã `TROPHY-TAX-<mst>`, `is_personal: false`, gửi `tax_code`. Không rơi về Customer cá nhân khi MST trống. |
 | MST MISA báo trùng | Checkout vẫn tạo đơn local; MISA operator tự rà soát Customer trùng. |
 | MST báo lỗi khác | Backend trả HTTP 422 và storefront hiển thị lỗi tại field VAT tương ứng. |
+| SaleOrder báo Customer đã bị xóa | Trophy tạo lại Customer từ snapshot hiện tại và retry SaleOrder đúng một lần. Không dùng Customer/Contact ID MISA làm mapping. |
 
 ## Bảng mapping theo field checkout
 

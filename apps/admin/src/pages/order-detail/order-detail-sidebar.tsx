@@ -256,10 +256,6 @@ export function OrderDetailSidebar({
           <Text size="small" className="break-all text-right text-ui-fg-base">
             {order.misa.saleOrderNo ?? "Not connected"}
           </Text>
-          <Text size="small" className="text-ui-fg-subtle">Contact ID</Text>
-          <Text size="small" className="break-all text-right text-ui-fg-base">
-            {order.misa.contactId ?? "Not returned"}
-          </Text>
           <Text size="small" className="text-ui-fg-subtle">Attempts</Text>
           <Text size="small" className="text-right text-ui-fg-base">{order.misa.attemptCount}</Text>
           <Text size="small" className="text-ui-fg-subtle">Last synced</Text>

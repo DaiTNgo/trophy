@@ -97,7 +97,6 @@ describe("admin orders routes", () => {
       id: 23,
       orderNumber: "23",
       misaSyncStatus: "synced",
-      misaContactId: "99",
       misaSaleOrderId: "9663",
       misaSaleOrderNo: "23",
       misaLastError: null,
@@ -200,7 +199,6 @@ describe("admin orders routes", () => {
       currencyCode: "VND",
       itemCount: 2,
       misaSyncStatus: "failed",
-      misaContactId: "contact-123",
       misaSaleOrderId: null,
       misaLastError: "MISA rejected the order items",
       misaAttemptCount: 1,
@@ -269,7 +267,6 @@ describe("admin orders routes", () => {
     });
     expect(body.order.misa).toEqual({
       syncStatus: "failed",
-      contactId: "contact-123",
       saleOrderId: null,
       lastError: "MISA rejected the order items",
       attemptCount: 1,
@@ -331,7 +328,6 @@ describe("admin orders routes", () => {
       currencyCode: "VND",
       itemCount: 1,
       misaSyncStatus: "pending",
-      misaContactId: null,
       misaSaleOrderId: null,
       misaLastError: null,
       misaAttemptCount: 0,
@@ -491,14 +487,14 @@ describe("admin orders routes", () => {
       paymentMethod: "bank_transfer", customerName: "John Doe", customerPhone: "0123456789", customerEmail: null,
       notes: null, vatDetailsJson: null, primaryAddressJson: JSON.stringify({ line1: "123 Main", city: "HCM", country: "VN" }), shippingAddressJson: null,
       subtotalAmount: 10000, totalAmount: 10000, currencyCode: "VND", itemCount: 1,
-      misaSyncStatus: "failed", misaContactId: "9", misaSaleOrderId: null, misaSaleOrderNo: null, misaLastError: "Timeout", misaAttemptCount: 1, misaSyncedAt: null,
+      misaSyncStatus: "failed", misaSaleOrderId: null, misaSaleOrderNo: null, misaLastError: "Timeout", misaAttemptCount: 1, misaSyncedAt: null,
       createdAt: new Date("2026-08-09T00:00:00.000Z"), updatedAt: new Date("2026-08-09T00:00:00.000Z"),
     };
     queueAdminSession(db.getQueue);
     queueAdminSession(db.getQueue);
     db.getQueue.push(order, { ...order, misaSyncStatus: "synced", misaSaleOrderId: "1234", misaSaleOrderNo: "123", misaLastError: null, misaAttemptCount: 2, misaSyncedAt: new Date("2026-08-09T01:00:00.000Z") });
     db.selectQueue.push([]);
-    vi.mocked(syncMisaOrder).mockResolvedValue({ contactId: "9", saleOrderId: "1234", saleOrderNumber: "123" });
+    vi.mocked(syncMisaOrder).mockResolvedValue({ saleOrderId: "1234", saleOrderNumber: "123" });
 
     const res = await adminRoute.request("/orders/123/misa/refresh", { method: "POST", headers: { Authorization: "Bearer token-1" } }, {} as never);
 
@@ -513,7 +509,7 @@ describe("admin orders routes", () => {
       paymentMethod: "bank_transfer", customerName: "John Doe", customerPhone: "0123456789", customerEmail: null,
       notes: null, vatDetailsJson: null, primaryAddressJson: JSON.stringify({ line1: "123 Main", city: "HCM", country: "VN" }), shippingAddressJson: null,
       subtotalAmount: 10000, totalAmount: 10000, currencyCode: "VND", itemCount: 1,
-      misaSyncStatus: "synced", misaContactId: "9", misaSaleOrderId: "1234", misaSaleOrderNo: "123", misaLastError: null, misaAttemptCount: 1, misaSyncedAt: new Date("2026-08-09T00:00:00.000Z"),
+      misaSyncStatus: "synced", misaSaleOrderId: "1234", misaSaleOrderNo: "123", misaLastError: null, misaAttemptCount: 1, misaSyncedAt: new Date("2026-08-09T00:00:00.000Z"),
       createdAt: new Date("2026-08-09T00:00:00.000Z"), updatedAt: new Date("2026-08-09T00:00:00.000Z"),
     };
     queueAdminSession(db.getQueue);

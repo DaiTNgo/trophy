@@ -573,7 +573,6 @@ export const orders = sqliteTable("orders", {
   currencyCode: text("currency_code").notNull().default("VND"),
   itemCount: integer("item_count").notNull(),
   misaSyncStatus: text("misa_sync_status").notNull().default("pending"),
-  misaContactId: text("misa_contact_id"),
   misaSaleOrderId: text("misa_sale_order_id"),
   misaSaleOrderNo: text("misa_sale_order_no"),
   misaLastError: text("misa_last_error"),

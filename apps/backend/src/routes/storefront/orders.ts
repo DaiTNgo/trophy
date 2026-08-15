@@ -882,7 +882,6 @@ export const storefrontOrdersRoute = new Hono<AppEnv>()
         const synced = await syncMisaOrder(c.env, insertedOrder.id);
         await db.update(orders).set({
           misaSyncStatus: "synced",
-          misaContactId: synced.contactId,
           misaSaleOrderId: synced.saleOrderId,
           misaSaleOrderNo: synced.saleOrderNumber,
           misaLastError: null,

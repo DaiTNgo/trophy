@@ -52,15 +52,13 @@ export type AdminOrderDetail = {
   } | null;
   notes: string | null;
   vat: {
-    type?: string;
-    name?: string;
-    taxId?: string;
-    email?: string;
-    address?: string;
+    name: string;
+    taxId: string;
+    email: string;
+    address: string;
   } | null;
   misa: {
     syncStatus: "pending" | "synced" | "failed" | "disconnected" | "missing";
-    contactId: string | null;
     saleOrderId: string | null;
     saleOrderNo: string | null;
     lastError: string | null;
