@@ -58,14 +58,6 @@ export function BlocksPanel({
         <button
           type="button"
           disabled={disabled}
-          onClick={onDrawShape}
-          className="flex w-full items-center gap-3 rounded-md border border-dashed border-ui-border-base px-3 py-2 text-sm text-ui-fg-muted disabled:opacity-40"
-        >
-          <Shapes className="size-4" /> Draw shape
-        </button>
-        <button
-          type="button"
-          disabled={disabled}
           onClick={onAddPolygon}
           className="flex w-full items-center gap-3 rounded-md border border-ui-border-base px-3 py-2 text-sm disabled:opacity-40"
         >
@@ -670,10 +662,7 @@ import { BackgroundUpload, shapeLabel } from "./customization-template-ui";
 const SHAPES: ShapeType[] = [
   "rectangle",
   "circle",
-  "ellipse",
   "rounded_rectangle",
-  "star",
-  "heart",
 ];
 type SortableListKind = "layers" | "form";
 
