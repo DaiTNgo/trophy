@@ -71,7 +71,16 @@ export const priceUpdateSchema = v.object({ items: v.pipe(v.array(v.object({ id:
 export const stockUpdateSchema = v.object({ items: v.pipe(v.array(v.object({ id: v.pipe(v.number(), v.integer(), v.minValue(1)), inventoryQuantity: v.pipe(v.number(), v.integer(), v.minValue(0)) })), v.minLength(1)) })
 export const variantMediaSchema = v.object({ items: v.array(v.object({ assetId: assetIdSchema })) })
 export const variantCustomizationMediaSchema = v.object({ assetId: assetIdSchema })
-export const productThumbnailSchema = v.object({ assetId: v.optional(v.nullable(assetIdSchema)) })
+export const productListingMediaSchema = v.pipe(
+  v.object({
+    defaultAssetId: v.optional(v.nullable(assetIdSchema)),
+    hoverAssetId: v.optional(v.nullable(assetIdSchema)),
+  }),
+  v.check(
+    ({ defaultAssetId, hoverAssetId }) => !defaultAssetId || !hoverAssetId || defaultAssetId !== hoverAssetId,
+    'Default and hover images must be different assets',
+  ),
+)
 
 export const fullCreateCustomizationSchema = v.object({ enabled: v.boolean(), canvasWidthPx: v.optional(v.nullable(v.pipe(v.number(), v.integer(), v.minValue(1)))), canvasHeightPx: v.optional(v.nullable(v.pipe(v.number(), v.integer(), v.minValue(1)))), layers: v.pipe(v.array(v.unknown()), v.maxLength(200)), formFields: v.pipe(v.array(v.unknown()), v.maxLength(200)) })
 export const customizationTemplateSchema = v.object({ layers: v.pipe(v.array(v.unknown()), v.maxLength(200)), formFields: v.pipe(v.array(v.unknown()), v.maxLength(200)) })

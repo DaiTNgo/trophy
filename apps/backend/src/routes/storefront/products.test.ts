@@ -133,6 +133,23 @@ describe("buildListingItem", () => {
     expect(item.thumbnail).toBe("http://localhost/api/assets/products/product-asset/content");
   });
 
+  it("returns the explicitly assigned Listing Hover Image", () => {
+    const item = buildListingItem(
+      { req: { url: "http://localhost/" } } as any,
+      baseItem,
+      [],
+      [makeVariant({ id: 1, isDefault: true })],
+      new Map(),
+      false,
+      new Map(),
+      "default-asset",
+      "hover-asset",
+    );
+
+    expect(item.thumbnail).toBe("http://localhost/api/assets/products/default-asset/content");
+    expect(item.hoverImage).toBe("http://localhost/api/assets/products/hover-asset/content");
+  });
+
   it("falls back to first variant with media when default has none", () => {
     const mediaByVariant = new Map([
       [2, [makeMedia("asset_b")]],

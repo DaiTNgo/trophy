@@ -98,6 +98,7 @@ export function SuggestedProductsSection({
                   handle={item.handle}
                   title={getLocalized(item.title, locale)}
                   thumbnail={item.thumbnail}
+                  hoverImage={item.hoverImage}
                   imageAlt={getLocalized(item.title, locale)}
                   priceAmount={item.priceAmount}
                   priceFrom={item.priceFrom}

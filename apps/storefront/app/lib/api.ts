@@ -93,6 +93,7 @@ export type StorefrontProductItem = {
   priceAmount: number | null;
   priceFrom: boolean;
   thumbnail: string | null;
+  hoverImage: string | null;
   categorySummary: LocalizedTextValue;
   typeValue: LocalizedTextValue;
   customizable: boolean;
@@ -112,6 +113,8 @@ export type StorefrontDetailResponse = {
     subtitle: LocalizedTextValue;
     handle: string;
     description: LocalizedTextValue;
+    thumbnail: string | null;
+    hoverImage: string | null;
     media: Array<{
       id: number;
       url: string;
@@ -202,6 +205,7 @@ export async function fetchStorefrontProducts(params: {
     items: data.items.map((item) => ({
       ...item,
       thumbnail: backendAssetUrl(item.thumbnail) || null,
+      hoverImage: backendAssetUrl(item.hoverImage) || null,
     })),
   };
 }
@@ -223,6 +227,8 @@ export async function fetchStorefrontProduct(handle: string, locale?: string): P
   const data: StorefrontDetailResponse = await res.json();
   return {
     ...data.item,
+    thumbnail: backendAssetUrl(data.item.thumbnail) || null,
+    hoverImage: backendAssetUrl(data.item.hoverImage) || null,
     media: data.item.media.map((media) => ({
       ...media,
       url: backendAssetUrl(media.url),
@@ -319,6 +325,7 @@ export async function fetchStorefrontCollectionProducts(
     items: data.items.map((item) => ({
       ...item,
       thumbnail: backendAssetUrl(item.thumbnail) || null,
+      hoverImage: backendAssetUrl(item.hoverImage) || null,
     })),
   };
 }

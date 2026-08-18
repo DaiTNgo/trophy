@@ -64,6 +64,9 @@ export const productVariantDeleteRoute = new Hono<AppEnv>()
         db.update(products).set({ thumbnailAssetId: null }).where(
           and(eq(products.id, product.id), eq(products.thumbnailAssetId, customizationAsset.id))
         ),
+        db.update(products).set({ hoverAssetId: null }).where(
+          and(eq(products.id, product.id), eq(products.hoverAssetId, customizationAsset.id))
+        ),
         db.insert(r2CleanupJobs).values(r2CleanupJobValues([customizationAsset.objectKey])),
       ] : []),
       ...(variant.misaSyncStatus === 'synced' && variant.misaProductId

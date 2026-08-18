@@ -169,6 +169,7 @@ export const products = sqliteTable(
     status: text("status").notNull().default("draft"),
     collectionId: integer("collection_id"),
     thumbnailAssetId: text("thumbnail_asset_id"),
+    hoverAssetId: text("hover_asset_id"),
     createdAt: text("created_at")
       .notNull()
       .default(sql`CURRENT_TIMESTAMP`),

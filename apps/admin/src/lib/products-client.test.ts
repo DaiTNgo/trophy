@@ -18,6 +18,7 @@ import {
   reactivateCustomization,
   permanentlyDeleteCustomization,
   deleteProductVariant,
+  setProductListingMedia,
 } from "./products-client";
 
 const apiProduct = {
@@ -100,6 +101,26 @@ describe("mapApiProductToCatalogProduct", () => {
             { value: { vi: "Do", en: "" } },
             { value: { vi: "Xanh", en: "" } },
           ],
+        }),
+      }),
+    );
+  });
+
+  it("submits both Listing Media roles atomically", async () => {
+    backendFetchMock.mockResolvedValue({ ok: true, json: async () => ({ item: apiProduct }) });
+
+    await setProductListingMedia("10", {
+      defaultAssetId: "11111111-1111-4111-8111-111111111111",
+      hoverAssetId: "22222222-2222-4222-8222-222222222222",
+    });
+
+    expect(backendFetchMock).toHaveBeenCalledWith(
+      "/api/admin/products/10/listing-media",
+      expect.objectContaining({
+        method: "PUT",
+        body: JSON.stringify({
+          defaultAssetId: "11111111-1111-4111-8111-111111111111",
+          hoverAssetId: "22222222-2222-4222-8222-222222222222",
         }),
       }),
     );

@@ -232,6 +232,18 @@ body {
   transform: translateY(0);
 }
 
+@media (hover: hover) {
+  .group:hover .product-card-hover-image {
+    opacity: 1;
+  }
+}
+
+@media (hover: none) {
+  .product-card-hover-image {
+    display: none;
+  }
+}
+
 /** {
     outline: 1px solid red;
 }*/

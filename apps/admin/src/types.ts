@@ -61,6 +61,7 @@ export type CatalogProduct = {
   categoryIds: number[];
   media: ProductVariantMedia[];
   thumbnailAssetId?: string | null;
+  hoverAssetId?: string | null;
   attributes: ProductAttribute[];
   optionDefinitions: ProductOptionDefinition[];
   variants: ProductVariant[];

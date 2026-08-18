@@ -79,7 +79,10 @@ export const productVariantMediaManagementRoute = new Hono<AppEnv>()
     await db.delete(productVariantMedia).where(and(eq(productVariantMedia.variantId, params.output.variantId), eq(productVariantMedia.assetId, assetId)))
     await db.delete(productMedia).where(and(eq(productMedia.productId, params.output.id), eq(productMedia.assetId, assetId)))
     await db.delete(productAssets).where(eq(productAssets.id, assetId))
-    await db.update(products).set({ thumbnailAssetId: null }).where(and(eq(products.id, params.output.id), eq(products.thumbnailAssetId, assetId)))
+    await db.batch([
+      db.update(products).set({ thumbnailAssetId: null }).where(and(eq(products.id, params.output.id), eq(products.thumbnailAssetId, assetId))),
+      db.update(products).set({ hoverAssetId: null }).where(and(eq(products.id, params.output.id), eq(products.hoverAssetId, assetId))),
+    ])
     return (await variantResponse(c, db, params.output.id, params.output.variantId)) ?? jsonError(c, 404, 'Variant not found')
   })
   .post('/:id/variants/:variantId/customization-media/replace', async (c) => {
@@ -111,7 +114,10 @@ export const productVariantMediaManagementRoute = new Hono<AppEnv>()
           await db.delete(productMedia).where(and(eq(productMedia.productId, product.id), eq(productMedia.assetId, oldAsset.id)))
           await db.delete(productAssets).where(eq(productAssets.id, oldAsset.id))
         }
-        await db.update(products).set({ thumbnailAssetId: null }).where(and(eq(products.id, product.id), eq(products.thumbnailAssetId, oldAssetId)))
+        await db.batch([
+          db.update(products).set({ thumbnailAssetId: null }).where(and(eq(products.id, product.id), eq(products.thumbnailAssetId, oldAssetId))),
+          db.update(products).set({ hoverAssetId: null }).where(and(eq(products.id, product.id), eq(products.hoverAssetId, oldAssetId))),
+        ])
       }
     } catch (error) {
       await c.env.CUSTOMIZATION_ASSETS.delete(objectKey).catch(() => undefined)

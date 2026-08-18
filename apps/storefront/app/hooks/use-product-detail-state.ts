@@ -199,7 +199,8 @@ export function useProductDetailState({
       productId: product.id,
       handle: product.handle,
       title: getLocalized(product.title, locale),
-      thumbnail: selectedVariantMedia[0]?.contentUrl ?? null,
+      thumbnail: product.thumbnail ?? selectedVariantMedia[0]?.contentUrl ?? null,
+      hoverImage: product.hoverImage,
       priceAmount:
         product.variants.find((variant) => variant.priceAmount !== null)
           ?.priceAmount ??

@@ -15,6 +15,7 @@ interface ProductCardProps {
   priceAmount?: number | null;
   imageSrc?: string;
   thumbnail?: string | null;
+  hoverImage?: string | null;
   imageAlt?: string;
   rating?: number;
   reviewsCount?: number;
@@ -32,6 +33,7 @@ export function ProductCard({
   priceAmount,
   imageSrc,
   thumbnail,
+  hoverImage,
   imageAlt = title,
   rating = 5,
   reviewsCount = 0,
@@ -60,14 +62,7 @@ export function ProductCard({
           className="relative mb-4 flex aspect-square w-full items-center justify-center overflow-hidden bg-surface-base px-3"
         >
           {imgSrc ? (
-            <img
-              className="absolute inset-0 h-full w-full object-contain transition-transform duration-500 group-hover:scale-[1.035]"
-              data-alt={imageAlt}
-              src={imgSrc}
-              alt={imageAlt}
-              loading="lazy"
-              sizes="(min-width: 1024px) 249px, (min-width: 640px) calc((100vw - 64px) / 3), calc((100vw - 48px) / 2)"
-            />
+            <CardImages src={imgSrc} hoverImage={hoverImage} alt={imageAlt} className="group-hover:scale-[1.035]" sizes="(min-width: 1024px) 249px, (min-width: 640px) calc((100vw - 64px) / 3), calc((100vw - 48px) / 2)" />
           ) : (
             <div className="absolute inset-0 flex items-center justify-center bg-surface-subtle">
               <Image className="h-10 w-10 text-text-muted" />
@@ -112,20 +107,13 @@ export function ProductCard({
 
   if (variant === "featured") {
     return (
-      <div className="flex h-full flex-col rounded-lg p-3 transition-shadow duration-300 hover:shadow-[0_0_10px_rgba(36,65,89,0.18)]">
+    <div className="group flex h-full flex-col rounded-lg p-3 transition-shadow duration-300 hover:shadow-[0_0_10px_rgba(36,65,89,0.18)]">
         <Link
           to={productHref}
           className="relative mb-5 flex aspect-square w-full items-center justify-center overflow-hidden bg-surface-base"
         >
           {imgSrc ? (
-            <img
-              className="absolute inset-0 h-full w-full object-contain transition-transform duration-500 hover:scale-[1.04]"
-              data-alt={imageAlt}
-              src={imgSrc}
-              alt={imageAlt}
-              loading="lazy"
-              sizes="(min-width: 1280px) 267px, (min-width: 1024px) calc((100vw - 160px) / 4), (min-width: 768px) calc((100vw - 96px) / 4), calc((100vw - 48px) / 2)"
-            />
+            <CardImages src={imgSrc} hoverImage={hoverImage} alt={imageAlt} className="group-hover:scale-[1.04]" sizes="(min-width: 1280px) 267px, (min-width: 1024px) calc((100vw - 160px) / 4), (min-width: 768px) calc((100vw - 96px) / 4), calc((100vw - 48px) / 2)" />
           ) : (
             <div className="absolute inset-0 flex items-center justify-center bg-surface-container-low">
               <Image className="h-10 w-10 text-on-surface-variant" />
@@ -172,12 +160,7 @@ export function ProductCard({
     <div className="group flex flex-col items-center text-center">
       <Link to={productHref} className="relative w-full aspect-[4/5] sm:aspect-square mb-6 flex items-center justify-center overflow-hidden p-4">
         {imgSrc ? (
-          <img
-            className="absolute inset-0 w-full h-full object-contain transition-transform duration-500"
-            data-alt={imageAlt}
-            src={imgSrc}
-            alt={imageAlt}
-          />
+          <CardImages src={imgSrc} hoverImage={hoverImage} alt={imageAlt} className="" />
         ) : (
           <div className="absolute inset-0 bg-surface-container-low flex items-center justify-center">
             <Image className="text-4xl text-on-surface-variant" />
@@ -216,4 +199,11 @@ export function ProductCard({
       </div>
     </div>
   );
+}
+
+function CardImages({ src, hoverImage, alt, className, sizes }: { src: string; hoverImage?: string | null; alt: string; className: string; sizes?: string }) {
+  return <>
+    <img className={`absolute inset-0 h-full w-full object-contain transition-transform duration-500 ${className}`} data-alt={alt} src={src} alt={alt} loading="lazy" sizes={sizes} />
+    {hoverImage ? <img className="product-card-hover-image absolute inset-0 h-full w-full object-contain opacity-0 transition-opacity duration-200 motion-reduce:transition-none" src={hoverImage} alt="" aria-hidden="true" loading="lazy" sizes={sizes} /> : null}
+  </>;
 }
