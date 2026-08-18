@@ -31,11 +31,6 @@ export function Footer() {
                     {t("footer_all_products")}
                   </Link>
                 </li>
-                <li>
-                  <a className="transition-colors hover:text-brand-accent" href="#">
-                    {t("footer_featured_projects")}
-                  </a>
-                </li>
               </ul>
             </div>
 
@@ -45,19 +40,9 @@ export function Footer() {
               </h4>
               <ul className="space-y-4 font-body-md text-body-md text-white/72">
                 <li>
-                  <a className="transition-colors hover:text-brand-accent" href="#">
-                    {t("footer_warranty")}
-                  </a>
-                </li>
-                <li>
-                  <a className="transition-colors hover:text-brand-accent" href="#">
-                    {t("footer_order_guide")}
-                  </a>
-                </li>
-                <li>
-                  <a className="transition-colors hover:text-brand-accent" href="#">
-                    {t("footer_shipping_payment")}
-                  </a>
+                  <Link className="transition-colors hover:text-brand-accent" to="/contact">
+                    {t("footer_support_contact")}
+                  </Link>
                 </li>
                 <li>
                   <Link className="transition-colors hover:text-brand-accent" to="/order-lookup">

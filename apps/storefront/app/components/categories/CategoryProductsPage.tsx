@@ -28,6 +28,8 @@ export function CategoryProductsPage({
     (locale === "en"
       ? "Browse products in this category, compare finishes and price points, then open the product detail that matches your event needs."
       : "Xem các sản phẩm trong danh mục này, so sánh hoàn thiện và mức giá, rồi mở chi tiết sản phẩm phù hợp với nhu cầu sự kiện của bạn.");
+  const editorialDescription =
+    getLocalized(selectedCategory.description, locale) || "";
 
   return (
     <CategoryProductsListing
@@ -35,6 +37,7 @@ export function CategoryProductsPage({
       selectedCategory={selectedCategory}
       categoryTitle={categoryTitle}
       listingDescription={listingDescription}
+      editorialDescription={editorialDescription}
       products={products}
       activeCategory={activeCategory}
       currentPage={currentPage}
