@@ -4,14 +4,12 @@ export function BlocksPanel({
   onAddTextOnPath,
   onAddShape,
   onAddPolygon,
-  onDrawShape,
 }: {
   template: CustomizationTemplate;
   onAddText: () => void;
   onAddTextOnPath: () => void;
   onAddShape: (shape: ShapeType) => void;
   onAddPolygon: () => void;
-  onDrawShape: () => void;
 }) {
   const disabled = !template.background;
   return (
@@ -55,14 +53,6 @@ export function BlocksPanel({
             <Shapes className="size-4" /> {shapeLabel(shape)}
           </button>
         ))}
-        <button
-          type="button"
-          disabled={disabled}
-          onClick={onDrawShape}
-          className="flex w-full items-center gap-3 rounded-md border border-dashed border-ui-border-base px-3 py-2 text-sm text-ui-fg-muted disabled:opacity-40"
-        >
-          <Shapes className="size-4" /> Draw shape
-        </button>
         <button
           type="button"
           disabled={disabled}
@@ -670,10 +660,7 @@ import { BackgroundUpload, shapeLabel } from "./customization-template-ui";
 const SHAPES: ShapeType[] = [
   "rectangle",
   "circle",
-  "ellipse",
   "rounded_rectangle",
-  "star",
-  "heart",
 ];
 type SortableListKind = "layers" | "form";
 

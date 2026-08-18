@@ -92,7 +92,6 @@ export function LeftPanel(props: {
           onAddTextOnPath={props.onAddTextOnPath}
           onAddShape={props.onAddShape}
           onAddPolygon={props.onAddPolygon}
-          onDrawShape={props.onDrawShape}
         />
       ) : null}
       {props.activeTab === "layers" ? (

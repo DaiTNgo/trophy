@@ -54,6 +54,7 @@
 - [ ] 6.3 Implement the initial separate-block export profile and the abstraction for later combined workshop layouts.
 - [ ] 6.4 Implement idempotent export jobs, artifact storage, retry behavior, and operator download authorization.
 - [ ] 6.5 Add golden SVG/PDF fixtures and manual prepress checks for dimensions, fonts, DPI, clipping, bleed, and safe area.
+- [x] 6.6 Add client-side WebP/PNG Preview export that rasterizes the shared customization geometry without relying on the PDF vector renderer.
 
 ## 7. Verification and Harness Handoff
 
