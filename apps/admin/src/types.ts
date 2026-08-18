@@ -91,6 +91,7 @@ export type ProductVariantMedia = {
   heightPx: number;
   byteSize: number;
   contentUrl: string;
+  isProductOwned?: boolean;
   file?: File;
   isPending?: boolean;
 };

@@ -35,13 +35,13 @@ export function NavbarMoreDropdown() {
           >
             {t("navbar_more_about")}
           </Link>
-          <Link
+          {/*<Link
             onClick={() => setIsOpen(false)}
             to="/order-lookup"
             className="px-5 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-primary transition-colors"
           >
             {t("navbar_more_order_lookup")}
-          </Link>
+          </Link>*/}
         </div>
       )}
     </div>

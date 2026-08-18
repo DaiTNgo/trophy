@@ -1,8 +1,8 @@
 import { useMemo, useRef, useState } from "react";
 import { Button, Container, FocusModal, Heading, IconButton, Text, toast } from "@medusajs/ui";
-import { Image, MoreHorizontal, Upload } from "lucide-react";
+import { Image, MoreHorizontal, Trash, Upload } from "lucide-react";
 import type { CatalogProduct, ProductVariantMedia } from "../../types";
-import { setProductListingMedia, uploadProductMedia } from "../../lib/products-client";
+import { removeProductMedia, setProductListingMedia, uploadProductMedia } from "../../lib/products-client";
 import { MediaPreview } from "../../components/ui/media-preview";
 
 type Props = { product: CatalogProduct; mutate: () => Promise<void> };
@@ -97,7 +97,7 @@ export function ProductDetailThumbnail({ product, mutate }: Props) {
                       <div key={asset.id} className="overflow-hidden border border-ui-border-base">
                         <MediaPreview src={asset.contentUrl} mimeType={asset.mimeType} alt={asset.fileName} className="h-36 w-full bg-ui-bg-subtle object-contain" />
                         <div className="space-y-3 p-3">
-                          <div className="flex items-center gap-2"><Image className="h-4 w-4 text-ui-fg-muted" /><Text size="small" className="truncate">{asset.fileName}</Text></div>
+                          <div className="flex items-center gap-2"><Image className="h-4 w-4 text-ui-fg-muted" /><Text size="small" className="min-w-0 flex-1 truncate">{asset.fileName}</Text>{asset.isProductOwned ? <IconButton type="button" variant="transparent" size="small" disabled={pending} aria-label={`Delete ${asset.fileName}`} onClick={() => void run(() => removeProductMedia(product.id, asset.id))}><Trash className="h-4 w-4 text-ui-fg-error" /></IconButton> : null}</div>
                           <div className="grid grid-cols-3 gap-1" aria-label={`Listing role for ${asset.fileName}`}>
                             {(["none", "default", "hover"] as const).map((option) => (
                               <Button key={option} type="button" size="small" disabled={pending} variant={role === option ? "primary" : "secondary"} onClick={() => assignRole(asset.id, option)}>

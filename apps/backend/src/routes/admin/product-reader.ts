@@ -82,6 +82,7 @@ export async function readProduct(
         assetId: productMedia.assetId,
         position: productMedia.position,
         fileName: productAssets.fileName,
+        ownerKey: productAssets.ownerKey,
         mimeType: productAssets.mimeType,
         widthPx: productAssets.widthPx,
         heightPx: productAssets.heightPx,
@@ -332,6 +333,7 @@ export async function readProduct(
     attributes: attributeRows,
     media: mediaRows.map((media) => ({
       ...media,
+      isProductOwned: media.ownerKey === `catalog:${productId}:media`,
       contentUrl: toAbsoluteAssetUrl(c, `/api/assets/products/${media.assetId}/content`) as string
     })),
     options: optionRows.map((option) => ({

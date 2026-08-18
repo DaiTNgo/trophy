@@ -1,5 +1,5 @@
-import { eq, inArray } from 'drizzle-orm'
-import { Hono } from 'hono'
+import { and, eq, inArray } from 'drizzle-orm'
+import { Hono, type Context } from 'hono'
 import { getDb } from '../../db/client'
 import { productAssets, productMedia, products } from '../../db/schema'
 import { allowedMimeTypes, extensionForMimeType, MAX_ASSET_BYTES } from '../../lib/asset-utils'
@@ -31,6 +31,10 @@ async function parseProductMediaFiles(request: Request) {
   return { files: result } as const
 }
 
+async function productResponse(c: Context<AppEnv>, db: ReturnType<typeof getDb>, productId: number): Promise<Response> {
+  return c.json({ item: await readProduct(c, db, productId) }, 200)
+}
+
 export const productContentRoute = new Hono<AppEnv>()
   .put('/:id/attributes', async (c) => {
     const params = parseParams(c, idParamsSchema)
@@ -53,7 +57,7 @@ export const productContentRoute = new Hono<AppEnv>()
       .set({ updatedAt: new Date().toISOString() })
       .where(eq(products.id, params.output.id))
 
-    return c.json({ item: await readProduct(c, db, params.output.id) }, 200)
+    return productResponse(c, db, params.output.id)
   })
   .post('/:id/media/upload', async (c) => {
     const params = parseParams(c, idParamsSchema)
@@ -83,7 +87,35 @@ export const productContentRoute = new Hono<AppEnv>()
       console.error('product media upload failed', { productId: product.id, writtenKeys, insertedAssetIds, error })
       return jsonError(c, 500, 'Unable to upload Product Media')
     }
-    return c.json({ item: await readProduct(c, db, product.id) }, 200)
+    return productResponse(c, db, product.id)
+  })
+  .delete('/:id/media/:assetId', async (c) => {
+    const params = parseParams(c, idParamsSchema)
+    if (!params.success) return params.response
+    const assetId = c.req.param('assetId')
+    const db = getDb(c.env)
+    const product = await readProduct(c, db, params.output.id)
+    if (!product) return jsonError(c, 404, 'Product not found')
+
+    const asset = await db.select().from(productAssets).where(eq(productAssets.id, assetId)).get()
+    if (!asset || asset.ownerKey !== `catalog:${product.id}:media`) {
+      return jsonError(c, 404, 'Product Media not found')
+    }
+
+    try {
+      await c.env.CUSTOMIZATION_ASSETS.delete(asset.objectKey)
+      await db.batch([
+        db.delete(productMedia).where(and(eq(productMedia.productId, product.id), eq(productMedia.assetId, assetId))),
+        db.delete(productAssets).where(eq(productAssets.id, assetId)),
+        db.update(products).set({ thumbnailAssetId: null }).where(and(eq(products.id, product.id), eq(products.thumbnailAssetId, assetId))),
+        db.update(products).set({ hoverAssetId: null }).where(and(eq(products.id, product.id), eq(products.hoverAssetId, assetId))),
+      ])
+    } catch (error) {
+      console.error('product media delete failed', { productId: product.id, assetId, error })
+      return jsonError(c, 500, 'Unable to delete Product Media')
+    }
+
+    return productResponse(c, db, product.id)
   })
   .put('/:id/listing-media', async (c) => {
     const params = parseParams(c, idParamsSchema)
@@ -121,5 +153,5 @@ export const productContentRoute = new Hono<AppEnv>()
       hoverAssetId: parsed.output.hoverAssetId ?? null,
       updatedAt: new Date().toISOString(),
     }).where(eq(products.id, product.id))
-    return c.json({ item: await readProduct(c, db, product.id) }, 200)
+    return productResponse(c, db, product.id)
   })

@@ -9,9 +9,14 @@ import { productContentRoute } from './product-content-route'
 
 function createDb() {
   const updates: Array<Record<string, unknown>> = []
+  const assetQueue: unknown[] = []
   return {
     updates,
+    assetQueue,
     insert: vi.fn(() => ({ values: vi.fn(async () => undefined) })),
+    select: vi.fn(() => ({ from: vi.fn(() => ({ where: vi.fn(() => ({ get: vi.fn(async () => assetQueue.shift()) })) })) })),
+    delete: vi.fn(() => ({ where: vi.fn(async () => undefined) })),
+    batch: vi.fn(async () => undefined),
     update: vi.fn(() => ({
       set: vi.fn((values) => {
         updates.push(values)
@@ -77,6 +82,32 @@ describe('admin Listing Media route contract', () => {
     await expect(response.json()).resolves.toEqual({
       error: 'Only PNG, JPEG, and WEBP images are supported for Listing Media',
     })
+  })
+
+  it('permanently removes a directly uploaded Product Media asset and clears its Listing Media role', async () => {
+    const db = createDb()
+    db.assetQueue.push({ id: product.media[0].assetId, ownerKey: 'catalog:7:media', objectKey: 'catalog/products/7/media/image.webp' })
+    vi.mocked(getDb).mockReturnValue(db as never)
+    vi.mocked(readProduct).mockResolvedValueOnce({ ...product, thumbnailAssetId: product.media[0].assetId, hoverAssetId: null } as never).mockResolvedValueOnce({ ...product, media: [] } as never)
+    const assets = { delete: vi.fn(async () => undefined) }
+
+    const response = await productContentRoute.request(`/7/media/${product.media[0].assetId}`, { method: 'DELETE' }, { CUSTOMIZATION_ASSETS: assets } as never)
+
+    expect(response.status).toBe(200)
+    expect(assets.delete).toHaveBeenCalledWith('catalog/products/7/media/image.webp')
+    expect(db.batch).toHaveBeenCalled()
+  })
+
+  it('does not delete an asset owned by a Variant', async () => {
+    const db = createDb()
+    db.assetQueue.push({ id: product.variants[0].media[0].id, ownerKey: 'catalog:7', objectKey: 'catalog/products/7/variants/3/image.webp' })
+    vi.mocked(getDb).mockReturnValue(db as never)
+    vi.mocked(readProduct).mockResolvedValue(product as never)
+
+    const response = await productContentRoute.request(`/7/media/${product.variants[0].media[0].id}`, { method: 'DELETE' }, { CUSTOMIZATION_ASSETS: { delete: vi.fn() } } as never)
+
+    expect(response.status).toBe(404)
+    await expect(response.json()).resolves.toEqual({ error: 'Product Media not found' })
   })
 
   it('returns not found when the Product does not exist', async () => {
