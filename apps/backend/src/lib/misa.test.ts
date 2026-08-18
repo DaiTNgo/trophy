@@ -968,6 +968,44 @@ describe("MISA client", () => {
     );
   });
 
+  it("includes the Trophy admin order URL from the configured admin origin", () => {
+    const source = {
+      order: {
+        id: 53,
+        orderNumber: "53",
+        customerName: "Jane",
+        customerPhone: "090-123",
+        customerEmail: null,
+        primaryAddressJson: null,
+        shippingAddressJson: null,
+        totalAmount: 10000,
+        notes: null,
+        vatDetailsJson: null,
+      },
+      items: [
+        {
+          id: 1,
+          quantity: 1,
+          unitPriceAmount: 10000,
+          lineSubtotalAmount: 10000,
+          variantSnapshotJson: JSON.stringify({ id: 42, title: "Gold" }),
+        },
+      ],
+    } as any;
+
+    expect(
+      buildMisaSaleOrderPayload(
+        source,
+        undefined,
+        undefined,
+        undefined,
+        false,
+        false,
+        "https://trophy-admin.pages.dev/",
+      ).description,
+    ).toContain("TROPHY ADMIN\nhttps://trophy-admin.pages.dev/orders/53");
+  });
+
   it("maps billing and shipping addresses and preserves VAT request details in the order description", () => {
     const source = {
       order: {

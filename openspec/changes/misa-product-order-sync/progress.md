@@ -1,5 +1,9 @@
 # Progress
 
+## 2026-08-18 Trophy Admin SaleOrder link
+
+- New MISA SaleOrder payloads include `TROPHY ADMIN` followed by `<ADMIN_APP_ORIGIN>/orders/<local order id>` in `description`, for example `https://trophy-admin.pages.dev/orders/53`. The URL is formed only from a configured valid HTTP(S) origin and handles a trailing slash. Regression coverage verifies the configured-origin payload. Verification: `pnpm --filter backend test` (39 files, 244 tests), backend check/build, and full `./init.sh` pass.
+
 ## 2026-08-12 Customer and Contact order linkage
 
 - When MISA rejects a new Contact because its email already exists, checkout now creates no fallback Contact. It creates the SaleOrder with the resolved Customer but no `contact_name`, and adds an admin-facing reconciliation instruction to the SaleOrder `description`. Regression coverage verifies the Contact POST, absent `contact_name`, and description notice. Full `./init.sh` passes (39 backend test files, 239 tests, backend/admin/storefront checks and builds).

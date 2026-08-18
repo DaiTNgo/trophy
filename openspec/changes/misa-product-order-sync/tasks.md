@@ -54,6 +54,7 @@
 - [x] 4.27 Standardize generated MISA identifiers: Customer uses `KH-*` and Contact uses `LH-*`.
 - [x] 4.28 Create an unlinked MISA SaleOrder with an admin-facing `description` warning when VAT Customer pre-validation reports a duplicate tax code.
 - [x] 4.29 Do not retry duplicate Contact-email creation; preserve Customer linkage and record the manual Contact-reconciliation instruction in SaleOrder `description`.
+- [x] 4.30 Include the configured Trophy Admin order URL in each newly created MISA SaleOrder description.
 
 ## 5. Documentation and verification
 

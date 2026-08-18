@@ -2,6 +2,8 @@
 
 ## Current state
 
+Every newly created MISA SaleOrder now includes a direct Trophy Admin order URL in `description`: `TROPHY ADMIN` followed by `<ADMIN_APP_ORIGIN>/orders/<local order id>`. The URL is generated only for a valid configured HTTP(S) `ADMIN_APP_ORIGIN` and normalizes trailing slashes. The mapping and regression test live in `apps/backend/src/lib/misa.ts` and `apps/backend/src/lib/misa.test.ts`; full `./init.sh` passes with 244 backend tests.
+
 The current checkout UML is in `docs/misa/checkout-field-mapping.md` under **UML luồng checkout theo checkbox VAT**. It is deliberately one decision flow: no VAT creates only a personal Customer and SaleOrder; VAT requires four invoice inputs, pre-validates the VAT Customer, then creates a Contact for the basic checkout person only when pre-validation returns a Customer code. A duplicate VAT tax code creates an unlinked SaleOrder without Customer/Contact fields and adds an admin action notice to its MISA `description`; MISA failure after a local order never removes that order.
 
 Customer and Contact are intentionally headless integrations. Do not add a Customer ID mapping and do not persist or return a Contact ID. Both entities are derived from the order snapshot and their deterministic phone/MST codes. When MISA rejects a SaleOrder with “khách hàng đã bị xóa”, backend creates the Customer payload again and retries the same SaleOrder exactly once. Keep SaleOrder ID persistence: it belongs to the order reconciliation/purge flow, not Customer/Contact mapping.

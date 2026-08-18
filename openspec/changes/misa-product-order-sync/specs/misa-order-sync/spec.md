@@ -44,6 +44,11 @@ The MISA sale order payload SHALL include the Trophy order number, customer/cont
 - **WHEN** Trophy sends an order item to MISA
 - **THEN** its `to_currency` equals the persisted line subtotal, not a fixed value
 
+#### Scenario: SaleOrder links back to Trophy Admin
+
+- **WHEN** Trophy creates a MISA SaleOrder for a local order and `ADMIN_APP_ORIGIN` is configured
+- **THEN** its `description` includes the absolute Trophy Admin URL `<ADMIN_APP_ORIGIN>/orders/<local order id>`
+
 #### Scenario: VAT request and addresses are preserved
 
 - **WHEN** checkout includes billing details, a different shipping address, a VAT invoice request, or a shopper note
