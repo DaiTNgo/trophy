@@ -47,6 +47,13 @@
 - [x] 4.20 Update existing Contacts with only the Customer-link fields to avoid unrelated MISA uniqueness validation.
 - [x] 4.21 Require complete VAT invoice details at checkout, remove the un-mapped invoice-type input, and keep invoice email as the Customer email fallback.
 - [x] 4.22 Keep Customer and Contact integration headless: do not persist Contact IDs, and recreate a MISA-deleted Customer from the checkout snapshot before retrying SaleOrder creation once.
+- [x] 4.23 Retry MISA Customer creation with bounded `account_number` suffixes when MISA rejects that field, without Customer or Contact ID mapping.
+- [x] 4.24 Map buyer name and the persisted local order date to MISA SaleOrder `shipping_contact_name` and `sale_order_date`.
+- [x] 4.25 Send only VAT details to a VAT Customer, create a basic-details Contact only for VAT checkout, and reuse the request-local prevalidated Customer code to avoid a duplicate Customer create.
+- [x] 4.26 Remove Contact email lookup and create an unlinked SaleOrder with an admin-facing warning when Contact email creation is duplicate.
+- [x] 4.27 Standardize generated MISA identifiers: Customer uses `KH-*` and Contact uses `LH-*`.
+- [x] 4.28 Create an unlinked MISA SaleOrder with an admin-facing `description` warning when VAT Customer pre-validation reports a duplicate tax code.
+- [x] 4.29 Do not retry duplicate Contact-email creation; preserve Customer linkage and record the manual Contact-reconciliation instruction in SaleOrder `description`.
 
 ## 5. Documentation and verification
 

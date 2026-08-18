@@ -61,28 +61,71 @@ function misaVatField(error: MisaRequestError) {
 }
 
 function isDuplicateMisaTaxCode(error: MisaRequestError) {
-  return /^tax_code:/i.test(error.message) && /trùng|duplicate/i.test(error.message);
+  return (
+    /^tax_code:/i.test(error.message) && /trùng|duplicate/i.test(error.message)
+  );
 }
 
 const addressSchema = v.object({
-  line1: v.pipe(v.string(), v.trim(), v.minLength(1, "Address line is required"), v.maxLength(500)),
+  line1: v.pipe(
+    v.string(),
+    v.trim(),
+    v.minLength(1, "Address line is required"),
+    v.maxLength(500),
+  ),
   line2: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(500))),
-  city: v.optional(v.pipe(v.string(), v.trim(), v.minLength(1, "City is required"), v.maxLength(255))),
+  city: v.optional(
+    v.pipe(
+      v.string(),
+      v.trim(),
+      v.minLength(1, "City is required"),
+      v.maxLength(255),
+    ),
+  ),
   province: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(255))),
   postalCode: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(20))),
-  country: v.optional(v.pipe(v.string(), v.trim(), v.minLength(1, "Country is required"), v.maxLength(100))),
+  country: v.optional(
+    v.pipe(
+      v.string(),
+      v.trim(),
+      v.minLength(1, "Country is required"),
+      v.maxLength(100),
+    ),
+  ),
 });
 
 const differentShippingAddressSchema = v.object({
-  recipientName: v.pipe(v.string(), v.trim(), v.minLength(1, "Recipient name is required"), v.maxLength(255)),
-  recipientPhone: v.pipe(v.string(), v.trim(), v.minLength(1, "Recipient phone is required"), v.maxLength(50)),
+  recipientName: v.pipe(
+    v.string(),
+    v.trim(),
+    v.minLength(1, "Recipient name is required"),
+    v.maxLength(255),
+  ),
+  recipientPhone: v.pipe(
+    v.string(),
+    v.trim(),
+    v.minLength(1, "Recipient phone is required"),
+    v.maxLength(50),
+  ),
   address: addressSchema,
 });
 
 const orderItemInputSchema = v.object({
-  productId: v.pipe(v.number(), v.integer(), v.minValue(1, "productId must be a positive integer")),
-  variantId: v.pipe(v.number(), v.integer(), v.minValue(1, "variantId must be a positive integer")),
-  quantity: v.pipe(v.number(), v.integer(), v.minValue(1, "quantity must be at least 1")),
+  productId: v.pipe(
+    v.number(),
+    v.integer(),
+    v.minValue(1, "productId must be a positive integer"),
+  ),
+  variantId: v.pipe(
+    v.number(),
+    v.integer(),
+    v.minValue(1, "variantId must be a positive integer"),
+  ),
+  quantity: v.pipe(
+    v.number(),
+    v.integer(),
+    v.minValue(1, "quantity must be at least 1"),
+  ),
   customization: v.optional(
     v.object({
       values: v.record(v.string(), v.unknown()),
@@ -92,9 +135,21 @@ const orderItemInputSchema = v.object({
 
 const createOrderSchema = v.object({
   customer: v.object({
-    name: v.pipe(v.string(), v.trim(), v.minLength(1, "Customer name is required"), v.maxLength(255)),
-    phone: v.pipe(v.string(), v.trim(), v.minLength(1, "Customer phone is required"), v.maxLength(50)),
-    email: v.optional(v.pipe(v.string(), v.trim(), v.email("Invalid email"), v.maxLength(255))),
+    name: v.pipe(
+      v.string(),
+      v.trim(),
+      v.minLength(1, "Customer name is required"),
+      v.maxLength(255),
+    ),
+    phone: v.pipe(
+      v.string(),
+      v.trim(),
+      v.minLength(1, "Customer phone is required"),
+      v.maxLength(50),
+    ),
+    email: v.optional(
+      v.pipe(v.string(), v.trim(), v.email("Invalid email"), v.maxLength(255)),
+    ),
   }),
   shipping: v.object({
     primaryAddress: addressSchema,
@@ -104,15 +159,41 @@ const createOrderSchema = v.object({
   payment: v.object({
     method: v.picklist(["bank_transfer", "cash_on_delivery"]),
   }),
-  items: v.pipe(v.array(orderItemInputSchema), v.minLength(1, "At least one item is required")),
-  notes: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(2000, "Order note is too long"))),
+  items: v.pipe(
+    v.array(orderItemInputSchema),
+    v.minLength(1, "At least one item is required"),
+  ),
+  notes: v.optional(
+    v.pipe(v.string(), v.trim(), v.maxLength(2000, "Order note is too long")),
+  ),
   vatRequested: v.optional(v.boolean(), false),
   vat: v.optional(
     v.object({
-      name: v.pipe(v.string(), v.trim(), v.minLength(1, "VAT name is required"), v.maxLength(255)),
-      taxId: v.pipe(v.string(), v.trim(), v.minLength(1, "VAT tax ID is required"), v.maxLength(100)),
-      email: v.pipe(v.string(), v.trim(), v.minLength(1, "VAT email is required"), v.email("Invalid VAT email"), v.maxLength(255)),
-      address: v.pipe(v.string(), v.trim(), v.minLength(1, "VAT address is required"), v.maxLength(1000)),
+      name: v.pipe(
+        v.string(),
+        v.trim(),
+        v.minLength(1, "VAT name is required"),
+        v.maxLength(255),
+      ),
+      taxId: v.pipe(
+        v.string(),
+        v.trim(),
+        v.minLength(1, "VAT tax ID is required"),
+        v.maxLength(100),
+      ),
+      email: v.pipe(
+        v.string(),
+        v.trim(),
+        v.minLength(1, "VAT email is required"),
+        v.email("Invalid VAT email"),
+        v.maxLength(255),
+      ),
+      address: v.pipe(
+        v.string(),
+        v.trim(),
+        v.minLength(1, "VAT address is required"),
+        v.maxLength(1000),
+      ),
     }),
   ),
   locale: v.optional(localeSchema, DEFAULT_LOCALE),
@@ -122,8 +203,16 @@ const resolveCartLinesSchema = v.object({
   items: v.pipe(
     v.array(
       v.object({
-        productId: v.pipe(v.number(), v.integer(), v.minValue(1, "productId must be a positive integer")),
-        variantId: v.pipe(v.number(), v.integer(), v.minValue(1, "variantId must be a positive integer")),
+        productId: v.pipe(
+          v.number(),
+          v.integer(),
+          v.minValue(1, "productId must be a positive integer"),
+        ),
+        variantId: v.pipe(
+          v.number(),
+          v.integer(),
+          v.minValue(1, "variantId must be a positive integer"),
+        ),
       }),
     ),
     v.minLength(1, "At least one item is required"),
@@ -132,8 +221,18 @@ const resolveCartLinesSchema = v.object({
 });
 
 const lookupOrderSchema = v.object({
-  orderNumber: v.pipe(v.string(), v.trim(), v.minLength(1, "Order number is required"), v.maxLength(255)),
-  phone: v.pipe(v.string(), v.trim(), v.minLength(1, "Phone is required"), v.maxLength(50)),
+  orderNumber: v.pipe(
+    v.string(),
+    v.trim(),
+    v.minLength(1, "Order number is required"),
+    v.maxLength(255),
+  ),
+  phone: v.pipe(
+    v.string(),
+    v.trim(),
+    v.minLength(1, "Phone is required"),
+    v.maxLength(50),
+  ),
 });
 
 const paymentInstructionsQuerySchema = v.object({
@@ -180,20 +279,51 @@ type ItemValidationResult =
     }
   | { ok: false; error: string; status: number };
 
-async function lookupPublishedProduct(db: DbType, productId: number, locale: "vi" | "en"): Promise<ProductRow | null> {
+async function lookupPublishedProduct(
+  db: DbType,
+  productId: number,
+  locale: "vi" | "en",
+): Promise<ProductRow | null> {
   const product = await db
     .select()
     .from(products)
-    .where(and(eq(products.id, productId), eq(products.status, "published"), isNull(products.deletedAt)))
+    .where(
+      and(
+        eq(products.id, productId),
+        eq(products.status, "published"),
+        isNull(products.deletedAt),
+      ),
+    )
     .get();
 
   if (!product) return null;
-  const hydrated = await hydrateAndResolveTranslations(db, 'product', [product], p => String(p.id), [{fieldName: 'title', objectKey: 'title'}, {fieldName: 'subtitle', objectKey: 'subtitle'}], [{fieldName: 'title', objectKey: 'title'}, {fieldName: 'subtitle', objectKey: 'subtitle'}], locale);
+  const hydrated = await hydrateAndResolveTranslations(
+    db,
+    "product",
+    [product],
+    (p) => String(p.id),
+    [
+      { fieldName: "title", objectKey: "title" },
+      { fieldName: "subtitle", objectKey: "subtitle" },
+    ],
+    [
+      { fieldName: "title", objectKey: "title" },
+      { fieldName: "subtitle", objectKey: "subtitle" },
+    ],
+    locale,
+  );
   return hydrated[0];
 }
 
-async function lookupVariantById(db: DbType, variantId: number): Promise<VariantRow | null> {
-  const variant = await db.select().from(productVariants).where(eq(productVariants.id, variantId)).get();
+async function lookupVariantById(
+  db: DbType,
+  variantId: number,
+): Promise<VariantRow | null> {
+  const variant = await db
+    .select()
+    .from(productVariants)
+    .where(eq(productVariants.id, variantId))
+    .get();
   return variant ?? null;
 }
 
@@ -214,18 +344,29 @@ async function lookupVariantForProduct(
   const variant = await db
     .select()
     .from(productVariants)
-    .where(and(eq(productVariants.id, variantId), eq(productVariants.productId, productId)))
+    .where(
+      and(
+        eq(productVariants.id, variantId),
+        eq(productVariants.productId, productId),
+      ),
+    )
     .get();
 
   return variant ?? null;
 }
 
-async function lookupVariantFirstMedia(db: DbType, variantId: number): Promise<VariantMediaRow | null> {
+async function lookupVariantFirstMedia(
+  db: DbType,
+  variantId: number,
+): Promise<VariantMediaRow | null> {
   const media = await db
     .select()
     .from(productVariantMedia)
     .where(eq(productVariantMedia.variantId, variantId))
-    .orderBy(asc(productVariantMedia.position), asc(productVariantMedia.assetId))
+    .orderBy(
+      asc(productVariantMedia.position),
+      asc(productVariantMedia.assetId),
+    )
     .limit(1)
     .get();
 
@@ -276,7 +417,9 @@ function buildBackendCustomizationTemplate(
   backgroundAssetId: string | null,
 ): CustomizationTemplate {
   const layers = JSON.parse(customizationRow.layersJson) as unknown[];
-  const formFields = JSON.parse(customizationRow.formFieldsJson) as CustomizationFormField[];
+  const formFields = JSON.parse(
+    customizationRow.formFieldsJson,
+  ) as CustomizationFormField[];
 
   const background =
     backgroundUrl && backgroundAssetId
@@ -304,7 +447,7 @@ async function validateAndBuildItemSnapshot(
   c: Context<AppEnv>,
   db: DbType,
   item: OrderItemInput,
-  locale: "vi" | "en"
+  locale: "vi" | "en",
 ): Promise<ItemValidationResult> {
   const product = await lookupPublishedProduct(db, item.productId, locale);
   if (!product) {
@@ -315,7 +458,11 @@ async function validateAndBuildItemSnapshot(
     };
   }
 
-  const variant = await lookupVariantForProduct(db, item.variantId, item.productId);
+  const variant = await lookupVariantForProduct(
+    db,
+    item.variantId,
+    item.productId,
+  );
   if (!variant) {
     return {
       ok: false,
@@ -342,7 +489,10 @@ async function validateAndBuildItemSnapshot(
   const backgroundSnapshot: BackgroundSnapshot | null = backgroundAssetId
     ? {
         assetId: backgroundAssetId,
-        previewUrl: toAbsoluteAssetUrl(c, `/api/assets/products/${backgroundAssetId}/content`) as string,
+        previewUrl: toAbsoluteAssetUrl(
+          c,
+          `/api/assets/products/${backgroundAssetId}/content`,
+        ) as string,
         widthPx: null,
         heightPx: null,
       }
@@ -382,7 +532,9 @@ async function validateAndBuildItemSnapshot(
 
     const validationResult = validateCustomizationValues({ template, values });
     if (!validationResult.valid) {
-      const messages = validationResult.issues.map((issue) => issue.message).join("; ");
+      const messages = validationResult.issues
+        .map((issue) => issue.message)
+        .join("; ");
       return {
         ok: false,
         error: `Customization validation failed: ${messages}`,
@@ -392,7 +544,7 @@ async function validateAndBuildItemSnapshot(
 
     const parsedCustomization = {
       layers: JSON.parse(customizationRow.layersJson),
-      formFields: JSON.parse(customizationRow.formFieldsJson)
+      formFields: JSON.parse(customizationRow.formFieldsJson),
     };
     await hydrateAndResolveCustomization(db, parsedCustomization, locale);
 
@@ -442,11 +594,17 @@ function paymentReferenceForOrderId(orderId: number) {
 }
 
 function toBase64Url(value: string) {
-  return btoa(value).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/g, "");
+  return btoa(value)
+    .replaceAll("+", "-")
+    .replaceAll("/", "_")
+    .replace(/=+$/g, "");
 }
 
 function fromBase64Url(value: string) {
-  const padded = value.replaceAll("-", "+").replaceAll("_", "/").padEnd(Math.ceil(value.length / 4) * 4, "=");
+  const padded = value
+    .replaceAll("-", "+")
+    .replaceAll("_", "/")
+    .padEnd(Math.ceil(value.length / 4) * 4, "=");
   return atob(padded);
 }
 
@@ -455,7 +613,9 @@ function bytesToBase64Url(bytes: Uint8Array) {
 }
 
 function base64UrlToBytes(value: string) {
-  return Uint8Array.from(fromBase64Url(value), (character) => character.charCodeAt(0));
+  return Uint8Array.from(fromBase64Url(value), (character) =>
+    character.charCodeAt(0),
+  );
 }
 
 async function signCheckoutAccessToken(payload: string, secret: string) {
@@ -466,7 +626,11 @@ async function signCheckoutAccessToken(payload: string, secret: string) {
     false,
     ["sign"],
   );
-  const signature = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(payload));
+  const signature = await crypto.subtle.sign(
+    "HMAC",
+    key,
+    new TextEncoder().encode(payload),
+  );
   return bytesToBase64Url(new Uint8Array(signature));
 }
 
@@ -475,9 +639,17 @@ export async function createCheckoutAccessToken(
   orderNumber: string,
   now = Date.now(),
 ) {
-  const payload = toBase64Url(JSON.stringify({ orderNumber, expiresAt: now + CHECKOUT_ACCESS_TTL_MS }));
-  const signature = await signCheckoutAccessToken(payload, bindings?.BETTER_AUTH_SECRET ?? LOCAL_CHECKOUT_ACCESS_SECRET);
-  return { token: `${payload}.${signature}`, expiresAt: new Date(now + CHECKOUT_ACCESS_TTL_MS) };
+  const payload = toBase64Url(
+    JSON.stringify({ orderNumber, expiresAt: now + CHECKOUT_ACCESS_TTL_MS }),
+  );
+  const signature = await signCheckoutAccessToken(
+    payload,
+    bindings?.BETTER_AUTH_SECRET ?? LOCAL_CHECKOUT_ACCESS_SECRET,
+  );
+  return {
+    token: `${payload}.${signature}`,
+    expiresAt: new Date(now + CHECKOUT_ACCESS_TTL_MS),
+  };
 }
 
 async function verifyCheckoutAccessToken(
@@ -490,7 +662,10 @@ async function verifyCheckoutAccessToken(
 
   let claims: { orderNumber?: unknown; expiresAt?: unknown };
   try {
-    claims = JSON.parse(fromBase64Url(payload)) as { orderNumber?: unknown; expiresAt?: unknown };
+    claims = JSON.parse(fromBase64Url(payload)) as {
+      orderNumber?: unknown;
+      expiresAt?: unknown;
+    };
   } catch {
     return false;
   }
@@ -499,39 +674,53 @@ async function verifyCheckoutAccessToken(
     typeof claims.expiresAt !== "number" ||
     !Number.isInteger(claims.expiresAt) ||
     claims.expiresAt < Date.now()
-  ) return false;
+  )
+    return false;
 
   let expected: Uint8Array;
   let received: Uint8Array;
   try {
-    expected = base64UrlToBytes(await signCheckoutAccessToken(
-      payload,
-      bindings?.BETTER_AUTH_SECRET ?? LOCAL_CHECKOUT_ACCESS_SECRET,
-    ));
+    expected = base64UrlToBytes(
+      await signCheckoutAccessToken(
+        payload,
+        bindings?.BETTER_AUTH_SECRET ?? LOCAL_CHECKOUT_ACCESS_SECRET,
+      ),
+    );
     received = base64UrlToBytes(signature);
   } catch {
     return false;
   }
   if (expected.length !== received.length) return false;
   let difference = 0;
-  for (let index = 0; index < expected.length; index += 1) difference |= expected[index]! ^ received[index]!;
+  for (let index = 0; index < expected.length; index += 1)
+    difference |= expected[index]! ^ received[index]!;
   return difference === 0;
 }
 
 async function loadOrderWithItemsByNumber(db: DbType, orderNumber: string) {
-  const order = await db.select().from(orders).where(eq(orders.orderNumber, orderNumber)).get();
+  const order = await db
+    .select()
+    .from(orders)
+    .where(eq(orders.orderNumber, orderNumber))
+    .get();
 
   if (!order) {
     return null;
   }
 
-  const items = await db.select().from(orderItems).where(eq(orderItems.orderId, order.id)).orderBy(orderItems.id);
+  const items = await db
+    .select()
+    .from(orderItems)
+    .where(eq(orderItems.orderId, order.id))
+    .orderBy(orderItems.id);
   return { order, items };
 }
 
 function buildLookupOrderResponse(order: OrderRow, items: OrderItemRow[]) {
   const primaryAddress = parseOrderAddress(order.primaryAddressJson);
-  const shippingAddress = parseDifferentShippingAddress(order.shippingAddressJson);
+  const shippingAddress = parseDifferentShippingAddress(
+    order.shippingAddressJson,
+  );
   const vat = parseVatDetails(order.vatDetailsJson);
 
   return {
@@ -556,8 +745,12 @@ function buildLookupOrderResponse(order: OrderRow, items: OrderItemRow[]) {
       items: items.map((item) => {
         const productSnapshot = parseProductSnapshot(item.productSnapshotJson);
         const variantSnapshot = parseVariantSnapshot(item.variantSnapshotJson);
-        const backgroundSnapshot = parseBackgroundSnapshot(item.backgroundSnapshotJson);
-        const customizationSnapshot = parseCustomizationSnapshot(item.customizationSnapshotJson);
+        const backgroundSnapshot = parseBackgroundSnapshot(
+          item.backgroundSnapshotJson,
+        );
+        const customizationSnapshot = parseCustomizationSnapshot(
+          item.customizationSnapshotJson,
+        );
         const customizationPreview = customizationSnapshot
           ? {
               values: customizationSnapshot.values,
@@ -570,8 +763,14 @@ function buildLookupOrderResponse(order: OrderRow, items: OrderItemRow[]) {
                 background: backgroundSnapshot
                   ? {
                       ...backgroundSnapshot,
-                      widthPx: backgroundSnapshot.widthPx ?? customizationSnapshot.templateSnapshot.canvasWidthPx ?? 900,
-                      heightPx: backgroundSnapshot.heightPx ?? customizationSnapshot.templateSnapshot.canvasHeightPx ?? 900,
+                      widthPx:
+                        backgroundSnapshot.widthPx ??
+                        customizationSnapshot.templateSnapshot.canvasWidthPx ??
+                        900,
+                      heightPx:
+                        backgroundSnapshot.heightPx ??
+                        customizationSnapshot.templateSnapshot.canvasHeightPx ??
+                        900,
                     }
                   : null,
                 layers: customizationSnapshot.templateSnapshot.layers,
@@ -586,11 +785,16 @@ function buildLookupOrderResponse(order: OrderRow, items: OrderItemRow[]) {
           lineSubtotalAmount: item.lineSubtotalAmount,
           productTitle: productSnapshot?.title ?? "Unknown product",
           productHandle: productSnapshot?.handle ?? null,
-          previewImageUrl: productSnapshot?.thumbnail ?? backgroundSnapshot?.previewUrl ?? null,
+          previewImageUrl:
+            productSnapshot?.thumbnail ??
+            backgroundSnapshot?.previewUrl ??
+            null,
           customizationPreview,
           variantTitle: variantSnapshot?.title ?? "Unknown variant",
           sku: variantSnapshot?.sku ?? null,
-          customizationValues: buildCustomizationValueSummaries(customizationSnapshot),
+          customizationValues: buildCustomizationValueSummaries(
+            customizationSnapshot,
+          ),
         };
       }),
     },
@@ -609,7 +813,11 @@ export const storefrontOrdersRoute = new Hono<AppEnv>()
 
     const results = await Promise.all(
       input.items.map(async (item) => {
-        const product = await lookupPublishedProduct(db, item.productId, input.locale as "vi"|"en");
+        const product = await lookupPublishedProduct(
+          db,
+          item.productId,
+          input.locale as "vi" | "en",
+        );
         if (!product) {
           return {
             productId: item.productId,
@@ -638,10 +846,19 @@ export const storefrontOrdersRoute = new Hono<AppEnv>()
           };
         }
 
-        const customization = await lookupProductCustomization(db, item.productId);
-        const thumbnailAssetId = await lookupProductThumbnailAssetId(db, item.productId);
+        const customization = await lookupProductCustomization(
+          db,
+          item.productId,
+        );
+        const thumbnailAssetId = await lookupProductThumbnailAssetId(
+          db,
+          item.productId,
+        );
         const thumbnail = thumbnailAssetId
-          ? toAbsoluteAssetUrl(c, `/api/assets/products/${thumbnailAssetId}/content`) as string
+          ? (toAbsoluteAssetUrl(
+              c,
+              `/api/assets/products/${thumbnailAssetId}/content`,
+            ) as string)
           : null;
 
         if (variant.priceAmount === null || variant.priceAmount === undefined) {
@@ -704,7 +921,9 @@ export const storefrontOrdersRoute = new Hono<AppEnv>()
       return jsonError(c, 404, "Order not found");
     }
 
-    if (normalizePhoneForLookup(loaded.order.customerPhone) !== normalizedPhone) {
+    if (
+      normalizePhoneForLookup(loaded.order.customerPhone) !== normalizedPhone
+    ) {
       return jsonError(c, 404, "Order not found");
     }
 
@@ -715,26 +934,39 @@ export const storefrontOrdersRoute = new Hono<AppEnv>()
       orderNumber: c.req.query("orderNumber"),
       accessToken: c.req.query("accessToken"),
     });
-    if (!parsed.success) return jsonError(c, 400, "Invalid payment instruction access");
-    if (!await verifyCheckoutAccessToken(c.env, parsed.output.orderNumber, parsed.output.accessToken)) {
+    if (!parsed.success)
+      return jsonError(c, 400, "Invalid payment instruction access");
+    if (
+      !(await verifyCheckoutAccessToken(
+        c.env,
+        parsed.output.orderNumber,
+        parsed.output.accessToken,
+      ))
+    ) {
       return jsonError(c, 404, "Payment instructions not found");
     }
 
-    const order = await getDb(c.env).select().from(orders)
-      .where(eq(orders.orderNumber, parsed.output.orderNumber)).get();
+    const order = await getDb(c.env)
+      .select()
+      .from(orders)
+      .where(eq(orders.orderNumber, parsed.output.orderNumber))
+      .get();
     if (!order) return jsonError(c, 404, "Payment instructions not found");
 
-    return c.json({
-      order: {
-        orderNumber: order.orderNumber,
-        paymentReference: paymentReferenceForOrderId(order.id),
-        totalAmount: order.totalAmount,
-        currencyCode: order.currencyCode,
-        paymentMethod: order.paymentMethod,
-        paymentStatus: order.paymentStatus,
-        createdAt: order.createdAt.toISOString(),
+    return c.json(
+      {
+        order: {
+          orderNumber: order.orderNumber,
+          paymentReference: paymentReferenceForOrderId(order.id),
+          totalAmount: order.totalAmount,
+          currencyCode: order.currencyCode,
+          paymentMethod: order.paymentMethod,
+          paymentStatus: order.paymentStatus,
+          createdAt: order.createdAt.toISOString(),
+        },
       },
-    }, 200);
+      200,
+    );
   })
   .post("/", async (c) => {
     const parsed = await parseJson(c, createOrderSchema);
@@ -744,9 +976,16 @@ export const storefrontOrdersRoute = new Hono<AppEnv>()
 
     const input: CreateOrderInput = parsed.output;
     if (input.vatRequested && !input.vat) {
-      return jsonError(c, 422, "VAT details are required when requesting a VAT invoice");
+      return jsonError(
+        c,
+        422,
+        "VAT details are required when requesting a VAT invoice",
+      );
     }
-    if (input.shipping.shipToDifferentAddress && !input.shipping.differentAddress) {
+    if (
+      input.shipping.shipToDifferentAddress &&
+      !input.shipping.differentAddress
+    ) {
       return jsonError(
         c,
         400,
@@ -754,9 +993,15 @@ export const storefrontOrdersRoute = new Hono<AppEnv>()
       );
     }
 
-    const normalizedCustomerPhone = normalizePhoneForLookup(input.customer.phone);
+    const normalizedCustomerPhone = normalizePhoneForLookup(
+      input.customer.phone,
+    );
     if (!normalizedCustomerPhone) {
-      return jsonError(c, 422, "Customer phone must include at least one digit");
+      return jsonError(
+        c,
+        422,
+        "Customer phone must include at least one digit",
+      );
     }
 
     const db = getDb(c.env);
@@ -772,7 +1017,12 @@ export const storefrontOrdersRoute = new Hono<AppEnv>()
     }> = [];
 
     for (const item of input.items) {
-      const result = await validateAndBuildItemSnapshot(c, db, item, input.locale as "vi"|"en");
+      const result = await validateAndBuildItemSnapshot(
+        c,
+        db,
+        item,
+        input.locale as "vi" | "en",
+      );
       if (!result.ok) {
         return c.json({ error: result.error }, result.status as 422);
       }
@@ -789,9 +1039,15 @@ export const storefrontOrdersRoute = new Hono<AppEnv>()
       });
     }
 
-    const subtotalAmount = validatedItems.reduce((sum, item) => sum + item.lineSubtotal, 0);
+    const subtotalAmount = validatedItems.reduce(
+      (sum, item) => sum + item.lineSubtotal,
+      0,
+    );
     const totalAmount = subtotalAmount;
-    const itemCount = validatedItems.reduce((sum, item) => sum + item.input.quantity, 0);
+    const itemCount = validatedItems.reduce(
+      (sum, item) => sum + item.input.quantity,
+      0,
+    );
     const now = Date.now();
 
     const primaryAddressJson = JSON.stringify(input.shipping.primaryAddress);
@@ -799,13 +1055,17 @@ export const storefrontOrdersRoute = new Hono<AppEnv>()
       input.shipping.shipToDifferentAddress && input.shipping.differentAddress
         ? JSON.stringify({
             ...input.shipping.differentAddress,
-            recipientPhone: normalizePhoneForLookup(input.shipping.differentAddress.recipientPhone),
+            recipientPhone: normalizePhoneForLookup(
+              input.shipping.differentAddress.recipientPhone,
+            ),
           })
         : null;
 
+    let prevalidatedMisaCustomerCode: string | undefined;
+    let omitMisaCustomerForDuplicateVatTaxCode = false;
     if (isMisaConfigured(c.env) && input.vat?.taxId) {
       try {
-        await validateMisaCheckoutCustomer(c.env, {
+        const customer = await validateMisaCheckoutCustomer(c.env, {
           order: {
             customerName: input.customer.name,
             customerPhone: normalizedCustomerPhone,
@@ -815,10 +1075,24 @@ export const storefrontOrdersRoute = new Hono<AppEnv>()
             vatDetailsJson: JSON.stringify(input.vat),
           },
         });
+        prevalidatedMisaCustomerCode = customer.customerCode;
       } catch (error) {
-        if (error instanceof MisaRequestError && error.resource === "/Customers" &&
-          misaVatField(error) && !isDuplicateMisaTaxCode(error)) {
-          return c.json({ error: error.message, field: misaVatField(error) }, 422);
+        if (
+          error instanceof MisaRequestError &&
+          isDuplicateMisaTaxCode(error)
+        ) {
+          omitMisaCustomerForDuplicateVatTaxCode = true;
+        }
+        if (
+          error instanceof MisaRequestError &&
+          error.resource === "/Customers" &&
+          misaVatField(error) &&
+          !isDuplicateMisaTaxCode(error)
+        ) {
+          return c.json(
+            { error: error.message, field: misaVatField(error) },
+            422,
+          );
         }
       }
     }
@@ -870,8 +1144,12 @@ export const storefrontOrdersRoute = new Hono<AppEnv>()
         lineSubtotalAmount: item.lineSubtotal,
         productSnapshotJson: JSON.stringify(item.productSnapshot),
         variantSnapshotJson: JSON.stringify(item.variantSnapshot),
-        backgroundSnapshotJson: item.backgroundSnapshot ? JSON.stringify(item.backgroundSnapshot) : null,
-        customizationSnapshotJson: item.customizationSnapshot ? JSON.stringify(item.customizationSnapshot) : null,
+        backgroundSnapshotJson: item.backgroundSnapshot
+          ? JSON.stringify(item.backgroundSnapshot)
+          : null,
+        customizationSnapshotJson: item.customizationSnapshot
+          ? JSON.stringify(item.customizationSnapshot)
+          : null,
         productionStatus: item.productionStatus,
         createdAt: new Date(now),
       });
@@ -879,21 +1157,35 @@ export const storefrontOrdersRoute = new Hono<AppEnv>()
 
     if (isMisaConfigured(c.env)) {
       try {
-        const synced = await syncMisaOrder(c.env, insertedOrder.id);
-        await db.update(orders).set({
-          misaSyncStatus: "synced",
-          misaSaleOrderId: synced.saleOrderId,
-          misaSaleOrderNo: synced.saleOrderNumber,
-          misaLastError: null,
-          misaAttemptCount: 1,
-          misaSyncedAt: new Date(),
-        }).where(eq(orders.id, insertedOrder.id));
+        const synced = await syncMisaOrder(
+          c.env,
+          insertedOrder.id,
+          prevalidatedMisaCustomerCode,
+          omitMisaCustomerForDuplicateVatTaxCode,
+        );
+        await db
+          .update(orders)
+          .set({
+            misaSyncStatus: "synced",
+            misaSaleOrderId: synced.saleOrderId,
+            misaSaleOrderNo: synced.saleOrderNumber,
+            misaLastError: null,
+            misaAttemptCount: 1,
+            misaSyncedAt: new Date(),
+          })
+          .where(eq(orders.id, insertedOrder.id));
       } catch (error) {
-        await db.update(orders).set({
-          misaSyncStatus: "failed",
-          misaLastError: error instanceof Error ? error.message : "MISA order synchronization failed",
-          misaAttemptCount: 1,
-        }).where(eq(orders.id, insertedOrder.id));
+        await db
+          .update(orders)
+          .set({
+            misaSyncStatus: "failed",
+            misaLastError:
+              error instanceof Error
+                ? error.message
+                : "MISA order synchronization failed",
+            misaAttemptCount: 1,
+          })
+          .where(eq(orders.id, insertedOrder.id));
       }
     }
 

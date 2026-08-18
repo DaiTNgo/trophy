@@ -2,7 +2,19 @@
 
 ## Current state
 
+The current checkout UML is in `docs/misa/checkout-field-mapping.md` under **UML luồng checkout theo checkbox VAT**. It is deliberately one decision flow: no VAT creates only a personal Customer and SaleOrder; VAT requires four invoice inputs, pre-validates the VAT Customer, then creates a Contact for the basic checkout person only when pre-validation returns a Customer code. A duplicate VAT tax code creates an unlinked SaleOrder without Customer/Contact fields and adds an admin action notice to its MISA `description`; MISA failure after a local order never removes that order.
+
 Customer and Contact are intentionally headless integrations. Do not add a Customer ID mapping and do not persist or return a Contact ID. Both entities are derived from the order snapshot and their deterministic phone/MST codes. When MISA rejects a SaleOrder with “khách hàng đã bị xóa”, backend creates the Customer payload again and retries the same SaleOrder exactly once. Keep SaleOrder ID persistence: it belongs to the order reconciliation/purge flow, not Customer/Contact mapping.
+
+SaleOrder `shipping_contact_name` is the checkout buyer name (`customer.name`); it is not a separate shipping-recipient input. `sale_order_date` is formatted from the persisted order `createdAt` in the `Asia/Ho_Chi_Minh` time zone as `DD/MM/YYYY`.
+
+Payload identity is exclusive: a VAT checkout sends only invoice fields to Customer and sends the basic checkout person to Contact; a non-VAT checkout sends the basic person only to Customer and does not create a Contact or send SaleOrder `contact_name`. The request-local Customer code returned by VAT prevalidation must be passed into the immediate SaleOrder synchronization, avoiding a duplicate Customer create without persisting any MISA mapping. The VAT description includes `YEU CAU XUAT HOA DON` followed by invoice fields and the shopper note.
+
+Contact lookup is restricted to the deterministic `contact_code`; do not scan Contacts by email. If MISA rejects a new Contact because `email` is duplicate, do not retry it without an email. Create the SaleOrder with the resolved Customer but without `contact_name`, and write the duplicate-email/manual-Contact-reconciliation warning into its MISA `description`. Do not bypass other Contact errors.
+
+Generated MISA codes are standardized: Customer uses `KH-<normalized-phone>` or `KH-TAX-<normalized-MST>`, while Contact uses `LH-<normalized-phone>`. Keep the prefixes in every retry and related SaleOrder field.
+
+When MISA rejects Customer creation with a validation message for `account_number`, Trophy retries the base code with `-1` through `-99` suffixes and uses the first accepted code for the Contact and SaleOrder. Example: `KH-090123`, then `KH-090123-1`, then `KH-090123-2`. Do not apply this retry to tax code, email, phone, or any other Customer error; those remain visible to the checkout/error flow. No resulting Customer or Contact identifier is stored in Trophy. Full `./init.sh` passes with 238 backend tests.
 
 VAT invoice requests are now explicit in checkout. Selecting the checkbox requires invoice entity name, tax ID, invoice email, and invoice address; the old “invoice type” field has been removed from storefront, backend contract, stored VAT data, MISA description, and Admin Order Detail. The request includes `vatRequested` so backend rejects a client that declares VAT but omits the VAT object. The invoice email remains independent from optional basic checkout email and is preferred for MISA Customer `office_email`. For domain meaning: without VAT, Customer is the basic checkout person; with VAT, Customer is the invoice entity; the basic checkout person remains Contact and is selected by SaleOrder `contact_name`. Do not add or try `shipping_contact_name`; it is intentionally outside the integration scope. Full `./init.sh` passes with 236 backend tests.
 
@@ -12,7 +24,7 @@ MISA checkout synchronization now creates or reuses a personal Customer before t
 
 When an existing Contact lacks or has a different `account_name`, checkout synchronization now updates it through `PUT /Contacts` before posting the SaleOrder. This repairs legacy Contacts that were created before Customer synchronization, so retrying MISA synchronization for the affected order is sufficient after deployment.
 
-VAT checkout data now creates/reuses a company Customer when `vat.taxId` is populated. Its key is `TROPHY-TAX-<normalized MST>` and its MISA `tax_code` is the MST; `is_personal` is `false`; company name, invoice email, and invoice address come from the VAT fields. Without a tax ID, checkout retains the phone-keyed personal Customer. The Contact and SaleOrder use whichever Customer code was selected.
+VAT checkout data now creates/reuses a company Customer when `vat.taxId` is populated. Its key is `KH-TAX-<normalized MST>` and its MISA `tax_code` is the MST; `is_personal` is `false`; company name, invoice email, and invoice address come from the VAT fields. Without a tax ID, checkout retains the phone-keyed personal Customer. The Contact and SaleOrder use whichever Customer code was selected.
 
 MISA is the authority for VAT Customer validation. When a checkout includes `vat.taxId`, backend creates/reuses the MISA Customer before it persists the local order. MISA errors for `tax_code`, `account_name`, `office_email`, and `billing_address` return HTTP 422 with the mapped VAT form field; storefront focuses that input and renders MISA's message inline. No locally inferred MST checksum validation remains in browser or backend. The checkout API client aligns with backend address validation by treating `city` and `country` as optional. Full `./init.sh` passes after this correction.
 

@@ -15,7 +15,12 @@ vi.mock("../../lib/misa", () => ({
 }));
 
 import { getDb } from "../../db/client";
-import { isMisaConfigured, MisaRequestError, validateMisaCheckoutCustomer } from "../../lib/misa";
+import {
+  isMisaConfigured,
+  MisaRequestError,
+  syncMisaOrder,
+  validateMisaCheckoutCustomer,
+} from "../../lib/misa";
 import { createCheckoutAccessToken, storefrontOrdersRoute } from "./orders";
 
 function createQueryChain({
@@ -36,8 +41,10 @@ function createQueryChain({
     returning: vi.fn(() => chain),
     values: vi.fn(() => chain),
     get: vi.fn(async () => getQueue.shift() ?? null),
-    then: (resolve: (value: unknown) => unknown, reject?: (reason: unknown) => unknown) =>
-      Promise.resolve(selectQueue.shift() ?? []).then(resolve, reject),
+    then: (
+      resolve: (value: unknown) => unknown,
+      reject?: (reason: unknown) => unknown,
+    ) => Promise.resolve(selectQueue.shift() ?? []).then(resolve, reject),
   };
 
   return chain;
@@ -86,6 +93,7 @@ describe("storefront orders route", () => {
     db = createMockDb();
     vi.mocked(getDb).mockReturnValue(db as never);
     vi.mocked(isMisaConfigured).mockReturnValue(false);
+    vi.mocked(syncMisaOrder).mockReset();
     vi.mocked(validateMisaCheckoutCustomer).mockReset();
   });
 
@@ -122,12 +130,19 @@ describe("storefront orders route", () => {
 
   it("creates a bank transfer order, stores the selected payment method, and returns signed checkout access", async () => {
     db.getQueue.push(
-      { id: 1, title: "Champion Cup", handle: "champion-cup", status: "published" },
+      {
+        id: 1,
+        title: "Champion Cup",
+        handle: "champion-cup",
+        status: "published",
+      },
       { id: 10, productId: 1, title: "Gold", sku: "SKU-1", priceAmount: 5000 },
       { assetId: "asset-1", position: 0 },
       null,
     );
-    db.returningQueue.push([{ id: 123, createdAt: new Date("2026-07-05T00:00:00.000Z") }]);
+    db.returningQueue.push([
+      { id: 123, createdAt: new Date("2026-07-05T00:00:00.000Z") },
+    ]);
 
     const res = await storefrontOrdersRoute.request("/", {
       method: "POST",
@@ -148,7 +163,9 @@ describe("storefront orders route", () => {
       vatDetailsJson: JSON.stringify(validPayload.vat),
     });
     expect(db.updateValuesCalls[0]).toEqual({ orderNumber: "123" });
-    expect(body.order.checkoutAccessToken).toMatch(/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/);
+    expect(body.order.checkoutAccessToken).toMatch(
+      /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/,
+    );
     expect(body.order.checkoutAccessExpiresAt).toBeTruthy();
   });
 
@@ -229,7 +246,11 @@ describe("storefront orders route", () => {
     const res = await storefrontOrdersRoute.request("/", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...validPayload, vatRequested: true, vat: undefined }),
+      body: JSON.stringify({
+        ...validPayload,
+        vatRequested: true,
+        vat: undefined,
+      }),
     });
 
     expect(res.status).toBe(422);
@@ -242,10 +263,17 @@ describe("storefront orders route", () => {
   it("returns MISA VAT validation errors before creating a checkout order", async () => {
     vi.mocked(isMisaConfigured).mockReturnValue(true);
     vi.mocked(validateMisaCheckoutCustomer).mockRejectedValue(
-      new MisaRequestError("tax_code: Giá trị của trường không hợp lệ", 200, { resource: "/Customers" }),
+      new MisaRequestError("tax_code: Giá trị của trường không hợp lệ", 200, {
+        resource: "/Customers",
+      }),
     );
     db.getQueue.push(
-      { id: 1, title: "Champion Cup", handle: "champion-cup", status: "published" },
+      {
+        id: 1,
+        title: "Champion Cup",
+        handle: "champion-cup",
+        status: "published",
+      },
       { id: 10, productId: 1, title: "Gold", sku: "SKU-1", priceAmount: 5000 },
       { assetId: "asset-1", position: 0 },
       null,
@@ -270,29 +298,61 @@ describe("storefront orders route", () => {
   it("continues checkout when MISA reports a duplicate VAT tax ID", async () => {
     vi.mocked(isMisaConfigured).mockReturnValue(true);
     vi.mocked(validateMisaCheckoutCustomer).mockRejectedValue(
-      new MisaRequestError("tax_code: Giá trị của Mã số thuế đã bị trùng.", 200, { resource: "/Customers" }),
+      new MisaRequestError(
+        "tax_code: Giá trị của Mã số thuế đã bị trùng.",
+        200,
+        { resource: "/Customers" },
+      ),
     );
+    vi.mocked(syncMisaOrder).mockResolvedValue({
+      saleOrderId: "456",
+      saleOrderNumber: "123",
+    });
     db.getQueue.push(
-      { id: 1, title: "Champion Cup", handle: "champion-cup", status: "published" },
+      {
+        id: 1,
+        title: "Champion Cup",
+        handle: "champion-cup",
+        status: "published",
+      },
       { id: 10, productId: 1, title: "Gold", sku: "SKU-1", priceAmount: 5000 },
       { assetId: "asset-1", position: 0 },
       null,
     );
-    db.returningQueue.push([{ id: 123, createdAt: new Date("2026-07-05T00:00:00.000Z") }]);
+    db.returningQueue.push([
+      { id: 123, createdAt: new Date("2026-07-05T00:00:00.000Z") },
+    ]);
 
-    const res = await storefrontOrdersRoute.request("/", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(validPayload),
-    }, { MISA_CLIENT_ID: "client", MISA_CLIENT_SECRET: "secret" } as never);
+    const res = await storefrontOrdersRoute.request(
+      "/",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(validPayload),
+      },
+      { MISA_CLIENT_ID: "client", MISA_CLIENT_SECRET: "secret" } as never,
+    );
 
     expect(res.status).toBe(201);
-    expect(db.valuesCalls[0]).toMatchObject({ vatDetailsJson: JSON.stringify(validPayload.vat) });
+    expect(db.valuesCalls[0]).toMatchObject({
+      vatDetailsJson: JSON.stringify(validPayload.vat),
+    });
+    expect(syncMisaOrder).toHaveBeenCalledWith(
+      expect.anything(),
+      123,
+      undefined,
+      true,
+    );
   });
 
   it("resolves a valid cart line with shopper-safe display data", async () => {
     db.getQueue.push(
-      { id: 1, title: "Champion Cup", handle: "champion-cup", status: "published" },
+      {
+        id: 1,
+        title: "Champion Cup",
+        handle: "champion-cup",
+        status: "published",
+      },
       { id: 10, productId: 1, title: "Gold", sku: "SKU-1", priceAmount: 5000 },
       { enabled: true },
       null,
@@ -332,9 +392,25 @@ describe("storefront orders route", () => {
   it("marks stale and contact-price cart lines with explicit reasons", async () => {
     db.getQueue.push(
       null,
-      { id: 1, title: "Champion Cup", handle: "champion-cup", status: "published" },
-      { id: 10, productId: 2, title: "Other", sku: "SKU-OTHER", priceAmount: 5000 },
-      { id: 1, title: "Champion Cup", handle: "champion-cup", status: "published" },
+      {
+        id: 1,
+        title: "Champion Cup",
+        handle: "champion-cup",
+        status: "published",
+      },
+      {
+        id: 10,
+        productId: 2,
+        title: "Other",
+        sku: "SKU-OTHER",
+        priceAmount: 5000,
+      },
+      {
+        id: 1,
+        title: "Champion Cup",
+        handle: "champion-cup",
+        status: "published",
+      },
       { id: 10, productId: 1, title: "Gold", sku: "SKU-1", priceAmount: null },
       null,
       null,
@@ -355,17 +431,36 @@ describe("storefront orders route", () => {
 
     expect(res.status).toBe(200);
     const body = (await res.json()) as any;
-    expect(body.items[0]).toMatchObject({ valid: false, reason: "product_unavailable" });
-    expect(body.items[1]).toMatchObject({ valid: false, reason: "variant_mismatch" });
-    expect(body.items[2]).toMatchObject({ valid: false, reason: "contact_price" });
+    expect(body.items[0]).toMatchObject({
+      valid: false,
+      reason: "product_unavailable",
+    });
+    expect(body.items[1]).toMatchObject({
+      valid: false,
+      reason: "variant_mismatch",
+    });
+    expect(body.items[2]).toMatchObject({
+      valid: false,
+      reason: "contact_price",
+    });
   });
 
   it("uses the first product media as the cart thumbnail before variant media", async () => {
     db.getQueue.push(
-      { id: 1, title: "Champion Cup", handle: "champion-cup", status: "published" },
+      {
+        id: 1,
+        title: "Champion Cup",
+        handle: "champion-cup",
+        status: "published",
+      },
       { id: 10, productId: 1, title: "Gold", sku: "SKU-1", priceAmount: 5000 },
       { enabled: false },
-      { id: 50, productId: 1, url: "/api/assets/products/product-asset/content", position: 0 },
+      {
+        id: 50,
+        productId: 1,
+        url: "/api/assets/products/product-asset/content",
+        position: 0,
+      },
       { assetId: "variant-asset", position: 0 },
     );
 
@@ -392,7 +487,11 @@ describe("storefront orders route", () => {
       customerName: "John Doe",
       customerPhone: "0123456789",
       customerEmail: "john@example.com",
-      primaryAddressJson: JSON.stringify({ line1: "123 Main St", city: "HCM", country: "VN" }),
+      primaryAddressJson: JSON.stringify({
+        line1: "123 Main St",
+        city: "HCM",
+        country: "VN",
+      }),
       shippingAddressJson: null,
       shipToDifferentAddress: false,
       subtotalAmount: 10000,
@@ -435,7 +534,15 @@ describe("storefront orders route", () => {
           design: { layers: [] },
           templateSnapshot: {
             layers: [],
-            formFields: [{ id: "text_1", layerId: "layer-1", label: "Name", required: true, order: 0 }],
+            formFields: [
+              {
+                id: "text_1",
+                layerId: "layer-1",
+                label: "Name",
+                required: true,
+                order: 0,
+              },
+            ],
             canvasWidthPx: 100,
             canvasHeightPx: 100,
           },
@@ -446,7 +553,10 @@ describe("storefront orders route", () => {
     const res = await storefrontOrdersRoute.request("/lookup", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ orderNumber: "ORD-ABC-1234", phone: "0123 456 789" }),
+      body: JSON.stringify({
+        orderNumber: "ORD-ABC-1234",
+        phone: "0123 456 789",
+      }),
     });
 
     expect(res.status).toBe(200);
@@ -455,9 +565,15 @@ describe("storefront orders route", () => {
     expect(body.order.items[0].customizationValues).toEqual([
       { fieldId: "text_1", label: "Name", valueSummary: "Alice" },
     ]);
-    expect(body.order.items[0].previewImageUrl).toBe("http://localhost/api/assets/products/asset-1/content");
-    expect(body.order.items[0].customizationPreview.values.text_1).toEqual({ text: "Alice" });
-    expect(body.order.items[0].customizationPreview.template.formFields[0].id).toBe("text_1");
+    expect(body.order.items[0].previewImageUrl).toBe(
+      "http://localhost/api/assets/products/asset-1/content",
+    );
+    expect(body.order.items[0].customizationPreview.values.text_1).toEqual({
+      text: "Alice",
+    });
+    expect(
+      body.order.items[0].customizationPreview.template.formFields[0].id,
+    ).toBe("text_1");
     expect(JSON.stringify(body)).not.toContain("design");
   });
 
@@ -491,10 +607,16 @@ describe("storefront orders route", () => {
           handle: "legacy-cup",
           status: "published",
         }),
-        variantSnapshotJson: JSON.stringify({ id: 11, title: "Silver", sku: null, priceAmount: 5000 }),
+        variantSnapshotJson: JSON.stringify({
+          id: 11,
+          title: "Silver",
+          sku: null,
+          priceAmount: 5000,
+        }),
         backgroundSnapshotJson: JSON.stringify({
           assetId: "legacy-asset",
-          previewUrl: "http://localhost/api/assets/products/legacy-asset/content",
+          previewUrl:
+            "http://localhost/api/assets/products/legacy-asset/content",
           widthPx: null,
           heightPx: null,
         }),
@@ -505,12 +627,17 @@ describe("storefront orders route", () => {
     const res = await storefrontOrdersRoute.request("/lookup", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ orderNumber: "ORD-LEGACY-1234", phone: "0123456789" }),
+      body: JSON.stringify({
+        orderNumber: "ORD-LEGACY-1234",
+        phone: "0123456789",
+      }),
     });
 
     expect(res.status).toBe(200);
     const body = (await res.json()) as any;
-    expect(body.order.items[0].previewImageUrl).toBe("http://localhost/api/assets/products/legacy-asset/content");
+    expect(body.order.items[0].previewImageUrl).toBe(
+      "http://localhost/api/assets/products/legacy-asset/content",
+    );
   });
 
   it("summarizes selected icon values in order lookups", async () => {
@@ -524,7 +651,11 @@ describe("storefront orders route", () => {
       customerName: "John Doe",
       customerPhone: "0123456789",
       customerEmail: "john@example.com",
-      primaryAddressJson: JSON.stringify({ line1: "123 Main St", city: "HCM", country: "VN" }),
+      primaryAddressJson: JSON.stringify({
+        line1: "123 Main St",
+        city: "HCM",
+        country: "VN",
+      }),
       shippingAddressJson: null,
       shipToDifferentAddress: false,
       subtotalAmount: 10000,
@@ -570,7 +701,15 @@ describe("storefront orders route", () => {
           design: { layers: [] },
           templateSnapshot: {
             layers: [],
-            formFields: [{ id: "badge_shape", layerId: "layer-1", label: "Badge", required: true, order: 0 }],
+            formFields: [
+              {
+                id: "badge_shape",
+                layerId: "layer-1",
+                label: "Badge",
+                required: true,
+                order: 0,
+              },
+            ],
             canvasWidthPx: 100,
             canvasHeightPx: 100,
           },
@@ -581,7 +720,10 @@ describe("storefront orders route", () => {
     const res = await storefrontOrdersRoute.request("/lookup", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ orderNumber: "ORD-ICON-1234", phone: "0123456789" }),
+      body: JSON.stringify({
+        orderNumber: "ORD-ICON-1234",
+        phone: "0123456789",
+      }),
     });
 
     expect(res.status).toBe(200);
@@ -619,7 +761,12 @@ describe("storefront orders route", () => {
     );
 
     db.getQueue.push(
-      { id: 1, title: "Champion Cup", handle: "champion-cup", status: "published" },
+      {
+        id: 1,
+        title: "Champion Cup",
+        handle: "champion-cup",
+        status: "published",
+      },
       { id: 10, productId: 1, title: "Gold", sku: "SKU-1", priceAmount: 5000 },
       { assetId: "asset-1", position: 0 },
       {
@@ -631,7 +778,9 @@ describe("storefront orders route", () => {
       },
       { variantId: 10, assetId: "customization-asset-1" },
     );
-    db.returningQueue.push([{ id: 123, createdAt: new Date("2026-07-05T00:00:00.000Z") }]);
+    db.returningQueue.push([
+      { id: 123, createdAt: new Date("2026-07-05T00:00:00.000Z") },
+    ]);
 
     const res = await storefrontOrdersRoute.request("/", {
       method: "POST",
@@ -666,7 +815,10 @@ describe("storefront orders route", () => {
     expect(res.status).toBe(201);
 
     const orderItemInsert = db.valuesCalls.find(
-      (value: any) => value && typeof value === "object" && "customizationSnapshotJson" in value,
+      (value: any) =>
+        value &&
+        typeof value === "object" &&
+        "customizationSnapshotJson" in value,
     ) as
       | {
           backgroundSnapshotJson: string | null;
@@ -676,7 +828,9 @@ describe("storefront orders route", () => {
     const backgroundSnapshot = orderItemInsert?.backgroundSnapshotJson
       ? JSON.parse(orderItemInsert.backgroundSnapshotJson)
       : null;
-    const snapshot = orderItemInsert ? JSON.parse(orderItemInsert.customizationSnapshotJson) : null;
+    const snapshot = orderItemInsert
+      ? JSON.parse(orderItemInsert.customizationSnapshotJson)
+      : null;
 
     expect(backgroundSnapshot?.assetId).toBe("customization-asset-1");
 
@@ -701,7 +855,11 @@ describe("storefront orders route", () => {
       customerName: "John Doe",
       customerPhone: "0123456789",
       customerEmail: "john@example.com",
-      primaryAddressJson: JSON.stringify({ line1: "123 Main St", city: "HCM", country: "VN" }),
+      primaryAddressJson: JSON.stringify({
+        line1: "123 Main St",
+        city: "HCM",
+        country: "VN",
+      }),
       shippingAddressJson: null,
       shipToDifferentAddress: false,
       subtotalAmount: 10000,
@@ -716,7 +874,10 @@ describe("storefront orders route", () => {
     const res = await storefrontOrdersRoute.request("/lookup", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ orderNumber: "ORD-ABC-1234", phone: "0999999999" }),
+      body: JSON.stringify({
+        orderNumber: "ORD-ABC-1234",
+        phone: "0999999999",
+      }),
     });
 
     expect(res.status).toBe(404);

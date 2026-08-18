@@ -109,9 +109,10 @@ Field địa chỉ chi tiết: `mailing_country`, `mailing_province`, `mailing_d
 | Field | Kiểu | Ý nghĩa MISA | Dùng trong Trophy |
 | --- | --- | --- | --- |
 | `sale_order_no` | string | Số đơn hàng | Số đơn hàng công khai của Trophy. |
-| `sale_order_date` | string | Ngày đặt hàng | Ngày tạo đơn. |
+| `sale_order_date` | string | Ngày đặt hàng | Ngày tạo đơn của Trophy theo múi giờ Việt Nam, dạng `DD/MM/YYYY`. |
 | `account_name` | string | Khách hàng | Mã Customer. |
 | `contact_name` | string | Liên hệ | Mã Contact/người nhận. |
+| `shipping_contact_name` | string | Người nhận hàng | Tên người mua từ checkout (`customer.name`). |
 | `sale_order_amount` | number | Giá trị đơn hàng | Tổng giá trị đơn. |
 | `total_summary` | string | Tổng tiền | Tổng tiền theo format tenant. |
 | `tax_summary` | string | Tiền thuế | Tổng thuế. |
@@ -143,7 +144,7 @@ Payload tạo SaleOrder chứa danh sách hàng hóa. Các field cần đối ch
 | --- | --- | --- |
 | `tax_code: Giá trị của trường không hợp lệ` | MST không hợp lệ theo MISA/tenant. | Hiển thị nguyên văn tại field MST. |
 | `tax_code: Giá trị của Mã số thuế đã bị trùng.` | Customer MISA khác đã dùng MST; API công khai không tra cứu được bằng MST. | Trophy cho đơn local tiếp tục, lưu thông tin VAT để nhân viên MISA rà soát. Không áp dụng bypass cho lỗi MST khác. |
-| `email: Giá trị của Email cá nhân đã bị trùng.` | Contact khác đã sở hữu email. | Không gửi lại email khi chỉ cập nhật liên kết Customer; nếu tạo mới, hiển thị/lưu lỗi để đối soát. |
+| `email: Giá trị của Email cá nhân đã bị trùng.` | Contact khác đã sở hữu email. | Không dò hoặc tái sử dụng Contact theo email. Retry tạo đúng Contact code nhưng bỏ field `email`. |
 | Lỗi trùng `mobile`/điện thoại | Tenant đặt uniqueness cho số liên hệ. | Tra cứu theo `contact_code` trước; không có mã/ID tra cứu thì third-party không thể khẳng định record cần tái dùng. |
 | `Không được để trống` | Field bắt buộc do form layout hoặc tenant cấu hình. | Ghi log payload đã được che dữ liệu nhạy cảm, đối chiếu form layout và yêu cầu của MISA tenant. |
 | HTTP 200 nhưng body báo validate error | MISA có thể biểu diễn lỗi nghiệp vụ trong response thành công HTTP. | Đọc `error_message`/validation result, không chỉ dựa vào status HTTP. |
@@ -154,9 +155,10 @@ Các quy ước dưới đây là quyết định tích hợp của Trophy, khô
 
 | Đối tượng | Quy ước Trophy |
 | --- | --- |
-| Customer cá nhân | `account_number = TROPHY-<so-dien-thoai-da-chuan-hoa>` |
-| Customer VAT | `account_number = TROPHY-TAX-<mst-da-chuan-hoa>`, `tax_code = MST`, `is_personal = false` |
-| Contact | `contact_code = TROPHY-<so-dien-thoai-da-chuan-hoa>` |
+| Customer cá nhân | `account_number = KH-<so-dien-thoai-da-chuan-hoa>` |
+| Customer VAT | `account_number = KH-TAX-<mst-da-chuan-hoa>`, `tax_code = MST`, `is_personal = false` |
+| Trùng/lỗi `account_number` | Thử mã gốc rồi thêm hậu tố `-1` đến `-99`; chỉ áp dụng khi MISA chỉ rõ lỗi thuộc field `account_number`. |
+| Contact | `contact_code = LH-<so-dien-thoai-da-chuan-hoa>` |
 | Liên kết | Gửi Customer code vào `Contact.account_name` và `SaleOrder.account_name`; gửi Contact code vào `SaleOrder.contact_name`. |
 | Mapping | Không có bảng mapping bền vững giữa Trophy và MISA. Các mã do Trophy tạo là cách tra cứu duy nhất có thể dựa vào API công khai. |
 | MST trùng | Chỉ bypass đúng lỗi duplicate MST để local checkout không bị chặn; không coi đó là đã tái sử dụng được Customer MISA. |
