@@ -1,4 +1,8 @@
 type LogDetails = Record<string, string | number | boolean | null | undefined>;
+export type BackendFetch = (
+  input: RequestInfo | URL,
+  init?: RequestInit,
+) => Promise<Response>;
 
 function runtimeSource() {
   return typeof window === "undefined" ? "server" : "browser";
@@ -102,6 +106,7 @@ export async function fetchBackendWithLog(
   label: string,
   input: RequestInfo | URL,
   init?: RequestInit,
+  backendFetch: BackendFetch = fetch,
 ) {
   const startedAt = Date.now();
   const url = typeof input === "string" ? input : input.toString();
@@ -114,7 +119,7 @@ export async function fetchBackendWithLog(
   });
 
   try {
-    const response = await fetch(input, init);
+    const response = await backendFetch(input, init);
     const details = {
       label,
       method,
