@@ -168,10 +168,65 @@ export function useProductCustomizationEditor(
     setSelectedLayerId(id);
   }
 
-  function addPolygon() {
-    setIsDrawing(true);
-    setPendingVectorPoints([]);
-    setSelectedLayerId("");
+  function addPolygon(sides: number | any = 6) {
+    if (!template.background) return;
+    const actualSides = typeof sides === "number" ? sides : 6;
+    const id = createId("image_shape");
+    const radius = 0.4;
+    const cx = 0.5;
+    const cy = 0.5;
+    const polygonPoints: VectorPoint[] = Array.from(
+      { length: actualSides },
+      (_, index) => {
+        const angle = -Math.PI / 2 + (index * 2 * Math.PI) / actualSides;
+        return {
+          id: createId("vector_point"),
+          type: "corner",
+          xRatio: cx + Math.cos(angle) * radius,
+          yRatio: cy + Math.sin(angle) * radius,
+        };
+      },
+    );
+
+    const fieldId = createId("field");
+    const newLayer: CustomizationLayer = {
+      id,
+      type: "image_shape",
+      name: `Polygon (${actualSides})`,
+      geometry: {
+        xRatio: 0.5,
+        yRatio: 0.5,
+        widthRatio: 0.25,
+        heightRatio: 0.25,
+        rotationDeg: 0,
+      },
+      zIndex: maxZ(template.layers) + 1,
+      hidden: false,
+      locked: false,
+      shape: {
+        type: "vector",
+        lockAspectRatio: false,
+        vectorPath: { points: polygonPoints, closed: true },
+      },
+      upload: { fit: "cover", defaultCrop: { scale: 1, xRatio: 0, yRatio: 0 } },
+      sourcePolicy: "upload_only",
+    };
+    const newField: CustomizationFormField = {
+      id: fieldId,
+      layerId: id,
+      type: "image",
+      label: "Upload image",
+      helpText: "Your image will be clipped to the polygon shape.",
+      required: false,
+      order: template.formFields.length + 1,
+    } as any;
+
+    updateTemplate((current) => ({
+      ...current,
+      layers: [...current.layers, newLayer],
+      formFields: [...current.formFields, newField],
+    }));
+    setSelectedLayerId(id);
   }
 
   function startDrawMode() {

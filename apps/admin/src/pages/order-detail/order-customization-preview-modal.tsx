@@ -1,16 +1,19 @@
 import { useMemo, useState } from "react";
 import { zipSync } from "fflate";
+import { Download } from "lucide-react";
 import { Button, Container, FocusModal, Heading, Text } from "@medusajs/ui";
 import { ProductCustomizationPreview } from "@trophy/customization-react";
 import {
   buildDesignFromForm,
   DEFAULT_FONT_FAMILY_OPTIONS,
+  FONT_FILES,
   resolveFont,
   type DynamicFontFamily,
 } from "@trophy/customization";
 
 import { useBrandAssets } from "../../hooks/use-brand-assets";
 import type { AdminOrderDetail } from "../../lib/orders-client";
+import { exportRasterPreviewClientSide, rasterExportExtension, type RasterExportFormat } from "../../lib/raster-export";
 import { buildOrderItemCustomizationTemplate, fetchUploadBytes, fontVariantLabel, formatCanvasPosition, getUploadedImageEntries, textPathLabel, sanitizeFilenamePart } from "./order-customization-preview-utils";
 import type { OrderDetailItem } from "./order-detail-utils";
 
@@ -121,6 +124,42 @@ export function OrderCustomizationPreviewModal({
   const uploadedImages = getUploadedImageEntries(item);
   const [isDownloadingUploads, setIsDownloadingUploads] = useState(false);
   const [downloadError, setDownloadError] = useState("");
+  const [isExportingPreview, setIsExportingPreview] = useState(false);
+  const [exportError, setExportError] = useState("");
+  const orderDesign = useMemo(() => {
+    if (!template || !preview) return null;
+    return buildDesignFromForm({
+      template,
+      values: preview.values,
+      designId: `order_${order.id}_item_${item.id}_preview`,
+      dynamicFonts,
+    });
+  }, [dynamicFonts, item.id, order.id, preview, template]);
+
+  async function exportPreviewImage(format: RasterExportFormat) {
+    if (!template || !orderDesign) return;
+    setIsExportingPreview(true);
+    setExportError("");
+    try {
+      const backendUrl = import.meta.env.VITE_BACKEND_URL ?? "http://localhost:8787";
+      const blob = await exportRasterPreviewClientSide(template, orderDesign, {
+        format,
+        resolveFontUrl: (fontId) => FONT_FILES[fontId]
+          ? `${backendUrl}/fonts/${FONT_FILES[fontId]}`
+          : `${backendUrl}/api/storefront/brand-assets/fonts/file/${fontId}`,
+      });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `${sanitizeFilenamePart(order.orderNumber)}-item-${item.id}-preview.${rasterExportExtension(blob.type)}`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      setExportError(error instanceof Error ? error.message : "Failed to export preview image.");
+    } finally {
+      setIsExportingPreview(false);
+    }
+  }
 
   async function downloadUploadedImages() {
     setIsDownloadingUploads(true);
@@ -174,6 +213,23 @@ export function OrderCustomizationPreviewModal({
               Read-only preview of the frozen order customization snapshot.
             </FocusModal.Description>
             <div className="flex items-center gap-2">
+              <Button
+                variant="secondary"
+                size="small"
+                disabled={!template || !preview || isExportingPreview}
+                isLoading={isExportingPreview}
+                onClick={() => void exportPreviewImage("image/webp")}
+              >
+                <Download /> Export WebP
+              </Button>
+              <Button
+                variant="secondary"
+                size="small"
+                disabled={!template || !preview || isExportingPreview}
+                onClick={() => void exportPreviewImage("image/png")}
+              >
+                <Download /> Export PNG
+              </Button>
               {item.productionStatus === "pending_review" ? (
                 <Button
                   variant="primary"
@@ -211,6 +267,11 @@ export function OrderCustomizationPreviewModal({
               {item.variant?.title ?? "Unknown variant"}
             </Text>
           </div>
+          {exportError ? (
+            <Text size="small" className="text-ui-fg-error">
+              {exportError}
+            </Text>
+          ) : null}
 
           {template && preview ? (
             <div className="grid min-h-0 flex-1 gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">

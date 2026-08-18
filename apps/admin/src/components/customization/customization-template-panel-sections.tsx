@@ -4,14 +4,12 @@ export function BlocksPanel({
   onAddTextOnPath,
   onAddShape,
   onAddPolygon,
-  onDrawShape,
 }: {
   template: CustomizationTemplate;
   onAddText: () => void;
   onAddTextOnPath: () => void;
   onAddShape: (shape: ShapeType) => void;
   onAddPolygon: () => void;
-  onDrawShape: () => void;
 }) {
   const disabled = !template.background;
   return (
