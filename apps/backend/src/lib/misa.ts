@@ -667,6 +667,7 @@ function buildMisaOrderDescription(
   source: MisaOrderSource,
   hasDuplicateVatTaxCode = false,
   hasDuplicateContactEmail = false,
+  adminAppOrigin?: string,
 ) {
   const note = source.order.notes?.trim() || "Trophy checkout order";
   const vat = parseVatDetails(source.order.vatDetailsJson);
@@ -679,6 +680,7 @@ function buildMisaOrderDescription(
     Number.isInteger(source.order.id) && source.order.id > 0
       ? `MA THANH TOAN: PT-${source.order.id}`
       : null;
+  const adminOrderUrl = buildAdminOrderUrl(adminAppOrigin, source.order.id);
   const addressLines = [
     formatOrderAddress(billingAddress)
       ? `DIA CHI THANH TOAN\n${formatOrderAddress(billingAddress)}`
@@ -688,7 +690,12 @@ function buildMisaOrderDescription(
       : null,
   ].filter((value): value is string => Boolean(value));
   if (!vat || !Object.values(vat).some(Boolean)) {
-    return [paymentReference, ...addressLines, `GHI CHU KHACH\n${note}`]
+    return [
+      paymentReference,
+      adminOrderUrl ? `TROPHY ADMIN\n${adminOrderUrl}` : null,
+      ...addressLines,
+      `GHI CHU KHACH\n${note}`,
+    ]
       .filter(Boolean)
       .join("\n\n");
   }
@@ -716,6 +723,7 @@ function buildMisaOrderDescription(
     : null;
   return [
     paymentReference,
+    adminOrderUrl ? `TROPHY ADMIN\n${adminOrderUrl}` : null,
     ...addressLines,
     vatLines.join("\n"),
     duplicateVatTaxCodeNotice,
@@ -724,6 +732,24 @@ function buildMisaOrderDescription(
   ]
     .filter(Boolean)
     .join("\n\n");
+}
+
+function buildAdminOrderUrl(origin: string | undefined, orderId: unknown) {
+  if (
+    !origin ||
+    typeof orderId !== "number" ||
+    !Number.isInteger(orderId) ||
+    orderId <= 0
+  ) {
+    return null;
+  }
+  try {
+    const url = new URL(origin);
+    if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+    return new URL(`/orders/${orderId}`, url).toString();
+  } catch {
+    return null;
+  }
 }
 
 export function buildMisaCreateProductsPayload(source: {
@@ -822,6 +848,7 @@ export function buildMisaSaleOrderPayload(
   saleOrderNumber = source.order.orderNumber,
   hasDuplicateVatTaxCode = false,
   hasDuplicateContactEmail = false,
+  adminAppOrigin?: string,
 ): MisaSaleOrderPayload {
   const billingAddress = parseOrderAddress(source.order.primaryAddressJson);
   const differentShippingAddress = parseDifferentShippingAddress(
@@ -868,6 +895,7 @@ export function buildMisaSaleOrderPayload(
       source,
       hasDuplicateVatTaxCode,
       hasDuplicateContactEmail,
+      adminAppOrigin,
     ),
     form_layout: "Mẫu tiêu chuẩn",
     ...prefixMisaAddressFields(
@@ -1026,6 +1054,7 @@ async function createMisaSaleOrder(
     saleOrderNumber,
     hasDuplicateVatTaxCode,
     hasDuplicateContactEmail,
+    bindings.ADMIN_APP_ORIGIN,
   );
 
   const response = await misaFetch(bindings, "/SaleOrders", {
