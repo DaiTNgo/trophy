@@ -171,7 +171,7 @@ function EditorContent({ product, productId, mutate }: { product: CatalogProduct
           </div>
         </FocusModal.Header>
         <FocusModal.Body className="flex h-[calc(100vh-64px)] flex-col overflow-hidden bg-ui-bg-base">
-          <div className="grid min-h-0 flex-1 grid-cols-[56px_280px_minmax(0,1fr)_320px]">
+          <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)] grid-cols-[56px_280px_minmax(0,1fr)_320px]">
             <Rail activeTab={activeTab} onChange={setActiveTab} />
             <LeftPanel
               activeTab={activeTab}

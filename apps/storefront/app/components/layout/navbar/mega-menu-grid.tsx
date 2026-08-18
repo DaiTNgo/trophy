@@ -8,9 +8,10 @@ interface MegaMenuGridProps {
     imageUrl: string | null;
     href: string;
   }>;
+  onNavigate?: () => void;
 }
 
-export function MegaMenuGrid({ items }: MegaMenuGridProps) {
+export function MegaMenuGrid({ items, onNavigate }: MegaMenuGridProps) {
   if (items.length === 0) return null;
   return (
     <div className="grid grid-cols-2 gap-px bg-border-subtle p-px md:grid-cols-4 lg:grid-cols-5">
@@ -18,6 +19,7 @@ export function MegaMenuGrid({ items }: MegaMenuGridProps) {
         <Link
           key={i}
           to={item.href}
+          onClick={onNavigate}
           className="group flex flex-row items-center justify-start gap-4 bg-white px-8 py-6 transition-colors"
         >
           <div className="relative h-[50px] w-[50px] flex-shrink-0 overflow-hidden">

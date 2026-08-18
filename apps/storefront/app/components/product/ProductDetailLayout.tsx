@@ -7,6 +7,7 @@ import {
   ChevronUp,
 } from "lucide-react";
 import type { useProductDetailState } from "../../hooks/use-product-detail-state";
+import type { StorefrontProductItem } from "../../lib/api";
 import { backendFontUrl, backendStaticFontUrl } from "../../lib/api";
 import { getLocalized } from "../../lib/translation";
 import Container from "../container";
@@ -16,11 +17,14 @@ import { ProductCustomizationPurchase } from "./ProductCustomizationPurchase";
 import { ProductGallery, ProductGalleryThumbnails } from "./ProductGallery";
 import { ProductDetailSections, ProductInfo } from "./ProductInfo";
 import { ProductOptionGroups } from "./ProductOptionGroups";
+import { SuggestedProductsSection } from "./SuggestedProductsSection";
 
 export function ProductDetailLayout({
   state,
+  suggestedProducts = [],
 }: {
   state: ReturnType<typeof useProductDetailState>;
+  suggestedProducts?: StorefrontProductItem[];
 }) {
   const {
     activeCategory,
@@ -408,6 +412,7 @@ export function ProductDetailLayout({
           contactHref={selectedVariant?.priceAmount === null ? contactHref : undefined}
         />
           */}
+        <SuggestedProductsSection products={suggestedProducts} locale={locale} />
         <ProductDetailSections
           description={getLocalized(product.description, locale) || ""}
           specs={specs}

@@ -14,10 +14,12 @@ import enLayout from "./locales/en/layout.json";
 import viLayout from "./locales/vi/layout.json";
 import enOrderLookup from "./locales/en/order-lookup.json";
 import viOrderLookup from "./locales/vi/order-lookup.json";
+import enProducts from "./locales/en/products.json";
+import viProducts from "./locales/vi/products.json";
 
 const resources = {
-  en: { common: enCommon, about: enAbout, home: enHome, contact: enContact, layout: enLayout, orderLookup: enOrderLookup },
-  vi: { common: viCommon, about: viAbout, home: viHome, contact: viContact, layout: viLayout, orderLookup: viOrderLookup },
+  en: { common: enCommon, about: enAbout, home: enHome, contact: enContact, layout: enLayout, orderLookup: enOrderLookup, products: enProducts },
+  vi: { common: viCommon, about: viAbout, home: viHome, contact: viContact, layout: viLayout, orderLookup: viOrderLookup, products: viProducts },
 };
 
 export const localeCookie = createCookie("lng", {

@@ -35,7 +35,7 @@
   "footer_customer_support": "Customer Support",
   "footer_warranty": "Warranty Policy",
   "footer_order_guide": "Order Guide",
-  "footer_shipping_payment": "Shipping & Payment",
+  "footer_support_contact": "Contact Phùng Thị",
   "footer_order_lookup": "Order Lookup",
   "footer_workshops": "Workshops",
   "footer_region_north": "Northern Vietnam",
@@ -56,5 +56,9 @@
   "contact_fab_close": "Close",
   "contact_fab_open": "Contact",
 
-  "language_switcher_title": "Change Language"
+  "language_switcher_title": "Change Language",
+
+  "suggested_products_title": "You may also like",
+  "suggested_products_previous": "Previous suggested products",
+  "suggested_products_next": "Next suggested products"
 }
