@@ -1,8 +1,10 @@
+import { and, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { getDb } from "../../db/client";
 import { customizationAssets } from "../../db/schema";
 import {
   allowedMimeTypes,
+  assetParamsSchema,
   cleanOwnerKey,
   extensionForMimeType,
   MAX_ASSET_BYTES,
@@ -12,7 +14,7 @@ import { readImageDimensions } from "../../lib/image-dimensions";
 import { buildShopperDraftUploadKey } from "../../lib/r2-media-keys";
 import { shopperDraftExpiry } from "../../lib/order-media-transfer";
 import { toAbsoluteAssetUrl } from "../../lib/url";
-import { jsonError } from "../../lib/validation";
+import { jsonError, parseParams } from "../../lib/validation";
 
 export const customizationAssetsRoute = new Hono<AppEnv>()
   .post("/", async (c) => {
@@ -158,4 +160,50 @@ export const customizationAssetsRoute = new Hono<AppEnv>()
       },
       201,
     );
+  })
+  .delete("/:id", async (c) => {
+    const params = parseParams(c, assetParamsSchema);
+    if (!params.success) {
+      return params.response;
+    }
+
+    const ownerKey = cleanOwnerKey(c.req.header("x-upload-token") ?? "");
+    if (!ownerKey) {
+      return jsonError(c, 401, "X-Upload-Token is required");
+    }
+
+    const shopperDraftId = cleanOwnerKey(c.req.header("x-shopper-draft-id") ?? "");
+    const shopperFieldId = cleanOwnerKey(c.req.header("x-shopper-field-id") ?? "");
+    if (!shopperDraftId || !shopperFieldId) {
+      return jsonError(c, 400, "X-Shopper-Draft-Id and X-Shopper-Field-Id are required");
+    }
+
+    const db = getDb(c.env);
+    const asset = await db
+      .select()
+      .from(customizationAssets)
+      .where(
+        and(
+          eq(customizationAssets.id, params.output.id),
+          eq(customizationAssets.ownerKey, ownerKey),
+          eq(customizationAssets.ownershipType, "shopper_draft"),
+          eq(customizationAssets.shopperDraftId, shopperDraftId),
+          eq(customizationAssets.shopperFieldId, shopperFieldId),
+        ),
+      )
+      .get();
+
+    if (!asset) {
+      return jsonError(c, 404, "Customization asset not found");
+    }
+
+    await Promise.all([
+      c.env.CUSTOMIZATION_ASSETS.delete(asset.objectKey),
+      ...(asset.previewObjectKey
+        ? [c.env.CUSTOMIZATION_ASSETS.delete(asset.previewObjectKey)]
+        : []),
+    ]);
+    await db.delete(customizationAssets).where(eq(customizationAssets.id, asset.id));
+
+    return c.json({ ok: true }, 200);
   });

@@ -15,6 +15,7 @@ import {
   mergeCustomizationValues,
 } from "../lib/product-customization";
 import {
+  deleteStorefrontCustomizationAsset,
   uploadStorefrontCustomizationAsset,
   type StorefrontDetailResponse,
 } from "../lib/api";
@@ -559,6 +560,28 @@ export function useProductDetailState({
     }
   }
 
+  async function deleteCustomizationImage(field: CustomizationFormField, assetId: string) {
+    const isReferencedByCart = lines.some((line) =>
+      Object.values(line.customizationValues ?? {}).some(
+        (value) =>
+          value &&
+          typeof value === "object" &&
+          "assetId" in value &&
+          value.assetId === assetId,
+      ),
+    );
+    if (isReferencedByCart) {
+      return;
+    }
+
+    await deleteStorefrontCustomizationAsset(
+      assetId,
+      getUploadToken(),
+      getShopperDraftId(),
+      field.id,
+    );
+  }
+
   const shortDescription = useMemo(() => {
     const full = getLocalized(product.description, locale) || "";
     if (full.length <= 220) return full;
@@ -623,6 +646,7 @@ export function useProductDetailState({
     shortDescription,
     specs,
     uploadCustomizationImage,
+    deleteCustomizationImage,
     visibleOptions,
   };
 }

@@ -61,6 +61,30 @@ export async function uploadStorefrontCustomizationAsset(
   };
 }
 
+export async function deleteStorefrontCustomizationAsset(
+  assetId: string,
+  uploadToken: string,
+  shopperDraftId: string,
+  shopperFieldId: string,
+) {
+  const response = await fetchBackendWithLog(
+    "deleteStorefrontCustomizationAsset",
+    backendUrl(`/api/storefront/customizations/assets/${encodeURIComponent(assetId)}`),
+    {
+      method: "DELETE",
+      headers: {
+        "X-Upload-Token": uploadToken,
+        "X-Shopper-Draft-Id": shopperDraftId,
+        "X-Shopper-Field-Id": shopperFieldId,
+      },
+    },
+  );
+  const payload = (await response.json().catch(() => ({}))) as { error?: string };
+  if (!response.ok) {
+    throw new Error(payload.error ?? "Could not remove image.");
+  }
+}
+
 export type StorefrontProductItem = {
   id: number;
   title: LocalizedTextValue;

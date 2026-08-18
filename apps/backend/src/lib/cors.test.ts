@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { app } from '../app'
+import { CUSTOMIZATION_CORS_POLICY } from './cors'
 import '../index'
 
 describe('admin session CORS', () => {
@@ -19,6 +20,15 @@ describe('admin session CORS', () => {
 })
 
 describe('storefront CORS', () => {
+  it('declares every storefront customization upload header for the Vite dev server', () => {
+    expect(CUSTOMIZATION_CORS_POLICY.allowHeaders).toEqual(expect.arrayContaining([
+      'Content-Type',
+      'X-Upload-Token',
+      'X-Shopper-Draft-Id',
+      'X-Shopper-Field-Id',
+    ]))
+  })
+
   it('permits a customization upload preflight from any origin', async () => {
     const response = await app.request('/api/storefront/customizations/assets', {
       method: 'OPTIONS',

@@ -29,6 +29,7 @@ export function ProductDetailLayout({
     contactHref,
     customizationTemplate,
     customizationValues,
+    deleteCustomizationImage,
     dynamicFonts,
     displayPrice,
     galleryThumbnails,
@@ -277,6 +278,7 @@ export function ProductDetailLayout({
                       quantity={quantity}
                       onQuantityChange={setQuantity}
                       onMessageChange={setMessage}
+                      onDeleteImage={deleteCustomizationImage}
                       onUploadImage={uploadCustomizationImage}
                       onValueChange={(fieldId, value) => {
                         setCustomizationValues((current) => ({
@@ -331,6 +333,7 @@ export function ProductDetailLayout({
                     quantity={quantity}
                     onQuantityChange={setQuantity}
                     onMessageChange={setMessage}
+                    onDeleteImage={deleteCustomizationImage}
                     onUploadImage={uploadCustomizationImage}
                     onValueChange={(fieldId, value) => {
                       setCustomizationValues((current) => ({

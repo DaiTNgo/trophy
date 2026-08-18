@@ -28,7 +28,12 @@ export const SESSION_CORS_POLICY: CorsPolicy = {
 };
 
 export const CUSTOMIZATION_CORS_POLICY: CorsPolicy = {
-  allowHeaders: ["Content-Type", "X-Upload-Token"],
+  allowHeaders: [
+    "Content-Type",
+    "X-Upload-Token",
+    "X-Shopper-Draft-Id",
+    "X-Shopper-Field-Id",
+  ],
   allowMethods: ["GET", "POST", "OPTIONS"],
   exposeHeaders: ["Content-Length", "ETag"],
 };
