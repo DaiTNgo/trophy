@@ -1,0 +1,1 @@
+ALTER TABLE `orders` DROP COLUMN `misa_contact_id`;
