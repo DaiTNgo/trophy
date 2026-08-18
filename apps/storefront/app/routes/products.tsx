@@ -3,6 +3,7 @@ import { ProductListingShell } from "@/components/products/ProductListingShell";
 import { fetchStorefrontCategories, fetchStorefrontProducts } from "../lib/api";
 import { getLocale } from "../i18n.server";
 import { withStorefrontLoaderLog } from "../lib/observability";
+import { getBackendServiceFetch } from "../lib/backend-fetch.server";
 import { getCategoryPath } from "../lib/storefront-paths";
 import { getLocalized } from "../lib/translation";
 import type { Route } from "./+types/products";
@@ -10,6 +11,7 @@ import type { Route } from "./+types/products";
 export async function loader({ request, context }: Route.LoaderArgs) {
   return withStorefrontLoaderLog("products", request, async () => {
     const locale = getLocale(context);
+    const backendFetch = getBackendServiceFetch(context);
     const url = new URL(request.url);
     const activeCategory = url.searchParams.get("category") || "";
     const currentPage = Number(url.searchParams.get("page")) || 1;
@@ -22,7 +24,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       throw redirect(`${redirectUrl.pathname}${redirectUrl.search}`);
     }
 
-    const apiCategories = await fetchStorefrontCategories(locale).catch(
+    const apiCategories = await fetchStorefrontCategories(locale, backendFetch).catch(
       () => [],
     );
 
@@ -31,7 +33,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       page: currentPage,
       limit: 24,
       locale,
-    });
+    }, backendFetch);
 
     const allCategories = [
       { name: locale === "en" ? "All" : "Tất cả", handle: "" },

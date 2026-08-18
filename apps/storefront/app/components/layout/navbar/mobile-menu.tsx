@@ -196,14 +196,14 @@ export function NavbarMobileMenu({
                 {t("mobile_menu_about")}
               </Link>
             </DrawerClose>
-            <DrawerClose asChild>
+            {/*<DrawerClose asChild>
               <Link
                 to="/order-lookup"
                 className="text-[18px] font-medium uppercase tracking-wide text-brand-strong"
               >
                 {t("mobile_menu_order_lookup")}
               </Link>
-            </DrawerClose>
+            </DrawerClose>*/}
           </div>
 
           <div className="flex items-center justify-between border-t border-gray-100 pt-2">

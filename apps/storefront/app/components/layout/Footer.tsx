@@ -44,11 +44,11 @@ export function Footer() {
                     {t("footer_support_contact")}
                   </Link>
                 </li>
-                <li>
+                {/*<li>
                   <Link className="transition-colors hover:text-brand-accent" to="/order-lookup">
                     {t("footer_order_lookup")}
                   </Link>
-                </li>
+                </li>*/}
               </ul>
             </div>
 

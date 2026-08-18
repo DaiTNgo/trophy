@@ -3,12 +3,14 @@ import { ProductListingShell } from "../components/products/ProductListingShell"
 import { fetchStorefrontCollectionProducts, fetchStorefrontCollections } from "../lib/api";
 import { getLocale } from "../i18n.server";
 import { withStorefrontLoaderLog } from "../lib/observability";
+import { getBackendServiceFetch } from "../lib/backend-fetch.server";
 import { getLocalized } from "../lib/translation";
 import type { Route } from "./+types/collections.$handle";
 
 export async function loader({ params, request, context }: Route.LoaderArgs) {
   return withStorefrontLoaderLog("collection", request, async () => {
     const locale = getLocale(context);
+    const backendFetch = getBackendServiceFetch(context);
     const url = new URL(request.url);
     const currentPage = Number(url.searchParams.get("page")) || 1;
 
@@ -17,8 +19,8 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
         page: currentPage,
         limit: 24,
         locale,
-      }),
-      fetchStorefrontCollections(locale).catch(() => []),
+      }, backendFetch),
+      fetchStorefrontCollections(locale, backendFetch).catch(() => []),
     ]);
     const collection = collections.find((item) => item.handle === params.handle) ?? null;
 

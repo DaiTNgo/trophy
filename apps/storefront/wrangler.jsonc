@@ -18,6 +18,12 @@
 	"compatibility_flags": [
 		"nodejs_compat",
 		"global_fetch_strictly_public"
+	],
+	"services": [
+		{
+			"binding": "BACKEND",
+			"service": "backend"
+		}
 	]
 	/**
 	 * Smart Placement
