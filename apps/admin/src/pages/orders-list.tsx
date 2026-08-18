@@ -1,8 +1,8 @@
-import { useDeferredValue, useEffect, useMemo, useState } from "react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router";
 import { Button, Container, DropdownMenu, Heading, IconButton, Input, Table, Text, StatusBadge, toast } from "@medusajs/ui";
 import { Adjustments, EllipseMiniSolid } from "@medusajs/icons";
-import { ArrowUpDown, Check, X } from "lucide-react";
+import { ArrowUpDown, Check, RefreshCw, X } from "lucide-react";
 import {
   fetchAdminOrders,
   formatAdminCurrency,
@@ -113,33 +113,59 @@ export function OrdersListPage() {
   const [pageIndex, setPageIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const mountedRef = useRef(false);
+  const loadingRef = useRef(false);
   const deferredQuery = useDeferredValue(query);
 
   useEffect(() => {
-    let cancelled = false;
-
-    fetchAdminOrders()
-      .then((items) => {
-        if (!cancelled) {
-          setOrders(items);
-          setError("");
-        }
-      })
-      .catch((err) => {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Failed to load orders");
-        }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      });
-
+    mountedRef.current = true;
     return () => {
-      cancelled = true;
+      mountedRef.current = false;
     };
   }, []);
+
+  const loadOrders = useCallback(async () => {
+    if (loadingRef.current) {
+      return;
+    }
+
+    loadingRef.current = true;
+    if (mountedRef.current) {
+      setLoading(true);
+    }
+
+    try {
+      const items = await fetchAdminOrders();
+      if (mountedRef.current) {
+        setOrders(items);
+        setError("");
+      }
+    } catch (err) {
+      if (mountedRef.current) {
+        setError(err instanceof Error ? err.message : "Failed to load orders");
+      }
+    } finally {
+      loadingRef.current = false;
+      if (mountedRef.current) {
+        setLoading(false);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadOrders();
+  }, [loadOrders]);
+
+  useEffect(() => {
+    const refreshVisibleOrders = () => {
+      if (document.visibilityState === "visible") {
+        void loadOrders();
+      }
+    };
+
+    document.addEventListener("visibilitychange", refreshVisibleOrders);
+    return () => document.removeEventListener("visibilitychange", refreshVisibleOrders);
+  }, [loadOrders]);
 
   const statusOptions = useMemo(
     () => Array.from(new Set(orders.map((order) => order.status))),
@@ -245,9 +271,21 @@ export function OrdersListPage() {
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-ui-border-base">
           <Heading level="h2">Orders</Heading>
-          <Button variant="secondary" size="small" onClick={handleExport}>
-            Export
-          </Button>
+          <div className="flex items-center gap-2">
+            <IconButton
+              variant="transparent"
+              size="small"
+              onClick={() => void loadOrders()}
+              disabled={loading}
+              aria-label="Refresh orders"
+              title="Refresh orders"
+            >
+              <RefreshCw className={loading ? "h-4 w-4 animate-spin text-ui-fg-muted" : "h-4 w-4 text-ui-fg-muted"} />
+            </IconButton>
+            <Button variant="secondary" size="small" onClick={handleExport}>
+              Export
+            </Button>
+          </div>
         </div>
 
         {/* Filters */}
@@ -459,7 +497,7 @@ export function OrdersListPage() {
 
         {/* Table */}
         <div>
-          {loading ? (
+          {loading && orders.length === 0 ? (
             <div className="flex items-center justify-center py-8">
               <Text size="small" className="text-ui-fg-muted">Loading orders…</Text>
             </div>

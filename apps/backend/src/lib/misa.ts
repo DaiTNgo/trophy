@@ -958,6 +958,12 @@ async function createMisaCustomerWithAvailableAccountNumber(
       customer.account_number,
       suffix,
     );
+    const existing = await findMisaCustomersByCodes(bindings, [accountNumber]);
+    if (
+      existing.some((item) => item.account_number === accountNumber)
+    ) {
+      return { customerCode: accountNumber };
+    }
     try {
       await misaFetch(bindings, "/Customers", {
         method: "POST",

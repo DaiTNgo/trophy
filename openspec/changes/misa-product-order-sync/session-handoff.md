@@ -2,6 +2,8 @@
 
 ## Current state
 
+Normal MISA Customer synchronization must always query `GET /Customers/code?code=<account_number>` before calling `POST /Customers`. Reuse only an exact returned `account_number`; if missing, create it. Apply the same rule to every deterministic suffix (`KH-...-1` through `-99`) before its own POST. This also applies to deleted-Customer recovery after a failed SaleOrder. Regression coverage is in `apps/backend/src/lib/misa.test.ts`; full `./init.sh` passes with 244 backend tests.
+
 Every newly created MISA SaleOrder now includes a direct Trophy Admin order URL in `description`: `TROPHY ADMIN` followed by `<ADMIN_APP_ORIGIN>/orders/<local order id>`. The URL is generated only for a valid configured HTTP(S) `ADMIN_APP_ORIGIN` and normalizes trailing slashes. The mapping and regression test live in `apps/backend/src/lib/misa.ts` and `apps/backend/src/lib/misa.test.ts`; full `./init.sh` passes with 244 backend tests.
 
 The current checkout UML is in `docs/misa/checkout-field-mapping.md` under **UML luồng checkout theo checkbox VAT**. It is deliberately one decision flow: no VAT creates only a personal Customer and SaleOrder; VAT requires four invoice inputs, pre-validates the VAT Customer, then creates a Contact for the basic checkout person only when pre-validation returns a Customer code. A duplicate VAT tax code creates an unlinked SaleOrder without Customer/Contact fields and adds an admin action notice to its MISA `description`; MISA failure after a local order never removes that order.

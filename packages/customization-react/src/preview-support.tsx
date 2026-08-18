@@ -18,7 +18,7 @@ export function CustomizationWatermark() {
       aria-hidden="true"
       data-preview-watermark="phùng thị"
       className="pointer-events-none absolute inset-0 z-10 overflow-hidden select-none"
-      style={{ opacity: 0.16, mixBlendMode: "difference" }}
+      style={{ opacity: 0.06, mixBlendMode: "difference" }}
     >
       <div
         className="absolute inset-[-35%] grid grid-cols-6 content-center gap-x-16 gap-y-16"
