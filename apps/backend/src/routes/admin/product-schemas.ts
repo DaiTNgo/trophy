@@ -45,7 +45,6 @@ export const updateProductSchema = v.object({ title: v.optional(localizedString(
 export const organizeSchema = v.object({ collectionId: optionalId, categoryIds: v.optional(v.array(v.pipe(v.number(), v.integer(), v.minValue(1)))) })
 export const attributesSchema = v.object({ items: v.array(v.object({ name: localizedString(1, 120), value: localizedString(1, 255), unit: nullableText(50) })) })
 const variantAttributesSchema = v.array(v.object({ name: localizedString(1, 120), value: localizedString(1, 255), unit: nullableText(50) }))
-export const mediaSchema = v.object({ items: v.array(v.object({ url: trimmedString(1, 2000), alt: nullableText(255) })) })
 
 const uniqueLocalizedValues = <T extends { value: { vi: string } }>(values: T[]) => new Set(values.map((value) => value.value.vi.toLowerCase())).size === values.length
 export const optionsSchema = v.object({
@@ -63,21 +62,20 @@ export const optionValueCreateSchema = v.object({ value: localizedString(1, 120)
 export const optionValueUpdateSchema = v.object({ value: localizedString(1, 120) })
 
 const assetIdSchema = v.pipe(v.string(), v.uuid())
+// Multipart field names are client-local correlation tokens, not persisted asset IDs.
+const mediaIdSchema = v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(120), v.regex(/^[A-Za-z0-9_-]+$/))
 const localizedVariantTitleSchema = v.union([trimmedString(1, 200), localizedString(1, 200)])
-export const variantsSchema = v.object({
-  items: v.array(v.object({
-    id: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1))), title: localizedVariantTitleSchema, sku: nullableText(120),
-    priceAmount: v.optional(v.nullable(v.pipe(v.number(), v.integer(), v.minValue(0)))), inventoryQuantity: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0))), allowBackorder: v.optional(v.boolean()), isDefault: v.optional(v.boolean()), optionValueIds: v.optional(v.array(v.pipe(v.number(), v.integer(), v.minValue(1)))), attributes: v.optional(variantAttributesSchema), media: v.optional(v.array(v.object({ assetId: assetIdSchema }))), customizationMedia: v.optional(v.nullable(v.object({ assetId: assetIdSchema })))
-  }))
-})
 export const variantDetailSchema = v.object({ title: localizedVariantTitleSchema, sku: nullableText(120), allowBackorder: v.optional(v.boolean()), optionValueIds: v.optional(v.array(v.pipe(v.number(), v.integer(), v.minValue(1)))), attributes: v.optional(variantAttributesSchema) })
-export const variantCreateSchema = v.object({ title: localizedVariantTitleSchema, sku: nullableText(120), priceAmount: v.optional(v.nullable(v.pipe(v.number(), v.integer(), v.minValue(0)))), inventoryQuantity: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0))), allowBackorder: v.optional(v.boolean()), optionValueIds: v.optional(v.array(v.pipe(v.number(), v.integer(), v.minValue(1)))), attributes: v.optional(variantAttributesSchema), customizationMedia: v.optional(v.nullable(v.object({ assetId: assetIdSchema }))), media: v.optional(v.array(v.object({ assetId: assetIdSchema }))) })
+export const atomicVariantCreateSchema = v.object({ title: localizedVariantTitleSchema, sku: nullableText(120), priceAmount: v.optional(v.nullable(v.pipe(v.number(), v.integer(), v.minValue(0)))), inventoryQuantity: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0))), allowBackorder: v.optional(v.boolean()), optionValueIds: v.optional(v.array(v.pipe(v.number(), v.integer(), v.minValue(1)))), attributes: v.optional(variantAttributesSchema), galleryMedia: v.array(v.object({ mediaId: mediaIdSchema })), customizationMedia: v.optional(v.nullable(v.object({ mediaId: mediaIdSchema, widthPx: v.pipe(v.number(), v.integer(), v.minValue(1)), heightPx: v.pipe(v.number(), v.integer(), v.minValue(1)) }))) })
 export const priceUpdateSchema = v.object({ items: v.pipe(v.array(v.object({ id: v.pipe(v.number(), v.integer(), v.minValue(1)), priceAmount: v.nullable(v.pipe(v.number(), v.integer(), v.minValue(0))) })), v.minLength(1)) })
 export const stockUpdateSchema = v.object({ items: v.pipe(v.array(v.object({ id: v.pipe(v.number(), v.integer(), v.minValue(1)), inventoryQuantity: v.pipe(v.number(), v.integer(), v.minValue(0)) })), v.minLength(1)) })
 export const variantMediaSchema = v.object({ items: v.array(v.object({ assetId: assetIdSchema })) })
 export const variantCustomizationMediaSchema = v.object({ assetId: assetIdSchema })
+export const productThumbnailSchema = v.object({ assetId: v.optional(v.nullable(assetIdSchema)) })
 
 export const fullCreateCustomizationSchema = v.object({ enabled: v.boolean(), canvasWidthPx: v.optional(v.nullable(v.pipe(v.number(), v.integer(), v.minValue(1)))), canvasHeightPx: v.optional(v.nullable(v.pipe(v.number(), v.integer(), v.minValue(1)))), layers: v.pipe(v.array(v.unknown()), v.maxLength(200)), formFields: v.pipe(v.array(v.unknown()), v.maxLength(200)) })
+export const customizationTemplateSchema = v.object({ layers: v.pipe(v.array(v.unknown()), v.maxLength(200)), formFields: v.pipe(v.array(v.unknown()), v.maxLength(200)) })
+export const customizationRepairSchema = v.object({ variantIds: v.array(v.pipe(v.number(), v.integer(), v.minValue(1))) })
 const fullCreateOrganizationSchema = v.object({ collectionId: optionalId, categoryIds: v.optional(v.array(v.pipe(v.number(), v.integer(), v.minValue(1)))) })
 export const fullCreateProductSchema = v.object({
   mode: v.union([v.literal('draft'), v.literal('publish')]),
@@ -85,6 +83,6 @@ export const fullCreateProductSchema = v.object({
   organization: fullCreateOrganizationSchema,
   attributes: v.array(v.object({ name: localizedString(1, 120), value: localizedString(1, 255), unit: nullableText(50) })),
   options: v.array(v.object({ title: localizedString(1, 120), values: v.pipe(v.array(v.object({ value: localizedString(1, 120) })), v.check((values) => new Set(values.map((value) => (typeof value.value === 'string' ? value.value : value.value.vi).toLowerCase())).size === values.length, 'Option values must be unique within the same option')) })),
-  variants: v.array(v.object({ title: localizedVariantTitleSchema, sku: nullableText(120), priceAmount: v.optional(v.nullable(v.pipe(v.number(), v.integer(), v.minValue(0)))), inventoryQuantity: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0))), allowBackorder: v.optional(v.boolean()), isDefault: v.optional(v.boolean()), attributes: v.optional(variantAttributesSchema), optionValues: v.optional(v.array(v.object({ optionTitle: trimmedString(1, 120), value: trimmedString(1, 120) }))), media: v.array(v.object({ assetId: assetIdSchema })), customizationMedia: v.optional(v.nullable(v.object({ assetId: assetIdSchema }))) })),
+  variants: v.array(v.object({ title: localizedVariantTitleSchema, sku: nullableText(120), priceAmount: v.optional(v.nullable(v.pipe(v.number(), v.integer(), v.minValue(0)))), inventoryQuantity: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0))), allowBackorder: v.optional(v.boolean()), isDefault: v.optional(v.boolean()), attributes: v.optional(variantAttributesSchema), optionValues: v.optional(v.array(v.object({ optionTitle: trimmedString(1, 120), value: trimmedString(1, 120) }))), media: v.array(v.object({ mediaId: mediaIdSchema })), customizationMedia: v.optional(v.nullable(v.object({ mediaId: mediaIdSchema }))) })),
   customization: v.optional(v.nullable(fullCreateCustomizationSchema))
 })

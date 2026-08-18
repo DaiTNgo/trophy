@@ -19,11 +19,15 @@ import {
   getProductionSummary,
   renderAddress,
 } from "./order-detail-utils";
+import { useAuth } from "../../hooks/use-auth";
+import { isSuperAdmin } from "../../lib/auth-utils";
 
 const misaStatus = {
   synced: { label: "Synced", color: "green" as const },
   pending: { label: "Pending", color: "grey" as const },
   failed: { label: "Failed", color: "red" as const },
+  disconnected: { label: "Disconnected", color: "orange" as const },
+  missing: { label: "Missing", color: "red" as const },
 };
 
 function DisabledActionHint() {
@@ -36,9 +40,14 @@ function DisabledActionHint() {
 
 export function OrderDetailSidebar({
   order,
+  updatingAction,
+  onMisaAction,
 }: {
   order: AdminOrderDetail;
+  updatingAction: string | null;
+  onMisaAction: (action: "connect" | "refresh" | "disconnect") => Promise<void>;
 }) {
+  const { user } = useAuth();
   const hasProductionReviewItems = order.items.some(
     (item) => item.customization?.values.length,
   );
@@ -167,7 +176,6 @@ export function OrderDetailSidebar({
                 </Text>
                 <div className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
                   {[
-                    ["Invoice type", order.vat.type],
                     ["Name", order.vat.name],
                     ["Tax ID", order.vat.taxId],
                     ["Email", order.vat.email],
@@ -244,9 +252,9 @@ export function OrderDetailSidebar({
           <Text size="small" className="break-all text-right text-ui-fg-base">
             {order.misa.saleOrderId ?? "Not returned"}
           </Text>
-          <Text size="small" className="text-ui-fg-subtle">Contact ID</Text>
+          <Text size="small" className="text-ui-fg-subtle">Sale order number</Text>
           <Text size="small" className="break-all text-right text-ui-fg-base">
-            {order.misa.contactId ?? "Not returned"}
+            {order.misa.saleOrderNo ?? "Not connected"}
           </Text>
           <Text size="small" className="text-ui-fg-subtle">Attempts</Text>
           <Text size="small" className="text-right text-ui-fg-base">{order.misa.attemptCount}</Text>
@@ -263,6 +271,41 @@ export function OrderDetailSidebar({
             </>
           ) : null}
         </div>
+        {isSuperAdmin(user?.role) ? (
+          <div className="flex flex-wrap gap-2 border-t border-ui-border-base px-6 py-4">
+            {order.misa.syncStatus === "disconnected" ? (
+              <Button
+                size="small"
+                isLoading={updatingAction === "misa-connect"}
+                disabled={Boolean(updatingAction)}
+                onClick={() => void onMisaAction("connect")}
+              >
+                Connect MISA
+              </Button>
+            ) : (
+              <>
+                <Button
+                  size="small"
+                  variant="secondary"
+                  isLoading={updatingAction === "misa-refresh"}
+                  disabled={Boolean(updatingAction)}
+                  onClick={() => void onMisaAction("refresh")}
+                >
+                  {order.misa.syncStatus === "failed" ? "Retry MISA sync" : "Refresh MISA link"}
+                </Button>
+                <Button
+                  size="small"
+                  variant="secondary"
+                  isLoading={updatingAction === "misa-disconnect"}
+                  disabled={Boolean(updatingAction)}
+                  onClick={() => void onMisaAction("disconnect")}
+                >
+                  Disconnect MISA
+                </Button>
+              </>
+            )}
+          </div>
+        ) : null}
       </Container>
 
       {/* Activity */}

@@ -15,19 +15,25 @@ export const LOCAL_APP_ORIGINS = [
 export type CorsPolicy = {
   allowHeaders: string[];
   allowMethods: string[];
+  allowAnyOrigin?: boolean;
   credentials?: boolean;
   exposeHeaders?: string[];
 };
 
 export const SESSION_CORS_POLICY: CorsPolicy = {
-  allowHeaders: ["Content-Type", "Authorization"],
+  allowHeaders: ["Content-Type", "Authorization", "If-Match"],
   allowMethods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
   credentials: true,
   exposeHeaders: ["Content-Length"],
 };
 
 export const CUSTOMIZATION_CORS_POLICY: CorsPolicy = {
-  allowHeaders: ["Content-Type", "X-Upload-Token"],
+  allowHeaders: [
+    "Content-Type",
+    "X-Upload-Token",
+    "X-Shopper-Draft-Id",
+    "X-Shopper-Field-Id",
+  ],
   allowMethods: ["GET", "POST", "OPTIONS"],
   exposeHeaders: ["Content-Length", "ETag"],
 };
@@ -46,9 +52,17 @@ export const PRODUCT_ASSET_CORS_POLICY: CorsPolicy = {
   exposeHeaders: ["Content-Length", "ETag"],
 };
 
+export const PUBLIC_ASSET_CORS_POLICY: CorsPolicy = {
+  allowHeaders: [],
+  allowMethods: [],
+  allowAnyOrigin: true,
+  exposeHeaders: ["Content-Length", "ETag"],
+};
+
 export const STOREFRONT_CORS_POLICY: CorsPolicy = {
-  allowHeaders: ["Content-Type"],
-  allowMethods: ["GET", "OPTIONS"],
+  allowHeaders: [],
+  allowMethods: [],
+  allowAnyOrigin: true,
   credentials: false,
   exposeHeaders: ["Content-Length"],
 };
@@ -89,12 +103,28 @@ function buildCorsHeaders(
   requestOrigin: string | undefined,
   allowedOrigins: string[],
   policy: CorsPolicy,
+  requestedMethod: string | undefined,
+  requestedHeaders: string | undefined,
 ) {
   const headers = new Headers();
-  headers.set("Access-Control-Allow-Origin", resolveCorsOrigin(requestOrigin, allowedOrigins));
-  headers.set("Vary", "Origin, Access-Control-Request-Headers");
-  headers.set("Access-Control-Allow-Methods", policy.allowMethods.join(", "));
-  headers.set("Access-Control-Allow-Headers", policy.allowHeaders.join(", "));
+  headers.set(
+    "Access-Control-Allow-Origin",
+    policy.allowAnyOrigin ? "*" : resolveCorsOrigin(requestOrigin, allowedOrigins),
+  );
+  headers.set(
+    "Access-Control-Allow-Methods",
+    policy.allowAnyOrigin ? (requestedMethod ?? "*") : policy.allowMethods.join(", "),
+  );
+  headers.set(
+    "Access-Control-Allow-Headers",
+    policy.allowAnyOrigin ? (requestedHeaders ?? "*") : policy.allowHeaders.join(", "),
+  );
+  headers.set(
+    "Vary",
+    policy.allowAnyOrigin
+      ? "Access-Control-Request-Method, Access-Control-Request-Headers"
+      : "Origin, Access-Control-Request-Headers",
+  );
 
   if (policy.credentials) {
     headers.set("Access-Control-Allow-Credentials", "true");
@@ -114,11 +144,17 @@ export function createCorsMiddleware(policy: CorsPolicy) {
     }
 
     const allowedOrigins = getAppCorsOrigins(c.env);
-    if (!allowedOrigins.includes(requestOrigin)) {
+    if (!policy.allowAnyOrigin && !allowedOrigins.includes(requestOrigin)) {
       return c.body(null, 403);
     }
 
-    const headers = buildCorsHeaders(requestOrigin, allowedOrigins, policy);
+    const headers = buildCorsHeaders(
+      requestOrigin,
+      allowedOrigins,
+      policy,
+      c.req.header("Access-Control-Request-Method"),
+      c.req.header("Access-Control-Request-Headers"),
+    );
 
     if (c.req.method === "OPTIONS") {
       return new Response(null, { status: 204, headers });

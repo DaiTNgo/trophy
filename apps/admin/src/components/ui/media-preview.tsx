@@ -3,7 +3,6 @@ import * as pdfjsLib from "pdfjs-dist";
 import { backendFetch } from "../../lib/fetch";
 import pdfjsWorkerUrl from "pdfjs-dist/build/pdf.worker?url";
 import { Package, FileText } from "lucide-react";
-import { shouldLoadMediaViaBlob } from "../../lib/admin-media";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl;
 
@@ -26,7 +25,7 @@ export type MediaPreviewProps = {
    *
    * Chỉ dùng khi `file` không được truyền vào.
    * Component tự xử lý các trường hợp đặc biệt:
-   * - WebP → fetch qua `backendFetch` rồi tạo blob URL (tránh CORS khi cần credentials)
+   * - Image → dùng URL trực tiếp
    * - PDF → render trang đầu thành ảnh qua pdfjs
    * - SVG / PNG / JPEG → dùng URL trực tiếp
    */
@@ -37,7 +36,7 @@ export type MediaPreviewProps = {
    *
    * Dùng để phân biệt cách xử lý khi `src` được truyền vào:
    * - `"application/pdf"` → kích hoạt PDF renderer
-   * - `"image/webp"` → kích hoạt fetch-as-blob để tránh vấn đề CORS/credentials
+   * - Image → hiển thị trực tiếp bằng `<img>`
    * - Các loại còn lại → render trực tiếp bằng `<img>`
    *
    * Có thể bỏ qua nếu bạn chắc chắn asset không phải PDF hay WebP.
@@ -183,32 +182,7 @@ function UrlPreview({
       return () => { isCancelled = true; };
     }
 
-    // Remote URL that needs a credentialed fetch (e.g. WebP from backend).
-    if (shouldLoadMediaViaBlob(src, mimeType)) {
-      let isCancelled = false;
-      let objectUrl: string | null = null;
-
-      const load = async () => {
-        try {
-          const res = await backendFetch(src);
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          const blob = await res.blob();
-          if (isCancelled) return;
-          objectUrl = URL.createObjectURL(blob);
-          setDataUrl(objectUrl);
-        } catch {
-          if (!isCancelled) setError(true);
-        }
-      };
-
-      load();
-      return () => {
-        isCancelled = true;
-        if (objectUrl) URL.revokeObjectURL(objectUrl);
-      };
-    }
-
-    // Plain remote URL (SVG, PNG, JPEG — no CORS issue).
+    // Images are public capability URLs. Let the browser load them directly.
     setDataUrl(src);
     setIsLoadingPdf(false);
   }, [src, mimeType]);

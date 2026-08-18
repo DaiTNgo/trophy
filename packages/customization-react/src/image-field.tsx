@@ -16,6 +16,7 @@ export function ImageField({
   resolveAssetUrl,
   onChange,
   onUpload,
+  onRemove,
 }: {
   layer: ImageShapeEditorLayer | null;
   value: CustomizationFieldValue | undefined;
@@ -23,6 +24,7 @@ export function ImageField({
   resolveAssetUrl?: ResolveCustomizationAssetUrl;
   onChange: (value: ImageShapeFieldValue | ClipartFieldValue | null) => void;
   onUpload: (file: File) => void;
+  onRemove?: () => void;
 }) {
   const sourcePolicy = layer?.sourcePolicy ?? "upload_only";
   const clipartCategoryMode = layer
@@ -141,8 +143,9 @@ export function ImageField({
             <button
               type="button"
               aria-label="Remove image"
-              onClick={() => onChange(null)}
-              className="flex h-8 items-center gap-1.5 rounded border border-outline bg-white px-3 text-xs font-semibold text-destructive transition hover:border-destructive"
+              disabled={uploading}
+              onClick={onRemove ?? (() => onChange(null))}
+              className="flex h-8 items-center gap-1.5 rounded border border-outline bg-white px-3 text-xs font-semibold text-destructive transition hover:border-destructive disabled:cursor-not-allowed disabled:opacity-50"
             >
               <X className="size-3" />
               Remove
@@ -310,4 +313,3 @@ export function ImageField({
     </div>
   );
 }
-

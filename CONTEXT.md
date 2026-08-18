@@ -40,6 +40,22 @@ _Avoid_: product-only inquiry, inquiry for missing variant
 The operator-facing product list used for catalog management. It may include draft, published, and archived products with fields needed for administration rather than shopper browsing.
 _Avoid_: storefront catalog, public product list
 
+**Product Trash**:
+The admin-only collection of products removed from the active Admin Product Catalog by a soft delete. A product in Product Trash is unavailable to shoppers and remains recoverable until it is permanently deleted.
+_Avoid_: archive, deleted product list, inactive catalog
+
+**Product Restoration**:
+The operator action that removes a Product from Product Trash and returns it to the Admin Product Catalog as a draft. Restoration never republishes a product automatically.
+_Avoid_: undelete to published, reactivate product
+
+**Permanent Product Deletion**:
+The irreversible removal of a Product from Product Trash, including its remaining catalog data. It is independent of Order Item Snapshots, which retain the historical purchase record without reading the removed catalog product or variant.
+_Avoid_: order-blocked product deletion, catalog archive
+
+**Product Trash MISA Retention**:
+The rule that soft-deleting a Product retains its MISA Product Records. MISA cleanup occurs only when an operator permanently deletes the Product from Product Trash.
+_Avoid_: soft-delete MISA cleanup, restore-time MISA sync
+
 **Admin Product Detail**:
 The operator-facing product management page for one product, backed by the admin route surface as the source of truth after creation.
 _Avoid_: local product detail, mock product editor
@@ -141,12 +157,21 @@ When a product title or variant title changes, Trophy updates the existing MISA 
 _Avoid_: delete-and-recreate MISA product, SKU-based MISA update
 
 **Variant MISA Deletion**:
-Deleting a Product Variant with a synchronized MISA Product Record is permitted only when no historical Order Item references that variant. Trophy checks that condition locally, then deletes the MISA Product Record; it deletes the local Product Variant only after MISA succeeds.
+The local removal of a Product Variant or permanent removal of a Product is the authoritative catalog outcome. If it owns synchronized MISA Product Records, Trophy commits the local deletion and a durable MISA Deletion Job together; remote deletion is retried asynchronously and does not reverse or block the catalog outcome.
+_Avoid_: synchronous MISA-gated deletion, rollback catalog deletion for MISA
+
+**MISA Deletion Job**:
+Durable work to remove one MISA Product Record after its owning Trophy catalog record has been permanently removed. A job records retry state and the most recent error. It is distinct from MISA Synchronization State, which applies only to an extant Product Variant.
+_Avoid_: pending variant sync, remote-delete request
 _Avoid_: post-delete order check, local-first MISA deletion
 
 **Variant Management Action**:
 An explicit operator action that changes one part of variant-related data, such as option values, variant details, prices, stock, or media, without replacing unrelated variant state.
 _Avoid_: full variant replace, regenerate variants
+
+**Variant Media Management**:
+The independent operator workflow for a persisted Product Variant's Gallery Media and Customization Background. Upload immediately creates and attaches an asset; removal immediately detaches and deletes its asset. It is separate from saving Variant Details, and closing or cancelling Variant Details does not roll back completed media actions.
+_Avoid_: pending variant media, media saved with variant details, variant-media rollback on cancel
 
 **Shop by Product**:
 A flat storefront browsing group based on the physical product kind shoppers want to buy, such as trophies, medals, plaques, or cups. It is modeled with product categories and is not a nested category tree.
@@ -217,16 +242,36 @@ A product variant that can support shopper-facing customization because it has e
 _Avoid_: valid variant, completed variant
 
 **Background Size Contract**:
-The rule that all Customization Backgrounds for a customizable product must have identical pixel width and height, allowing one customization template to render consistently across every variant background.
+The rule that all Customization Backgrounds for a customizable product declare identical canvas width and height, allowing one customization template to render consistently across every variant background. The admin client supplies and validates this canvas metadata before save; the backend only verifies that submitted and saved declarations agree.
 _Avoid_: same-size warning, image dimension hint
 
+**Declared Background Dimensions**:
+The width and height metadata supplied by the admin client for a Customization Background. It is the canvas-size source of truth, including for PDF backgrounds; it is not media dimensions inferred or decoded by the backend.
+_Avoid_: backend-derived canvas size, fixed PDF canvas size
+
+**Customization Operation Lease**:
+A short-lived, server-held reservation for a Product while activation, repair, or reactivation is in progress. It prevents conflicting Variant changes until the lifecycle operation commits or the reservation expires after an interrupted request.
+_Avoid_: permanent product lock, browser-tab lock, revision timestamp
+
 **Customization Background**:
-The one independently uploaded asset owned by a variant and explicitly designated as its Background Choice for shopper customization. It is not Gallery Media, cannot be shared with another variant, and only Customization Backgrounds are subject to the Background Size Contract.
+The one independently uploaded asset owned by a variant and explicitly designated as its Background Choice for shopper customization. It is not Gallery Media, cannot be shared with another variant, and only Customization Backgrounds are subject to the Background Size Contract. It has no delete action; an operator can only replace it after client-side and authoritative server-side dimension validation succeeds.
 _Avoid_: gallery image, all variant media, upload background
 
-**Product Reference Media**:
-Gallery Media shown to shoppers as product examples or past-work references, but not used as a customization canvas.
-_Avoid_: customization background, canvas media
+**Variant Media**:
+Media owned by exactly one product variant and shown for that variant. New items append in the operator's selected-file order. It can be selected as a Product Thumbnail without creating a second R2 object.
+_Avoid_: product media upload, shared gallery file, customization background
+
+**Product Thumbnail**:
+The asset used to represent a product. On Product creation, it is initialized by referencing eligible media already owned by a created variant: either its Customization Background or Variant Media. After creation, an operator can explicitly select a Variant Media, Customization Background, or product-owned thumbnail asset. If the referenced asset is deleted or replaced, the thumbnail becomes empty and does not fall back to another asset.
+_Avoid_: product gallery copy, perpetual automatic thumbnail fallback, variant default image
+
+**Initial Product Thumbnail**:
+The Product Thumbnail reference assigned once by the Create Product workflow from eligible media of created variants in their creation order. It reuses the existing asset and does not create another R2 object. For each variant, the source priority is its Customization Background, then its first Variant Media in gallery position order. It is not recalculated after Product creation. It is empty when no created variant has eligible media or when its best-effort initialization fails; that failure does not prevent Product creation.
+_Avoid_: product-media upload, dynamic thumbnail fallback, copied variant asset
+
+**Product Media**:
+The thumbnail selection surface for one Product. Operators choose a Variant Media or Customization Background asset, or upload one product-owned thumbnail asset; references never duplicate the source R2 object. It is not a gallery and has no ordering.
+_Avoid_: product gallery, copied variant media, product media URL list
 
 **Product Media Carousel**:
 The shopper-facing ordered image sequence for the selected variant: its Customization Media first, followed by that variant's Gallery Media in gallery position order. Next/Previous navigation changes the visible image within this sequence and does not change the selected variant.
@@ -236,9 +281,73 @@ _Avoid_: variant switcher, gallery-only carousel, customization canvas history
 The storefront behavior that returns the visible image to the selected variant's Customization Media whenever the shopper focuses or clicks the customization form. The reset changes the visible image only; it preserves the shopper's entered customization values.
 _Avoid_: clear customization, reset form, replace gallery media
 
+**Shopper Customization Draft**:
+A browser-owned, pre-checkout customization of one cart line, including the shopper's entered values and any uploaded image. It is temporary and is not an Order Item Snapshot.
+_Avoid_: order customization, purchased design, cart asset
+
+**Order Customization Snapshot**:
+The immutable customization data and shopper-uploaded media preserved for one created order item, so production can reproduce the purchased result after its draft and catalog state change.
+_Avoid_: cart draft, live customization, product asset
+
+**Abandoned Checkout Order**:
+A created order that remains pending payment and unfulfilled, with no operational work started. It may be removed only through a deliberate admin purge.
+_Avoid_: cancelled order, failed payment, order draft
+
+**Order Cancellation**:
+The irreversible operational closure of an order that preserves its record for reconciliation and history. Trophy has no administrator cancellation action while MISA is the operational system of record; any future cancellation flow must synchronize with MISA. A cancelled order is never eligible for Order Purge, which applies only to an Abandoned Checkout Order that is still pending.
+_Avoid_: delete order, purge order, refund
+
+**Order Purge**:
+An explicit super-admin action that permanently removes an Abandoned Checkout Order and its dependent Trophy data. It never runs automatically. When a MISA SaleOrder exists, Trophy removes local data only after MISA confirms its deletion or reports that the record is already absent; an order that never created a MISA SaleOrder may be removed locally. It removes only the SaleOrder, never the customer's MISA Contact.
+_Avoid_: automatic cleanup, cancel order, archive order
+
+**Order Customization Background**:
+The immutable copy of the selected variant's Customization Background stored only with an Order Item that has an Order Customization Snapshot. It is not a reference to the current catalog background.
+_Avoid_: live variant background, product media reference, order preview fallback
+
+**Order Clipart Snapshot**:
+The immutable copy of a Clipart Asset selected by a shopper and stored with an Order Customization Snapshot. It allows the source Clipart Library asset to be permanently deleted without affecting a past order.
+_Avoid_: live clipart reference, deactivated clipart, reusable library asset
+
+**Order Font Reference**:
+The saved font family ID and display name used by an Order Customization Snapshot. It references the shared Brand Font file rather than copying it into the order; a missing shared file is reported as an unavailable font.
+_Avoid_: order font copy, embedded font binary, live font name lookup
+
+**Order Media Transfer**:
+The per-customized-order-item process that copies its required media into the order namespace. An order may be created with a failed transfer so an operator can repair and retry it; this failure does not invalidate the sale.
+_Avoid_: failed checkout, incomplete order rejection, media copy as payment state
+
 **Customization Publish Readiness**:
 The product-level condition that a customizable product must satisfy before it can be published, including one Customization Background for every variant, matching background dimensions, and a valid customization editor model. Draft products may be incomplete but cannot open the customization editor until its required backgrounds are available.
 _Avoid_: template publish validation, customization status
+
+**Customization Setup Session**:
+The unsaved admin FocusModal workflow for enabling customization on a published product. It stages each variant's Customization Background and the template, then submits one atomic multipart command that validates all state before creating an active customization record. Closing or failing validation leaves the product without customization enabled or newly created assets. It is distinct from a Shopper Customization Draft.
+_Avoid_: persisted setup state, active customization, unpublished product, shopper draft
+
+**Customization Activation**:
+The explicit completion action in a Customization Setup Session that creates a valid customization record and makes it available in the shopper purchase flow. It performs final publish-readiness validation without changing the Product's published status; a failed activation does not persist customization.
+_Avoid_: enable toggle, product republish, persisted invalid customization
+
+**Customization Deactivation**:
+The operator action that removes an active customization flow from storefront while retaining its saved template and every variant's Customization Background. While deactivated, Variant Media Management does not display or allow edits to those backgrounds. New variants may be created without a background, making later reactivation incomplete. It does not affect Product Thumbnail selection. Deactivation is required before permanent customization deletion.
+_Avoid_: customization deletion, background cleanup, thumbnail reset, inactive background editing
+
+**Permanent Customization Deletion**:
+The explicit destructive action available only after Customization Deactivation. It removes the saved customization record, template layers and form fields, customization translations, every variant's Customization Background association and asset, and any Product Media reference to those assets. A Product Thumbnail referencing a deleted background is cleared. Enabling customization later starts a new Customization Setup Session without reusing prior backgrounds.
+_Avoid_: deactivate, retained background, partial customization deletion
+
+**Atomic Variant Creation**:
+The admin flow that creates a Product Variant and its initially selected Gallery Media and Customization Background in one multipart command. Its modal has Information and Media tabs because a new variant has no persisted media owner yet. When the product has active customization, a valid same-sized Customization Background is required; successful creation preserves the active shopper flow. After creation, media changes use independent Variant Media Management.
+_Avoid_: temporary uploaded asset, create-then-attach asset, media saved with variant edit
+
+**Customization-Safe Variant Deletion**:
+The deletion of one variant from an active customizable product without deactivating customization. The deleted variant's background leaves with it; the active Background Size Contract continues to apply only to remaining variants.
+_Avoid_: automatic customization deactivation, orphaned active variant, deleted-background validation
+
+**Customization Reactivation**:
+The operator action that restores a deactivated saved customization. When every current variant already has a valid matching Customization Background, it activates immediately without opening setup. If any variant lacks a background, it opens a FocusModal to collect the missing backgrounds and activates only after all validation succeeds.
+_Avoid_: always-open setup modal, activate incomplete customization, background editing from Manage Media while deactivated
 
 **Shopper Text Field**:
 A text customization field that a shopper fills for one customizable product, such as a winner name, team name, year, inscription, or award message. It is defined by an admin-owned text layer and form field, then captured as shopper-entered order item data.
@@ -262,7 +371,7 @@ _Avoid_: single-product purchase, transaction, cart
 
 **Order Item Snapshot**:
 The immutable product, variant, price, and customization record captured for a single order item at the time the shopper places the order. It preserves what the shopper bought even if the product catalog or customization template changes later.
-_Avoid_: live product reference, cart item reference, mutable order item
+_Avoid_: live product reference, product-media fallback, cart item reference, mutable order item
 
 **Order Price Snapshot**:
 The product variant price captured by the backend at the moment a shopper requests order creation. Shopper-submitted prices are not part of the ordering contract.
@@ -286,6 +395,18 @@ _Avoid_: cart product snapshot, client order item, trusted cart item
 
 **Checkout-Ready Cart Line**:
 A cart line that has a concrete variant, a positive quantity, and all required customization values for customizable products. Checkout submits only checkout-ready cart lines to order creation.
+
+**MISA Checkout Customer**:
+The purchasing party represented in MISA for a Trophy checkout order. Without a VAT invoice request, it is the person identified by the basic checkout information. With a VAT invoice request, it is the invoice entity identified by the VAT information. It is distinct from the individual Contact. Trophy derives it from the order snapshot rather than retaining a MISA Customer ID.
+_Avoid_: always the delivery recipient, always the invoice company
+
+**MISA Checkout Contact**:
+The individual represented by the basic checkout information and linked to the MISA Checkout Customer. Trophy uses this Contact as the SaleOrder contact and derives it from the order snapshot rather than retaining a MISA Contact ID; it does not integrate tenant-only delivery-contact fields.
+_Avoid_: VAT customer, shipping-contact field
+
+**VAT Invoice Request**:
+A shopper's explicit request for a VAT invoice. It requires an invoice entity name, tax ID, invoice email, and invoice address before checkout can proceed. Tax-ID validity is authoritative in MISA; Trophy does not apply an inferred browser checksum.
+_Avoid_: issued invoice, optional VAT details
 _Avoid_: incomplete cart item, draft order item, partially customized cart line
 
 **Cart Line Merge**:

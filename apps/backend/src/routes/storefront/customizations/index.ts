@@ -3,7 +3,7 @@ import {
   type CustomizationLayer,
   type CustomizationTemplate,
 } from "@trophy/customization";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
 import { Hono } from "hono";
 import { getDb } from "../../../db/client";
 import { makeCustomizationUrlsAbsolute } from "../../../lib/url";
@@ -42,7 +42,7 @@ export const customizationsRoute = new Hono<AppEnv>()
     const product = await db
       .select({ id: products.id })
       .from(products)
-      .where(eq(products.id, parsed.output.productId))
+      .where(and(eq(products.id, parsed.output.productId), isNull(products.deletedAt)))
       .get();
     if (!product) return jsonError(c, 404, "Product not found");
 

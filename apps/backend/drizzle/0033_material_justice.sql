@@ -1,0 +1,1 @@
+ALTER TABLE `product_variants` ADD `misa_product_code` text;

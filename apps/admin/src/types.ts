@@ -59,7 +59,8 @@ export type CatalogProduct = {
   collectionId: number | null;
   categories: string[];
   categoryIds: number[];
-  media: string[];
+  media: ProductVariantMedia[];
+  thumbnailAssetId?: string | null;
   attributes: ProductAttribute[];
   optionDefinitions: ProductOptionDefinition[];
   variants: ProductVariant[];
@@ -102,7 +103,7 @@ export type ProductVariant = {
   title: string;
   titleTranslations?: LocalizedTextValue;
   sku: string;
-  misaSyncStatus?: "pending" | "synced" | "failed";
+  misaSyncStatus?: "pending" | "synced" | "failed" | "disconnected" | "missing";
   misaLastError?: string | null;
   price: number;
   inventory: number;

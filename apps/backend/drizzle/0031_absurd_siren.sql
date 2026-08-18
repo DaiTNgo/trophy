@@ -1,0 +1,1 @@
+ALTER TABLE `customization_assets` ADD `cleanup_last_error` text;

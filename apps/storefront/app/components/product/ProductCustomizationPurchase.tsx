@@ -15,6 +15,7 @@ export function ProductCustomizationPurchase({
   message,
   quantity,
   onMessageChange,
+  onDeleteImage,
   onUploadImage,
   onInteraction,
   onValueChange,
@@ -26,6 +27,7 @@ export function ProductCustomizationPurchase({
   message: string;
   quantity: number;
   onMessageChange: (message: string) => void;
+  onDeleteImage: (field: CustomizationFormField, assetId: string) => Promise<void>;
   onUploadImage: (
     field: CustomizationFormField,
     file: File,
@@ -45,6 +47,7 @@ export function ProductCustomizationPurchase({
         dynamicFonts={dynamicFonts}
         message={message}
         onMessageChange={onMessageChange}
+        onDeleteImage={onDeleteImage}
         onUploadImage={onUploadImage}
         onInteraction={onInteraction}
         onValueChange={onValueChange}

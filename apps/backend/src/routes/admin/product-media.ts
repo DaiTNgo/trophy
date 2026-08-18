@@ -41,6 +41,26 @@ export function buildVariantCustomizationMediaInsertRows(
   })
 }
 
+export function selectInitialProductThumbnailAssetId(
+  submittedVariants: Array<{
+    media: Array<{ assetId: string }>
+    customizationMedia?: { assetId: string } | null
+  }>
+) {
+  for (const variant of submittedVariants) {
+    if (variant.customizationMedia) {
+      return variant.customizationMedia.assetId
+    }
+
+    const firstMedia = variant.media[0]
+    if (firstMedia) {
+      return firstMedia.assetId
+    }
+  }
+
+  return null
+}
+
 export async function insertVariantMedia(
   db: ReturnType<typeof getDb>,
   persistedVariants: Array<{ id: number }>,

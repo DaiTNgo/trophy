@@ -197,14 +197,6 @@ export function ProductDetailOverview({ product, mutate }: ProductDetailOverview
             <Text size="small" className="text-ui-fg-subtle font-medium">Handle</Text>
             <Text size="small" className="text-ui-fg-base">{product.handle || "—"}</Text>
           </div>
-          <div className="grid grid-cols-2 px-6 py-4 border-t border-ui-border-base">
-            <Text size="small" className="text-ui-fg-subtle font-medium">Material</Text>
-            <Text size="small" className="text-ui-fg-base">—</Text>
-          </div>
-          <div className="grid grid-cols-2 px-6 py-4 border-t border-ui-border-base">
-            <Text size="small" className="text-ui-fg-subtle font-medium">Discountable</Text>
-            <Text size="small" className="text-ui-fg-base">True</Text>
-          </div>
         </div>
       </div>
     </Container>

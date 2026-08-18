@@ -3,7 +3,6 @@ import * as pdfjsLib from "pdfjs-dist";
 import { backendFetch } from "../../lib/fetch";
 import pdfjsWorkerUrl from "pdfjs-dist/build/pdf.worker?url";
 import { Package, FileText } from "lucide-react";
-import { shouldLoadMediaViaBlob } from "../../lib/admin-media";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl;
 
@@ -100,40 +99,8 @@ export function AdminMedia({ src, mimeType, className = "", fallback, alt = "Med
       };
     }
 
-    // ── Remote URL that needs a credentialed fetch ────────────────────────
-    // (WebP and other binary assets served by the backend.)
-    const shouldFetchViaCors = shouldLoadMediaViaBlob(src, mimeType);
-
-    if (shouldFetchViaCors) {
-      let isCancelled = false;
-      let objectUrl: string | null = null;
-
-      setIsLoadingPdf(false);
-
-      const loadImageBlob = async () => {
-        try {
-          const fullUrl = src;
-          const res = await backendFetch(fullUrl);
-          if (!res.ok) throw new Error(`Failed to fetch media: ${res.status}`);
-          const blob = await res.blob();
-          if (isCancelled) return;
-
-          objectUrl = URL.createObjectURL(blob);
-          setDataUrl(objectUrl);
-        } catch (e) {
-          console.error("Failed to load media preview", e);
-          if (!isCancelled) setError(true);
-        }
-      };
-
-      loadImageBlob();
-      return () => {
-        isCancelled = true;
-        if (objectUrl) URL.revokeObjectURL(objectUrl);
-      };
-    }
-
-    // ── Plain remote URL (SVG, PNG served without CORS issues) ────────────
+    // ── Remote image URL ──────────────────────────────────────────────────
+    // Asset content URLs are public, so the browser can render them directly.
     setDataUrl(src);
     setIsLoadingPdf(false);
   }, [src, mimeType]);

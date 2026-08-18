@@ -2,7 +2,6 @@ import { eq, inArray } from 'drizzle-orm'
 import { getDb } from '../../db/client'
 import {
   productAttributes,
-  productMedia,
   productOptionValues,
   productOptions,
   productVariantAttributes,
@@ -91,24 +90,6 @@ export async function replaceVariantAttributes(
       attribute.value
     )
   }
-}
-
-export async function replaceMedia(
-  db: ReturnType<typeof getDb>,
-  productId: number,
-  items: Array<{ url: string; alt?: string | null }>
-) {
-  await db.delete(productMedia).where(eq(productMedia.productId, productId))
-  if (items.length === 0) return
-
-  await db.insert(productMedia).values(
-    items.map((item, index) => ({
-      productId,
-      url: item.url,
-      alt: item.alt ?? null,
-      position: index
-    }))
-  )
 }
 
 export async function replaceOptions(

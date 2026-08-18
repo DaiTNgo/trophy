@@ -64,7 +64,7 @@ function EditorContent({ product, productId, mutate }: { product: CatalogProduct
     if (!productId) return;
     setIsSaving(true);
     try {
-      await updateProductCustomization(productId, customization);
+      await updateProductCustomization(productId, product.updatedAt, customization);
       await mutate();
     } finally {
       setIsSaving(false);

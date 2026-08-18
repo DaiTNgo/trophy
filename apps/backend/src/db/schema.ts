@@ -168,12 +168,16 @@ export const products = sqliteTable(
     description: text("description"),
     status: text("status").notNull().default("draft"),
     collectionId: integer("collection_id"),
+    thumbnailAssetId: text("thumbnail_asset_id"),
     createdAt: text("created_at")
       .notNull()
       .default(sql`CURRENT_TIMESTAMP`),
     updatedAt: text("updated_at")
       .notNull()
       .default(sql`CURRENT_TIMESTAMP`),
+    customizationOperationToken: text("customization_operation_token"),
+    customizationOperationExpiresAt: text("customization_operation_expires_at"),
+    deletedAt: text("deleted_at"),
   },
   (table) => [uniqueIndex("products_handle_idx").on(table.handle)],
 );
@@ -203,10 +207,12 @@ export const productOptionValues = sqliteTable("product_option_values", {
 
 export const productVariants = sqliteTable("product_variants", {
   id: integer("id").primaryKey({ autoIncrement: true }),
+  writeToken: text("write_token"),
   productId: integer("product_id").notNull(),
   title: text("title").notNull(),
   sku: text("sku"),
   misaProductId: integer("misa_product_id"),
+  misaProductCode: text("misa_product_code"),
   misaSyncStatus: text("misa_sync_status").notNull().default("pending"),
   misaLastError: text("misa_last_error"),
   misaSyncedAt: integer("misa_synced_at", { mode: "timestamp_ms" }),
@@ -225,7 +231,7 @@ export const productVariants = sqliteTable("product_variants", {
   updatedAt: text("updated_at")
     .notNull()
     .default(sql`CURRENT_TIMESTAMP`),
-});
+}, (table) => [uniqueIndex("product_variants_write_token_idx").on(table.writeToken)]);
 
 export const productVariantMedia = sqliteTable(
   "product_variant_media",
@@ -296,12 +302,14 @@ export const productVariantAttributes = sqliteTable(
   "product_variant_attributes",
   {
     id: integer("id").primaryKey({ autoIncrement: true }),
+    writeToken: text("write_token"),
     variantId: integer("variant_id").notNull(),
     name: text("name").notNull(),
     value: text("value").notNull(),
     unit: text("unit"),
     position: integer("position").notNull(),
   },
+  (table) => [uniqueIndex("product_variant_attributes_write_token_idx").on(table.writeToken)],
 );
 
 export const productAttributes = sqliteTable("product_attributes", {
@@ -316,10 +324,11 @@ export const productAttributes = sqliteTable("product_attributes", {
 export const productMedia = sqliteTable("product_media", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   productId: integer("product_id").notNull(),
-  url: text("url").notNull(),
-  alt: text("alt"),
+  assetId: text("asset_id").notNull(),
   position: integer("position").notNull(),
-});
+}, (table) => [
+  uniqueIndex("product_media_product_asset_idx").on(table.productId, table.assetId),
+]);
 
 export const productAssets = sqliteTable(
   "product_assets",
@@ -337,6 +346,48 @@ export const productAssets = sqliteTable(
       .default(sql`CURRENT_TIMESTAMP`),
   },
   (table) => [index("product_assets_owner_key_idx").on(table.ownerKey)],
+);
+
+export const r2CleanupJobs = sqliteTable(
+  "r2_cleanup_jobs",
+  {
+    id: text("id").primaryKey(),
+    objectKey: text("object_key").notNull(),
+    attempts: integer("attempts").notNull().default(0),
+    nextAttemptAt: text("next_attempt_at").notNull(),
+    lastError: text("last_error"),
+    completedAt: text("completed_at"),
+    leaseToken: text("lease_token"),
+    leaseExpiresAt: text("lease_expires_at"),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    index("r2_cleanup_jobs_pending_idx").on(table.completedAt, table.nextAttemptAt),
+    uniqueIndex("r2_cleanup_jobs_object_key_idx").on(table.objectKey),
+  ],
+);
+
+export const misaDeletionJobs = sqliteTable(
+  "misa_deletion_jobs",
+  {
+    id: text("id").primaryKey(),
+    misaProductId: integer("misa_product_id").notNull(),
+    attempts: integer("attempts").notNull().default(0),
+    nextAttemptAt: text("next_attempt_at").notNull(),
+    lastError: text("last_error"),
+    completedAt: text("completed_at"),
+    leaseToken: text("lease_token"),
+    leaseExpiresAt: text("lease_expires_at"),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    index("misa_deletion_jobs_pending_idx").on(table.completedAt, table.nextAttemptAt),
+    uniqueIndex("misa_deletion_jobs_product_id_idx").on(table.misaProductId),
+  ],
 );
 
 export const customizationTemplates = sqliteTable(
@@ -423,6 +474,15 @@ export const customizationDesignRevisions = sqliteTable(
 export const customizationAssets = sqliteTable("customization_assets", {
   id: text("id").primaryKey(),
   ownerKey: text("owner_key").notNull(),
+  // Null on legacy rows. New shopper uploads use `shopper_draft` and expiry.
+  ownershipType: text("ownership_type"),
+  shopperDraftId: text("shopper_draft_id"),
+  shopperFieldId: text("shopper_field_id"),
+  expiresAt: integer("expires_at", { mode: "timestamp_ms" }),
+  expiryProtected: integer("expiry_protected", { mode: "boolean" })
+    .notNull()
+    .default(false),
+  cleanupLastError: text("cleanup_last_error"),
   objectKey: text("object_key").notNull(),
   previewObjectKey: text("preview_object_key"),
   mimeType: text("mime_type").notNull(),
@@ -435,7 +495,9 @@ export const customizationAssets = sqliteTable("customization_assets", {
   createdAt: text("created_at")
     .notNull()
     .default(sql`CURRENT_TIMESTAMP`),
-});
+}, (table) => [
+  index("customization_assets_expiry_idx").on(table.ownershipType, table.expiresAt, table.expiryProtected),
+]);
 
 export const customizationClipartCategories = sqliteTable(
   "customization_clipart_categories",
@@ -511,8 +573,8 @@ export const orders = sqliteTable("orders", {
   currencyCode: text("currency_code").notNull().default("VND"),
   itemCount: integer("item_count").notNull(),
   misaSyncStatus: text("misa_sync_status").notNull().default("pending"),
-  misaContactId: text("misa_contact_id"),
   misaSaleOrderId: text("misa_sale_order_id"),
+  misaSaleOrderNo: text("misa_sale_order_no"),
   misaLastError: text("misa_last_error"),
   misaAttemptCount: integer("misa_attempt_count").notNull().default(0),
   misaSyncedAt: integer("misa_synced_at", { mode: "timestamp_ms" }),
@@ -549,6 +611,51 @@ export const orderItems = sqliteTable("order_items", {
     .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
     .notNull(),
 });
+
+export const orderItemMediaTransfers = sqliteTable(
+  "order_item_media_transfers",
+  {
+    id: text("id").primaryKey(),
+    orderItemId: integer("order_item_id").notNull(),
+    status: text("status").notNull().default("pending"),
+    lastError: text("last_error"),
+    attemptCount: integer("attempt_count").notNull().default(0),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+      .notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+      .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [uniqueIndex("order_item_media_transfers_item_idx").on(table.orderItemId)],
+);
+
+export const orderItemMediaTransferAssets = sqliteTable(
+  "order_item_media_transfer_assets",
+  {
+    id: text("id").primaryKey(),
+    transferId: text("transfer_id").notNull(),
+    role: text("role").notNull(),
+    fieldId: text("field_id"),
+    sourceAssetId: text("source_asset_id").notNull(),
+    sourceObjectKey: text("source_object_key").notNull(),
+    targetObjectKey: text("target_object_key").notNull(),
+    status: text("status").notNull().default("pending"),
+    lastError: text("last_error"),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+      .notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+      .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    index("order_item_media_transfer_assets_transfer_idx").on(table.transferId),
+    uniqueIndex("order_item_media_transfer_assets_target_idx").on(table.targetObjectKey),
+  ],
+);
 
 // ─── Customization Exports ─────────────────────────────────────────────────────
 

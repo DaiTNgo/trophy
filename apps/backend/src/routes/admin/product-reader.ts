@@ -1,4 +1,4 @@
-import { asc, eq, inArray, sql } from 'drizzle-orm'
+import { and, asc, eq, inArray, isNull, sql } from 'drizzle-orm'
 import { type Context } from 'hono'
 import { getDb } from '../../db/client'
 import {
@@ -26,9 +26,18 @@ import { makeCustomizationUrlsAbsolute, toAbsoluteAssetUrl } from '../../lib/url
 export async function readProduct(
   c: Context<AppEnv>,
   db: ReturnType<typeof getDb>,
-  productId: number
+  productId: number,
+  { includeTrashed = false }: { includeTrashed?: boolean } = {}
 ) {
-  const product = await db.select().from(products).where(eq(products.id, productId)).get()
+  const product = await db
+    .select()
+    .from(products)
+    .where(
+      includeTrashed
+        ? eq(products.id, productId)
+        : and(eq(products.id, productId), isNull(products.deletedAt))
+    )
+    .get()
 
   if (!product) {
     return null
@@ -68,8 +77,18 @@ export async function readProduct(
       .where(eq(productAttributes.productId, productId))
       .orderBy(asc(productAttributes.position), asc(productAttributes.id)),
     db
-      .select()
+      .select({
+        id: productMedia.id,
+        assetId: productMedia.assetId,
+        position: productMedia.position,
+        fileName: productAssets.fileName,
+        mimeType: productAssets.mimeType,
+        widthPx: productAssets.widthPx,
+        heightPx: productAssets.heightPx,
+        byteSize: productAssets.byteSize
+      })
       .from(productMedia)
+      .innerJoin(productAssets, eq(productMedia.assetId, productAssets.id))
       .where(eq(productMedia.productId, productId))
       .orderBy(asc(productMedia.position), asc(productMedia.id)),
     db
@@ -311,7 +330,10 @@ export async function readProduct(
     collection,
     categories: categoryRows,
     attributes: attributeRows,
-    media: mediaRows.map((media) => ({ ...media, url: toAbsoluteAssetUrl(c, media.url) as string })),
+    media: mediaRows.map((media) => ({
+      ...media,
+      contentUrl: toAbsoluteAssetUrl(c, `/api/assets/products/${media.assetId}/content`) as string
+    })),
     options: optionRows.map((option) => ({
       ...option,
       values: optionValuesByOptionId.get(option.id) ?? []

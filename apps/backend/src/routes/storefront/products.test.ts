@@ -115,10 +115,10 @@ describe("buildListingItem", () => {
       false,
     );
 
-    expect(item.thumbnail).toBe("http://localhost/api/assets/products/asset_a/content");
+    expect(item.thumbnail).toBeNull();
   });
 
-  it("uses the selected product media thumbnail before variant media", () => {
+  it("uses the explicit Product Thumbnail asset", () => {
     const item = buildListingItem(
       { req: { url: "http://localhost/" } } as any,
       baseItem,
@@ -127,7 +127,7 @@ describe("buildListingItem", () => {
       new Map([[1, [makeMedia("variant-asset")]]]),
       false,
       new Map(),
-      [{ url: "/api/assets/products/product-asset/content", position: 0 }],
+      "product-asset",
     );
 
     expect(item.thumbnail).toBe("http://localhost/api/assets/products/product-asset/content");
@@ -149,7 +149,7 @@ describe("buildListingItem", () => {
       false,
     );
 
-    expect(item.thumbnail).toBe("http://localhost/api/assets/products/asset_b/content");
+    expect(item.thumbnail).toBeNull();
   });
 
   it("returns null thumbnail when no variant has media", () => {
@@ -175,7 +175,7 @@ describe("buildListingItem", () => {
       new Map([[1, { assetId: "canvas-asset" }]]),
     );
 
-    expect(item.thumbnail).toBe("http://localhost/api/assets/products/canvas-asset/content");
+    expect(item.thumbnail).toBeNull();
   });
 
   it("keeps gallery media ahead of customization media for thumbnails", () => {
@@ -189,7 +189,7 @@ describe("buildListingItem", () => {
       new Map([[1, { assetId: "canvas-asset" }]]),
     );
 
-    expect(item.thumbnail).toBe("http://localhost/api/assets/products/gallery-asset/content");
+    expect(item.thumbnail).toBeNull();
   });
 
   it("builds categorySummary from category names", () => {

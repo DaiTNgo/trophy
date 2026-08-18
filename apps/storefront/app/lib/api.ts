@@ -34,10 +34,17 @@ export type StorefrontCustomizationAsset = {
 export async function uploadStorefrontCustomizationAsset(
   file: File,
   uploadToken: string,
+  shopperDraftId: string,
+  shopperFieldId: string,
 ): Promise<StorefrontCustomizationAsset> {
   const response = await fetchBackendWithLog("uploadStorefrontCustomizationAsset", backendUrl("/api/storefront/customizations/assets"), {
     method: "POST",
-    headers: { "Content-Type": file.type, "X-Upload-Token": uploadToken },
+    headers: {
+      "Content-Type": file.type,
+      "X-Upload-Token": uploadToken,
+      "X-Shopper-Draft-Id": shopperDraftId,
+      "X-Shopper-Field-Id": shopperFieldId,
+    },
     body: file,
   });
   const payload = (await response.json()) as {
@@ -52,6 +59,30 @@ export async function uploadStorefrontCustomizationAsset(
     ...payload.asset,
     contentUrl: backendAssetUrl(payload.asset.contentUrl),
   };
+}
+
+export async function deleteStorefrontCustomizationAsset(
+  assetId: string,
+  uploadToken: string,
+  shopperDraftId: string,
+  shopperFieldId: string,
+) {
+  const response = await fetchBackendWithLog(
+    "deleteStorefrontCustomizationAsset",
+    backendUrl(`/api/storefront/customizations/assets/${encodeURIComponent(assetId)}`),
+    {
+      method: "DELETE",
+      headers: {
+        "X-Upload-Token": uploadToken,
+        "X-Shopper-Draft-Id": shopperDraftId,
+        "X-Shopper-Field-Id": shopperFieldId,
+      },
+    },
+  );
+  const payload = (await response.json().catch(() => ({}))) as { error?: string };
+  if (!response.ok) {
+    throw new Error(payload.error ?? "Could not remove image.");
+  }
 }
 
 export type StorefrontProductItem = {
@@ -303,10 +334,10 @@ export type StorefrontOrderRequest = {
     primaryAddress: {
       line1: string;
       line2?: string;
-      city: string;
+      city?: string;
       province?: string;
       postalCode?: string;
-      country: string;
+      country?: string;
     };
     shipToDifferentAddress: boolean;
     differentAddress?: {
@@ -315,20 +346,23 @@ export type StorefrontOrderRequest = {
       address: {
         line1: string;
         line2?: string;
-        city: string;
+        city?: string;
         province?: string;
         postalCode?: string;
-        country: string;
+        country?: string;
       };
     };
   };
+  payment: {
+    method: "bank_transfer" | "cash_on_delivery";
+  };
   notes?: string;
+  vatRequested?: boolean;
   vat?: {
-    type?: string;
-    name?: string;
-    taxId?: string;
-    email?: string;
-    address?: string;
+    name: string;
+    taxId: string;
+    email: string;
+    address: string;
   };
   items: Array<{
     productId: number;
@@ -344,12 +378,37 @@ export type StorefrontOrderResponse = {
   order: {
     id: number;
     orderNumber: string;
+    paymentReference: string;
     status: string;
     paymentStatus: string;
     fulfillmentStatus: string;
     totalAmount: number;
     currencyCode: string;
     itemCount: number;
+    createdAt: string;
+    checkoutAccessToken: string;
+    checkoutAccessExpiresAt: string;
+  };
+};
+
+export class StorefrontOrderError extends Error {
+  readonly field: string | null;
+
+  constructor(message: string, field?: string | null) {
+    super(message);
+    this.name = "StorefrontOrderError";
+    this.field = field ?? null;
+  }
+}
+
+export type StorefrontPaymentInstructionsResponse = {
+  order: {
+    orderNumber: string;
+    paymentReference: string;
+    totalAmount: number;
+    currencyCode: string;
+    paymentMethod: "bank_transfer" | "cash_on_delivery" | string;
+    paymentStatus: string;
     createdAt: string;
   };
 };
@@ -447,13 +506,32 @@ export async function createStorefrontOrder(
   });
 
   if (!res.ok) {
-    const errData = await res.json().catch(() => null) as { error?: string } | null;
+    const errData = await res.json().catch(() => null) as { error?: string; field?: string } | null;
     if (errData?.error) {
-      throw new Error(errData.error);
+      throw new StorefrontOrderError(errData.error, errData.field);
     }
     throw new Response("Failed to create order", { status: res.status });
   }
 
+  return res.json();
+}
+
+export async function fetchStorefrontPaymentInstructions(payload: {
+  orderNumber: string;
+  accessToken: string;
+}): Promise<StorefrontPaymentInstructionsResponse> {
+  const search = new URLSearchParams({
+    orderNumber: payload.orderNumber,
+    accessToken: payload.accessToken,
+  });
+  const res = await fetchBackendWithLog(
+    "fetchStorefrontPaymentInstructions",
+    backendUrl(`/api/storefront/orders/payment-instructions?${search}`),
+  );
+  if (!res.ok) {
+    const body = await res.json().catch(() => null) as { error?: string } | null;
+    throw new Error(body?.error ?? "Không thể tải hướng dẫn thanh toán.");
+  }
   return res.json();
 }
 

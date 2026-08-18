@@ -27,6 +27,10 @@ export type CustomizationUploadImage = (
   field: CustomizationFormField,
   file: File,
 ) => Promise<ImageShapeFieldValue> | ImageShapeFieldValue;
+export type CustomizationDeleteImage = (
+  field: CustomizationFormField,
+  assetId: string,
+) => Promise<void> | void;
 export type ResolveCustomizationFontUrl = (assetId: string) => string;
 export type ResolveCustomizationStaticFontUrl = (fileName: string) => string;
 export type ResolveCustomizationAssetUrl = (url: string) => string;
@@ -171,6 +175,7 @@ export function FormField({
   resolveAssetUrl,
   onChange,
   onUpload,
+  onRemove,
 }: {
   field: CustomizationFormField;
   layer: CustomizationLayer;
@@ -182,6 +187,7 @@ export function FormField({
   resolveAssetUrl?: ResolveCustomizationAssetUrl;
   onChange: (value: CustomizationFieldValue) => void;
   onUpload: (file: File) => void;
+  onRemove?: () => void;
 }) {
   const imageLayer =
     layer.type === "image_shape" ? (layer as ImageShapeEditorLayer) : null;
@@ -222,6 +228,7 @@ export function FormField({
           resolveAssetUrl={resolveAssetUrl}
           onChange={onChange}
           onUpload={onUpload}
+          onRemove={onRemove}
         />
       )}
       {issue ? (

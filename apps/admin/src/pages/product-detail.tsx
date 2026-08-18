@@ -14,7 +14,7 @@ import { ProductDetailCustomization } from "./product-detail/product-detail-cust
 import { ProductDetailThumbnail } from "./product-detail/product-detail-thumbnail";
 
 export function ProductDetailPage() {
-  const { product, isLoading, error, mutate } = useProductDetail();
+  const { product, isLoading, error, mutate, updateProduct } = useProductDetail();
   const { setBreadcrumbs } = useBreadcrumbs();
 
   useEffect(() => {
@@ -76,8 +76,8 @@ export function ProductDetailPage() {
           <ProductDetailOverview product={product} mutate={mutate} />
           <ProductDetailThumbnail product={product} mutate={mutate} />
           <ProductDetailOptions product={product} mutate={mutate} />
-          <ProductDetailVariants product={product} mutate={mutate} />
-          <ProductDetailCustomization product={product} mutate={mutate} />
+          <ProductDetailVariants product={product} mutate={mutate} updateProduct={updateProduct} />
+          <ProductDetailCustomization product={product} mutate={mutate} updateProduct={updateProduct} />
         </div>
 
         <div className="flex min-w-0 flex-col gap-y-6">

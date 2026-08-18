@@ -35,7 +35,7 @@ export function ProductsListPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   async function handleDelete(product: CatalogProduct) {
-    if (!window.confirm(`Delete ${product.title.vi || product.title.en || "this product"}?`)) return;
+    if (!window.confirm(`Move ${product.title.vi || product.title.en || "this product"} to trash?`)) return;
     setDeletingId(product.id);
     setError(null);
     try {
@@ -158,12 +158,17 @@ export function ProductsListPage() {
           >
             Products
           </Text>
-          <Button variant="secondary" size="small" asChild>
-            <Link to="/products/new">
-              <Plus className="h-4 w-4" />
-              Create product
-            </Link>
-          </Button>
+          <div className="flex items-center gap-x-2">
+            <Button variant="secondary" size="small" asChild>
+              <Link to="/products/trash">Trash</Link>
+            </Button>
+            <Button variant="secondary" size="small" asChild>
+              <Link to="/products/new">
+                <Plus className="h-4 w-4" />
+                Create product
+              </Link>
+            </Button>
+          </div>
         </div>
 
         <div className="flex items-center justify-between px-6 py-4">
@@ -315,7 +320,7 @@ export function ProductsListPage() {
                           {product.media?.[0] && (
                             <div className="h-8 w-6 overflow-hidden rounded bg-ui-bg-subtle flex-shrink-0">
                               <img
-                                src={product.media[0]}
+                                src={product.media[0].contentUrl}
                                 alt={product.title?.vi || product.title?.en}
                                 className="h-full w-full object-cover"
                               />
@@ -357,7 +362,7 @@ export function ProductsListPage() {
                             </DropdownMenu.Item>
                             <DropdownMenu.Item className="text-ui-fg-error" disabled={deletingId === product.id} onClick={() => void handleDelete(product)}>
                               <Trash2 className="h-4 w-4" />
-                              Delete
+                              Move to trash
                             </DropdownMenu.Item>
                           </DropdownMenu.Content>
                         </DropdownMenu>

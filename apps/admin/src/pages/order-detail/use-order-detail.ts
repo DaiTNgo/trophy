@@ -3,6 +3,9 @@ import { toast } from "@medusajs/ui";
 
 import {
   fetchAdminOrderDetail,
+  checkAdminOrderMisaLink,
+  purgeAdminOrder,
+  runAdminOrderMisaAction,
   updateAdminOrderItemProductionStatus,
   updateAdminOrderStatus,
   type AdminOrderDetail,
@@ -28,6 +31,11 @@ export function useOrderDetail(orderNumber: string | undefined) {
         if (!cancelled) {
           setOrder(value);
           setError("");
+          if (value && value.misa.syncStatus !== "disconnected") {
+            void checkAdminOrderMisaLink(value.orderNumber).then((misa) => {
+              if (!cancelled) setOrder((current) => current ? { ...current, misa } : current);
+            }).catch(() => undefined);
+          }
         }
       })
       .catch((loadError) => {
@@ -103,6 +111,48 @@ export function useOrderDetail(orderNumber: string | undefined) {
     [order],
   );
 
+  const purgeOrder = useCallback(async () => {
+    if (!order) return false;
+
+    setUpdatingAction("purge-order");
+    try {
+      await purgeAdminOrder(order.orderNumber);
+      toast.success("Order permanently deleted");
+      return true;
+    } catch (purgeError) {
+      toast.error(
+        purgeError instanceof Error
+          ? purgeError.message
+          : "Failed to permanently delete order",
+      );
+      return false;
+    } finally {
+      setUpdatingAction(null);
+    }
+  }, [order]);
+
+  const runMisaAction = useCallback(async (
+    action: "connect" | "refresh" | "disconnect",
+  ) => {
+    if (!order) return;
+    setUpdatingAction(`misa-${action}`);
+    try {
+      const nextOrder = await runAdminOrderMisaAction(order.orderNumber, action);
+      setOrder(nextOrder);
+      toast.success(
+        action === "disconnect"
+          ? "MISA SaleOrder disconnected"
+          : action === "connect"
+            ? "MISA SaleOrder connected"
+            : "MISA connection refreshed",
+      );
+    } catch (misaError) {
+      toast.error(misaError instanceof Error ? misaError.message : "Failed to update MISA connection");
+    } finally {
+      setUpdatingAction(null);
+    }
+  }, [order]);
+
   const markItemPendingReview = useCallback(
     async (itemId: number, actionId: string) => {
       if (!order) return;
@@ -136,6 +186,8 @@ export function useOrderDetail(orderNumber: string | undefined) {
     error,
     updatingAction,
     updateOrderStatus,
+    purgeOrder,
+    runMisaAction,
     markItemReadyForProduction,
     markItemPendingReview,
   };

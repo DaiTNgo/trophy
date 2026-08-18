@@ -56,8 +56,6 @@ function CustomerInformationSection() {
       true,
       "md:col-span-2",
     ],
-    ["shipping.primaryAddress.city", "Tỉnh / Thành phố", "", "text", true, ""],
-    ["shipping.primaryAddress.province", "Quận / Huyện", "", "text", false, ""],
   ] as const;
   return (
     <section>
@@ -122,15 +120,9 @@ function PaymentMethodSection({
             </p>
           </div>
           <div className="pl-9 text-sm font-normal text-on-surface-variant">
-            <p className="mb-2">
-              Thực hiện thanh toán vào ngay tài khoản ngân hàng:
-            </p>
-            <p className="font-bold text-on-surface">STK: 9987996745</p>
-            <p>Ngân hàng Vietcombank</p>
-            <p>Chủ Tài khoản: Nguyen Tuan Thanh</p>
             <p className="mt-2 italic">
-              Vui lòng sử dụng Mã đơn hàng của bạn trong phần Nội dung thanh
-              toán. Đơn hàng sẽ đươc giao sau khi tiền đã chuyển.
+              Sau khi đặt hàng, thông tin chuyển khoản và mã nội dung thanh
+              toán sẽ hiển thị ngay trên màn hình này.
             </p>
           </div>
         </Label>
@@ -156,9 +148,13 @@ function PaymentMethodSection({
 function AdditionalRequirementsSection({
   vatChecked,
   onVatCheckedChange,
+  vatErrors,
+  onVatFieldChange,
 }: {
   vatChecked: boolean;
   onVatCheckedChange: (checked: boolean) => void;
+  vatErrors: Partial<Record<"name" | "taxId" | "email" | "address", string>>;
+  onVatFieldChange: (field: "name" | "taxId" | "email" | "address") => void;
 }) {
   return (
     <section className="mt-12">
@@ -186,26 +182,20 @@ function AdditionalRequirementsSection({
         </Label>
         {vatChecked ? (
           <div className="grid grid-cols-1 gap-4 rounded-md border border-outline-variant bg-surface-container-low p-4 md:grid-cols-2 lg:p-6">
-            <div className="md:col-span-2">
-              <Label className="mb-1 text-xs font-bold uppercase tracking-wider text-on-surface-variant">
-                Loại hóa đơn
-              </Label>
-              <Input
-                name="vat.type"
-                className="border-outline-variant bg-white"
-                placeholder="Cá nhân / Công ty"
-                type="text"
-              />
-            </div>
             <div>
               <Label className="mb-1 text-xs font-bold uppercase tracking-wider text-on-surface-variant">
                 Tên đơn vị/Cá nhân
               </Label>
               <Input
                 name="vat.name"
-                className="border-outline-variant bg-white"
+                aria-describedby={vatErrors.name ? "vat-name-error" : undefined}
+                aria-invalid={Boolean(vatErrors.name)}
+                className="border-outline-variant bg-white aria-invalid:border-error aria-invalid:ring-error"
+                onChange={() => onVatFieldChange("name")}
+                required
                 type="text"
               />
+              {vatErrors.name ? <p id="vat-name-error" className="mt-1 text-sm text-error">{vatErrors.name}</p> : null}
             </div>
             <div>
               <Label className="mb-1 text-xs font-bold uppercase tracking-wider text-on-surface-variant">
@@ -213,9 +203,18 @@ function AdditionalRequirementsSection({
               </Label>
               <Input
                 name="vat.taxId"
-                className="border-outline-variant bg-white"
+                aria-describedby={vatErrors.taxId ? "vat-tax-id-error" : undefined}
+                aria-invalid={Boolean(vatErrors.taxId)}
+                className="border-outline-variant bg-white aria-invalid:border-error aria-invalid:ring-error"
+                onChange={() => onVatFieldChange("taxId")}
+                required
                 type="text"
               />
+              {vatErrors.taxId ? (
+                <p id="vat-tax-id-error" className="mt-1 text-sm text-error">
+                  {vatErrors.taxId}
+                </p>
+              ) : null}
             </div>
             <div>
               <Label className="mb-1 text-xs font-bold uppercase tracking-wider text-on-surface-variant">
@@ -223,9 +222,14 @@ function AdditionalRequirementsSection({
               </Label>
               <Input
                 name="vat.email"
-                className="border-outline-variant bg-white"
+                aria-describedby={vatErrors.email ? "vat-email-error" : undefined}
+                aria-invalid={Boolean(vatErrors.email)}
+                className="border-outline-variant bg-white aria-invalid:border-error aria-invalid:ring-error"
+                onChange={() => onVatFieldChange("email")}
+                required
                 type="email"
               />
+              {vatErrors.email ? <p id="vat-email-error" className="mt-1 text-sm text-error">{vatErrors.email}</p> : null}
             </div>
             <div className="md:col-span-2">
               <Label className="mb-1 text-xs font-bold uppercase tracking-wider text-on-surface-variant">
@@ -233,9 +237,14 @@ function AdditionalRequirementsSection({
               </Label>
               <Input
                 name="vat.address"
-                className="border-outline-variant bg-white"
+                aria-describedby={vatErrors.address ? "vat-address-error" : undefined}
+                aria-invalid={Boolean(vatErrors.address)}
+                className="border-outline-variant bg-white aria-invalid:border-error aria-invalid:ring-error"
+                onChange={() => onVatFieldChange("address")}
+                required
                 type="text"
               />
+              {vatErrors.address ? <p id="vat-address-error" className="mt-1 text-sm text-error">{vatErrors.address}</p> : null}
             </div>
           </div>
         ) : null}
@@ -256,6 +265,8 @@ export function CheckoutForm({
   onPaymentMethodChange,
   vatChecked,
   onVatCheckedChange,
+  vatErrors,
+  onVatFieldChange,
   submitting,
   hasInvalidLines,
 }: {
@@ -270,6 +281,8 @@ export function CheckoutForm({
   onPaymentMethodChange: (value: string) => void;
   vatChecked: boolean;
   onVatCheckedChange: (checked: boolean) => void;
+  vatErrors: Partial<Record<"name" | "taxId" | "email" | "address", string>>;
+  onVatFieldChange: (field: "name" | "taxId" | "email" | "address") => void;
   submitting: boolean;
   hasInvalidLines: boolean;
 }) {
@@ -301,6 +314,8 @@ export function CheckoutForm({
           <AdditionalRequirementsSection
             vatChecked={vatChecked}
             onVatCheckedChange={onVatCheckedChange}
+            vatErrors={vatErrors}
+            onVatFieldChange={onVatFieldChange}
           />
           <div className="mt-10 lg:mt-12">
             <Button
@@ -308,7 +323,11 @@ export function CheckoutForm({
               disabled={submitting || hasInvalidLines}
               className="w-full rounded-md bg-action-positive py-8 font-label-md text-label-md uppercase tracking-widest text-white shadow-xl transition-all hover:bg-action-positive-hover hover:shadow-2xl active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {submitting ? "Đang gửi đơn..." : "Đặt hàng ngay"}
+              {submitting
+                ? "Đang gửi đơn..."
+                : paymentMethod === "bank_transfer"
+                  ? "Đặt hàng và nhận thông tin chuyển khoản"
+                  : "Đặt hàng ngay"}
             </Button>
           </div>
         </div>

@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm'
+import { and, asc, desc, eq, inArray, isNull, sql } from 'drizzle-orm'
 import { Hono, type Context } from 'hono'
 import { makeCustomizationUrlsAbsolute, toAbsoluteAssetUrl } from '../../lib/url'
 import * as v from 'valibot'
@@ -246,7 +246,7 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
       }
     }
 
-    const conditions = [eq(products.status, 'published')]
+    const conditions = [eq(products.status, 'published'), isNull(products.deletedAt)]
 
     if (parsedQuery.output.category) {
       conditions.push(
@@ -269,6 +269,7 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
       subtitle: string | null
       handle: string
       status: string
+      thumbnailAssetId: string | null
     }
 
     let items: ListingQueryItem[]
@@ -281,7 +282,8 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
           title: products.title,
           subtitle: products.subtitle,
           handle: products.handle,
-          status: products.status
+          status: products.status,
+          thumbnailAssetId: products.thumbnailAssetId
         })
         .from(products)
         .where(whereClause)
@@ -354,7 +356,8 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
             title: products.title,
             subtitle: products.subtitle,
             handle: products.handle,
-            status: products.status
+            status: products.status,
+            thumbnailAssetId: products.thumbnailAssetId
           })
           .from(products)
           .where(whereClause)
@@ -395,13 +398,13 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
         ? db
             .select({
               productId: productMedia.productId,
-              url: productMedia.url,
+              assetId: productMedia.assetId,
               position: productMedia.position
             })
             .from(productMedia)
             .where(inArray(productMedia.productId, productIds))
             .orderBy(asc(productMedia.productId), asc(productMedia.position), asc(productMedia.id))
-        : Promise.resolve([] as Array<{ productId: number; url: string; position: number }>),
+        : Promise.resolve([] as Array<{ productId: number; assetId: string; position: number }>),
       productIds.length > 0
         ? db
             .select()
@@ -465,7 +468,7 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
       current.push(row)
       variantMediaByVariantId.set(row.variantId, current)
     }
-    const productMediaByProductId = new Map<number, Array<{ url: string; position: number }>>()
+    const productMediaByProductId = new Map<number, Array<{ assetId: string; position: number }>>()
     for (const row of productMediaRows) {
       const current = productMediaByProductId.get(row.productId) ?? []
       current.push(row)
@@ -506,7 +509,7 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
         variantMediaByVariantId,
         customizationByProductId.get(item.id)?.enabled ?? false,
         variantCustomizationMediaByVariantId,
-        productMediaByProductId.get(item.id) ?? []
+        item.thumbnailAssetId ?? null
       )
     )
 
@@ -533,7 +536,7 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
     let product = await db
       .select()
       .from(products)
-      .where(and(eq(products.handle, handle), eq(products.status, 'published')))
+      .where(and(eq(products.handle, handle), eq(products.status, 'published'), isNull(products.deletedAt)))
       .get()
 
     if (!product) {
@@ -789,9 +792,9 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
       handle: product.handle,
       description: product.description,
       media: productMediaRows.map((media) => ({
-        id: media.id,
-        url: toAbsoluteAssetUrl(c, media.url) as string,
-        alt: media.alt,
+        id: media.assetId,
+        url: toAbsoluteAssetUrl(c, `/api/assets/products/${media.assetId}/content`) as string,
+        alt: null,
         position: media.position,
       })),
       status: product.status,
@@ -878,10 +881,10 @@ export function buildListingItem(
   },
   categories: string[],
   variants: Array<{ id: number; isDefault: boolean; priceAmount: number | null }>,
-  variantMediaByVariantId: Map<number, Array<{ assetId: string }>>,
+  _variantMediaByVariantId: Map<number, Array<{ assetId: string }>>,
   customizationEnabled: boolean,
-  variantCustomizationMediaByVariantId: Map<number, { assetId: string }> = new Map(),
-  productMedia: Array<{ url: string; position: number }> = []
+  _variantCustomizationMediaByVariantId: Map<number, { assetId: string }> = new Map(),
+  thumbnailAssetId: string | null = null
 ) {
   const prices = variants
     .map((v) => v.priceAmount)
@@ -890,43 +893,10 @@ export function buildListingItem(
   const priceAmount = uniquePrices.size > 0 ? Math.min(...uniquePrices) : null
   const priceFrom = uniquePrices.size > 1
 
-  const defaultVariant = variants.find((v) => v.isDefault) ?? variants[0]
 
-  let thumbnail: string | null = null
-  const firstProductMedia = [...productMedia].sort((a, b) => a.position - b.position)[0]
-  if (firstProductMedia) {
-    thumbnail = toAbsoluteAssetUrl(c, firstProductMedia.url) as string
-  }
-  if (defaultVariant) {
-    const defaultMedia = variantMediaByVariantId.get(defaultVariant.id) ?? []
-    if (!thumbnail && defaultMedia.length > 0) {
-      thumbnail = toAbsoluteAssetUrl(c, `/api/assets/products/${defaultMedia[0].assetId}/content`) as string
-    }
-    if (!thumbnail) {
-      const customizationMedia = variantCustomizationMediaByVariantId.get(defaultVariant.id)
-      if (customizationMedia) {
-        thumbnail = toAbsoluteAssetUrl(c, `/api/assets/products/${customizationMedia.assetId}/content`) as string
-      }
-    }
-  }
-  if (!thumbnail) {
-    for (const variant of variants) {
-      const media = variantMediaByVariantId.get(variant.id) ?? []
-      if (media.length > 0) {
-        thumbnail = toAbsoluteAssetUrl(c, `/api/assets/products/${media[0].assetId}/content`) as string
-        break
-      }
-    }
-  }
-  if (!thumbnail) {
-    for (const variant of variants) {
-      const customizationMedia = variantCustomizationMediaByVariantId.get(variant.id)
-      if (customizationMedia) {
-        thumbnail = toAbsoluteAssetUrl(c, `/api/assets/products/${customizationMedia.assetId}/content`) as string
-        break
-      }
-    }
-  }
+  const thumbnail = thumbnailAssetId
+    ? toAbsoluteAssetUrl(c, `/api/assets/products/${thumbnailAssetId}/content`) as string
+    : null
 
   return {
     id: item.id,

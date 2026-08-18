@@ -1,23 +1,24 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { toast } from "@medusajs/ui";
 import { createLocalizedText } from "../../components/ui/medusa";
-import { uploadProductVariantMedia } from "../../lib/product-assets-client";
-import { convertPdfToImageFile } from "../../lib/pdf-preview";
 import {
-  createProductVariant,
+  atomicCreateVariant,
   deleteProductVariant,
+  disconnectProductVariantFromMisa,
   syncProductVariantToMisa,
-  updateProductVariantCustomizationMedia,
   updateProductVariantDetails,
-  updateProductVariantMedia,
   updateProductVariantPrices,
   updateProductVariantStock,
+  mapApiProductToCatalogProduct,
+  ProductCommandError,
 } from "../../lib/products-client";
+import { convertPdfToImageFile } from "../../lib/pdf-preview";
 import type { AdminLocale, CatalogProduct, LocalizedTextValue, ProductAttribute } from "../../types";
 
 type ProductDetailVariantsProps = {
   product: CatalogProduct;
   mutate: () => Promise<void>;
+  updateProduct: (updater: (current: CatalogProduct) => CatalogProduct) => void;
 };
 
 export type VariantFormState = {
@@ -29,16 +30,23 @@ export type VariantFormState = {
   allowBackorder: boolean;
   optionSelections: Record<string, string>;
   attributes: ProductAttribute[];
-  media: MediaDraft[];
-  customizationMedia: MediaDraft | null;
+  galleryMedia: File[];
+  customizationBackground: File | null;
 };
 
-export type MediaDraft = {
-  assetId: string;
-  url: string;
-  mimeType: string;
-  fileName: string;
-};
+async function readImageDimensions(file: File) {
+  const url = URL.createObjectURL(file);
+  try {
+    const image = new window.Image();
+    return await new Promise<{ width: number; height: number }>((resolve, reject) => {
+      image.onload = () => resolve({ width: image.naturalWidth, height: image.naturalHeight });
+      image.onerror = reject;
+      image.src = url;
+    });
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
 
 
 function buildVariantForm(product: CatalogProduct, variant?: CatalogProduct["variants"][number]): VariantFormState {
@@ -68,28 +76,12 @@ function buildVariantForm(product: CatalogProduct, variant?: CatalogProduct["var
     allowBackorder: variant?.allowBackorder ?? false,
     optionSelections,
     attributes,
-    media: variant ? buildMediaDraft(variant) : [],
-    customizationMedia: variant?.customizationMedia
-      ? {
-          assetId: variant.customizationMedia.id,
-          url: variant.customizationMedia.contentUrl,
-          mimeType: variant.customizationMedia.mimeType,
-          fileName: variant.customizationMedia.fileName,
-        }
-      : null,
+    galleryMedia: [],
+    customizationBackground: null,
   };
 }
 
-function buildMediaDraft(variant: CatalogProduct["variants"][number]): MediaDraft[] {
-  return variant.media.map((asset) => ({
-    assetId: asset.id,
-    url: asset.contentUrl,
-    mimeType: asset.mimeType,
-    fileName: asset.fileName,
-  }));
-}
-
-export function useProductDetailVariants({ product, mutate }: ProductDetailVariantsProps) {
+export function useProductDetailVariants({ product, mutate, updateProduct }: ProductDetailVariantsProps) {
   const [priceOpen, setPriceOpen] = useState(false);
   const [stockOpen, setStockOpen] = useState(false);
   const [variantOpen, setVariantOpen] = useState(false);
@@ -104,11 +96,8 @@ export function useProductDetailVariants({ product, mutate }: ProductDetailVaria
   const [isSavingPrices, setIsSavingPrices] = useState(false);
   const [isSavingStock, setIsSavingStock] = useState(false);
   const [isSavingVariant, setIsSavingVariant] = useState(false);
-  const [isUploadingVariantMedia, setIsUploadingVariantMedia] = useState(false);
   const [syncingMisaVariantId, setSyncingMisaVariantId] = useState<number | null>(null);
 
-  const variantMediaInputRef = useRef<HTMLInputElement | null>(null);
-  const variantCustomizationMediaInputRef = useRef<HTMLInputElement | null>(null);
 
   function openPrices() {
     setPriceRows(
@@ -241,7 +230,6 @@ export function useProductDetailVariants({ product, mutate }: ProductDetailVaria
 
       const priceAmount = variantForm.priceAmount.trim() === "" ? null : Number(variantForm.priceAmount);
       const inventoryQuantity = Number(variantForm.inventoryQuantity || 0);
-      const media = variantForm.media.map((asset) => ({ assetId: asset.assetId }));
 
       if (priceAmount !== null && (!Number.isFinite(priceAmount) || priceAmount < 0)) {
         throw new Error("Enter a valid variant price.");
@@ -251,6 +239,7 @@ export function useProductDetailVariants({ product, mutate }: ProductDetailVaria
         throw new Error("Enter a valid inventory quantity.");
       }
 
+      let productWasPatched = false;
       if (variantForm.id) {
         await updateProductVariantDetails(product.id, variantForm.id, {
           title: {
@@ -264,16 +253,33 @@ export function useProductDetailVariants({ product, mutate }: ProductDetailVaria
         });
         await updateProductVariantPrices(product.id, [{ id: variantForm.id, priceAmount }]);
         await updateProductVariantStock(product.id, [{ id: variantForm.id, inventoryQuantity }]);
-        await updateProductVariantMedia(product.id, variantForm.id, media);
-        if (variantForm.customizationMedia) {
-          await updateProductVariantCustomizationMedia(
-            product.id,
-            variantForm.id,
-            variantForm.customizationMedia.assetId,
-          );
-        }
       } else {
-        await createProductVariant(product.id, {
+        const galleryMedia = await Promise.all(
+          variantForm.galleryMedia.map((file) =>
+            file.type === "application/pdf" ? convertPdfToImageFile(file) : file,
+          ),
+        );
+        const customizationBackground =
+          variantForm.customizationBackground?.type === "application/pdf"
+            ? await convertPdfToImageFile(variantForm.customizationBackground)
+            : variantForm.customizationBackground;
+
+        if (product.customization?.enabled && !customizationBackground) {
+          throw new Error("A Customization Background is required while customization is active.");
+        }
+        const customizationDimensions = customizationBackground
+          ? await readImageDimensions(customizationBackground).catch(() => null)
+          : null;
+        if (product.customization?.enabled && variantForm.customizationBackground) {
+          if (
+            !customizationDimensions ||
+            customizationDimensions.width !== product.customization.canvasWidthPx ||
+            customizationDimensions.height !== product.customization.canvasHeightPx
+          ) {
+            throw new Error(`Customization Background must be ${product.customization.canvasWidthPx} x ${product.customization.canvasHeightPx} px.`);
+          }
+        }
+        const next = await atomicCreateVariant(product.id, product.updatedAt, {
           title: {
             vi: variantForm.titleTranslations.vi.trim(),
             en: variantForm.titleTranslations.en.trim(),
@@ -284,16 +290,27 @@ export function useProductDetailVariants({ product, mutate }: ProductDetailVaria
           allowBackorder: variantForm.allowBackorder,
           optionValueIds,
           attributes: normalizedAttributes,
-          media,
-          customizationMedia: variantForm.customizationMedia
-            ? { assetId: variantForm.customizationMedia.assetId }
+          galleryMedia: galleryMedia.map((file) => ({
+            mediaId: crypto.randomUUID(),
+            file,
+          })),
+          customizationMedia: customizationBackground
+            ? {
+                mediaId: crypto.randomUUID(),
+                file: customizationBackground,
+                widthPx: customizationDimensions?.width ?? 0,
+                heightPx: customizationDimensions?.height ?? 0,
+              }
             : null,
         });
+        updateProduct(() => mapApiProductToCatalogProduct(next));
+        productWasPatched = true;
       }
 
-      await mutate();
+      if (!productWasPatched) await mutate();
       setVariantOpen(false);
     } catch (error) {
+      if (error instanceof ProductCommandError && error.status === 409) await mutate();
       const message = error instanceof Error ? error.message : "Failed to save variant details.";
       toast.error("Variant details could not be saved", {
         description: `${message} Complete the variant title, option values, attributes, price, and inventory fields, then try again.`,
@@ -303,85 +320,16 @@ export function useProductDetailVariants({ product, mutate }: ProductDetailVaria
     }
   }
 
-  async function handleVariantMediaUpload(fileList: FileList | null) {
-    if (!fileList || fileList.length === 0) {
-      return;
-    }
-
-    setIsUploadingVariantMedia(true);
-
-    try {
-      const uploadedAssets = await Promise.all(
-        Array.from(fileList).map(async (file) => {
-          let fileToUpload = file;
-          if (file.type === "application/pdf") {
-            fileToUpload = await convertPdfToImageFile(file);
-          }
-          return uploadProductVariantMedia(fileToUpload);
-        }),
-      );
-
-      setVariantForm((current) => ({
-        ...current,
-        media: [
-          ...current.media,
-          ...uploadedAssets.map((asset) => ({
-            assetId: asset.id,
-            url: asset.contentUrl,
-            mimeType: asset.mimeType,
-            fileName: asset.fileName,
-          })),
-        ],
-      }));
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to upload variant media.";
-      toast.error("Variant media could not be uploaded", {
-        description: `${message} Choose a supported image or PDF file and try again.`,
-      });
-    } finally {
-      setIsUploadingVariantMedia(false);
-    }
-  }
-
-  async function handleCustomizationMediaUpload(fileList: FileList | null) {
-    const file = fileList?.[0];
-    if (!file) return;
-
-    setIsUploadingVariantMedia(true);
-    try {
-      let fileToUpload = file;
-      if (file.type === "application/pdf") {
-        fileToUpload = await convertPdfToImageFile(file);
-      }
-      const asset = await uploadProductVariantMedia(fileToUpload);
-      setVariantForm((current) => ({
-        ...current,
-        customizationMedia: {
-          assetId: asset.id,
-          url: asset.contentUrl,
-          mimeType: asset.mimeType,
-          fileName: asset.fileName,
-        },
-      }));
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to upload customization media.";
-      toast.error("Customization media could not be uploaded", {
-        description: `${message} Choose a supported image or PDF file and try again.`,
-      });
-    } finally {
-      setIsUploadingVariantMedia(false);
-    }
-  }
-
   async function handleDeleteVariant(variantId: number) {
     if (!window.confirm("Delete this product variant?")) {
       return;
     }
 
     try {
-      await deleteProductVariant(product.id, variantId);
+      await deleteProductVariant(product.id, variantId, product.updatedAt);
       await mutate();
     } catch (error) {
+      if (error instanceof ProductCommandError && error.status === 409) await mutate();
       const message = error instanceof Error ? error.message : "Failed to delete variant.";
       toast.error("Variant could not be deleted", {
         description: `${message} Refresh the product and try again.`,
@@ -409,13 +357,26 @@ export function useProductDetailVariants({ product, mutate }: ProductDetailVaria
     }
   }
 
+  async function handleDisconnectVariantFromMisa(variantId: number) {
+    setSyncingMisaVariantId(variantId);
+    try {
+      await disconnectProductVariantFromMisa(product.id, variantId);
+      await mutate();
+      toast.success("Variant disconnected from MISA");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to disconnect variant from MISA.");
+    } finally {
+      setSyncingMisaVariantId(null);
+    }
+  }
+
   return {
     priceOpen, setPriceOpen, stockOpen, setStockOpen, variantOpen, setVariantOpen,
     priceRows, setPriceRows, stockRows, setStockRows, variantForm, setVariantForm,
     variantTitleLocale, setVariantTitleLocale, variantAttributeLocale, setVariantAttributeLocale,
-    isSavingPrices, isSavingStock, isSavingVariant, isUploadingVariantMedia, syncingMisaVariantId,
-    variantMediaInputRef, variantCustomizationMediaInputRef, openPrices, openStock,
+    isSavingPrices, isSavingStock, isSavingVariant, syncingMisaVariantId,
+    openPrices, openStock,
     openVariantEditor, updateVariantAttribute, savePrices, saveStock, saveVariant,
-    handleVariantMediaUpload, handleCustomizationMediaUpload, handleDeleteVariant, handleSyncVariantToMisa,
+    handleDeleteVariant, handleSyncVariantToMisa, handleDisconnectVariantFromMisa,
   };
 }

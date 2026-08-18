@@ -19,10 +19,6 @@ export function BillingDetails() {
           <label className="block font-label-md text-label-md text-on-surface-variant mb-2">Address</label>
           <input name="shipping.primaryAddress.line1" className="w-full bg-surface-container-low border-none rounded-none py-4 px-4 focus:ring-0 outline-none focus:border-b-2 focus:border-primary" placeholder="Street name and number" type="text" required />
         </div>
-        <div className="md:col-span-2">
-          <label className="block font-label-md text-label-md text-on-surface-variant mb-2">City / District</label>
-          <input name="shipping.primaryAddress.city" className="w-full bg-surface-container-low border-none rounded-none py-4 px-4 focus:ring-0 outline-none focus:border-b-2 focus:border-primary" placeholder="e.g. Ho Chi Minh City" type="text" required />
-        </div>
       </div>
     </section>
   );

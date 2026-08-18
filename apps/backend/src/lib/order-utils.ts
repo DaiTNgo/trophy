@@ -8,10 +8,10 @@ import type {
 export type OrderAddressSnapshot = {
   line1: string;
   line2?: string;
-  city: string;
+  city?: string;
   province?: string;
   postalCode?: string;
-  country: string;
+  country?: string;
 };
 
 export type DifferentShippingAddressSnapshot = {
@@ -21,11 +21,10 @@ export type DifferentShippingAddressSnapshot = {
 };
 
 export type VatDetailsSnapshot = {
-  type?: string;
-  name?: string;
-  taxId?: string;
-  email?: string;
-  address?: string;
+  name: string;
+  taxId: string;
+  email: string;
+  address: string;
 };
 
 export type StoredProductSnapshot = {
@@ -41,6 +40,7 @@ export type StoredVariantSnapshot = {
   title: string;
   sku: string | null;
   priceAmount: number | null;
+  misaProductCode?: string | null;
 };
 
 export type StoredBackgroundSnapshot = {
@@ -81,6 +81,10 @@ function safeParseJson<T>(value: string | null): T | null {
 
 export function normalizePhoneForLookup(value: string) {
   return value.replace(/\D+/g, "");
+}
+
+export function normalizeVietnamTaxId(value: string) {
+  return value.replace(/[\s-]+/g, "");
 }
 
 export function maskPhone(value: string) {

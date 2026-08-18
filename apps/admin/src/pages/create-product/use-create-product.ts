@@ -18,7 +18,6 @@ import {
   type ProductMetadataSnapshot,
 } from "../../lib/product-metadata-client";
 import { convertPdfToImageFile } from "../../lib/pdf-preview";
-import { uploadProductVariantMedia } from "../../lib/product-assets-client";
 import {
   createFullProduct,
   mapApiProductToCatalogProduct,
@@ -505,49 +504,20 @@ export function useCreateProduct() {
                 ],
               },
             ];
-      const variantRowsWithUploadedMedia = await Promise.all(
-        effectiveVariantRows.map(async (variant) => {
-          const uploadedMedia = await Promise.all(
-            variant.media.map(async (media) => {
-              if (!media.isPending || !media.file) {
-                return {
-                  ...media,
-                  file: undefined,
-                  isPending: undefined,
-                };
-              }
-
-              const uploaded = await uploadProductVariantMedia(
-                media.file,
-                media.widthPx,
-                media.heightPx,
-              );
-              return uploaded;
-            }),
-          );
-          let uploadedCustomizationMedia = variant.customizationMedia;
-          if (
-            uploadedCustomizationMedia?.isPending &&
-            uploadedCustomizationMedia.file
-          ) {
-            uploadedCustomizationMedia = await uploadProductVariantMedia(
-              uploadedCustomizationMedia.file,
-              uploadedCustomizationMedia.widthPx,
-              uploadedCustomizationMedia.heightPx,
-            );
-          }
-
-          return {
-            ...variant,
-            media: uploadedMedia,
-            customizationMedia: uploadedCustomizationMedia,
-          };
-        }),
-      );
-
-      const submittedVariants = variantRowsWithUploadedMedia
+      const submittedVariants = effectiveVariantRows
         .filter((variant) => variant.shouldCreate)
-        .map((variant, index) => ({
+        .map((variant, index) => {
+          const media = variant.media.map((asset) => {
+            if (!asset.file) throw new Error("Variant media must be selected again before saving.");
+            return { mediaId: asset.id, file: asset.file };
+          });
+          const customizationMedia = variant.customizationMedia
+            ? (() => {
+                if (!variant.customizationMedia.file) throw new Error("Customization Media must be selected again before saving.");
+                return { mediaId: variant.customizationMedia.id, file: variant.customizationMedia.file };
+              })()
+            : null;
+          return {
           title: variant.title,
           sku: variant.sku.trim() || null,
           priceAmount:
@@ -563,11 +533,10 @@ export function useCreateProduct() {
             optionTitle: option.option,
             value: option.value,
           })),
-          media: variant.media.map((asset) => ({ assetId: asset.id })),
-          customizationMedia: variant.customizationMedia
-            ? { assetId: variant.customizationMedia.id }
-            : null,
-        }));
+          media,
+          customizationMedia,
+        };
+        });
       const submittedDetails = {
         title: values.title,
         handle: values.handle.trim() || null,

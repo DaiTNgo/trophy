@@ -1,16 +1,20 @@
+import { and, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { getDb } from "../../db/client";
 import { customizationAssets } from "../../db/schema";
 import {
   allowedMimeTypes,
+  assetParamsSchema,
   cleanOwnerKey,
   extensionForMimeType,
   MAX_ASSET_BYTES,
 } from "../../lib/asset-utils";
 import type { AppEnv } from "../../lib/env";
 import { readImageDimensions } from "../../lib/image-dimensions";
+import { buildShopperDraftUploadKey } from "../../lib/r2-media-keys";
+import { shopperDraftExpiry } from "../../lib/order-media-transfer";
 import { toAbsoluteAssetUrl } from "../../lib/url";
-import { jsonError } from "../../lib/validation";
+import { jsonError, parseParams } from "../../lib/validation";
 
 export const customizationAssetsRoute = new Hono<AppEnv>()
   .post("/", async (c) => {
@@ -61,6 +65,12 @@ export const customizationAssetsRoute = new Hono<AppEnv>()
       return jsonError(c, 401, "X-Upload-Token is required");
     }
 
+    const shopperDraftId = cleanOwnerKey(c.req.header("x-shopper-draft-id") ?? "");
+    const shopperFieldId = cleanOwnerKey(c.req.header("x-shopper-field-id") ?? "");
+    if (!shopperDraftId || !shopperFieldId) {
+      return jsonError(c, 400, "X-Shopper-Draft-Id and X-Shopper-Field-Id are required");
+    }
+
     if (buffer.byteLength === 0 || buffer.byteLength > MAX_ASSET_BYTES) {
       return jsonError(c, 413, "Customization asset size is invalid or exceeds the 20 MB limit");
     }
@@ -85,7 +95,12 @@ export const customizationAssetsRoute = new Hono<AppEnv>()
     }
 
     const id = crypto.randomUUID();
-    const objectKey = `uploads/${ownerKey}/${id}/original.${extensionForMimeType(mimeType)}`;
+    const objectKey = buildShopperDraftUploadKey({
+      draftId: shopperDraftId,
+      fieldId: shopperFieldId,
+      assetId: id,
+      extension: extensionForMimeType(mimeType),
+    });
     let previewObjectKey: string | undefined;
 
     await c.env.CUSTOMIZATION_ASSETS.put(objectKey, buffer, {
@@ -100,12 +115,13 @@ export const customizationAssetsRoute = new Hono<AppEnv>()
     });
 
     if (previewBuffer) {
-      previewObjectKey = `uploads/${ownerKey}/${id}/preview.png`;
+      previewObjectKey = objectKey.replace(/\.source\.[a-z0-9]+$/, ".preview.png");
       await c.env.CUSTOMIZATION_ASSETS.put(previewObjectKey, previewBuffer, {
         httpMetadata: { contentType: "image/png" },
         customMetadata: {
-          assetId: id,
-          ownerKey,
+        assetId: id,
+        draftId: shopperDraftId,
+        fieldId: shopperFieldId,
           type: "preview",
         },
       });
@@ -114,6 +130,10 @@ export const customizationAssetsRoute = new Hono<AppEnv>()
     await getDb(c.env).insert(customizationAssets).values({
       id,
       ownerKey,
+      ownershipType: "shopper_draft",
+      shopperDraftId,
+      shopperFieldId,
+      expiresAt: shopperDraftExpiry(new Date()),
       objectKey,
       previewObjectKey,
       mimeType,
@@ -140,4 +160,50 @@ export const customizationAssetsRoute = new Hono<AppEnv>()
       },
       201,
     );
+  })
+  .delete("/:id", async (c) => {
+    const params = parseParams(c, assetParamsSchema);
+    if (!params.success) {
+      return params.response;
+    }
+
+    const ownerKey = cleanOwnerKey(c.req.header("x-upload-token") ?? "");
+    if (!ownerKey) {
+      return jsonError(c, 401, "X-Upload-Token is required");
+    }
+
+    const shopperDraftId = cleanOwnerKey(c.req.header("x-shopper-draft-id") ?? "");
+    const shopperFieldId = cleanOwnerKey(c.req.header("x-shopper-field-id") ?? "");
+    if (!shopperDraftId || !shopperFieldId) {
+      return jsonError(c, 400, "X-Shopper-Draft-Id and X-Shopper-Field-Id are required");
+    }
+
+    const db = getDb(c.env);
+    const asset = await db
+      .select()
+      .from(customizationAssets)
+      .where(
+        and(
+          eq(customizationAssets.id, params.output.id),
+          eq(customizationAssets.ownerKey, ownerKey),
+          eq(customizationAssets.ownershipType, "shopper_draft"),
+          eq(customizationAssets.shopperDraftId, shopperDraftId),
+          eq(customizationAssets.shopperFieldId, shopperFieldId),
+        ),
+      )
+      .get();
+
+    if (!asset) {
+      return jsonError(c, 404, "Customization asset not found");
+    }
+
+    await Promise.all([
+      c.env.CUSTOMIZATION_ASSETS.delete(asset.objectKey),
+      ...(asset.previewObjectKey
+        ? [c.env.CUSTOMIZATION_ASSETS.delete(asset.previewObjectKey)]
+        : []),
+    ]);
+    await db.delete(customizationAssets).where(eq(customizationAssets.id, asset.id));
+
+    return c.json({ ok: true }, 200);
   });

@@ -9,7 +9,7 @@ import {
   type DynamicFontFamily,
 } from "@trophy/customization";
 import { FormField, ProductCustomizationPreview, createCustomizationInteractionHandlers } from "./index";
-import type { CustomizationUploadImage, ResolveCustomizationAssetUrl, ResolveCustomizationFontUrl, ResolveCustomizationStaticFontUrl } from "./index";
+import type { CustomizationDeleteImage, CustomizationUploadImage, ResolveCustomizationAssetUrl, ResolveCustomizationFontUrl, ResolveCustomizationStaticFontUrl } from "./index";
 
 export function ProductCustomizationForm({
   template,
@@ -18,6 +18,7 @@ export function ProductCustomizationForm({
   message,
   resolveAssetUrl,
   onMessageChange,
+  onDeleteImage,
   onUploadImage,
   onInteraction,
   onValueChange,
@@ -28,6 +29,7 @@ export function ProductCustomizationForm({
   message?: string;
   resolveAssetUrl?: ResolveCustomizationAssetUrl;
   onMessageChange?: (message: string) => void;
+  onDeleteImage?: CustomizationDeleteImage;
   onUploadImage?: CustomizationUploadImage;
   onInteraction?: () => void;
   onValueChange: (fieldId: string, value: CustomizationFieldValue) => void;
@@ -43,6 +45,28 @@ export function ProductCustomizationForm({
   function setMessage(nextMessage: string) {
     setInternalMessage(nextMessage);
     onMessageChange?.(nextMessage);
+  }
+
+  async function replaceImageValue(
+    field: CustomizationFormField,
+    value: CustomizationFieldValue,
+  ) {
+    const previousValue = values[field.id];
+    const replacesUploadedAsset =
+      onDeleteImage &&
+      previousValue &&
+      typeof previousValue === "object" &&
+      "assetId" in previousValue &&
+      (!value ||
+        typeof value !== "object" ||
+        !("assetId" in value) ||
+        value.assetId !== previousValue.assetId);
+
+    if (replacesUploadedAsset) {
+      await onDeleteImage(field, previousValue.assetId);
+    }
+
+    onValueChange(field.id, value);
   }
 
   async function uploadImage(field: CustomizationFormField, file: File) {
@@ -62,10 +86,22 @@ export function ProductCustomizationForm({
     setUploadingFieldId(field.id);
     try {
       const value = await onUploadImage(field, file);
-      onValueChange(field.id, value);
+      await replaceImageValue(field, value);
       setMessage("");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Upload failed.");
+    } finally {
+      setUploadingFieldId("");
+    }
+  }
+
+  async function removeImage(field: CustomizationFormField) {
+    setUploadingFieldId(field.id);
+    try {
+      await replaceImageValue(field, null);
+      setMessage("");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Could not remove image.");
     } finally {
       setUploadingFieldId("");
     }
@@ -102,10 +138,14 @@ export function ProductCustomizationForm({
             dynamicFonts={dynamicFonts}
             resolveAssetUrl={resolveAssetUrl}
             onChange={(value) => {
-              onValueChange(field.id, value);
-              setMessage("");
+              void replaceImageValue(field, value)
+                .then(() => setMessage(""))
+                .catch((error) => {
+                  setMessage(error instanceof Error ? error.message : "Could not update image.");
+                });
             }}
             onUpload={(file) => uploadImage(field, file)}
+            onRemove={() => void removeImage(field)}
           />
         );
       })}
@@ -123,6 +163,7 @@ export function CustomizationStudio({
   resolveFontUrl,
   resolveStaticFontUrl,
   onMessageChange,
+  onDeleteImage,
   onUploadImage,
   onValueChange,
 }: {
@@ -135,6 +176,7 @@ export function CustomizationStudio({
   resolveFontUrl?: ResolveCustomizationFontUrl;
   resolveStaticFontUrl?: ResolveCustomizationStaticFontUrl;
   onMessageChange?: (message: string) => void;
+  onDeleteImage?: CustomizationDeleteImage;
   onUploadImage?: CustomizationUploadImage;
   onValueChange: (fieldId: string, value: CustomizationFieldValue) => void;
 }) {
@@ -158,6 +200,7 @@ export function CustomizationStudio({
           message={message}
           resolveAssetUrl={resolveAssetUrl}
           onMessageChange={onMessageChange}
+          onDeleteImage={onDeleteImage}
           onUploadImage={onUploadImage}
           onValueChange={onValueChange}
         />

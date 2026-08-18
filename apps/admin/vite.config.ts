@@ -3,6 +3,10 @@ import react from "@vitejs/plugin-react";
 import { visualizer } from "rollup-plugin-visualizer";
 
 export default defineConfig({
+  resolve: {
+    // Workspace packages must share the application's React dispatcher.
+    dedupe: ["react", "react-dom"],
+  },
   server: {
     port: 5174,
     strictPort: true,

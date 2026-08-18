@@ -1,8 +1,18 @@
-import type { CatalogProduct, LocalizedTextValue } from "../types";
+import type { CatalogProduct, LocalizedTextValue, ProductVariantMedia } from "../types";
 import { backendClient } from "./backend-client";
 import { backendFetch } from "./fetch";
 
 type LocalizedInput = string | { vi: string; en?: string | null };
+
+export class ProductCommandError extends Error {
+  readonly status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "ProductCommandError";
+    this.status = status;
+  }
+}
 
 const toLocalized = (v: LocalizedInput | null | undefined): LocalizedTextValue => {
   if (!v) return { vi: "", en: "" };
@@ -20,7 +30,16 @@ type ApiProduct = {
   categories: Array<{ id: number; name: LocalizedInput }>;
   collection: { id: number; title: LocalizedInput } | null;
   attributes: Array<{ name: LocalizedInput; value: LocalizedInput }>;
-  media: Array<{ url: string }>;
+  thumbnailAssetId?: string | null;
+  media: Array<{
+    assetId: string;
+    fileName: string;
+    mimeType: string;
+    widthPx: number | null;
+    heightPx: number | null;
+    byteSize: number;
+    contentUrl: string;
+  }>;
   options: Array<{
     id: number;
     title: LocalizedInput;
@@ -31,7 +50,7 @@ type ApiProduct = {
     title: LocalizedInput;
     sku: string | null;
     misaProductId: number | null;
-    misaSyncStatus: "pending" | "synced" | "failed";
+    misaSyncStatus: "pending" | "synced" | "failed" | "disconnected" | "missing";
     misaLastError: string | null;
     priceAmount: number | null;
     inventoryQuantity: number;
@@ -69,6 +88,26 @@ type ApiProduct = {
   updatedAt: string;
 };
 
+type ApiManagedVariantMedia = {
+  id: number;
+  media: Array<{
+    id: string;
+    fileName: string;
+    mimeType: string;
+    widthPx: number;
+    heightPx: number;
+    byteSize: number;
+    contentUrl: string;
+  }>;
+  customizationMedia: ApiManagedVariantMedia["media"][number] | null;
+};
+
+export type ManagedVariantMedia = {
+  id: string;
+  media: ProductVariantMedia[];
+  customizationMedia: ProductVariantMedia | null;
+};
+
 function mapApiProductStatus(status: ApiProduct["status"]): CatalogProduct["status"] {
   switch (status) {
     case "published":
@@ -83,7 +122,7 @@ function mapApiProductStatus(status: ApiProduct["status"]): CatalogProduct["stat
   }
 }
 
-type CreateFullProductPayload = {
+export type CreateFullProductPayload = {
   mode: "draft" | "publish";
   details: {
     title: LocalizedInput;
@@ -106,8 +145,8 @@ type CreateFullProductPayload = {
     isDefault?: boolean;
     optionValues: Array<{ optionTitle: string; value: string }>;
     attributes?: Array<{ name: LocalizedInput; value: LocalizedInput; unit?: string | null }>;
-    media: Array<{ assetId: string }>;
-    customizationMedia?: { assetId: string } | null;
+    media: Array<{ mediaId: string; file: File }>;
+    customizationMedia?: { mediaId: string; file: File } | null;
   }>;
   customization?: {
     enabled: boolean;
@@ -119,12 +158,27 @@ type CreateFullProductPayload = {
 };
 
 export async function createFullProduct(payload: CreateFullProductPayload) {
+  const formData = new FormData();
+  const multipartPayload = {
+    ...payload,
+    variants: payload.variants.map((variant) => ({
+      ...variant,
+      media: variant.media.map(({ mediaId }) => ({ mediaId })),
+      customizationMedia: variant.customizationMedia
+        ? { mediaId: variant.customizationMedia.mediaId }
+        : null,
+    })),
+  };
+  formData.append("payload", JSON.stringify(multipartPayload));
+  payload.variants.forEach((variant) => {
+    variant.media.forEach(({ mediaId, file }) => formData.append(mediaId, file));
+    if (variant.customizationMedia) {
+      formData.append(variant.customizationMedia.mediaId, variant.customizationMedia.file);
+    }
+  });
   const response = await backendFetch("/api/admin/products/full-create", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(payload),
+    body: formData,
   });
 
   const body = (await response.json().catch(() => null)) as
@@ -395,34 +449,6 @@ export async function updateProductVariants(id: string, items: Array<{
   return body.item as ApiProduct;
 }
 
-export async function createProductVariant(
-  id: string,
-  payload: {
-    title: LocalizedInput;
-    sku: string | null;
-    priceAmount: number | null;
-    inventoryQuantity: number;
-    allowBackorder: boolean;
-    optionValueIds: number[];
-    attributes?: Array<{ name: LocalizedInput; value: LocalizedInput; unit?: string | null }>;
-    media?: Array<{ assetId: string }>;
-    customizationMedia?: { assetId: string } | null;
-  },
-) {
-  const response = await backendFetch(`/api/admin/products/${id}/variants`, {
-    method: "POST",
-
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  if (!response.ok) {
-    const err = await response.json().catch(() => null);
-    throw new Error(err?.error || "Failed to create product variant.");
-  }
-  const body = await response.json();
-  return body.item as ApiProduct;
-}
-
 export async function updateProductVariantDetails(
   id: string,
   variantId: number,
@@ -448,14 +474,14 @@ export async function updateProductVariantDetails(
   return body.item as ApiProduct;
 }
 
-export async function deleteProductVariant(id: string, variantId: number) {
+export async function deleteProductVariant(id: string, variantId: number, revision: string) {
   const response = await backendFetch(`/api/admin/products/${id}/variants/${variantId}`, {
     method: "DELETE",
-
+    headers: revisionHeaders(revision),
   });
   if (!response.ok) {
     const err = await response.json().catch(() => null);
-    throw new Error(err?.error || "Failed to delete product variant.");
+    throw new ProductCommandError(err?.error || "Failed to delete product variant.", response.status);
   }
   const body = await response.json();
   return body.item as ApiProduct;
@@ -477,6 +503,20 @@ export async function syncProductVariantToMisa(
     throw new Error(body.error || "Failed to synchronize the variant with MISA.");
   }
   return { item: body.item, sync: body.sync };
+}
+
+export async function disconnectProductVariantFromMisa(id: string, variantId: number) {
+  const response = await backendFetch(`/api/admin/products/${id}/variants/${variantId}/misa-disconnect`, { method: "POST" });
+  const body = await response.json().catch(() => null) as { item?: ApiProduct; error?: string } | null;
+  if (!response.ok || !body?.item) throw new Error(body?.error || "Failed to disconnect variant from MISA.");
+  return body.item;
+}
+
+export async function checkProductMisaLinks(id: string) {
+  const response = await backendFetch(`/api/admin/products/${id}/misa-check`, { method: "POST" });
+  const body = await response.json().catch(() => null) as { variants?: Array<{ id: number; misaSyncStatus: ApiProduct["variants"][number]["misaSyncStatus"]; misaLastError: string | null }>; error?: string } | null;
+  if (!response.ok || !body?.variants) throw new Error(body?.error || "Failed to check MISA product links.");
+  return body.variants;
 }
 
 export async function updateProductVariantPrices(
@@ -555,19 +595,55 @@ export async function updateProductVariantCustomizationMedia(
   return body.item as ApiProduct;
 }
 
-export async function updateProductMedia(id: string, items: Array<{ url: string }>) {
-  const response = await backendFetch(`/api/admin/products/${id}/media`, {
-    method: "PUT",
-
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ items }),
-  });
-  if (!response.ok) throw new Error("Failed to update product media.");
-  const body = await response.json();
-  return body.item as ApiProduct;
+async function readProductCommandResponse(response: Response, fallback: string) {
+  const body = await response.json().catch(() => null) as { item?: ApiProduct; error?: string } | null;
+  if (!response.ok || !body?.item) throw new ProductCommandError(body?.error || fallback, response.status);
+  return body.item;
 }
 
-export async function updateProductCustomization(id: string, payload: {
+async function readManagedVariantMediaResponse(response: Response, fallback: string): Promise<ManagedVariantMedia> {
+  const body = await response.json().catch(() => null) as { variant?: ApiManagedVariantMedia; error?: string } | null;
+  if (!response.ok || !body?.variant) throw new Error(body?.error || fallback);
+  const toMedia = (media: ApiManagedVariantMedia["media"][number]): ProductVariantMedia => ({ ...media });
+  return {
+    id: String(body.variant.id),
+    media: body.variant.media.map(toMedia),
+    customizationMedia: body.variant.customizationMedia ? toMedia(body.variant.customizationMedia) : null,
+  };
+}
+
+export async function uploadProductMedia(id: string, files: File[]) {
+  const formData = new FormData();
+  files.forEach((file) => formData.append("files", file));
+  const response = await backendFetch(`/api/admin/products/${id}/media/upload`, { method: "POST", body: formData });
+  return readProductCommandResponse(response, "Failed to upload Product Media.");
+}
+
+export async function setProductThumbnail(id: string, assetId: string | null) {
+  const response = await backendFetch(`/api/admin/products/${id}/thumbnail`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ assetId }) });
+  return readProductCommandResponse(response, "Failed to set Product Thumbnail.");
+}
+
+export async function uploadManagedVariantMedia(id: string, variantId: number, files: File[]) {
+  const formData = new FormData(); files.forEach((file) => formData.append("files", file));
+  const response = await backendFetch(`/api/admin/products/${id}/variants/${variantId}/media/upload`, { method: "POST", body: formData });
+  return readManagedVariantMediaResponse(response, "Failed to upload Variant Media.");
+}
+
+export async function removeManagedVariantMedia(id: string, variantId: number, assetId: string) {
+  const response = await backendClient.api.admin.products[":id"].variants[":variantId"].media[":assetId"].$delete({
+    param: { id, variantId: String(variantId), assetId },
+  });
+  return readManagedVariantMediaResponse(response, "Failed to remove Variant Media.");
+}
+
+export async function replaceVariantCustomizationBackground(id: string, variantId: number, file: File) {
+  const formData = new FormData(); formData.append("files", file);
+  const response = await backendFetch(`/api/admin/products/${id}/variants/${variantId}/customization-media/replace`, { method: "POST", body: formData });
+  return readManagedVariantMediaResponse(response, "Failed to replace Customization Background.");
+}
+
+export async function updateProductCustomization(id: string, revision: string, payload: {
   enabled: boolean;
   layers?: unknown[];
   formFields?: unknown[];
@@ -575,15 +651,125 @@ export async function updateProductCustomization(id: string, payload: {
   const response = await backendFetch(`/api/admin/products/${id}/customization`, {
     method: "PUT",
 
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...revisionHeaders(revision) },
     body: JSON.stringify(payload),
   });
   if (!response.ok) {
     const err = await response.json().catch(() => null);
-    throw new Error(err?.error || "Failed to update customization.");
+    throw new ProductCommandError(err?.error || "Failed to update customization.", response.status);
   }
   const body = await response.json();
   return body.item as ApiProduct;
+}
+
+export type CustomizationActivationInput = {
+  layers: unknown[];
+  formFields: unknown[];
+  backgrounds: Array<{ variantId: string; file: File; widthPx: number; heightPx: number }>;
+};
+
+const revisionHeaders = (revision: string) => ({ "If-Match": revision });
+
+export async function activateCustomization(id: string, revision: string, input: CustomizationActivationInput) {
+  const formData = new FormData();
+  formData.append("payload", JSON.stringify({
+    layers: input.layers,
+    formFields: input.formFields,
+    backgrounds: Object.fromEntries(input.backgrounds.map(({ variantId, widthPx, heightPx }) => [variantId, { widthPx, heightPx }])),
+  }));
+  input.backgrounds.forEach(({ variantId, file }) => formData.append(variantId, file));
+  const response = await backendFetch(`/api/admin/products/${id}/customization/activate`, {
+    method: "POST",
+    body: formData,
+    headers: revisionHeaders(revision),
+  });
+  return readProductCommandResponse(response, "Failed to activate customization.");
+}
+
+export async function deactivateCustomization(id: string, revision: string) {
+  const response = await backendFetch(`/api/admin/products/${id}/customization/deactivate`, { method: "POST", headers: revisionHeaders(revision) });
+  return readProductCommandResponse(response, "Failed to deactivate customization.");
+}
+
+export type ReactivationResult = { item: ApiProduct } | { missingBackgroundVariantIds: number[]; error: string };
+
+export async function reactivateCustomization(id: string, revision: string): Promise<ReactivationResult> {
+  const response = await backendFetch(`/api/admin/products/${id}/customization/reactivate`, { method: "POST", headers: revisionHeaders(revision) });
+  const body = await response.json().catch(() => null) as
+    | { item?: ApiProduct; missingBackgroundVariantIds?: number[]; error?: string }
+    | null;
+  if (response.ok && body?.item) return { item: body.item };
+  if (body?.missingBackgroundVariantIds) {
+    return { missingBackgroundVariantIds: body.missingBackgroundVariantIds, error: body.error ?? "Customization needs repair." };
+  }
+  throw new ProductCommandError(body?.error ?? "Failed to reactivate customization.", response.status);
+}
+
+export async function repairCustomization(id: string, revision: string, input: CustomizationActivationInput) {
+  const formData = new FormData();
+  formData.append("payload", JSON.stringify({
+    layers: input.layers,
+    formFields: input.formFields,
+    backgrounds: Object.fromEntries(input.backgrounds.map(({ variantId, widthPx, heightPx }) => [variantId, { widthPx, heightPx }])),
+  }));
+  input.backgrounds.forEach(({ variantId, file }) => formData.append(variantId, file));
+  const response = await backendFetch(`/api/admin/products/${id}/customization/repair`, {
+    method: "POST",
+    body: formData,
+    headers: revisionHeaders(revision),
+  });
+  return readProductCommandResponse(response, "Failed to repair customization.");
+}
+
+export async function permanentlyDeleteCustomization(id: string, revision: string) {
+  const response = await backendFetch(`/api/admin/products/${id}/customization/permanent`, { method: "DELETE", headers: revisionHeaders(revision) });
+  return readProductCommandResponse(response, "Failed to delete customization permanently.");
+}
+
+export async function atomicCreateVariant(
+  id: string,
+  revision: string,
+  payload: {
+    title: LocalizedInput;
+    sku: string | null;
+    priceAmount: number | null;
+    inventoryQuantity: number;
+    allowBackorder: boolean;
+    optionValueIds: number[];
+    attributes?: Array<{ name: LocalizedInput; value: LocalizedInput; unit?: string | null }>;
+    galleryMedia: Array<{ mediaId: string; file: File }>;
+    customizationMedia?: { mediaId: string; file: File; widthPx: number; heightPx: number } | null;
+  },
+) {
+  const formData = new FormData();
+  formData.append(
+    "payload",
+    JSON.stringify({
+      title: payload.title,
+      sku: payload.sku,
+      priceAmount: payload.priceAmount,
+      inventoryQuantity: payload.inventoryQuantity,
+      allowBackorder: payload.allowBackorder,
+      optionValueIds: payload.optionValueIds,
+      attributes: payload.attributes ?? [],
+      galleryMedia: payload.galleryMedia.map(({ mediaId }) => ({ mediaId })),
+      customizationMedia: payload.customizationMedia ? {
+        mediaId: payload.customizationMedia.mediaId,
+        widthPx: payload.customizationMedia.widthPx,
+        heightPx: payload.customizationMedia.heightPx,
+      } : null,
+    }),
+  );
+  payload.galleryMedia.forEach(({ mediaId, file }) => formData.append(mediaId, file));
+  if (payload.customizationMedia) {
+    formData.append(payload.customizationMedia.mediaId, payload.customizationMedia.file);
+  }
+  const response = await backendFetch(`/api/admin/products/${id}/variants/atomic-create`, {
+    method: "POST",
+    body: formData,
+    headers: revisionHeaders(revision),
+  });
+  return readProductCommandResponse(response, "Failed to create the variant.");
 }
 
 export async function publishProduct(id: string) {
@@ -610,10 +796,47 @@ export async function archiveProduct(id: string) {
 }
 
 export async function deleteProduct(id: string) {
-  const response = await backendFetch(`/api/admin/products/${id}`, { method: "DELETE" });
+  const response = await backendClient.api.admin.products[":id"].$delete({ param: { id } });
   const body = await response.json().catch(() => null) as { error?: string } | null;
   if (!response.ok) throw new Error(body?.error || "Failed to delete product.");
   return body;
+}
+
+export type TrashedProduct = {
+  id: string;
+  title: LocalizedTextValue;
+  handle: string;
+  status: ApiProduct["status"];
+  deletedAt: string;
+};
+
+export async function fetchTrashedProducts(): Promise<TrashedProduct[]> {
+  const response = await backendClient.api.admin.products.trash.$get();
+  const body = await response.json().catch(() => null) as {
+    items?: Array<{ id: number; title: LocalizedInput; handle: string; status: ApiProduct["status"]; deletedAt: string | null }>;
+    error?: string;
+  } | null;
+  if (!response.ok || !body?.items) throw new Error(body?.error || "Unable to fetch product trash.");
+
+  return body.items.flatMap((product) => product.deletedAt ? [{
+    id: String(product.id),
+    title: toLocalized(product.title),
+    handle: product.handle,
+    status: product.status,
+    deletedAt: product.deletedAt,
+  }] : []);
+}
+
+export async function restoreProduct(id: string) {
+  const response = await backendClient.api.admin.products[":id"].restore.$post({ param: { id } });
+  const body = await response.json().catch(() => null) as { error?: string } | null;
+  if (!response.ok) throw new Error(body?.error || "Failed to restore product.");
+}
+
+export async function permanentlyDeleteProduct(id: string) {
+  const response = await backendClient.api.admin.products[":id"].permanent.$delete({ param: { id } });
+  const body = await response.json().catch(() => null) as { error?: string } | null;
+  if (!response.ok) throw new Error(body?.error || "Failed to permanently delete product.");
 }
 
 export function mapApiProductToCatalogProduct(product: Partial<ApiProduct> & Pick<ApiProduct, 'id' | 'title' | 'handle' | 'status' | 'updatedAt'>): CatalogProduct {
@@ -682,7 +905,16 @@ export function mapApiProductToCatalogProduct(product: Partial<ApiProduct> & Pic
     collectionId: product.collection?.id ?? null,
     categories: (product.categories || []).map((c) => toLocalized(c.name).vi),
     categoryIds: (product.categories || []).map((c) => c.id),
-    media: (product.media || []).map((m) => m.url),
+    media: (product.media || []).map((media) => ({
+      id: media.assetId,
+      fileName: media.fileName,
+      mimeType: media.mimeType,
+      widthPx: media.widthPx ?? 0,
+      heightPx: media.heightPx ?? 0,
+      byteSize: media.byteSize,
+      contentUrl: media.contentUrl,
+    })),
+    thumbnailAssetId: product.thumbnailAssetId ?? null,
     attributes: (product.attributes || []).map((a) => ({
       key: toLocalized(a.name),
       value: toLocalized(a.value),

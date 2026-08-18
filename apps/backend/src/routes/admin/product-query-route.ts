@@ -1,4 +1,4 @@
-import { and, desc, eq, like, or, sql } from 'drizzle-orm'
+import { and, desc, eq, isNotNull, isNull, like, or, sql, type SQL } from 'drizzle-orm'
 import { Hono } from 'hono'
 import * as v from 'valibot'
 import { getDb } from '../../db/client'
@@ -36,14 +36,15 @@ export const productQueryRoute = new Hono<AppEnv>()
     const db = getDb(c.env)
     const page = parsedQuery.output.page ?? 1
     const limit = parsedQuery.output.limit ?? 20
-    const conditions = []
+    const conditions: SQL[] = [isNull(products.deletedAt)]
     if (parsedQuery.output.q) {
       const pattern = `%${parsedQuery.output.q.toLowerCase()}%`
-      conditions.push(or(
+      const searchCondition = or(
         like(sql`lower(${products.title})`, pattern),
         like(sql`lower(${products.subtitle})`, pattern),
         like(sql`lower(${products.handle})`, pattern)
-      ))
+      )
+      if (searchCondition) conditions.push(searchCondition)
     }
     if (parsedQuery.output.status) conditions.push(eq(products.status, parsedQuery.output.status))
     if (parsedQuery.output.collectionId) conditions.push(eq(products.collectionId, parsedQuery.output.collectionId))
@@ -66,6 +67,23 @@ export const productQueryRoute = new Hono<AppEnv>()
       db.select({ total: sql<number>`count(*)` }).from(products).where(whereClause).get()
     ])
     return c.json({ items, page, limit, total: totalResult?.total ?? 0 }, 200)
+  })
+  .get('/trash', async (c) => {
+    const db = getDb(c.env)
+    const items = await db
+      .select({
+        id: products.id,
+        title: products.title,
+        handle: products.handle,
+        status: products.status,
+        deletedAt: products.deletedAt,
+        updatedAt: products.updatedAt
+      })
+      .from(products)
+      .where(isNotNull(products.deletedAt))
+      .orderBy(desc(products.deletedAt), desc(products.id))
+
+    return c.json({ items }, 200)
   })
   .get('/:id', async (c) => {
     const params = parseParams(c, idParamsSchema)

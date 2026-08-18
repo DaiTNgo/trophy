@@ -62,6 +62,101 @@ export function buildProductCustomizationInsert({
   }
 }
 
+export type CustomizationLifecycle = {
+  hasSavedCustomization: boolean
+  enabled: boolean
+  active: boolean
+  missingBackgroundVariantIds: number[]
+  canvasWidthPx: number | null
+  canvasHeightPx: number | null
+}
+
+type LifecycleProduct = {
+  customization?: {
+    enabled: boolean
+    canvasWidthPx: number | null
+    canvasHeightPx: number | null
+  } | null
+  variants: Array<{
+    id: number
+    customizationMedia?: { widthPx: number | null; heightPx: number | null } | null
+  }>
+}
+
+export function deriveCustomizationLifecycle(product: LifecycleProduct): CustomizationLifecycle {
+  const hasSavedCustomization = Boolean(product.customization)
+  const enabled = hasSavedCustomization && Boolean(product.customization!.enabled)
+  const canvasWidthPx = product.customization?.canvasWidthPx ?? null
+  const canvasHeightPx = product.customization?.canvasHeightPx ?? null
+
+  const missingBackgroundVariantIds = product.variants
+    .filter((variant) => {
+      const media = variant.customizationMedia
+      if (!media) return true
+      if (!canvasWidthPx || !canvasHeightPx) return true
+      return media.widthPx !== canvasWidthPx || media.heightPx !== canvasHeightPx
+    })
+    .map((variant) => variant.id)
+
+  return {
+    hasSavedCustomization,
+    enabled,
+    active: enabled && missingBackgroundVariantIds.length === 0,
+    missingBackgroundVariantIds,
+    canvasWidthPx,
+    canvasHeightPx
+  }
+}
+
+export function validateBackgroundSizeContract(
+  backgrounds: Array<{ widthPx: number; heightPx: number }>
+): string | null {
+  if (backgrounds.length === 0) {
+    return 'Customization requires at least one Customization Background'
+  }
+  for (const background of backgrounds) {
+    if (!background.widthPx || !background.heightPx) {
+      return 'Customization Backgrounds must have valid dimensions'
+    }
+  }
+  const first = backgrounds[0]!
+  for (const background of backgrounds) {
+    if (background.widthPx !== first.widthPx || background.heightPx !== first.heightPx) {
+      return 'All Customization Backgrounds must share the same size'
+    }
+  }
+  return null
+}
+
+export function collectCustomizationTranslationKeys(customization: {
+  layersJson: string
+  formFieldsJson: string
+}): string[] {
+  const keys: string[] = []
+  let layers: unknown[] = []
+  let formFields: Array<{ id: string }> = []
+  try { layers = JSON.parse(customization.layersJson) } catch { layers = [] }
+  try { formFields = JSON.parse(customization.formFieldsJson) } catch { formFields = [] }
+  for (const field of formFields) {
+    if (field.id) keys.push(String(field.id))
+  }
+  for (const layer of layers) {
+    const typed = layer as { id?: string; type?: string; text?: { colorPolicy?: { mode?: string; options?: Array<{ value?: string }> }; fontPolicy?: { mode?: string; options?: Array<{ value?: string }> } } }
+    if (typed.type !== 'text' || !typed.id) continue
+    if (typed.text?.colorPolicy?.mode === 'shopper_selectable') {
+      for (const option of typed.text.colorPolicy.options ?? []) {
+        if (option.value) keys.push(`${typed.id}:color:${option.value}`)
+      }
+    }
+    if (typed.text?.fontPolicy?.mode === 'shopper_selectable') {
+      for (const option of typed.text.fontPolicy.options ?? []) {
+        if (option.value) keys.push(`${typed.id}:font:${option.value}`)
+      }
+    }
+  }
+  return keys
+}
+
 export function validateCustomizationPublishReadiness({
   customization,
   submittedVariants,

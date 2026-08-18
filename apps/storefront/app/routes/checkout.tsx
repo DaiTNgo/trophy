@@ -1,14 +1,19 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
+import { CheckCircle2, Copy } from "lucide-react";
 import type { Route } from "./+types/checkout";
 import {
   createStorefrontOrder,
+  fetchStorefrontPaymentInstructions,
   resolveStorefrontCartLines,
+  type StorefrontPaymentInstructionsResponse,
   type StorefrontResolvedCartLine,
+  StorefrontOrderError,
 } from "../lib/api";
 import { useCart } from "../hooks/use-cart";
 import type { CartLine } from "../lib/cart";
 import { getLocalized } from "../lib/translation";
+import { formatCurrency } from "../lib/utils";
 import { Button } from "../components/ui/button";
 import { Container } from "../components/container";
 import { CheckoutForm } from "../components/checkout/CheckoutForm";
@@ -16,8 +21,6 @@ import type {
   CheckoutItem,
   CheckoutLocale,
 } from "../components/checkout/OrderSummary";
-
-const ORDER_SUMMARY_STORAGE_KEY = "trophy-order-confirmation";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -35,7 +38,6 @@ function getFormString(formData: FormData, name: string) {
 
 function getVatDetails(formData: FormData) {
   const vat = {
-    type: getFormString(formData, "vat.type"),
     name: getFormString(formData, "vat.name"),
     taxId: getFormString(formData, "vat.taxId"),
     email: getFormString(formData, "vat.email"),
@@ -123,18 +125,124 @@ function EmptyCheckoutState() {
   );
 }
 
+function PaymentInstructionsState({
+  order,
+}: {
+  order: StorefrontPaymentInstructionsResponse["order"];
+}) {
+  const [copied, setCopied] = useState<"account" | "reference" | null>(null);
+  const transferReference = order.paymentReference;
+
+  async function copy(value: string, kind: "account" | "reference") {
+    await navigator.clipboard.writeText(value);
+    setCopied(kind);
+    window.setTimeout(() => setCopied(null), 1500);
+  }
+
+  const isBankTransfer = order.paymentMethod === "bank_transfer";
+  return (
+    <div className="flex min-h-screen flex-col bg-white text-on-background">
+      <CheckoutHeader showCartLink={false} />
+      <main className="flex-grow py-8 sm:py-12">
+        <Container className="max-w-3xl">
+          <section className="border border-[#DEDEDE] bg-white px-5 py-8 sm:px-10 sm:py-12">
+            <CheckCircle2 className="size-10 text-action-positive" aria-hidden="true" />
+            <p className="mt-5 text-sm font-semibold uppercase tracking-[0.08em] text-on-surface-variant">
+              Đơn hàng đã được ghi nhận
+            </p>
+            <h1 className="mt-2 font-heading text-[34px] uppercase leading-none tracking-[0.03em] text-brand-strong">
+              {order.orderNumber}
+            </h1>
+            <p className="mt-5 text-lg text-on-surface">
+              Tổng thanh toán: <strong>{formatCurrency(order.totalAmount)}</strong>
+            </p>
+
+            {isBankTransfer ? (
+              <div className="mt-8 border-y border-[#DEDEDE] py-7">
+                <h2 className="font-heading text-2xl uppercase text-brand-strong">Thông tin chuyển khoản</h2>
+                <dl className="mt-5 space-y-4 text-on-surface">
+                  <div>
+                    <dt className="text-sm text-on-surface-variant">Ngân hàng</dt>
+                    <dd className="mt-1 font-semibold">Vietcombank</dd>
+                  </div>
+                  <div>
+                    <dt className="text-sm text-on-surface-variant">Chủ tài khoản</dt>
+                    <dd className="mt-1 font-semibold">Nguyen Tuan Thanh</dd>
+                  </div>
+                  <div>
+                    <dt className="text-sm text-on-surface-variant">Số tài khoản</dt>
+                    <dd className="mt-1 flex flex-wrap items-center gap-3 font-semibold">
+                      9987996745
+                      <Button type="button" variant="outline" size="sm" onClick={() => void copy("9987996745", "account")}>
+                        <Copy className="size-4" aria-hidden="true" />
+                        {copied === "account" ? "Đã sao chép" : "Sao chép"}
+                      </Button>
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-sm text-on-surface-variant">Nội dung chuyển khoản</dt>
+                    <dd className="mt-1 flex flex-wrap items-center gap-3 font-semibold">
+                      {transferReference}
+                      <Button type="button" variant="outline" size="sm" onClick={() => void copy(transferReference, "reference")}>
+                        <Copy className="size-4" aria-hidden="true" />
+                        {copied === "reference" ? "Đã sao chép" : "Sao chép"}
+                      </Button>
+                    </dd>
+                  </div>
+                </dl>
+                <p className="mt-6 text-sm text-on-surface-variant">
+                  Đơn hàng sẽ được xác nhận sau khi chúng tôi đối soát khoản chuyển.
+                </p>
+              </div>
+            ) : (
+              <p className="mt-8 border-y border-[#DEDEDE] py-7 text-on-surface-variant">
+                Bạn thanh toán khi nhận hàng. Đội ngũ Phùng Thị sẽ liên hệ xác nhận đơn hàng.
+              </p>
+            )}
+            <Link className="mt-8 inline-flex text-sm font-semibold text-primary underline underline-offset-4" to="/products">
+              Tiếp tục mua sắm
+            </Link>
+          </section>
+        </Container>
+      </main>
+    </div>
+  );
+}
+
 export default function Checkout() {
   const { lines, isReady, clearCart } = useCart();
   const [searchParams] = useSearchParams();
   const locale: CheckoutLocale =
     searchParams.get("locale") === "en" ? "en" : "vi";
+  const paymentOrderNumber = searchParams.get("order");
+  const paymentAccessToken = searchParams.get("access");
   const navigate = useNavigate();
   const [resolved, setResolved] = useState<StorefrontResolvedCartLine[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [vatChecked, setVatChecked] = useState(false);
+  const [vatErrors, setVatErrors] = useState<Partial<Record<"name" | "taxId" | "email" | "address", string>>>({});
   const [showMobileSummary, setShowMobileSummary] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("bank_transfer");
+  const [paymentInstructions, setPaymentInstructions] = useState<StorefrontPaymentInstructionsResponse["order"] | null>(null);
+  const [paymentInstructionsError, setPaymentInstructionsError] = useState("");
+
+  useEffect(() => {
+    if (!paymentOrderNumber || !paymentAccessToken) return;
+    let cancelled = false;
+    fetchStorefrontPaymentInstructions({ orderNumber: paymentOrderNumber, accessToken: paymentAccessToken })
+      .then((response) => {
+        if (!cancelled) setPaymentInstructions(response.order);
+      })
+      .catch((reason) => {
+        if (!cancelled) {
+          setPaymentInstructionsError(reason instanceof Error ? reason.message : "Không thể tải hướng dẫn thanh toán.");
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [paymentAccessToken, paymentOrderNumber]);
 
   useEffect(() => {
     if (!isReady || lines.length === 0) {
@@ -184,6 +292,8 @@ export default function Checkout() {
     event.preventDefault();
     if (hasInvalidLines || lines.length === 0 || submitting) return;
     const formData = new FormData(event.currentTarget);
+    const vat = getVatDetails(formData);
+    setVatErrors({});
     setSubmitting(true);
     setError("");
     try {
@@ -197,16 +307,15 @@ export default function Checkout() {
         shipping: {
           primaryAddress: {
             line1: getFormString(formData, "shipping.primaryAddress.line1"),
-            city: getFormString(formData, "shipping.primaryAddress.city"),
-            province:
-              getFormString(formData, "shipping.primaryAddress.province") ||
-              undefined,
-            country: "VN",
           },
           shipToDifferentAddress: false,
         },
+        payment: {
+          method: paymentMethod === "cod" ? "cash_on_delivery" : "bank_transfer",
+        },
         notes: getFormString(formData, "notes") || undefined,
-        vat: getVatDetails(formData),
+        vatRequested: vatChecked,
+        vat,
         items: lines.map((line) => ({
           productId: line.productId,
           variantId: line.variantId,
@@ -216,41 +325,37 @@ export default function Checkout() {
             : undefined,
         })),
       });
-      window.sessionStorage.setItem(
-        ORDER_SUMMARY_STORAGE_KEY,
-        JSON.stringify({
-          ...response.order,
-          customerName: getFormString(formData, "customer.name"),
-          customerPhone: getFormString(formData, "customer.phone"),
-          customerEmail: getFormString(formData, "customer.email"),
-          addressLine1: getFormString(
-            formData,
-            "shipping.primaryAddress.line1",
-          ),
-          addressCity: getFormString(formData, "shipping.primaryAddress.city"),
-          addressProvince: getFormString(
-            formData,
-            "shipping.primaryAddress.province",
-          ),
-          items: checkoutItems.map((item) => ({
-            title: getLocalized(item.title, locale),
-            variantTitle: item.variantTitle,
-            quantity: item.line.quantity,
-            lineSubtotalAmount: (item.priceAmount ?? 0) * item.line.quantity,
-            thumbnail: item.thumbnail,
-            customizationSummary: item.line.customizationSummary,
-          })),
-        }),
-      );
       clearCart();
-      navigate(`/order-confirmation?orderNumber=${response.order.orderNumber}`);
+      const paymentSearch = new URLSearchParams({
+        order: response.order.orderNumber,
+        access: response.order.checkoutAccessToken,
+      });
+      if (locale === "en") paymentSearch.set("locale", "en");
+      navigate(`/checkout?${paymentSearch}`, { replace: true });
     } catch (reason) {
+      if (reason instanceof StorefrontOrderError && reason.field?.startsWith("vat.")) {
+        const field = reason.field.slice(4) as "name" | "taxId" | "email" | "address";
+        setVatErrors({ [field]: reason.message });
+        const input = event.currentTarget.elements.namedItem(reason.field);
+        if (input instanceof HTMLInputElement) input.focus();
+        return;
+      }
       setError(
         reason instanceof Error ? reason.message : "Không thể tạo đơn hàng.",
       );
     } finally {
       setSubmitting(false);
     }
+  }
+
+  if (paymentOrderNumber && paymentAccessToken) {
+    if (paymentInstructions) return <PaymentInstructionsState order={paymentInstructions} />;
+    return (
+      <div className="flex min-h-screen flex-col bg-white text-on-background">
+        <CheckoutHeader showCartLink={false} />
+        <main className="flex-grow py-12"><Container>{paymentInstructionsError || "Đang tải hướng dẫn thanh toán..."}</Container></main>
+      </div>
+    );
   }
 
   if (isReady && lines.length === 0) return <EmptyCheckoutState />;
@@ -271,7 +376,12 @@ export default function Checkout() {
           paymentMethod={paymentMethod}
           onPaymentMethodChange={setPaymentMethod}
           vatChecked={vatChecked}
-          onVatCheckedChange={setVatChecked}
+          onVatCheckedChange={(checked) => {
+            setVatChecked(checked);
+            if (!checked) setVatErrors({});
+          }}
+          vatErrors={vatErrors}
+          onVatFieldChange={(field) => setVatErrors((current) => ({ ...current, [field]: "" }))}
           submitting={submitting}
           hasInvalidLines={hasInvalidLines}
         />
