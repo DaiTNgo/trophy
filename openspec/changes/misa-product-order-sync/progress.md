@@ -1,5 +1,9 @@
 # Progress
 
+## 2026-08-18 Customer lookup before creation
+
+- MISA Customer synchronization now calls `GET /Customers/code?code=<account_number>` before any normal `POST /Customers`. An exact deterministic Customer code is reused; a missing code is created. The bounded `-1` through `-99` retry also performs a lookup for each suffix before its POST. The post-SaleOrder deleted-Customer recovery uses the same lookup-before-create path. Regression coverage verifies ordinary creation, reuse, suffix lookup order, Contact/SaleOrder synchronization, and recovery. Verification: `pnpm --filter backend test` (39 files, 244 tests), backend check/build, full `./init.sh`, and `git diff --check` pass.
+
 ## 2026-08-18 Trophy Admin SaleOrder link
 
 - New MISA SaleOrder payloads include `TROPHY ADMIN` followed by `<ADMIN_APP_ORIGIN>/orders/<local order id>` in `description`, for example `https://trophy-admin.pages.dev/orders/53`. The URL is formed only from a configured valid HTTP(S) origin and handles a trailing slash. Regression coverage verifies the configured-origin payload. Verification: `pnpm --filter backend test` (39 files, 244 tests), backend check/build, and full `./init.sh` pass.

@@ -125,6 +125,12 @@ describe("MISA client", () => {
         new Response(JSON.stringify({ data: "token" }), { status: 200 }),
       )
       .mockResolvedValueOnce(
+        new Response(JSON.stringify({ data: [] }), { status: 200 }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ data: "token" }), { status: 200 }),
+      )
+      .mockResolvedValueOnce(
         new Response(JSON.stringify({ data: { id: 77 } }), { status: 200 }),
       )
       .mockResolvedValueOnce(
@@ -144,7 +150,10 @@ describe("MISA client", () => {
       saleOrderId: "9655",
     });
 
-    const customerRequest = fetchMock.mock.calls[3]?.[1] as RequestInit;
+    expect(fetchMock.mock.calls[3]?.[0]).toBe(
+      "https://crmconnect.misa.vn/api/v2/Customers/code?code=KH-090123",
+    );
+    const customerRequest = fetchMock.mock.calls[5]?.[1] as RequestInit;
     expect(JSON.parse(String(customerRequest.body))).toEqual([
       {
         form_layout: "Mẫu tiêu chuẩn",
@@ -154,7 +163,7 @@ describe("MISA client", () => {
         office_tel: "090123",
       },
     ]);
-    const saleOrderRequest = fetchMock.mock.calls[5]?.[1] as RequestInit;
+    const saleOrderRequest = fetchMock.mock.calls[7]?.[1] as RequestInit;
     expect(JSON.parse(String(saleOrderRequest.body))).toMatchObject([
       {
         account_name: "KH-090123",
@@ -166,7 +175,7 @@ describe("MISA client", () => {
     );
   });
 
-  it("increments the Customer account number after MISA rejects the base code", async () => {
+  it("checks each Customer account number before trying a suffix", async () => {
     const source = {
       order: {
         customerName: "Jane",
@@ -183,13 +192,7 @@ describe("MISA client", () => {
         new Response(JSON.stringify({ data: "token" }), { status: 200 }),
       )
       .mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({
-            success: false,
-            error_message: "account_number: Giá trị đã bị trùng.",
-          }),
-          { status: 200 },
-        ),
+        new Response(JSON.stringify({ data: [] }), { status: 200 }),
       )
       .mockResolvedValueOnce(
         new Response(JSON.stringify({ data: "token" }), { status: 200 }),
@@ -202,6 +205,30 @@ describe("MISA client", () => {
           }),
           { status: 200 },
         ),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ data: "token" }), { status: 200 }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ data: [] }), { status: 200 }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ data: "token" }), { status: 200 }),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            success: false,
+            error_message: "account_number: Giá trị đã bị trùng.",
+          }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ data: "token" }), { status: 200 }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ data: [] }), { status: 200 }),
       )
       .mockResolvedValueOnce(
         new Response(JSON.stringify({ data: "token" }), { status: 200 }),
@@ -215,13 +242,27 @@ describe("MISA client", () => {
     ).resolves.toEqual({
       customerCode: "KH-090123-2",
     });
-    expect(fetchMock.mock.calls[1]?.[1]).toMatchObject({
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
+      "https://crmconnect.misa.vn/api/v2/Account",
+      "https://crmconnect.misa.vn/api/v2/Customers/code?code=KH-090123",
+      "https://crmconnect.misa.vn/api/v2/Account",
+      "https://crmconnect.misa.vn/api/v2/Customers",
+      "https://crmconnect.misa.vn/api/v2/Account",
+      "https://crmconnect.misa.vn/api/v2/Customers/code?code=KH-090123-1",
+      "https://crmconnect.misa.vn/api/v2/Account",
+      "https://crmconnect.misa.vn/api/v2/Customers",
+      "https://crmconnect.misa.vn/api/v2/Account",
+      "https://crmconnect.misa.vn/api/v2/Customers/code?code=KH-090123-2",
+      "https://crmconnect.misa.vn/api/v2/Account",
+      "https://crmconnect.misa.vn/api/v2/Customers",
+    ]);
+    expect(fetchMock.mock.calls[3]?.[1]).toMatchObject({
       body: expect.stringContaining('"account_number":"KH-090123"'),
     });
-    expect(fetchMock.mock.calls[3]?.[1]).toMatchObject({
+    expect(fetchMock.mock.calls[7]?.[1]).toMatchObject({
       body: expect.stringContaining('"account_number":"KH-090123-1"'),
     });
-    expect(fetchMock.mock.calls[5]?.[1]).toMatchObject({
+    expect(fetchMock.mock.calls[11]?.[1]).toMatchObject({
       body: expect.stringContaining('"account_number":"KH-090123-2"'),
     });
   });
@@ -309,7 +350,7 @@ describe("MISA client", () => {
     ).toBeUndefined();
   });
 
-  it("reuses an existing MISA contact without posting a duplicate during order synchronization", async () => {
+  it("reuses existing MISA Customer and Contact records during order synchronization", async () => {
     const order = {
       id: 5,
       orderNumber: "ORD-5",
@@ -374,7 +415,11 @@ describe("MISA client", () => {
         new Response(
           JSON.stringify({
             data: [
-              { id: 77, account_number: "KH-090123", account_name: "Jane" },
+              {
+                id: 77,
+                account_number: "KH-TAX-0314042508",
+                account_name: "Trophy Co.",
+              },
             ],
           }),
           { status: 200 },
@@ -413,7 +458,7 @@ describe("MISA client", () => {
       "https://crmconnect.misa.vn/api/v2/Account",
       "https://crmconnect.misa.vn/api/v2/SaleOrders/code?code=ORD-5",
       "https://crmconnect.misa.vn/api/v2/Account",
-      "https://crmconnect.misa.vn/api/v2/Customers",
+      "https://crmconnect.misa.vn/api/v2/Customers/code?code=KH-TAX-0314042508",
       "https://crmconnect.misa.vn/api/v2/Account",
       "https://crmconnect.misa.vn/api/v2/Contacts/code?code=LH-090123",
       "https://crmconnect.misa.vn/api/v2/Account",
@@ -547,7 +592,12 @@ describe("MISA client", () => {
       .mockResolvedValueOnce(
         new Response(
           JSON.stringify({
-            data: [{ account_number: "KH-090123", account_name: "Jane" }],
+            data: [
+              {
+                account_number: "KH-TAX-0314042508",
+                account_name: "Trophy Co.",
+              },
+            ],
           }),
           { status: 200 },
         ),
@@ -585,6 +635,12 @@ describe("MISA client", () => {
         new Response(JSON.stringify({ data: "token" }), { status: 200 }),
       )
       .mockResolvedValueOnce(
+        new Response(JSON.stringify({ data: [] }), { status: 200 }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ data: "token" }), { status: 200 }),
+      )
+      .mockResolvedValueOnce(
         new Response(JSON.stringify({ data: { id: 88 } }), { status: 200 }),
       )
       .mockResolvedValueOnce(
@@ -603,17 +659,19 @@ describe("MISA client", () => {
       "https://crmconnect.misa.vn/api/v2/Account",
       "https://crmconnect.misa.vn/api/v2/SaleOrders/code?code=124",
       "https://crmconnect.misa.vn/api/v2/Account",
-      "https://crmconnect.misa.vn/api/v2/Customers",
+      "https://crmconnect.misa.vn/api/v2/Customers/code?code=KH-TAX-0314042508",
       "https://crmconnect.misa.vn/api/v2/Account",
       "https://crmconnect.misa.vn/api/v2/Contacts/code?code=LH-090123",
       "https://crmconnect.misa.vn/api/v2/Account",
       "https://crmconnect.misa.vn/api/v2/SaleOrders",
       "https://crmconnect.misa.vn/api/v2/Account",
+      "https://crmconnect.misa.vn/api/v2/Customers/code?code=KH-TAX-0314042508",
+      "https://crmconnect.misa.vn/api/v2/Account",
       "https://crmconnect.misa.vn/api/v2/Customers",
       "https://crmconnect.misa.vn/api/v2/Account",
       "https://crmconnect.misa.vn/api/v2/SaleOrders",
     ]);
-    const recreatedCustomer = fetchMock.mock.calls[9]?.[1] as RequestInit;
+    const recreatedCustomer = fetchMock.mock.calls[11]?.[1] as RequestInit;
     expect(JSON.parse(String(recreatedCustomer.body))).toMatchObject([
       {
         account_number: "KH-TAX-0314042508",
@@ -685,6 +743,12 @@ describe("MISA client", () => {
         new Response(JSON.stringify({ data: "token" }), { status: 200 }),
       )
       .mockResolvedValueOnce(
+        new Response(JSON.stringify({ data: [] }), { status: 200 }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ data: "token" }), { status: 200 }),
+      )
+      .mockResolvedValueOnce(
         new Response(JSON.stringify({ data: { id: 77 } }), { status: 200 }),
       )
       .mockResolvedValueOnce(
@@ -717,7 +781,7 @@ describe("MISA client", () => {
       saleOrderNumber: "ORD-6",
     });
 
-    const firstContactRequest = fetchMock.mock.calls[7]?.[1] as RequestInit;
+    const firstContactRequest = fetchMock.mock.calls[9]?.[1] as RequestInit;
     expect(JSON.parse(String(firstContactRequest.body))).toEqual([
       {
         form_layout: "Mẫu tiêu chuẩn",
@@ -728,7 +792,7 @@ describe("MISA client", () => {
         email: "jane@example.com",
       },
     ]);
-    const saleOrderRequest = fetchMock.mock.calls[9]?.[1] as RequestInit;
+    const saleOrderRequest = fetchMock.mock.calls[11]?.[1] as RequestInit;
     expect(JSON.parse(String(saleOrderRequest.body))).toMatchObject([
       {
         account_name: "KH-TAX-0314042508",
@@ -740,10 +804,10 @@ describe("MISA client", () => {
     expect(JSON.parse(String(saleOrderRequest.body))[0]).not.toHaveProperty(
       "contact_name",
     );
-    expect(fetchMock.mock.calls[7]?.[0]).toBe(
+    expect(fetchMock.mock.calls[9]?.[0]).toBe(
       "https://crmconnect.misa.vn/api/v2/Contacts",
     );
-    expect(fetchMock.mock.calls[9]?.[0]).toBe(
+    expect(fetchMock.mock.calls[11]?.[0]).toBe(
       "https://crmconnect.misa.vn/api/v2/SaleOrders",
     );
   });
