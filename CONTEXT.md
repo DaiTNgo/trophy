@@ -262,8 +262,16 @@ Media owned by exactly one product variant and shown for that variant. New items
 _Avoid_: product media upload, shared gallery file, customization background
 
 **Product Thumbnail**:
-The asset used to represent a product. On Product creation, it is initialized by referencing eligible media already owned by a created variant: either its Customization Background or Variant Media. After creation, an operator can explicitly select a Variant Media, Customization Background, or product-owned thumbnail asset. If the referenced asset is deleted or replaced, the thumbnail becomes empty and does not fall back to another asset.
+The default Listing Media asset used to represent a product, including contexts that do not support hover such as cart and order snapshots. On Product creation, it is initialized by referencing eligible media already owned by a created variant: either its Customization Background or Variant Media. After creation, an operator can explicitly select a Variant Media, Customization Background, or product-owned thumbnail asset. If the referenced asset is deleted or replaced, the thumbnail becomes empty and does not fall back to another asset.
 _Avoid_: product gallery copy, perpetual automatic thumbnail fallback, variant default image
+
+**Listing Media**:
+The two explicitly assigned Product asset roles used by Storefront Product Cards: a default image rendered normally and an optional hover image rendered only while a hover-capable pointer is over the card. Operators assign roles from one shared candidate-asset list; gallery order and variant selection never infer either role. An asset has at most one Listing Media role, and a Product has at most one asset in each role; assigning a role transfers it from the prior asset. Deleting or replacing a referenced asset clears only its own role and never infers a replacement. When no hover image is selected, the card keeps showing its default image.
+_Avoid_: second gallery image, automatic hover fallback, product detail carousel media
+
+**Listing Hover Image**:
+The optional hover role in a Product's Listing Media. It is stored independently from Product Thumbnail, is returned by storefront read models that supply Product Cards, and never changes cart, order, or product-detail media behavior. It never blocks publish readiness and is empty until an operator assigns it. Deleting or replacing the referenced asset clears this role only.
+_Avoid_: alternate Product Thumbnail, second variant gallery position, touch-device image
 
 **Initial Product Thumbnail**:
 The Product Thumbnail reference assigned once by the Create Product workflow from eligible media of created variants in their creation order. It reuses the existing asset and does not create another R2 object. For each variant, the source priority is its Customization Background, then its first Variant Media in gallery position order. It is not recalculated after Product creation. It is empty when no created variant has eligible media or when its best-effort initialization fails; that failure does not prevent Product creation.

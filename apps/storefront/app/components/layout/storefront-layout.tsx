@@ -10,14 +10,16 @@ import {
 } from "../../lib/api";
 import { getLocale } from "../../i18n.server";
 import { withStorefrontLoaderLog } from "../../lib/observability";
+import { getBackendServiceFetch } from "../../lib/backend-fetch.server";
 import { TrustBar } from "../home/TrustBar";
 
 export async function loader({ request, context }: { request: Request; context: RouterContextProvider }) {
   return withStorefrontLoaderLog("storefront-layout", request, async () => {
     const locale = getLocale(context);
+    const backendFetch = getBackendServiceFetch(context);
     const [categories, collections] = await Promise.all([
-      fetchStorefrontCategories(locale).catch(() => [] as StorefrontCategory[]),
-      fetchStorefrontCollections(locale).catch(() => [] as StorefrontCollection[]),
+      fetchStorefrontCategories(locale, backendFetch).catch(() => [] as StorefrontCategory[]),
+      fetchStorefrontCollections(locale, backendFetch).catch(() => [] as StorefrontCollection[]),
     ]);
 
     return { categories, collections, locale };

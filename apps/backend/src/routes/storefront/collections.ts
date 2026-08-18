@@ -80,6 +80,7 @@ async function loadListingPage(
         handle: products.handle,
         status: products.status,
         thumbnailAssetId: products.thumbnailAssetId,
+        hoverAssetId: products.hoverAssetId,
       })
       .from(products)
       .where(whereClause)
@@ -285,6 +286,7 @@ async function loadListingPage(
       customizationByProductId.get(item.id)?.enabled ?? false,
       variantCustomizationMediaByVariantId,
       item.thumbnailAssetId ?? null,
+      item.hoverAssetId ?? null,
     ),
   );
 

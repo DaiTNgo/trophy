@@ -270,6 +270,7 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
       handle: string
       status: string
       thumbnailAssetId: string | null
+      hoverAssetId: string | null
     }
 
     let items: ListingQueryItem[]
@@ -283,7 +284,8 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
           subtitle: products.subtitle,
           handle: products.handle,
           status: products.status,
-          thumbnailAssetId: products.thumbnailAssetId
+          thumbnailAssetId: products.thumbnailAssetId,
+          hoverAssetId: products.hoverAssetId,
         })
         .from(products)
         .where(whereClause)
@@ -357,7 +359,8 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
             subtitle: products.subtitle,
             handle: products.handle,
             status: products.status,
-            thumbnailAssetId: products.thumbnailAssetId
+            thumbnailAssetId: products.thumbnailAssetId,
+            hoverAssetId: products.hoverAssetId,
           })
           .from(products)
           .where(whereClause)
@@ -509,7 +512,8 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
         variantMediaByVariantId,
         customizationByProductId.get(item.id)?.enabled ?? false,
         variantCustomizationMediaByVariantId,
-        item.thumbnailAssetId ?? null
+        item.thumbnailAssetId ?? null,
+        item.hoverAssetId ?? null,
       )
     )
 
@@ -791,6 +795,12 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
       subtitle: product.subtitle,
       handle: product.handle,
       description: product.description,
+      thumbnail: product.thumbnailAssetId
+        ? toAbsoluteAssetUrl(c, `/api/assets/products/${product.thumbnailAssetId}/content`) as string
+        : null,
+      hoverImage: product.hoverAssetId
+        ? toAbsoluteAssetUrl(c, `/api/assets/products/${product.hoverAssetId}/content`) as string
+        : null,
       media: productMediaRows.map((media) => ({
         id: media.assetId,
         url: toAbsoluteAssetUrl(c, `/api/assets/products/${media.assetId}/content`) as string,
@@ -884,7 +894,8 @@ export function buildListingItem(
   _variantMediaByVariantId: Map<number, Array<{ assetId: string }>>,
   customizationEnabled: boolean,
   _variantCustomizationMediaByVariantId: Map<number, { assetId: string }> = new Map(),
-  thumbnailAssetId: string | null = null
+  thumbnailAssetId: string | null = null,
+  hoverAssetId: string | null = null,
 ) {
   const prices = variants
     .map((v) => v.priceAmount)
@@ -897,6 +908,9 @@ export function buildListingItem(
   const thumbnail = thumbnailAssetId
     ? toAbsoluteAssetUrl(c, `/api/assets/products/${thumbnailAssetId}/content`) as string
     : null
+  const hoverImage = hoverAssetId
+    ? toAbsoluteAssetUrl(c, `/api/assets/products/${hoverAssetId}/content`) as string
+    : null
 
   return {
     id: item.id,
@@ -906,6 +920,7 @@ export function buildListingItem(
     priceAmount,
     priceFrom,
     thumbnail,
+    hoverImage,
     categorySummary: categories.join(', ') || null,
     customizable: customizationEnabled
   }

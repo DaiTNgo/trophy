@@ -31,6 +31,7 @@ type ApiProduct = {
   collection: { id: number; title: LocalizedInput } | null;
   attributes: Array<{ name: LocalizedInput; value: LocalizedInput }>;
   thumbnailAssetId?: string | null;
+  hoverAssetId?: string | null;
   media: Array<{
     assetId: string;
     fileName: string;
@@ -39,6 +40,7 @@ type ApiProduct = {
     heightPx: number | null;
     byteSize: number;
     contentUrl: string;
+    isProductOwned?: boolean;
   }>;
   options: Array<{
     id: number;
@@ -619,9 +621,15 @@ export async function uploadProductMedia(id: string, files: File[]) {
   return readProductCommandResponse(response, "Failed to upload Product Media.");
 }
 
-export async function setProductThumbnail(id: string, assetId: string | null) {
-  const response = await backendFetch(`/api/admin/products/${id}/thumbnail`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ assetId }) });
-  return readProductCommandResponse(response, "Failed to set Product Thumbnail.");
+export async function removeProductMedia(id: string, assetId: string) {
+  const response = await backendFetch(`/api/admin/products/${id}/media/${assetId}`, { method: "DELETE" });
+  return readProductCommandResponse(response, "Failed to delete Product Media.");
+}
+
+export async function setProductListingMedia(id: string, input: { defaultAssetId: string | null; hoverAssetId: string | null }) {
+  // The mounted Hono route type currently omits JSON input for this command.
+  const response = await backendFetch(`/api/admin/products/${id}/listing-media`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) });
+  return readProductCommandResponse(response, "Failed to update Listing Media.");
 }
 
 export async function uploadManagedVariantMedia(id: string, variantId: number, files: File[]) {
@@ -913,8 +921,10 @@ export function mapApiProductToCatalogProduct(product: Partial<ApiProduct> & Pic
       heightPx: media.heightPx ?? 0,
       byteSize: media.byteSize,
       contentUrl: media.contentUrl,
+      isProductOwned: media.isProductOwned ?? false,
     })),
     thumbnailAssetId: product.thumbnailAssetId ?? null,
+    hoverAssetId: product.hoverAssetId ?? null,
     attributes: (product.attributes || []).map((a) => ({
       key: toLocalized(a.name),
       value: toLocalized(a.value),

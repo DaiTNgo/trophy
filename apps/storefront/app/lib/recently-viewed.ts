@@ -6,6 +6,7 @@ export type RecentlyViewedProduct = {
   handle: string;
   title: string;
   thumbnail: string | null;
+  hoverImage?: string | null;
   priceAmount: number | null;
   viewedAt: string;
 };
@@ -38,6 +39,7 @@ function isRecentlyViewedProduct(value: unknown): value is RecentlyViewedProduct
     typeof candidate.title === "string" &&
     candidate.title.length > 0 &&
     (typeof candidate.thumbnail === "string" || candidate.thumbnail === null) &&
+    (typeof candidate.hoverImage === "undefined" || typeof candidate.hoverImage === "string" || candidate.hoverImage === null) &&
     (typeof candidate.priceAmount === "number" || candidate.priceAmount === null) &&
     typeof candidate.viewedAt === "string" &&
     candidate.viewedAt.length > 0

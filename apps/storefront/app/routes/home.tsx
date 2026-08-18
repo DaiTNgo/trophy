@@ -17,6 +17,7 @@ import {
 } from "../lib/api";
 import { getLocale } from "../i18n.server";
 import { withStorefrontLoaderLog } from "../lib/observability";
+import { getBackendServiceFetch } from "../lib/backend-fetch.server";
 import type { Route } from "./+types/home";
 
 export function meta({ loaderData }: Route.MetaArgs) {
@@ -35,20 +36,21 @@ export function meta({ loaderData }: Route.MetaArgs) {
 export async function loader({ request, context }: Route.LoaderArgs) {
   return withStorefrontLoaderLog("home", request, async () => {
     const locale = getLocale(context);
+    const backendFetch = getBackendServiceFetch(context);
     const [categories, customizableBestSellersData, standardBestSellersData] = await Promise.all([
-      fetchStorefrontCategories(locale).catch(() => []),
+      fetchStorefrontCategories(locale, backendFetch).catch(() => []),
       fetchStorefrontCollectionProducts("best-sellers", {
         limit: 8,
         locale,
         customizable: "true",
-      }).catch(
+      }, backendFetch).catch(
         () => ({ items: [], page: 1, limit: 8, total: 0 })
       ),
       fetchStorefrontCollectionProducts("best-sellers", {
         limit: 8,
         locale,
         customizable: "false",
-      }).catch(
+      }, backendFetch).catch(
         () => ({ items: [], page: 1, limit: 8, total: 0 })
       ),
     ]);

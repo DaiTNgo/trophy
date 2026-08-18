@@ -1,0 +1,1 @@
+ALTER TABLE `products` ADD `hover_asset_id` text;

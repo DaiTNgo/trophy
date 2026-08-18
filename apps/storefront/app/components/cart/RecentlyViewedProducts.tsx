@@ -103,6 +103,7 @@ export function RecentlyViewedProducts({ items }: RecentlyViewedProductsProps) {
                   handle={item.handle}
                   title={item.title}
                   thumbnail={item.thumbnail}
+                  hoverImage={item.hoverImage}
                   imageAlt={item.title}
                   priceAmount={item.priceAmount}
                   variant="listing"

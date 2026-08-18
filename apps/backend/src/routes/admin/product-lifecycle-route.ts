@@ -125,6 +125,7 @@ export const productLifecycleRoute = new Hono<AppEnv>()
         ...(variant.customizationMedia ? [variant.customizationMedia.id] : []),
       ]),
       ...(current.thumbnailAssetId ? [current.thumbnailAssetId] : []),
+      ...(current.hoverAssetId ? [current.hoverAssetId] : []),
     ].filter((assetId): assetId is string => typeof assetId === 'string'))]
     const assets = assetIds.length > 0
       ? await db.select().from(productAssets).where(inArray(productAssets.id, assetIds))

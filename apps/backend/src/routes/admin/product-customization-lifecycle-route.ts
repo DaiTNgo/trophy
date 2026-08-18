@@ -395,13 +395,14 @@ export const productCustomizationLifecycleRoute = new Hono<AppEnv>()
         ...(previousAssetIds.length > 0 ? [
           db.delete(productMedia).where(and(eq(productMedia.productId, product.id), inArray(productMedia.assetId, previousAssetIds))),
           db.delete(productAssets).where(inArray(productAssets.id, previousAssetIds)),
-          db.update(products).set({
-            thumbnailAssetId: null,
-          }).where(
+          db.update(products).set({ thumbnailAssetId: null }).where(
             and(
               eq(products.id, product.id),
               inArray(products.thumbnailAssetId, previousAssetIds),
             )
+          ),
+          db.update(products).set({ hoverAssetId: null }).where(
+            and(eq(products.id, product.id), inArray(products.hoverAssetId, previousAssetIds))
           ),
           db.update(products).set({
             updatedAt: nowIso(),
@@ -500,6 +501,9 @@ export const productCustomizationLifecycleRoute = new Hono<AppEnv>()
             db.delete(productAssets).where(inArray(productAssets.id, backgroundAssetIds)),
             db.update(products).set({ thumbnailAssetId: null, updatedAt: nowIso() }).where(
               and(eq(products.id, product.id), inArray(products.thumbnailAssetId, backgroundAssetIds))
+            ),
+            db.update(products).set({ hoverAssetId: null, updatedAt: nowIso() }).where(
+              and(eq(products.id, product.id), inArray(products.hoverAssetId, backgroundAssetIds))
             ),
           ]
         : [db.update(products).set({ updatedAt: nowIso() }).where(eq(products.id, product.id))]),
