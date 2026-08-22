@@ -161,10 +161,10 @@ export function NavbarCategoryStrip({
                     )}
                   </div>
                   <div
-                    className={`relative flex h-8 items-center justify-center overflow-hidden text-center text-[11px] font-bold uppercase leading-tight tracking-wide transition-colors after:absolute after:bottom-0 after:left-1/2 after:h-0.5 after:-translate-x-1/2 after:rounded-full after:bg-brand-strong after:transition-all after:content-[''] lg:justify-start lg:text-left lg:text-[13px] lg:whitespace-nowrap lg:after:left-0 lg:after:translate-x-0 ${
+                    className={`category-name relative flex h-8 items-center justify-center overflow-hidden text-center text-[11px] font-bold uppercase leading-tight tracking-wide transition-colors after:absolute after:bottom-0 after:left-1/2 after:h-0.5 after:-translate-x-1/2 after:rounded-full after:bg-brand-support after:transition-all after:content-[''] lg:justify-start lg:text-left lg:text-[13px] lg:whitespace-nowrap lg:after:left-0 lg:after:translate-x-0 ${
                       isActive
-                        ? "text-brand-strong after:w-8 after:opacity-100"
-                        : "text-brand-strong hover:text-brand-support after:w-0 after:opacity-0"
+                        ? "text-brand-support is-active after:w-8 after:opacity-100"
+                        : "text-brand-strong hover:text-brand-support hover:after:w-8 hover:after:opacity-100 after:w-0 after:opacity-0"
                     }`}
                   >
                     {getLocalized(cat.name, locale)}

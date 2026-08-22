@@ -236,6 +236,10 @@ body {
   .group:hover .product-card-hover-image {
     opacity: 1;
   }
+
+  .group:hover .product-card-base-image {
+    opacity: 0;
+  }
 }
 
 @media (hover: none) {

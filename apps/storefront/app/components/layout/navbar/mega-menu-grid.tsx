@@ -20,23 +20,23 @@ export function MegaMenuGrid({ items, onNavigate }: MegaMenuGridProps) {
           key={i}
           to={item.href}
           onClick={onNavigate}
-          className="group flex flex-row items-center justify-start gap-4 bg-white px-8 py-6 transition-colors"
-        >
-          <div className="relative h-[50px] w-[50px] flex-shrink-0 overflow-hidden">
-            {item.imageUrl ? (
-              <img
-                src={backendAssetUrl(item.imageUrl)}
-                alt={item.title}
-                className="absolute inset-0 h-full w-full object-cover transition-transform"
-                loading="lazy"
-              />
+className="group flex flex-row items-center justify-start gap-4 bg-white px-8 py-6 transition-colors hover:bg-surface-subtle"
+          >
+            <div className="relative h-[50px] w-[50px] flex-shrink-0 overflow-hidden">
+              {item.imageUrl ? (
+                <img
+                  src={backendAssetUrl(item.imageUrl)}
+                  alt={item.title}
+                  className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                  loading="lazy"
+                />
             ) : (
               <div className="flex h-full w-full items-center justify-center rounded bg-surface-subtle">
                 <Package className="text-[24px] text-gray-400" />
               </div>
             )}
           </div>
-          <span className="text-left text-[12px] font-bold uppercase leading-tight tracking-wider text-brand-strong group-hover:text-primary">
+          <span className="text-left text-[12px] font-bold uppercase leading-tight tracking-wider text-brand-strong group-hover:text-brand-support">
             {item.title}
           </span>
         </Link>
