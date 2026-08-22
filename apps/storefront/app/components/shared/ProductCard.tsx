@@ -62,7 +62,7 @@ export function ProductCard({
           className="relative mb-4 flex aspect-square w-full items-center justify-center overflow-hidden bg-surface-base px-3"
         >
           {imgSrc ? (
-            <CardImages src={imgSrc} hoverImage={hoverImage} alt={imageAlt} className="group-hover:scale-[1.035]" sizes="(min-width: 1024px) 249px, (min-width: 640px) calc((100vw - 64px) / 3), calc((100vw - 48px) / 2)" />
+            <CardImages src={imgSrc} hoverImage={hoverImage} alt={imageAlt} className="group-hover:scale-[1.08]" sizes="(min-width: 1024px) 249px, (min-width: 640px) calc((100vw - 64px) / 3), calc((100vw - 48px) / 2)" />
           ) : (
             <div className="absolute inset-0 flex items-center justify-center bg-surface-subtle">
               <Image className="h-10 w-10 text-text-muted" />
@@ -113,7 +113,7 @@ export function ProductCard({
           className="relative mb-5 flex aspect-square w-full items-center justify-center overflow-hidden bg-surface-base"
         >
           {imgSrc ? (
-            <CardImages src={imgSrc} hoverImage={hoverImage} alt={imageAlt} className="group-hover:scale-[1.04]" sizes="(min-width: 1280px) 267px, (min-width: 1024px) calc((100vw - 160px) / 4), (min-width: 768px) calc((100vw - 96px) / 4), calc((100vw - 48px) / 2)" />
+            <CardImages src={imgSrc} hoverImage={hoverImage} alt={imageAlt} className="group-hover:scale-[1.08]" sizes="(min-width: 1280px) 267px, (min-width: 1024px) calc((100vw - 160px) / 4), (min-width: 768px) calc((100vw - 96px) / 4), calc((100vw - 48px) / 2)" />
           ) : (
             <div className="absolute inset-0 flex items-center justify-center bg-surface-container-low">
               <Image className="h-10 w-10 text-on-surface-variant" />
@@ -203,7 +203,7 @@ export function ProductCard({
 
 function CardImages({ src, hoverImage, alt, className, sizes }: { src: string; hoverImage?: string | null; alt: string; className: string; sizes?: string }) {
   return <>
-    <img className={`absolute inset-0 h-full w-full object-contain transition-transform duration-500 ${className}`} data-alt={alt} src={src} alt={alt} loading="lazy" sizes={sizes} />
-    {hoverImage ? <img className="product-card-hover-image absolute inset-0 h-full w-full object-contain opacity-0 transition-opacity duration-200 motion-reduce:transition-none" src={hoverImage} alt="" aria-hidden="true" loading="lazy" sizes={sizes} /> : null}
+    <img className="product-card-base-image absolute inset-0 h-full w-full object-cover" data-alt={alt} src={src} alt={alt} loading="lazy" sizes={sizes} />
+    {hoverImage ? <img className={`product-card-hover-image absolute inset-0 h-full w-full object-cover opacity-0 transition-[opacity,scale] duration-300 motion-reduce:transition-none ${className}`} src={hoverImage} alt="" aria-hidden="true" loading="lazy" sizes={sizes} /> : null}
   </>;
 }
