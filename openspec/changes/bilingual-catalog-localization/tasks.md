@@ -62,3 +62,13 @@
 - [x] 8.5 Run `pnpm --filter router-cf typecheck` and `pnpm --filter router-cf build`.
 - [x] 8.6 Run `openspec validate bilingual-catalog-localization --strict`.
 - [x] 8.7 Run `./init.sh` before marking the change complete.
+
+## 9. Customization And Clipart Shopper-Facing Text
+
+- [x] 9.1 Extend translation helpers to cover clipart category/asset owner types (`clipart_category`, `clipart_asset`) and text-layer `sampleText` prepare/persist/hydrate/resolve.
+- [x] 9.2 Admin clipart category/asset contracts accept optional `nameTranslations` (`name` stays canonical vi), batch upload `namesJson` becomes `Array<{name, nameTranslations?}>`, and responses always include serialized `nameTranslations`; route-surface tests cover persistence, hydration, and per-row batch writes.
+- [x] 9.3 Storefront product detail accepts `?locale=`, server-resolves form field label/placeholder/helpText, text-layer sampleText, and clipart category/asset names before responding; route tests prove en resolution and vi fallback.
+- [x] 9.4 Publish validation gates object-form `sampleText` on `isLocComplete` while skipping string values.
+- [x] 9.5 Admin UI: localized editors for clipart create/rename category, asset rename, upload-queue draft names, form field label/placeholder/helpText, and text-layer sampleText using `LocalizedTextField`.
+- [x] 9.6 Widen `@trophy/customization` types (`LocalizedTextInput`) and resolve at render/consumption sites (`resolveLocalizedInput`) across `customization-react` and admin/backend summaries.
+- [x] 9.7 Fix `hydrateTranslations` mutate-in-place regression and pre-existing admin typecheck failures; full `./init.sh` passes.

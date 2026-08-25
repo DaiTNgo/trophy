@@ -128,6 +128,11 @@ type LayerBase = {
   zIndex: number;
 };
 
+export type LocalizedTextInput = {
+  vi?: string;
+  en?: string;
+};
+
 export type TextEditorLayer = LayerBase & {
   type: "text";
   geometry: LayerGeometry;
@@ -169,9 +174,9 @@ export type CustomizationLayer = TextEditorLayer | ImageShapeEditorLayer;
 export type CustomizationFormField = {
   id: string;
   layerId: string;
-  label: string;
-  helpText?: string;
-  placeholder?: string;
+  label: string | LocalizedTextInput;
+  helpText?: string | LocalizedTextInput;
+  placeholder?: string | LocalizedTextInput;
   required: boolean;
   order: number;
 };

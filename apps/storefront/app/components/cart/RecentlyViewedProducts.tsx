@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { ProductCard } from "../shared/ProductCard";
 import type { RecentlyViewedProduct } from "../../lib/recently-viewed";
 import {
@@ -14,6 +15,7 @@ type RecentlyViewedProductsProps = {
 };
 
 export function RecentlyViewedProducts({ items }: RecentlyViewedProductsProps) {
+  const { t } = useTranslation("cart");
   const [api, setApi] = useState<CarouselApi>();
   const [canScrollPrev, setCanScrollPrev] = useState(false);
   const [canScrollNext, setCanScrollNext] = useState(false);
@@ -54,13 +56,13 @@ export function RecentlyViewedProducts({ items }: RecentlyViewedProductsProps) {
     <section className="mt-10 border-t border-gray-100 py-16">
       <div className="relative mb-10 flex items-center justify-center">
         <h2 className="text-center font-heading text-[32px] uppercase leading-none tracking-[0.03em] text-brand-strong">
-          Sản phẩm đã xem gần đây
+          {t("recently_viewed_title")}
         </h2>
 
         <div className="absolute right-0 hidden items-center gap-3 text-text-muted md:flex">
           <button
             type="button"
-            aria-label="Previous recently viewed products"
+            aria-label={t("recently_viewed_prev")}
             className={`flex h-10 w-10 items-center justify-center transition-colors ${
               canScrollPrev
                 ? "text-text-muted hover:text-brand-strong"
@@ -73,7 +75,7 @@ export function RecentlyViewedProducts({ items }: RecentlyViewedProductsProps) {
           </button>
           <button
             type="button"
-            aria-label="Next recently viewed products"
+            aria-label={t("recently_viewed_next")}
             className={`flex h-10 w-10 items-center justify-center transition-colors ${
               canScrollNext
                 ? "text-text-muted hover:text-brand-strong"
@@ -116,7 +118,7 @@ export function RecentlyViewedProducts({ items }: RecentlyViewedProductsProps) {
         <div className="absolute inset-y-0 left-0 flex items-center md:hidden">
           <button
             type="button"
-            aria-label="Previous recently viewed products"
+            aria-label={t("recently_viewed_prev")}
             className={`z-10 -ml-3 flex h-8 w-8 items-center justify-center rounded-full border border-border-subtle bg-surface-base shadow-sm transition-opacity ${
               canScrollPrev ? "opacity-100" : "pointer-events-none opacity-0"
             }`}
@@ -128,7 +130,7 @@ export function RecentlyViewedProducts({ items }: RecentlyViewedProductsProps) {
         <div className="absolute inset-y-0 right-0 flex items-center md:hidden">
           <button
             type="button"
-            aria-label="Next recently viewed products"
+            aria-label={t("recently_viewed_next")}
             className={`z-10 -mr-3 flex h-8 w-8 items-center justify-center rounded-full border border-border-subtle bg-surface-base shadow-sm transition-opacity ${
               canScrollNext ? "opacity-100" : "pointer-events-none opacity-0"
             }`}

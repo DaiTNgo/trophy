@@ -13,7 +13,9 @@ export type OwnerType =
   | "product_variant"
   | "product_variant_attribute"
   | "customization_form_field"
-  | "customization_layer";
+  | "customization_layer"
+  | "clipart_category"
+  | "clipart_asset";
 
 export type LocalizedField = Record<Locale, string>;
 
@@ -104,8 +106,8 @@ export async function hydrateTranslations<T extends object>(
   ownerType: OwnerType,
   items: T[],
   idExtractor: (item: T) => string,
-  fieldsToHydrate: Array<{ fieldName: string; objectKey: keyof T }>,
-  canonicalFallbacks: Array<{ fieldName: string; objectKey: keyof T }> = []
+  fieldsToHydrate: Array<{ fieldName: string; objectKey: string }>,
+  canonicalFallbacks: Array<{ fieldName: string; objectKey: string }> = []
 ): Promise<T[]> {
   if (items.length === 0) return items;
 
@@ -138,7 +140,6 @@ export async function hydrateTranslations<T extends object>(
   return items.map((item) => {
     const key = idExtractor(item);
     const itemTranslations = translationsByKeyAndField[key] || {};
-    const newItem = { ...item };
 
     for (const { fieldName, objectKey } of fieldsToHydrate) {
       const fieldTranslations = itemTranslations[fieldName] || {};
@@ -147,18 +148,18 @@ export async function hydrateTranslations<T extends object>(
       let viValue = fieldTranslations.vi;
       
       if (!viValue && fallbackMapping) {
-        viValue = (item[fallbackMapping.objectKey] as unknown as string) || "";
+        viValue = ((item as Record<string, unknown>)[fallbackMapping.objectKey] as string) || "";
       } else if (!viValue) {
         viValue = "";
       }
 
-      (newItem as any)[objectKey] = {
+      (item as any)[objectKey] = {
         vi: viValue,
         en: fieldTranslations.en || "",
       };
     }
 
-    return newItem;
+    return item;
   });
 }
 
@@ -170,20 +171,19 @@ export async function hydrateAndResolveTranslations<T extends object>(
   ownerType: OwnerType,
   items: T[],
   idExtractor: (item: T) => string,
-  fieldsToHydrate: Array<{ fieldName: string; objectKey: keyof T }>,
-  canonicalFallbacks: Array<{ fieldName: string; objectKey: keyof T }> = [],
+  fieldsToHydrate: Array<{ fieldName: string; objectKey: string }>,
+  canonicalFallbacks: Array<{ fieldName: string; objectKey: string }> = [],
   locale: Locale
 ): Promise<T[]> {
   const hydrated = await hydrateTranslations(db, ownerType, items, idExtractor, fieldsToHydrate, canonicalFallbacks);
   
   return hydrated.map(item => {
-    const resolvedItem = { ...item };
     for (const { objectKey } of fieldsToHydrate) {
-      const locValue = (resolvedItem as any)[objectKey] as Record<Locale, string>;
+      const locValue = (item as any)[objectKey] as Record<Locale, string>;
       if (locValue && typeof locValue === 'object' && ('vi' in locValue || 'en' in locValue)) {
-        (resolvedItem as any)[objectKey] = locValue[locale] || locValue.vi || locValue.en || "";
+        (item as any)[objectKey] = locValue[locale] || locValue.vi || locValue.en || "";
       }
     }
-    return resolvedItem;
+    return item;
   });
 }

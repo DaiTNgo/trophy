@@ -77,6 +77,14 @@ export function PreviewText({
   height: number;
   scale: number;
 }) {
+  // useId() must be called at the top level of the component (Rules of Hooks).
+  // We generate a per-instance unique path ID here so that when both the
+  // mobile and desktop preview canvases are mounted simultaneously in the DOM
+  // they each reference their own <path> element instead of colliding on a
+  // shared global ID like "storefront_product_text_path_${layer.id}".
+  const instanceId = useId().replace(/:/g, "");
+  const pathId = `preview_text_path_${instanceId}`;
+
   const closedTextPath = layer.path.type === "closed_ellipse";
   const layerWidthPx = layer.geometry.widthRatio * width;
   const layerHeightPx = closedTextPath
@@ -89,7 +97,6 @@ export function PreviewText({
   const top = (layer.geometry.yRatio * height - layerHeightPx / 2) * scale;
 
   if (layer.path.type !== "straight") {
-    const pathId = `storefront_product_text_path_${layer.id}`;
     const textWidthPx = layer.text.length * layer.fontSizePt * 0.55;
     const wordCount = layer.text.trim()
       ? layer.text.trim().split(/\s+/).length

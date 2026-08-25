@@ -25,6 +25,7 @@ import {
   type StoredEditorModel,
 } from "./helpers";
 import { renderPreviewSvg } from "./render";
+import { persistCustomizationTranslations, hydrateCustomization } from "../../../lib/customization-translation";
 import {
   exportPayloadSchema,
   productParamsSchema,
@@ -83,6 +84,8 @@ export const customizationsRoute = new Hono<AppEnv>()
         .set({ name: parsed.output.name, updatedAt: new Date().toISOString() })
         .where(eq(customizationTemplates.id, templateId));
     }
+
+    await persistCustomizationTranslations(db, stored);
 
     await db.insert(customizationTemplateRevisions).values({
       id: revisionId,
@@ -161,6 +164,7 @@ export const customizationsRoute = new Hono<AppEnv>()
 
     const result = await readTemplateRevision(db, templateRow.id, templateRow.activeRevisionId);
     if (!result) return jsonError(c, 404, "Customization template revision not found");
+    await hydrateCustomization(db, result.stored);
 
     return c.json({
       template: makeCustomizationUrlsAbsolute(c, buildTemplate({
@@ -228,6 +232,7 @@ export const customizationsRoute = new Hono<AppEnv>()
     }
     const result = await readTemplateRevision(db, templateRow.id, templateRow.activeRevisionId);
     if (!result) return jsonError(c, 404, "Customization template revision not found");
+    await hydrateCustomization(db, result.stored);
 
     return c.json({
       template: makeCustomizationUrlsAbsolute(c, buildTemplate({

@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link } from "react-router";
+import { useTranslation } from "react-i18next";
 
 export function ProductInfo({
   title,
@@ -46,13 +47,14 @@ export function ProductInfo({
   onPrimaryAction: () => void;
   flatCustomization?: boolean;
 }) {
+  const { t } = useTranslation("products");
   const fullStars = Math.floor(rating);
   const hasHalfStar = rating % 1 !== 0;
 
   const defaultBadges: Array<{ icon: ReactNode; label: string }> = [
-    { icon: <Package className="size-3.5" />, label: "Custom Design" },
-    { icon: <Award className="size-3.5" />, label: "Superior Quality" },
-    { icon: <Truck className="size-3.5" />, label: "Fast Shipping" },
+    { icon: <Package className="size-3.5" />, label: t("badge_custom_design") },
+    { icon: <Award className="size-3.5" />, label: t("badge_superior_quality") },
+    { icon: <Truck className="size-3.5" />, label: t("badge_fast_shipping") },
   ];
   const displayBadges = badges ?? defaultBadges;
 
@@ -82,7 +84,7 @@ export function ProductInfo({
           className="flex h-12 w-full items-center justify-center gap-2 rounded bg-brand-hero px-6 text-sm font-bold uppercase tracking-[0.1em] text-white transition hover:brightness-90"
         >
           <Phone className="size-4" />
-          Contact for Pricing
+          {t("btn_contact_price")}
         </Link>
       ) : (
         <>
@@ -124,14 +126,14 @@ export function ProductInfo({
 
         {/* Feature badges */}
         {displayBadges.length > 0 ? (
-          <div className="mb-5 flex flex-wrap gap-4 border-y border-border-subtle py-3">
+          <div className="mb-5 flex items-center justify-between gap-2 overflow-x-auto border-y border-border-subtle py-3 text-brand-strong [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
             {displayBadges.map((badge, i) => (
               <div
                 key={i}
-                className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.12em] text-brand-strong"
+                className="flex shrink-0 items-center gap-1.5 text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.04em] text-brand-strong whitespace-nowrap"
               >
-                <span className="text-brand-accent">{badge.icon}</span>
-                {badge.label}
+                <span className="shrink-0 text-brand-accent">{badge.icon}</span>
+                <span className="whitespace-nowrap">{badge.label}</span>
               </div>
             ))}
           </div>
@@ -206,6 +208,8 @@ export function ProductDetailSections({
   description: string;
   specs: Record<string, string>;
 }) {
+  const { t } = useTranslation("products");
+
   return (
     <section className="mt-10 rounded-lg border border-border-subtle bg-white">
       <div className="divide-y divide-border-subtle">
@@ -213,7 +217,7 @@ export function ProductDetailSections({
           <summary className="flex cursor-pointer list-none items-center justify-between px-6 py-4 text-sm font-bold uppercase tracking-[0.12em] text-text-base">
             <span className="flex items-center gap-2">
               <Award className="size-4 text-text-muted" />
-              Why This Product?
+              {t("section_why_this_product")}
             </span>
             <ChevronDown className="size-4 text-text-muted transition-transform duration-200 group-open:rotate-180" />
           </summary>
@@ -227,7 +231,7 @@ export function ProductDetailSections({
             <summary className="flex cursor-pointer list-none items-center justify-between px-6 py-4 text-sm font-bold uppercase tracking-[0.12em] text-text-base">
               <span className="flex items-center gap-2">
                 <Package className="size-4 text-text-muted" />
-                Specifications
+                {t("section_specifications")}
               </span>
               <ChevronDown className="size-4 text-text-muted transition-transform duration-200 group-open:rotate-180" />
             </summary>
@@ -250,14 +254,12 @@ export function ProductDetailSections({
           <summary className="flex cursor-pointer list-none items-center justify-between px-6 py-4 text-sm font-bold uppercase tracking-[0.12em] text-text-base">
             <span className="flex items-center gap-2">
               <Truck className="size-4 text-text-muted" />
-              Shipping &amp; Fulfillment
+              {t("section_shipping_fulfillment")}
             </span>
             <ChevronDown className="size-4 text-text-muted transition-transform duration-200 group-open:rotate-180" />
           </summary>
           <div className="px-6 pb-6 text-sm leading-relaxed text-text-muted">
-            Orders are typically processed within 1–2 business days. Production
-            takes 5–7 business days. Standard shipping is 3–5 days after
-            dispatch. Express options available at checkout.
+            {t("shipping_policy_body")}
           </div>
         </details>
       </div>

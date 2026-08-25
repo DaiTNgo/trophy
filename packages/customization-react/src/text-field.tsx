@@ -4,6 +4,7 @@ import {
   normalizeFontStyle,
   resolveFontVariant,
   resolveFormat,
+  resolveLocalizedInput,
   type CustomizationFieldValue,
   type CustomizationFormField,
   type CustomizationLayer,
@@ -17,12 +18,14 @@ export function TextField({
   layer,
   value,
   dynamicFonts = [],
+  locale,
   onChange,
 }: {
   field: CustomizationFormField;
   layer: Extract<CustomizationLayer, { type: "text" }>;
   value: CustomizationFieldValue | undefined;
   dynamicFonts?: DynamicFontFamily[];
+  locale?: string;
   onChange: (value: TextFieldValue) => void;
 }) {
   const textValue = value && "text" in value ? value : { text: "" };
@@ -38,7 +41,7 @@ export function TextField({
           (option) => option.value === textValue.fontId,
         )?.value ??
         availableFontOptions[0]?.value ??
-        fontPolicy.defaultFontId)
+        "")
       : fontPolicy.fontId;
   const selectedFontCapabilities = getFontStyleCapabilities(
     selectedFontId,
@@ -85,7 +88,7 @@ export function TextField({
         type="text"
         value={pathText ? textValue.text : textValue.text.replace(/\n/g, " ")}
         placeholder={
-          field.placeholder ??
+          resolveLocalizedInput(field.placeholder, locale) ||
           "Letter limit varies, refer to preview to confirm your text is correct"
         }
         onChange={(event) =>

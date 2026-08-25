@@ -1,5 +1,6 @@
 import { Link } from "react-router";
 import { Image, Headset, Star, StarHalf } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { getGenericProductPath } from "@/lib/storefront-paths";
 import { formatCurrency } from "@/lib/utils";
 
@@ -40,6 +41,7 @@ export function ProductCard({
   priceFrom = false,
   variant = "default",
 }: ProductCardProps) {
+  const { t } = useTranslation(["products", "common"]);
   const displayHandle = handle || "cup-hop-kim-kl1-premium";
   const displayPrice = priceAmount !== undefined
     ? formatCurrency(priceAmount)
@@ -71,8 +73,8 @@ export function ProductCard({
         </Link>
 
         <div className="flex w-full flex-1 flex-col items-center text-center px-1">
-          <Link to={productHref} className="mb-1 w-full">
-            <h3 className="min-h-[24px] max-w-[260px] font-body-md text-[16px] font-semibold leading-[24px] text-text-base transition-colors line-clamp-1 group-hover:line-clamp-none">
+          <Link to={productHref} className="mb-1 flex w-full justify-center text-center">
+            <h3 className="min-h-[24px] max-w-[260px] mx-auto text-center font-body-md text-[16px] font-semibold leading-[24px] text-text-base transition-colors line-clamp-1 group-hover:line-clamp-none">
               {title}
             </h3>
           </Link>
@@ -94,10 +96,10 @@ export function ProductCard({
           <span className="font-body-md text-[16px] font-semibold leading-5 text-brand-accent">
             {isContactPrice ? (
               <span className="text-action-support">
-                <Headset className="inline h-3.5 w-3.5 align-text-bottom" /> Liên Hệ
+                <Headset className="inline h-3.5 w-3.5 align-text-bottom" /> {t("contact_short", "Liên Hệ")}
               </span>
             ) : (
-              <>{priceFrom ? "Từ " : ""}{displayPrice}</>
+              <>{priceFrom ? `${t("price_from", "Từ")} ` : ""}{displayPrice}</>
             )}
           </span>
         </div>
@@ -107,7 +109,7 @@ export function ProductCard({
 
   if (variant === "featured") {
     return (
-    <div className="group flex h-full flex-col rounded-lg p-3 transition-shadow duration-300 hover:shadow-[0_0_10px_rgba(36,65,89,0.18)]">
+      <div className="group flex h-full flex-col rounded-lg p-3 transition-shadow duration-300 hover:shadow-[0_0_10px_rgba(36,65,89,0.18)]">
         <Link
           to={productHref}
           className="relative mb-5 flex aspect-square w-full items-center justify-center overflow-hidden bg-surface-base"
@@ -122,8 +124,8 @@ export function ProductCard({
         </Link>
 
         <div className="flex w-full flex-1 flex-col items-center text-center px-1">
-          <Link to={productHref} className="mb-1 w-full">
-            <h3 className="min-h-[24px] font-body-md text-[16px] font-semibold leading-[24px] text-text-base transition-colors line-clamp-1 hover:line-clamp-none">
+          <Link to={productHref} className="mb-1 flex w-full justify-center text-center">
+            <h3 className="min-h-[24px] max-w-[260px] mx-auto text-center font-body-md text-[16px] font-semibold leading-[24px] text-text-base transition-colors line-clamp-1 hover:line-clamp-none">
               {title}
             </h3>
           </Link>
@@ -145,10 +147,10 @@ export function ProductCard({
           <span className="font-body-md text-[16px] font-semibold leading-6 text-brand-accent">
             {isContactPrice ? (
               <span className="text-action-support">
-                <Headset className="inline h-4 w-4 align-text-bottom" /> Liên Hệ
+                <Headset className="inline h-4 w-4 align-text-bottom" /> {t("contact_short", "Liên Hệ")}
               </span>
             ) : (
-              <>{priceFrom ? "Từ " : ""}{displayPrice}</>
+              <>{priceFrom ? `${t("price_from", "Từ")} ` : ""}{displayPrice}</>
             )}
           </span>
         </div>
@@ -169,8 +171,8 @@ export function ProductCard({
       </Link>
 
       <div className="flex flex-col items-center flex-grow">
-        <Link to={productHref} className="mb-1 w-full px-2">
-          <h3 className="font-bold text-on-surface text-sm sm:text-base hover:text-primary transition-colors line-clamp-2">{title}</h3>
+        <Link to={productHref} className="mb-1 flex w-full justify-center px-2 text-center">
+          <h3 className="mx-auto text-center font-bold text-on-surface text-sm sm:text-base hover:text-primary transition-colors line-clamp-2">{title}</h3>
         </Link>
 
         {(rating > 0 || reviewsCount > 0) && (
@@ -190,10 +192,10 @@ export function ProductCard({
         <span className="font-bold text-on-surface mt-auto">
           {isContactPrice ? (
             <span className="text-primary">
-              <Headset className="!text-[14px] inline align-text-bottom" /> Liên Hệ
+              <Headset className="!text-[14px] inline align-text-bottom" /> {t("contact_short", "Liên Hệ")}
             </span>
           ) : (
-            <>{priceFrom ? "Từ " : ""}{displayPrice}</>
+            <>{priceFrom ? `${t("price_from", "Từ")} ` : ""}{displayPrice}</>
           )}
           </span>
       </div>

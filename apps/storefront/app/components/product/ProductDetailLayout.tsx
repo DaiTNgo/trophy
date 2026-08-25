@@ -1,5 +1,6 @@
 import type { DynamicFontFamily } from "@trophy/customization";
 import { ProductCustomizationPreview } from "@trophy/customization-react";
+import { useTranslation } from "react-i18next";
 import {
   ChevronDown,
   ChevronLeft,
@@ -26,6 +27,7 @@ export function ProductDetailLayout({
   state: ReturnType<typeof useProductDetailState>;
   suggestedProducts?: StorefrontProductItem[];
 }) {
+  const { t } = useTranslation("products");
   const {
     activeCategory,
     addToCartDisabled,
@@ -118,7 +120,7 @@ export function ProductDetailLayout({
     <div
       className={`flex items-center justify-center bg-white text-on-surface-variant ${galleryMediaFrameClassName}`}
     >
-      Product image unavailable
+      {t("image_unavailable")}
     </div>
   );
   // Keep the customization canvas mounted while gallery media is visible. Its
@@ -203,7 +205,7 @@ export function ProductDetailLayout({
                       className="flex w-full items-center justify-center gap-2 text-sm font-bold uppercase tracking-[0.1em] text-brand-strong"
                     >
                       <ChevronDown className="size-4" />
-                      Show preview
+                      {t("preview_show")}
                     </button>
                   </div>
                 ) : (
@@ -220,7 +222,7 @@ export function ProductDetailLayout({
                         <>
                           <button
                             type="button"
-                            aria-label="Previous product image"
+                            aria-label={t("prev_image_aria")}
                             onClick={() => moveSelectedMedia(-1)}
                             className="absolute left-3 top-1/2 z-10 flex size-10 -translate-y-1/2 items-center justify-center rounded-full border border-border-subtle bg-white/90 shadow-sm"
                           >
@@ -228,7 +230,7 @@ export function ProductDetailLayout({
                           </button>
                           <button
                             type="button"
-                            aria-label="Next product image"
+                            aria-label={t("next_image_aria")}
                             onClick={() => moveSelectedMedia(1)}
                             className="absolute right-3 top-1/2 z-10 flex size-10 -translate-y-1/2 items-center justify-center rounded-full border border-border-subtle bg-white/90 shadow-sm"
                           >
@@ -254,7 +256,7 @@ export function ProductDetailLayout({
                         }}
                         className="flex w-full items-center justify-center gap-2 border-t border-border-subtle bg-white px-4 py-3 text-sm font-bold uppercase tracking-[0.1em] text-brand-strong"
                       >
-                        Hide preview
+                        {t("preview_hide")}
                         <ChevronUp className="size-4" />
                       </button>
                     ) : null}
@@ -278,6 +280,7 @@ export function ProductDetailLayout({
                       template={customizationTemplate}
                       values={customizationValues}
                       dynamicFonts={dynamicFonts as DynamicFontFamily[]}
+                      locale={locale}
                       message={message}
                       quantity={quantity}
                       onQuantityChange={setQuantity}
@@ -295,7 +298,7 @@ export function ProductDetailLayout({
                   }
                   isContactPrice={selectedVariant?.priceAmount === null}
                   contactHref={contactHref}
-                  primaryActionLabel="Add to Cart"
+                  primaryActionLabel={t("btn_add_to_cart")}
                   primaryActionDisabled={addToCartDisabled}
                   primaryActionMessage={addToCartMessage}
                   previewRef={previewSectionRef}
@@ -305,7 +308,7 @@ export function ProductDetailLayout({
               </div>
             </div>
 
-            <div className="hidden grid-cols-1 gap-8 lg:grid lg:grid-cols-[minmax(0,1fr)_440px] lg:items-start xl:grid-cols-[minmax(0,1fr)_480px]">
+            <div className="hidden grid-cols-1 gap-8 lg:grid lg:grid-cols-[minmax(0,1fr)_480px] lg:items-start xl:grid-cols-[minmax(0,1fr)_520px]">
               <ProductGallery
                 customizable
                 onPrevious={() => moveSelectedMedia(-1)}
@@ -333,6 +336,7 @@ export function ProductDetailLayout({
                     template={customizationTemplate}
                     values={customizationValues}
                     dynamicFonts={dynamicFonts as DynamicFontFamily[]}
+                    locale={locale}
                     message={message}
                     quantity={quantity}
                     onQuantityChange={setQuantity}
@@ -350,7 +354,7 @@ export function ProductDetailLayout({
                 }
                 isContactPrice={selectedVariant?.priceAmount === null}
                 contactHref={contactHref}
-                primaryActionLabel="Add to Cart"
+                primaryActionLabel={t("btn_add_to_cart")}
                 primaryActionDisabled={addToCartDisabled}
                 primaryActionMessage={addToCartMessage}
                 previewRef={previewSectionRef}
@@ -360,7 +364,7 @@ export function ProductDetailLayout({
             </div>
           </>
         ) : (
-          <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_440px] lg:items-start xl:grid-cols-[minmax(0,1fr)_480px]">
+          <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_480px] lg:items-start xl:grid-cols-[minmax(0,1fr)_520px]">
             <ProductGallery
               onPrevious={
                 selectedVariantMedia.length > 1
@@ -397,7 +401,7 @@ export function ProductDetailLayout({
               }
               isContactPrice={selectedVariant?.priceAmount === null}
               contactHref={contactHref}
-              primaryActionLabel="Add to Cart"
+              primaryActionLabel={t("btn_add_to_cart")}
               primaryActionDisabled={addToCartDisabled}
               primaryActionMessage={addToCartMessage}
               previewRef={previewSectionRef}

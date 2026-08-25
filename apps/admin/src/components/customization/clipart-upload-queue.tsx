@@ -1,7 +1,12 @@
-import { Button, Input, Label, Text } from "@medusajs/ui";
+import { Button, Input, Text } from "@medusajs/ui";
 import { Upload, X } from "lucide-react";
 import { useMemo } from "react";
 import { UploadFilePreview } from "../ui/upload-file-preview";
+import {
+  LocalizedTextField,
+  createLocalizedText,
+} from "../ui/medusa/localized-field";
+import type { LocalizedTextValue } from "../../types";
 import {
   type UploadDraft,
   buildUploadDraftErrors,
@@ -18,6 +23,30 @@ export type ClipartUploadQueueProps = {
   onUpload?: () => void;
   uploadButtonText?: string;
 };
+
+function DraftNameField({
+  draftIndex,
+  value,
+  disabled,
+  onChange,
+}: {
+  draftIndex: number;
+  value: LocalizedTextValue;
+  disabled: boolean;
+  onChange: (value: LocalizedTextValue) => void;
+}) {
+  return (
+    <LocalizedTextField
+      id={`clipart-draft-name-${draftIndex}`}
+      label="Name"
+      className="min-w-0"
+      value={value}
+      onChange={onChange}
+      requiredLocales={["vi"]}
+      disabled={disabled}
+    />
+  );
+}
 
 export function ClipartUploadQueue({
   uploadDrafts,
@@ -44,7 +73,7 @@ export function ClipartUploadQueue({
 
       return {
         file: normalizedFile,
-        name: clipartNameFromFile(file.name),
+        name: createLocalizedText(clipartNameFromFile(file.name)),
         mimeType,
       };
     });
@@ -82,7 +111,7 @@ export function ClipartUploadQueue({
             >
               <UploadFilePreview
                 file={draft.file}
-                alt={draft.name || draft.file.name}
+                alt={draft.name.vi || draft.file.name}
                 className="h-20 w-20 rounded border border-ui-border-base bg-white object-contain"
               />
               <div className="flex flex-col gap-2">
@@ -94,20 +123,18 @@ export function ClipartUploadQueue({
                     {draft.file.name}
                   </Text>
                 </div>
-                <div className="flex flex-col gap-2">
-                  <Label>Name</Label>
-                  <Input
-                    value={draft.name}
-                    onChange={(event) =>
-                      setUploadDrafts((current) =>
-                        current.map((entry, entryIndex) =>
-                          entryIndex === index ? { ...entry, name: event.target.value } : entry,
-                        ),
-                      )
-                    }
-                    disabled={isUploading}
-                  />
-                </div>
+                <DraftNameField
+                  draftIndex={index}
+                  value={draft.name}
+                  disabled={isUploading}
+                  onChange={(value) =>
+                    setUploadDrafts((current) =>
+                      current.map((entry, entryIndex) =>
+                        entryIndex === index ? { ...entry, name: value } : entry,
+                      ),
+                    )
+                  }
+                />
                 {uploadDraftErrors[index]?.length ? (
                   <div className="flex flex-col gap-1">
                     {uploadDraftErrors[index].map((error) => (

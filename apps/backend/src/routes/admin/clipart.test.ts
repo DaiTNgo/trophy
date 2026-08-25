@@ -144,6 +144,7 @@ describe("admin clipart routes", () => {
         {
           id: "sports",
           name: "Sports",
+          nameTranslations: { vi: "Sports", en: "" },
           active: true,
           sortOrder: 0,
           createdAt: 1,
@@ -181,6 +182,94 @@ describe("admin clipart routes", () => {
     ).toBe(true);
   });
 
+  it("persists category name translations and hydrates them in the create response", async () => {
+    db.returningQueue.push([
+      {
+        id: "sports",
+        name: "Sports",
+        active: true,
+        sortOrder: 0,
+        createdAt: 1,
+        updatedAt: 1,
+      },
+    ]);
+    db.selectQueue.push([]);
+    db.selectQueue.push([]);
+    db.selectQueue.push([
+      {
+        ownerType: "clipart_category",
+        ownerKey: "sports",
+        fieldName: "name",
+        locale: "vi",
+        value: "Thể thao",
+      },
+      {
+        ownerType: "clipart_category",
+        ownerKey: "sports",
+        fieldName: "name",
+        locale: "en",
+        value: "Sports EN",
+      },
+    ]);
+
+    const res = await adminClipartRoute.request("/categories", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Sports", nameTranslations: { vi: "Thể thao", en: "Sports EN" } }),
+    });
+
+    expect(res.status).toBe(201);
+    const data = await res.json() as any;
+    expect(data.category.nameTranslations).toEqual({ vi: "Thể thao", en: "Sports EN" });
+
+    const translationInserts = db.mutations.filter(
+      (entry: MutationRecord) =>
+        entry.kind === "insert" &&
+        (entry.values as { ownerType?: string; locale?: string; value?: string } | undefined)?.ownerType ===
+          "clipart_category",
+    );
+    expect(translationInserts).toHaveLength(2);
+    expect(translationInserts.map((entry: MutationRecord) => (entry.values as any).locale)).toEqual(["vi", "en"]);
+    expect(translationInserts.map((entry: MutationRecord) => (entry.values as any).value)).toEqual([
+      "Thể thao",
+      "Sports EN",
+    ]);
+  });
+
+  it("lists clipart categories with hydrated name translations", async () => {
+    db.selectQueue.push([
+      {
+        id: "sports",
+        name: "Thể thao",
+        active: true,
+        sortOrder: 0,
+        createdAt: 1,
+        updatedAt: 2,
+      },
+    ]);
+    db.selectQueue.push([
+      {
+        categoryId: "sports",
+        active: true,
+      },
+    ]);
+    db.selectQueue.push([
+      {
+        ownerType: "clipart_category",
+        ownerKey: "sports",
+        fieldName: "name",
+        locale: "en",
+        value: "Sports",
+      },
+    ]);
+
+    const res = await adminClipartRoute.request("/categories", {}, env);
+
+    expect(res.status).toBe(200);
+    const data = await res.json() as any;
+    expect(data.categories[0].nameTranslations).toEqual({ vi: "Thể thao", en: "Sports" });
+  });
+
   it("uploads a validated clipart batch for a category", async () => {
     db.getQueue.push({
       id: "sports",
@@ -208,7 +297,7 @@ describe("admin clipart routes", () => {
     ]);
 
     const formData = new FormData();
-    formData.set("namesJson", JSON.stringify(["Star"]));
+    formData.set("namesJson", JSON.stringify([{ name: "Star" }]));
     formData.append(
       "files",
       new File(
@@ -241,6 +330,89 @@ describe("admin clipart routes", () => {
     ).toBe(true);
   });
 
+  it("persists per-asset name translations during batch uploads", async () => {
+    db.getQueue.push({
+      id: "sports",
+      name: "Sports",
+      active: true,
+      sortOrder: 0,
+      createdAt: 1,
+      updatedAt: 1,
+    });
+    db.returningQueue.push([
+      {
+        id: "clipart_star",
+        categoryId: "sports",
+        sourceAssetId: "asset_star",
+        name: "Star",
+        fileName: "star.svg",
+        previewUrl: "/api/assets/customizations/asset_star/content",
+        mimeType: "image/svg+xml",
+        sourceWidthPx: 128,
+        sourceHeightPx: 128,
+        active: true,
+        createdAt: 10,
+        updatedAt: 10,
+      },
+    ]);
+    db.selectQueue.push([]);
+    db.selectQueue.push([]);
+    db.selectQueue.push([]);
+    db.selectQueue.push([
+      {
+        ownerType: "clipart_asset",
+        ownerKey: "clipart_star",
+        fieldName: "name",
+        locale: "vi",
+        value: "Star",
+      },
+      {
+        ownerType: "clipart_asset",
+        ownerKey: "clipart_star",
+        fieldName: "name",
+        locale: "en",
+        value: "Star EN",
+      },
+    ]);
+
+    const formData = new FormData();
+    formData.set("namesJson", JSON.stringify([{ name: "Star", nameTranslations: { en: "Star EN" } }]));
+    formData.append(
+      "files",
+      new File(
+        ['<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><rect width="128" height="128" fill="#000"/></svg>'],
+        "star.svg",
+        { type: "image/svg+xml" },
+      ),
+    );
+
+    const res = await adminClipartRoute.request(
+      "/categories/sports/assets/batch",
+      {
+        method: "POST",
+        body: formData,
+      },
+      env,
+    );
+
+    expect(res.status).toBe(201);
+    const data = await res.json() as any;
+    expect(data.assets[0].nameTranslations).toEqual({ vi: "Star", en: "Star EN" });
+
+    const translationInserts = db.mutations.filter(
+      (entry: MutationRecord) =>
+        entry.kind === "insert" &&
+        (entry.values as { ownerType?: string; locale?: string; value?: string } | undefined)?.ownerType ===
+          "clipart_asset",
+    );
+    expect(translationInserts).toHaveLength(2);
+    expect(translationInserts.map((entry: MutationRecord) => (entry.values as any).locale)).toEqual(["vi", "en"]);
+    expect(translationInserts.map((entry: MutationRecord) => (entry.values as any).value)).toEqual([
+      "Star",
+      "Star EN",
+    ]);
+  });
+
   it("rejects duplicate files inside a clipart batch", async () => {
     db.getQueue.push({
       id: "sports",
@@ -251,7 +423,7 @@ describe("admin clipart routes", () => {
       updatedAt: 1,
     });
     const formData = new FormData();
-    formData.set("namesJson", JSON.stringify(["Star", "Star 2"]));
+    formData.set("namesJson", JSON.stringify([{ name: "Star" }, { name: "Star 2" }]));
     formData.append(
       "files",
       new File(
@@ -382,7 +554,7 @@ describe("admin clipart routes", () => {
     });
 
     const formData = new FormData();
-    formData.set("namesJson", JSON.stringify(["Star"]));
+    formData.set("namesJson", JSON.stringify([{ name: "Star" }]));
     formData.append(
       "files",
       new File(
@@ -439,7 +611,7 @@ describe("admin clipart routes", () => {
       });
 
     const formData = new FormData();
-    formData.set("namesJson", JSON.stringify(["Star", "Shield"]));
+    formData.set("namesJson", JSON.stringify([{ name: "Star" }, { name: "Shield" }]));
     formData.append(
       "files",
       new File(

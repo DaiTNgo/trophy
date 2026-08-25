@@ -399,6 +399,35 @@ async function lookupProductCustomization(
   return row ?? null;
 }
 
+async function lookupResolvedProductCustomization(
+  db: DbType,
+  productId: number,
+  locale: "vi" | "en",
+) {
+  const row = await lookupProductCustomization(db, productId);
+  if (!row || !row.enabled) return null;
+
+  const layers = row.layersJson ? JSON.parse(row.layersJson) : [];
+  const formFields = row.formFieldsJson ? JSON.parse(row.formFieldsJson) : [];
+
+  const parsedCustomization = {
+    enabled: true,
+    canvasWidthPx: row.canvasWidthPx ?? null,
+    canvasHeightPx: row.canvasHeightPx ?? null,
+    layers,
+    formFields,
+  };
+  await hydrateAndResolveCustomization(db, parsedCustomization, locale);
+
+  return {
+    enabled: true,
+    formFields: ((parsedCustomization.formFields as any[]) || []).map((field) => ({
+      id: String(field.id),
+      label: String(field.label || ""),
+    })),
+  };
+}
+
 function validateVariantPrice(variant: VariantRow) {
   if (variant.priceAmount === null || variant.priceAmount === undefined) {
     return { ok: false as const, reason: "contact_price" as const };
@@ -846,9 +875,10 @@ export const storefrontOrdersRoute = new Hono<AppEnv>()
           };
         }
 
-        const customization = await lookupProductCustomization(
+        const customization = await lookupResolvedProductCustomization(
           db,
           item.productId,
+          input.locale as "vi" | "en",
         );
         const thumbnailAssetId = await lookupProductThumbnailAssetId(
           db,
@@ -877,6 +907,12 @@ export const storefrontOrdersRoute = new Hono<AppEnv>()
               customizable: customization?.enabled === true,
               requiresCustomization: customization?.enabled === true,
               isContactPrice: true,
+              customization: customization
+                ? {
+                    enabled: customization.enabled,
+                    formFields: customization.formFields,
+                  }
+                : null,
             },
           };
         }
@@ -896,6 +932,12 @@ export const storefrontOrdersRoute = new Hono<AppEnv>()
             customizable: customization?.enabled === true,
             requiresCustomization: customization?.enabled === true,
             isContactPrice: false,
+            customization: customization
+              ? {
+                  enabled: customization.enabled,
+                  formFields: customization.formFields,
+                }
+              : null,
           },
         };
       }),

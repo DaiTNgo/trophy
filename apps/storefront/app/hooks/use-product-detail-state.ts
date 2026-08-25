@@ -6,6 +6,7 @@ import type {
 } from "@trophy/customization";
 import { validateCustomizationValues } from "@trophy/customization";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useCart } from "./use-cart";
 import { formatCurrency } from "../lib/utils";
 import { getLocalized } from "../lib/translation";
@@ -55,6 +56,7 @@ export function useProductDetailState({
   activeCategory: ProductDetail["categories"][number] | null;
   cartLineRevisionId: string | null;
 }) {
+  const { t } = useTranslation("products");
   const { addLine, isReady: isCartReady, lines } = useCart();
   const previewSectionRef = useRef<HTMLDivElement | null>(null);
   const mobilePreviewSentinelRef = useRef<HTMLDivElement | null>(null);
@@ -287,9 +289,7 @@ export function useProductDetailState({
       variantIds: product.variants.map((variant) => variant.id),
     });
     if (!revision.line) {
-      setRevisionNotice(
-        "Your saved customization could not be restored. Please customize this product again.",
-      );
+      setRevisionNotice(t("customization_restoration_failed"));
       return;
     }
 
@@ -297,9 +297,7 @@ export function useProductDetailState({
       setSelectedVariantId(revision.line.variantId);
     } else {
       setHasInvalidRevisionVariant(true);
-      setRevisionNotice(
-        "The saved variant is no longer available. Choose a current variant before adding to cart.",
-      );
+      setRevisionNotice(t("customization_variant_unavailable"));
     }
 
     if (customizationTemplate && revision.line.customizationValues) {
@@ -417,15 +415,15 @@ export function useProductDetailState({
 
   const addToCartMessage = selectedVariant
     ? selectedVariant.priceAmount === null
-      ? "This variant uses Contact Price and cannot be added to cart."
+      ? t("customization_contact_price_notice")
       : hasInvalidRevisionVariant
-        ? "Choose a current variant before adding this item to cart."
+        ? t("customization_variant_unavailable")
         : customizationTemplate &&
             customizationValidation &&
             !customizationValidation.valid
-          ? "Complete the required customization fields before adding this item to cart."
+          ? t("customization_required_notice")
           : cartMessage
-    : "Select a variant before adding this item to cart.";
+    : t("customization_select_variant_notice");
 
   function handleAddToCart() {
     if (
@@ -441,9 +439,7 @@ export function useProductDetailState({
       customizationValidation &&
       !customizationValidation.valid
     ) {
-      setCartMessage(
-        "Complete the required customization fields before adding this item to cart.",
-      );
+      setCartMessage(t("customization_required_notice"));
       return;
     }
 
@@ -455,6 +451,8 @@ export function useProductDetailState({
               return null;
             }
 
+            const fieldLabel = field.label;
+
             if (
               typeof value === "object" &&
               value &&
@@ -463,7 +461,7 @@ export function useProductDetailState({
             ) {
               return {
                 fieldId: field.id,
-                label: field.label,
+                label: fieldLabel,
                 valueSummary: value.text,
               };
             }
@@ -471,8 +469,8 @@ export function useProductDetailState({
             if (typeof value === "object" && value && "assetId" in value) {
               return {
                 fieldId: field.id,
-                label: field.label,
-                valueSummary: "Uploaded image",
+                label: fieldLabel,
+                valueSummary: t("summary_uploaded_image"),
               };
             }
 
@@ -484,15 +482,15 @@ export function useProductDetailState({
             ) {
               return {
                 fieldId: field.id,
-                label: field.label,
+                label: fieldLabel,
                 valueSummary: value.clipartAssetName,
               };
             }
 
             return {
               fieldId: field.id,
-              label: field.label,
-              valueSummary: "Custom value",
+              label: fieldLabel,
+              valueSummary: t("summary_custom_value"),
             };
           })
           .filter(
@@ -500,7 +498,7 @@ export function useProductDetailState({
               entry,
             ): entry is {
               fieldId: string;
-              label: string;
+              label: string | import("@trophy/customization").LocalizedTextInput;
               valueSummary: string;
             } => entry !== null,
           )
@@ -530,7 +528,7 @@ export function useProductDetailState({
       },
       { forceSeparate: isCartLineRevision },
     );
-    setCartMessage("Added to cart. You can keep browsing or open the cart.");
+    setCartMessage(t("customization_added_to_cart"));
   }
 
   async function uploadCustomizationImage(

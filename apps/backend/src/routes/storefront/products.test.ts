@@ -1,6 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_TEMPLATE, type ProductCustomization } from "@trophy/customization";
-import { buildListingItem, matchesSearchQuery, normalizeSearchText, sanitizeShopperCustomization } from "./products";
+
+vi.mock("../../db/client", () => ({
+  getDb: vi.fn(),
+}));
+
+import { getDb } from "../../db/client";
+import { buildListingItem, matchesSearchQuery, normalizeSearchText, sanitizeShopperCustomization, storefrontProductsRoute } from "./products";
 
 describe("storefront search normalization", () => {
   it("matches Vietnamese text regardless of accents and case", () => {
@@ -361,5 +367,181 @@ describe("sanitizeShopperCustomization", () => {
     const result = sanitizeShopperCustomization(customization);
     const resultLayer = result.layers[0];
     expect(resultLayer && resultLayer.type === "image_shape" ? resultLayer.shape : null).toEqual(polygonShape);
+  });
+});
+
+describe("GET /:handle customization locale resolution", () => {
+  const badgeShapeLayer = DEFAULT_TEMPLATE.layers.find(
+    (layer) => layer.type === "image_shape",
+  );
+
+  function buildCustomizationRow() {
+    if (!badgeShapeLayer || badgeShapeLayer.type !== "image_shape") {
+      throw new Error("Missing image shape fixture");
+    }
+    return {
+      productId: 1,
+      enabled: true,
+      canvasWidthPx: 1200,
+      canvasHeightPx: 900,
+      layersJson: JSON.stringify([
+        {
+          ...badgeShapeLayer,
+          sourcePolicy: "upload_or_clipart_category",
+          presentation: "source_select",
+          clipartCategoryMode: "allow_list",
+          allowedClipartCategories: [{ id: "sports", name: "Sports" }],
+        },
+        DEFAULT_TEMPLATE.layers.find((layer) => layer.id === "line_1"),
+      ]),
+      formFieldsJson: JSON.stringify([
+        {
+          id: "field_player_name",
+          type: "text",
+          label: "Tên cầu thủ",
+          placeholder: "Nhập tên",
+          helpText: null,
+          required: true,
+        },
+      ]),
+    };
+  }
+
+  function createQueryChain({
+    getQueue,
+    selectQueue,
+  }: {
+    getQueue: unknown[];
+    selectQueue: unknown[];
+  }) {
+    const chain: any = {
+      from: vi.fn(() => chain),
+      where: vi.fn(() => chain),
+      orderBy: vi.fn(() => chain),
+      limit: vi.fn(() => chain),
+      offset: vi.fn(() => chain),
+      innerJoin: vi.fn(() => chain),
+      leftJoin: vi.fn(() => chain),
+      returning: vi.fn(() => chain),
+      values: vi.fn(() => chain),
+      get: vi.fn(async () => getQueue.shift() ?? null),
+      then: (
+        resolve: (value: unknown) => unknown,
+        reject?: (reason: unknown) => unknown,
+      ) => Promise.resolve(selectQueue.shift() ?? []).then(resolve, reject),
+    };
+    return chain;
+  }
+
+  function createMockDb() {
+    const getQueue: unknown[] = [];
+    const selectQueue: unknown[] = [];
+    const db: any = {
+      getQueue,
+      selectQueue,
+      select: vi.fn(() => createQueryChain({ getQueue, selectQueue })),
+      insert: vi.fn(() => createQueryChain({ getQueue, selectQueue })),
+      update: vi.fn(() => createQueryChain({ getQueue, selectQueue })),
+      delete: vi.fn(() => createQueryChain({ getQueue, selectQueue })),
+    };
+    return db;
+  }
+
+  function queueProductDetail(db: ReturnType<typeof createMockDb>) {
+    db.getQueue.push({
+      id: 1,
+      title: "Áo đấu",
+      subtitle: null,
+      handle: "ao-dau",
+      description: null,
+      thumbnailAssetId: null,
+      hoverAssetId: null,
+      status: "published",
+      deletedAt: null,
+    });
+    // product title/subtitle/description hydration
+    db.selectQueue.push([]);
+    // Promise.all: categories, attributes, options, variants, media, variant media, variant customization media
+    for (let i = 0; i < 7; i += 1) {
+      db.selectQueue.push([]);
+    }
+    // NOTE: product_category/attribute/option/option_value hydrations receive empty
+    // row arrays and early-return without querying.
+    // customization form field label/helpText/placeholder translations (en)
+    db.selectQueue.push([
+      {
+        ownerType: "customization_form_field",
+        ownerKey: "field_player_name",
+        fieldName: "label",
+        locale: "en",
+        value: "Player name",
+      },
+    ]);
+    // clipart categories + assets rows
+    db.selectQueue.push([
+      { id: "sports", name: "Thể thao" },
+    ]);
+    db.selectQueue.push([
+      {
+        id: "clip_star",
+        sourceAssetId: "asset_star",
+        name: "Ngôi sao",
+        fileName: "star.svg",
+        categoryId: "sports",
+        previewUrl: "/api/assets/customizations/asset_star/content",
+        mimeType: "image/svg+xml",
+        sourceWidthPx: 100,
+        sourceHeightPx: 100,
+        active: true,
+      },
+    ]);
+    // clipart category + asset name translations (en)
+    db.selectQueue.push([
+      { ownerType: "clipart_category", ownerKey: "sports", fieldName: "name", locale: "en", value: "Sports" },
+    ]);
+    db.selectQueue.push([
+      { ownerType: "clipart_asset", ownerKey: "clip_star", fieldName: "name", locale: "en", value: "Star" },
+    ]);
+  }
+
+  it("resolves form fields, sample text and clipart names per requested locale", async () => {
+    const db = createMockDb();
+    vi.mocked(getDb).mockReturnValue(db as never);
+    queueProductDetail(db);
+    db.getQueue.push(buildCustomizationRow());
+
+    const res = await storefrontProductsRoute.request("/ao-dau?locale=en");
+
+    expect(res.status).toBe(200);
+    const data = await res.json() as any;
+    const customization = data.item.customization;
+
+    expect(customization.formFields[0].label).toBe("Player name");
+    expect(customization.formFields[0].placeholder).toBe("Nhập tên");
+    const textLayer = customization.layers.find((layer: any) => layer.id === "line_1");
+    expect(textLayer.text.sampleText).toBe("LEAGUE CHAMPION");
+    const imageLayer = customization.layers.find((layer: any) => layer.id === badgeShapeLayer?.id);
+    expect(imageLayer.allowedClipartCategories[0]).toMatchObject({ id: "sports", name: "Sports" });
+    expect(imageLayer.clipartAssets[0]).toMatchObject({ id: "clip_star", name: "Star" });
+  });
+
+  it("falls back to canonical Vietnamese values when no locale is requested", async () => {
+    const db = createMockDb();
+    vi.mocked(getDb).mockReturnValue(db as never);
+    queueProductDetail(db);
+    db.getQueue.push(buildCustomizationRow());
+
+    const res = await storefrontProductsRoute.request("/ao-dau");
+
+    expect(res.status).toBe(200);
+    const data = await res.json() as any;
+    const customization = data.item.customization;
+
+    expect(customization.formFields[0].label).toBe("Tên cầu thủ");
+    const textLayer = customization.layers.find((layer: any) => layer.id === "line_1");
+    expect(textLayer.text.sampleText).toBe("LEAGUE CHAMPION");
+    const imageLayer = customization.layers.find((layer: any) => layer.id === badgeShapeLayer?.id);
+    expect(imageLayer.allowedClipartCategories[0]).toMatchObject({ id: "sports", name: "Thể thao" });
+    expect(imageLayer.clipartAssets[0]).toMatchObject({ id: "clip_star", name: "Ngôi sao" });
   });
 });

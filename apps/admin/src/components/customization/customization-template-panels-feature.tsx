@@ -84,7 +84,7 @@ export function LeftPanel(props: {
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   return (
     <SortableScrollContainerContext.Provider value={scrollContainerRef}>
-    <aside ref={scrollContainerRef} className="overflow-y-auto border-r border-ui-border-base p-4">
+    <aside ref={scrollContainerRef} className="overflow-y-auto overflow-x-hidden border-r border-ui-border-base p-4">
       {props.activeTab === "blocks" ? (
         <BlocksPanel
           template={props.template}

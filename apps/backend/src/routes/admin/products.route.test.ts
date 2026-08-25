@@ -104,6 +104,8 @@ function queueReadProduct(
   input?: {
     optionRows?: Array<{ id: number; productId: number; title: string; position: number }>;
     optionValueRows?: Array<{ id: number; optionId: number; value: string; position: number }>;
+    optionTranslationRows?: Array<Record<string, unknown>>;
+    optionValueTranslationRows?: Array<Record<string, unknown>>;
     variantRows?: Array<{
       id: number;
       productId: number;
@@ -192,10 +194,10 @@ function queueReadProduct(
 
   // Translations
   if ((input?.optionRows ?? []).length > 0) {
-    db.selectQueue.push([]);
+    db.selectQueue.push(input?.optionTranslationRows ?? []);
   }
   if ((input?.optionValueRows ?? []).length > 0) {
-    db.selectQueue.push([]);
+    db.selectQueue.push(input?.optionValueTranslationRows ?? []);
   }
   if ((input?.variantRows ?? []).length > 0) {
     db.selectQueue.push([]);
@@ -895,8 +897,14 @@ describe("admin products operation-specific routes", () => {
         optionRows: [
           { id: 1, productId: 1, title: "Default option", position: 0 }
         ],
+        optionTranslationRows: [
+          { ownerType: "product_option", ownerKey: "1", fieldName: "title", locale: "en", value: "Default option" }
+        ],
         optionValueRows: [
           { id: 1, optionId: 1, value: "Default option value", position: 0 }
+        ],
+        optionValueTranslationRows: [
+          { ownerType: "product_option_value", ownerKey: "1", fieldName: "value", locale: "en", value: "Default option value" }
         ],
         variantRows: [
           {

@@ -1,14 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router";
-import { Button, Container, Heading, Input, Label, StatusBadge, Table, Text } from "@medusajs/ui";
+import { Button, Container, Heading, Label, StatusBadge, Table, Text } from "@medusajs/ui";
 import { ArrowLeft, Check, PenSquare, Trash2 } from "lucide-react";
 import { MediaPreview } from "../components/ui/media-preview";
 import type { BrandClipartAsset, ClipartCategory } from "../hooks/use-brand-assets";
 import { useBreadcrumbs } from "../hooks/use-breadcrumbs";
 import { backendFetch } from "../lib/fetch";
 
-import { formatClipartMimeType, type UploadDraft, buildUploadDraftErrors } from "../lib/clipart-utils";
+import { formatClipartMimeType, type UploadDraft, buildUploadDraftErrors, clipartNameToValue, toClipartNamePayload } from "../lib/clipart-utils";
 import { ClipartUploadQueue } from "../components/customization/clipart-upload-queue";
+import {
+  LocalizedTextField,
+  createEmptyLocalizedText,
+  type AdminLocale,
+  type LocalizedTextValue,
+} from "../components/ui/medusa";
 
 export function ClipartDetailPage() {
   const navigate = useNavigate();
@@ -19,11 +25,13 @@ export function ClipartDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingAssets, setIsLoadingAssets] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [categoryNameInput, setCategoryNameInput] = useState("");
+  const [categoryNameInput, setCategoryNameInput] = useState<LocalizedTextValue>(() => createEmptyLocalizedText());
+  const [categoryNameLocale, setCategoryNameLocale] = useState<AdminLocale>("vi");
   const [isSavingCategory, setIsSavingCategory] = useState(false);
   const [uploadDrafts, setUploadDrafts] = useState<UploadDraft[]>([]);
   const [editingAssetId, setEditingAssetId] = useState<string | null>(null);
-  const [editingAssetName, setEditingAssetName] = useState("");
+  const [editingAssetName, setEditingAssetName] = useState<LocalizedTextValue>(() => createEmptyLocalizedText());
+  const [editingAssetLocale, setEditingAssetLocale] = useState<AdminLocale>("vi");
   const [isUploadingBatch, setIsUploadingBatch] = useState(false);
   const [assetActionId, setAssetActionId] = useState<string | null>(null);
 
@@ -41,7 +49,11 @@ export function ClipartDetailPage() {
         const data = (await res.json()) as { categories: ClipartCategory[] };
         const currentCategory = data.categories.find((entry) => entry.id === categoryId) ?? null;
         setCategory(currentCategory);
-        setCategoryNameInput(currentCategory?.name ?? "");
+        setCategoryNameInput(
+          currentCategory
+            ? clipartNameToValue(currentCategory)
+            : createEmptyLocalizedText(),
+        );
       } catch (error) {
         setErrorMessage(error instanceof Error ? error.message : "Failed to load clipart category");
       } finally {
@@ -102,13 +114,13 @@ export function ClipartDetailPage() {
 
 
   async function handleSaveCategory() {
-    if (!category || !categoryNameInput.trim()) return;
+    if (!category || !categoryNameInput.vi.trim()) return;
     setIsSavingCategory(true);
     setErrorMessage(null);
     try {
       const res = await backendFetch(`/api/admin/customization/clipart/categories/${category.id}`, {
         method: "PATCH",
-        body: JSON.stringify({ name: categoryNameInput.trim() }),
+        body: JSON.stringify(toClipartNamePayload(categoryNameInput)),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => null);
@@ -116,7 +128,7 @@ export function ClipartDetailPage() {
       }
       const data = (await res.json()) as { category: ClipartCategory };
       setCategory(data.category);
-      setCategoryNameInput(data.category.name);
+      setCategoryNameInput(clipartNameToValue(data.category));
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Failed to save clipart category");
     } finally {
@@ -139,7 +151,7 @@ export function ClipartDetailPage() {
       }
       const data = (await res.json()) as { category: ClipartCategory };
       setCategory(data.category);
-      setCategoryNameInput(data.category.name);
+      setCategoryNameInput(clipartNameToValue(data.category));
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Failed to update clipart category");
     } finally {
@@ -153,7 +165,10 @@ export function ClipartDetailPage() {
     setErrorMessage(null);
     try {
       const formData = new FormData();
-      formData.set("namesJson", JSON.stringify(uploadDrafts.map((draft) => draft.name.trim())));
+      formData.set(
+        "namesJson",
+        JSON.stringify(uploadDrafts.map((draft) => toClipartNamePayload(draft.name))),
+      );
       for (const draft of uploadDrafts) {
         formData.append("files", draft.file);
       }
@@ -185,20 +200,20 @@ export function ClipartDetailPage() {
   }
 
   async function handleRenameAsset(assetId: string) {
-    if (!editingAssetName.trim()) return;
+    if (!editingAssetName.vi.trim()) return;
     setAssetActionId(assetId);
     setErrorMessage(null);
     try {
       const res = await backendFetch(`/api/admin/customization/clipart/assets/${assetId}`, {
         method: "PATCH",
-        body: JSON.stringify({ name: editingAssetName.trim() }),
+        body: JSON.stringify(toClipartNamePayload(editingAssetName)),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => null);
         throw new Error(data?.error || "Failed to rename clipart asset");
       }
       setEditingAssetId(null);
-      setEditingAssetName("");
+      setEditingAssetName(createEmptyLocalizedText());
       await loadAssets();
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Failed to rename clipart asset");
@@ -221,7 +236,7 @@ export function ClipartDetailPage() {
       }
       if (editingAssetId === asset.id) {
         setEditingAssetId(null);
-        setEditingAssetName("");
+        setEditingAssetName(createEmptyLocalizedText());
       }
       await loadAssets();
     } catch (error) {
@@ -233,7 +248,7 @@ export function ClipartDetailPage() {
 
   function beginRename(asset: BrandClipartAsset) {
     setEditingAssetId(asset.id);
-    setEditingAssetName(asset.name);
+    setEditingAssetName(clipartNameToValue(asset));
   }
 
   if (isLoading) {
@@ -308,14 +323,16 @@ export function ClipartDetailPage() {
             </div>
             <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
               <div className="grid gap-4 md:grid-cols-2">
-                <div className="flex flex-col gap-2">
-                  <Label>Category name</Label>
-                  <Input
-                    value={categoryNameInput}
-                    onChange={(event) => setCategoryNameInput(event.target.value)}
-                    disabled={isSavingCategory}
-                  />
-                </div>
+                <LocalizedTextField
+                  id="clipart-category-detail-name"
+                  label="Category name"
+                  value={categoryNameInput}
+                  locale={categoryNameLocale}
+                  onLocaleChange={setCategoryNameLocale}
+                  onChange={setCategoryNameInput}
+                  requiredLocales={["vi", "en"]}
+                  disabled={isSavingCategory}
+                />
                 <div className="flex flex-col gap-2">
                   <Label>Status</Label>
                   <div className="flex h-10 items-center">
@@ -330,7 +347,11 @@ export function ClipartDetailPage() {
                   variant="secondary"
                   onClick={handleSaveCategory}
                   isLoading={isSavingCategory}
-                  disabled={isSavingCategory || !categoryNameInput.trim() || categoryNameInput.trim() === category.name}
+                  disabled={
+                    isSavingCategory ||
+                    !categoryNameInput.vi.trim() ||
+                    JSON.stringify(categoryNameInput) === JSON.stringify(clipartNameToValue(category))
+                  }
                 >
                   <Check className="mr-2 h-4 w-4" />
                   Save category
@@ -405,17 +426,21 @@ export function ClipartDetailPage() {
                         </Table.Cell>
                         <Table.Cell>
                           {isEditing ? (
-                            <div className="flex items-center gap-2">
-                              <Input
+                            <div className="flex items-start gap-2">
+                              <LocalizedTextField
+                                id={`clipart-asset-name-${asset.id}`}
                                 value={editingAssetName}
-                                onChange={(event) => setEditingAssetName(event.target.value)}
+                                locale={editingAssetLocale}
+                                onLocaleChange={setEditingAssetLocale}
+                                onChange={setEditingAssetName}
+                                requiredLocales={["vi"]}
                                 disabled={assetActionId === asset.id}
                               />
                               <Button
                                 size="small"
                                 onClick={() => handleRenameAsset(asset.id)}
                                 isLoading={assetActionId === asset.id}
-                                disabled={!editingAssetName.trim()}
+                                disabled={!editingAssetName.vi.trim()}
                               >
                                 Save
                               </Button>
@@ -424,7 +449,7 @@ export function ClipartDetailPage() {
                                 size="small"
                                 onClick={() => {
                                   setEditingAssetId(null);
-                                  setEditingAssetName("");
+                                  setEditingAssetName(createEmptyLocalizedText());
                                 }}
                                 disabled={assetActionId === asset.id}
                               >

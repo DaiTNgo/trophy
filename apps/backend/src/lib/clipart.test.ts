@@ -44,7 +44,7 @@ describe("prepareClipartBatchUpload", () => {
 
     const result = await prepareClipartBatchUpload({
       files: [file],
-      names: ["Badge"],
+      names: [{ name: "Badge" }],
       maxAssetBytes: 20 * 1024 * 1024,
     });
 
@@ -72,7 +72,7 @@ describe("prepareClipartBatchUpload", () => {
           { type: "image/svg+xml" },
         ),
       ],
-      names: ["Star", "Star"],
+      names: [{ name: "Star" }, { name: "Star" }],
       maxAssetBytes: 20 * 1024 * 1024,
     });
 
@@ -93,7 +93,7 @@ describe("prepareClipartBatchUpload", () => {
           { type: "image/svg+xml" },
         ),
       ],
-      names: ["Star"],
+      names: [{ name: "Star", nameTranslations: { en: "Star EN" } }],
       maxAssetBytes: 20 * 1024 * 1024,
     });
 
@@ -102,6 +102,7 @@ describe("prepareClipartBatchUpload", () => {
 
     expect(result.prepared[0]).toMatchObject({
       displayName: "Star",
+      nameTranslations: { en: "Star EN" },
       fileName: "star.svg",
       mimeType: "image/svg+xml",
       metadata: { width: 24, height: 24 },

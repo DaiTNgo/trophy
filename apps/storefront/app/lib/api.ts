@@ -436,6 +436,13 @@ export type StorefrontResolvedCartLine = {
     customizable: boolean;
     requiresCustomization: boolean;
     isContactPrice: boolean;
+    customization?: {
+      enabled: boolean;
+      formFields: Array<{
+        id: string;
+        label: string;
+      }>;
+    } | null;
   };
 };
 

@@ -1,4 +1,5 @@
 import { Label, Text, Textarea } from "@medusajs/ui";
+import { useState } from "react";
 import { cn } from "../../../lib/utils";
 import type { AdminLocale, LocalizedTextValue } from "../../../types";
 
@@ -82,8 +83,10 @@ type LocalizedTextFieldProps = {
   id: string;
   label?: string;
   value: LocalizedTextValue;
-  locale: AdminLocale;
-  onLocaleChange: (locale: AdminLocale) => void;
+  /** Omit for independent per-instance locale; pass for a shared/global switch. */
+  locale?: AdminLocale;
+  /** Required when `locale` is provided. */
+  onLocaleChange?: (locale: AdminLocale) => void;
   onChange: (value: LocalizedTextValue) => void;
   placeholder?: Partial<Record<AdminLocale, string>>;
   helperText?: string;
@@ -92,14 +95,15 @@ type LocalizedTextFieldProps = {
   rows?: number;
   className?: string;
   disabled?: boolean;
+  defaultLocale?: AdminLocale;
 };
 
 export function LocalizedTextField({
   id,
   label,
   value,
-  locale,
-  onLocaleChange,
+  locale: localeProp,
+  onLocaleChange: onLocaleChangeProp,
   onChange,
   placeholder,
   helperText,
@@ -108,7 +112,11 @@ export function LocalizedTextField({
   rows = 4,
   className,
   disabled = false,
+  defaultLocale = "vi",
 }: LocalizedTextFieldProps) {
+  const [internalLocale, setInternalLocale] = useState<AdminLocale>(defaultLocale);
+  const locale = localeProp ?? internalLocale;
+  const onLocaleChange = onLocaleChangeProp ?? setInternalLocale;
   const missingLocales = getMissingLocalizedTextLocales(value, requiredLocales);
   const fieldId = `${id}-${locale}`;
 

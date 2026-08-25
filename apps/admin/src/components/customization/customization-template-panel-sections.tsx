@@ -289,14 +289,14 @@ export function FormPanel({
             onReorder={reorder}
           >
             <div className="flex items-start gap-2">
-              <DragHandle label={`Move ${field.label}`} />
+              <DragHandle label={`Move ${resolveLocalizedInput(field.label)}`} />
               <div className="min-w-0 flex-1">
                 <button
                   type="button"
                   onClick={() => onSelectLayer(field.layerId)}
                   className="block w-full text-left text-sm font-medium"
                 >
-                  {field.label || "Unnamed field"}
+                  {resolveLocalizedInput(field.label) || "Unnamed field"}
                 </button>
                 {layer ? (
                   <div className="mt-0.5 text-[11px] text-ui-fg-muted">
@@ -305,34 +305,10 @@ export function FormPanel({
                 ) : null}
               </div>
             </div>
-          <Input
-            value={field.label}
-            onFocus={() => onSelectLayer(field.layerId)}
-            onChange={(e) =>
-              onUpdateField(field.id, (current) => ({ ...current, label: e.target.value }))
-            }
-          />
-          <Input
-            value={field.placeholder ?? ""}
-            placeholder="Placeholder"
-            onFocus={() => onSelectLayer(field.layerId)}
-            onChange={(e) =>
-              onUpdateField(field.id, (current) => ({
-                ...current,
-                placeholder: e.target.value,
-              }))
-            }
-          />
-          <Textarea
-            value={field.helpText ?? ""}
-            placeholder="Help text"
-            onFocus={() => onSelectLayer(field.layerId)}
-            onChange={(e) =>
-              onUpdateField(field.id, (current) => ({
-                ...current,
-                helpText: e.target.value,
-              }))
-            }
+          <FormFieldLocalizedInputs
+            field={field}
+            onUpdateField={onUpdateField}
+            onSelectLayer={onSelectLayer}
           />
           <label className="flex items-center gap-2 text-sm">
             <input
@@ -350,6 +326,63 @@ export function FormPanel({
         </SortablePanelItem>
       );
     })}
+    </div>
+  );
+}
+
+function FormFieldLocalizedInputs({
+  field,
+  onUpdateField,
+  onSelectLayer,
+}: {
+  field: CustomizationFormField;
+  onUpdateField: (
+    fieldId: string,
+    updater: (field: CustomizationFormField) => CustomizationFormField,
+  ) => void;
+  onSelectLayer: (layerId: string) => void;
+}) {
+  return (
+    <div
+      className="grid min-w-0 gap-3"
+      onFocusCapture={() => onSelectLayer(field.layerId)}
+    >
+      <LocalizedTextField
+        id={`form-field-label-${field.id}`}
+        label="Label"
+        className="min-w-0"
+        value={toLocalizedValue(field.label)}
+        onChange={(value) =>
+          onUpdateField(field.id, (current) => ({ ...current, label: value }))
+        }
+        requiredLocales={["vi", "en"]}
+      />
+      <LocalizedTextField
+        id={`form-field-placeholder-${field.id}`}
+        label="Placeholder"
+        className="min-w-0"
+        value={toLocalizedValue(field.placeholder)}
+        onChange={(value) =>
+          onUpdateField(field.id, (current) => ({
+            ...current,
+            placeholder: value.vi.trim() || value.en.trim() ? value : undefined,
+          }))
+        }
+      />
+      <LocalizedTextField
+        id={`form-field-help-${field.id}`}
+        label="Help text"
+        multiline
+        rows={2}
+        className="min-w-0"
+        value={toLocalizedValue(field.helpText)}
+        onChange={(value) =>
+          onUpdateField(field.id, (current) => ({
+            ...current,
+            helpText: value.vi.trim() || value.en.trim() ? value : undefined,
+          }))
+        }
+      />
     </div>
   );
 }
@@ -652,10 +685,21 @@ import {
 import {
   type CustomizationFormField,
   type CustomizationTemplate,
+  type LocalizedTextInput,
   type ShapeType,
+  resolveLocalizedInput,
 } from "@trophy/customization";
-import { Heading, Input, Text, Textarea } from "@medusajs/ui";
+import { Heading, Text } from "@medusajs/ui";
+import { LocalizedTextField } from "../ui/medusa/localized-field";
+import type { LocalizedTextValue } from "../../types";
 import { BackgroundUpload, shapeLabel } from "./customization-template-ui";
+
+function toLocalizedValue(
+  value: string | LocalizedTextInput | undefined | null,
+): LocalizedTextValue {
+  if (typeof value === "string") return { vi: value, en: "" };
+  return { vi: value?.vi ?? "", en: value?.en ?? "" };
+}
 
 const SHAPES: ShapeType[] = [
   "rectangle",

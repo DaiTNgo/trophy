@@ -55,7 +55,16 @@ export function TextInspector({
       </div>
       <LayerName layer={layer} onUpdate={onUpdate} />
       <PositionFields template={template} layer={layer} onUpdate={onUpdate} textOnly />
-      <Textarea value={layer.text.sampleText} onChange={(e) => onUpdate((current) => ({ ...current, text: { ...(current as TextEditorLayer).text, sampleText: e.target.value } }) as CustomizationLayer)} />
+      <div className="space-y-1">
+        <Label size="small" weight="plus" className="text-ui-fg-subtle">Sample text</Label>
+        <Textarea
+          id={`text-sample-${layer.id}`}
+          rows={2}
+          className="min-w-0"
+          value={layer.text.sampleText}
+          onChange={(e) => updateText(onUpdate, { sampleText: e.target.value })}
+        />
+      </div>
       <div className="grid grid-cols-3 gap-2">
         <div className="space-y-1">
           <Label size="small" weight="plus" className="text-ui-fg-subtle">Max lines</Label>
@@ -704,6 +713,7 @@ function LayerName({ layer, onUpdate }: { layer: CustomizationLayer; onUpdate: (
 function updateText(onUpdate: (updater: (layer: CustomizationLayer) => CustomizationLayer) => void, patch: Partial<TextEditorLayer["text"]>) {
   onUpdate((current) => ({ ...current, text: { ...(current as TextEditorLayer).text, ...patch } }) as CustomizationLayer);
 }
+
 import { useEffect, useRef, useState } from "react";
 import {
   DEFAULT_FONT_FAMILY_OPTIONS,

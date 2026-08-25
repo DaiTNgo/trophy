@@ -14,6 +14,13 @@ export type CheckoutItem = {
   title: string;
   variantTitle: string;
   thumbnail: string | null;
+  customization?: {
+    enabled: boolean;
+    formFields: Array<{
+      id: string;
+      label: string;
+    }>;
+  } | null;
 };
 
 function OrderSummaryItem({
@@ -50,9 +57,18 @@ function OrderSummaryItem({
           {item.variantTitle && item.variantTitle !== "Default Title" ? (
             <p>{item.variantTitle}</p>
           ) : null}
-          {item.line.customizationSummary?.map((entry, index) => (
-            <p key={index}>{entry.valueSummary}</p>
-          ))}
+          {item.line.customizationSummary?.map((entry, index) => {
+            const liveField = item.customization?.formFields?.find(
+              (f) => f.id === entry.fieldId,
+            );
+            const label = liveField?.label || getLocalized(entry.label, locale);
+            return (
+              <p key={index}>
+                {label ? `${label}: ` : ""}
+                {entry.valueSummary}
+              </p>
+            );
+          })}
         </div>
       </div>
     </div>

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import type { StorefrontDetailResponse } from "../../lib/api";
 import { getLocalized } from "../../lib/translation";
 
@@ -16,6 +17,8 @@ export function ProductOptionGroups({
   isAvailable: (optionId: number, valueId: number) => boolean;
   onSelect: (optionId: number, valueId: number) => void;
 }) {
+  const { t } = useTranslation("products");
+
   return options.map((option) => (
     <div key={option.id} className="space-y-2">
       <div className="flex items-center justify-between gap-3">
@@ -28,7 +31,7 @@ export function ProductOptionGroups({
               (value) => selectedOptionValueIds.get(option.id) === value.id,
             )?.value,
             locale,
-          ) || "Select"}
+          ) || t("option_select_fallback")}
         </span>
       </div>
       <div className="grid gap-1.5 sm:grid-cols-2">

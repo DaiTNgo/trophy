@@ -8,12 +8,28 @@ export const clipartIdParamsSchema = v.object({
   id: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(255)),
 });
 
+export const clipartNameTranslationsSchema = v.object({
+  vi: v.optional(v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(120))),
+  en: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(120))),
+});
+
+export type ClipartNameTranslations = v.InferOutput<typeof clipartNameTranslationsSchema>;
+
+export const clipartBatchAssetNameSchema = v.object({
+  name: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(120)),
+  nameTranslations: v.optional(clipartNameTranslationsSchema),
+});
+
+export type ClipartBatchAssetName = v.InferOutput<typeof clipartBatchAssetNameSchema>;
+
 export const clipartCategoryCreateSchema = v.object({
   name: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(120)),
+  nameTranslations: v.optional(clipartNameTranslationsSchema),
 });
 
 export const clipartCategoryUpdateSchema = v.object({
   name: v.optional(v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(120))),
+  nameTranslations: v.optional(clipartNameTranslationsSchema),
   active: v.optional(v.boolean()),
   sortOrder: v.optional(v.number()),
 });
@@ -24,6 +40,7 @@ export const clipartCategoryReorderSchema = v.object({
 
 export const clipartAssetUpdateSchema = v.object({
   name: v.optional(v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(120))),
+  nameTranslations: v.optional(clipartNameTranslationsSchema),
   active: v.optional(v.boolean()),
 });
 
@@ -172,7 +189,7 @@ export async function prepareClipartBatchUpload({
   maxAssetBytes,
 }: {
   files: File[];
-  names: string[];
+  names: ClipartBatchAssetName[];
   maxAssetBytes: number;
 }) {
   if (files.length === 0) {
@@ -196,7 +213,8 @@ export async function prepareClipartBatchUpload({
   const prepared = [];
 
   for (const [index, file] of files.entries()) {
-    const displayName = String(names[index] ?? "").trim();
+    const nameInput = names[index];
+    const displayName = String(nameInput?.name ?? "").trim();
     const fileName = file.name.trim();
     const row = index + 1;
 
@@ -237,6 +255,7 @@ export async function prepareClipartBatchUpload({
 
     prepared.push({
       displayName,
+      nameTranslations: nameInput?.nameTranslations,
       fileName,
       mimeType,
       buffer,
