@@ -1,8 +1,10 @@
+import type { LocalizedTextInput } from "@trophy/customization";
+
 export const CART_STORAGE_KEY = "trophy-storefront-cart";
 
 export type CartCustomizationSummary = {
   fieldId: string;
-  label: string;
+  label: string | LocalizedTextInput;
   valueSummary: string;
 };
 

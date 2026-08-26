@@ -303,7 +303,6 @@ export function ProductCustomizationPreview({
       data-preview-background-url={background?.previewUrl ?? ""}
     >
       <FontLoader
-        layers={design.layers}
         fontIds={fontPreviewIds}
         dynamicFonts={dynamicFonts}
         resolveFontUrl={resolveFontUrl}

@@ -4,6 +4,7 @@ import type {
   CustomizationFormValues,
   CustomizationLayer,
 } from "@trophy/customization";
+import { resolveLocalizedInput } from "@trophy/customization";
 
 export type OrderAddressSnapshot = {
   line1: string;
@@ -159,7 +160,7 @@ export function buildCustomizationValueSummaries(
 
   return Object.entries(snapshot.values).map(([fieldId, value]) => ({
     fieldId,
-    label: labelsByFieldId.get(fieldId) ?? fieldId,
+    label: resolveLocalizedInput(labelsByFieldId.get(fieldId) ?? fieldId),
     valueSummary: summarizeCustomizationValue(value),
   }));
 }

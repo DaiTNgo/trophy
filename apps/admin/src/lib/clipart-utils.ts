@@ -1,11 +1,31 @@
+import type { LocalizedTextValue } from "../types";
+
 export const MAX_CLIPART_ASSET_BYTES = 20 * 1024 * 1024;
 export const SUPPORTED_CLIPART_MIME_TYPES = new Set(["image/svg+xml", "image/png", "image/webp"]);
 
 export type UploadDraft = {
   file: File;
-  name: string;
+  name: LocalizedTextValue;
   mimeType: string;
 };
+
+export type ClipartNamePayload = {
+  name: string;
+  nameTranslations: { vi: string; en: string };
+};
+
+export const toClipartNamePayload = (value: LocalizedTextValue): ClipartNamePayload => ({
+  name: value.vi.trim(),
+  nameTranslations: { vi: value.vi.trim(), en: value.en.trim() },
+});
+
+export const clipartNameToValue = (entry: {
+  name: string;
+  nameTranslations?: { vi?: string; en?: string } | null;
+}): LocalizedTextValue => ({
+  vi: entry.nameTranslations?.vi?.trim() || entry.name,
+  en: entry.nameTranslations?.en?.trim() ?? "",
+});
 
 export const clipartNameFromFile = (fileName: string) =>
   fileName.replace(/\.[^.]+$/, "").replace(/[-_]+/g, " ").trim();
@@ -47,7 +67,7 @@ export function buildUploadDraftErrors(drafts: UploadDraft[]) {
     const errors: string[] = [];
     const normalizedName = draft.file.name.trim().toLowerCase();
 
-    if (!draft.name.trim()) {
+    if (!draft.name.vi.trim()) {
       errors.push("Name is required.");
     }
     if (duplicateFileNames.has(normalizedName)) {

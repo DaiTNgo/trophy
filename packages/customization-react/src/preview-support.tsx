@@ -3,7 +3,7 @@ import {
   type DynamicFontFamily,
   type RuntimeLayer,
 } from "@trophy/customization";
-import type { ReactNode } from "react";
+import { memo, type ReactNode } from "react";
 import { Button } from "./index";
 import type {
   ResolveCustomizationFontUrl,
@@ -66,30 +66,52 @@ export function CanvasAction({
   );
 }
 
-export function FontLoader({
-  layers,
-  fontIds: additionalFontIds = [],
-  dynamicFonts = [],
-  resolveFontUrl,
-  resolveStaticFontUrl,
-}: {
-  layers: RuntimeLayer[];
+export type FontLoaderProps = {
+  /**
+   * Pre-resolved list of font asset IDs to inject as @font-face rules.
+   * When provided, `layers` is ignored.
+   * Preferred for all new callers — keeps FontLoader stable across re-renders
+   * because the array should come from a memoized source (e.g. fontPreviewIds).
+   */
   fontIds?: string[];
+  /**
+   * @deprecated Legacy path for the admin editor which has no pre-resolved
+   * fontIds list. Pass `fontIds` directly whenever possible.
+   */
+  layers?: RuntimeLayer[];
   dynamicFonts?: DynamicFontFamily[];
   resolveFontUrl?: ResolveCustomizationFontUrl;
   resolveStaticFontUrl?: ResolveCustomizationStaticFontUrl;
-}) {
-  const fontIds = Array.from(
-    new Set(
-      layers
-        .filter(
-          (layer): layer is Extract<RuntimeLayer, { type: "text" }> =>
-            layer.type === "text" && !!layer.fontId,
-        )
-        .map((layer) => layer.fontId)
-        .concat(additionalFontIds),
-    ),
-  );
+};
+
+/**
+ * Injects @font-face rules for the fonts required by the preview.
+ *
+ * Wrapped in React.memo so it only re-renders when the resolved fontIds list
+ * or resolver callbacks actually change — not on every keystroke that updates
+ * customization values.
+ */
+export const FontLoader = memo(function FontLoader({
+  fontIds: externalFontIds = [],
+  layers = [],
+  dynamicFonts = [],
+  resolveFontUrl,
+  resolveStaticFontUrl,
+}: FontLoaderProps) {
+  // Prefer explicitly provided fontIds; fall back to deriving from layers (legacy).
+  const fontIds =
+    externalFontIds.length > 0
+      ? externalFontIds
+      : Array.from(
+          new Set(
+            layers
+              .filter(
+                (layer): layer is Extract<RuntimeLayer, { type: "text" }> =>
+                  layer.type === "text" && !!layer.fontId,
+              )
+              .map((layer) => layer.fontId),
+          ),
+        );
   const dynamicFontAssetIds = new Set(
     dynamicFonts
       .flatMap((font) => [
@@ -138,4 +160,4 @@ export function FontLoader({
       })}
     </>
   );
-}
+});

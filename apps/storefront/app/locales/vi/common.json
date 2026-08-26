@@ -2,6 +2,9 @@
   "welcome": "Chào mừng đến với cửa hàng của chúng tôi",
   "cart": "Giỏ hàng",
   "language": "Ngôn ngữ",
+  "breadcrumb_aria": "Đường dẫn trang",
+  "breadcrumb_home": "Trang chủ",
+  "breadcrumb_collections": "Bộ sưu tập",
   "notFound": {
     "title": "Trang bạn tìm kiếm không tồn tại.",
     "description": "Liên kết có thể đã cũ hoặc trang đã được chuyển đi. Hãy quay lại để tiếp tục hành trình chinh phục của bạn.",

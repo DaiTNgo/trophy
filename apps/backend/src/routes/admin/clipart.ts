@@ -17,27 +17,43 @@ import {
   extensionForClipartMimeType,
   prepareClipartBatchUpload,
   validateClipartCategoryForLibraryWrites,
+  type ClipartBatchAssetName,
 } from "../../lib/clipart";
 import type { AppEnv } from "../../lib/env";
+import { hydrateTranslations, upsertTranslations } from "../../lib/catalog-translation";
 import { jsonError, parseJson, parseParams } from "../../lib/validation";
 
 import { toAbsoluteAssetUrl } from "../../lib/url";
 import { type Context } from "hono";
+import type { Database } from "../../db/client";
+import type { ClipartNameTranslations } from "../../lib/clipart";
 
-const serializeCategory = (category: typeof customizationClipartCategories.$inferSelect) => ({
+function clipartNameTranslationValues(name: string, translations?: ClipartNameTranslations) {
+  const values: Record<string, string | null> = { vi: name };
+  if (translations?.vi) values.vi = translations.vi;
+  if (translations?.en !== undefined) values.en = translations.en;
+  return values;
+}
+
+const serializeCategory = (category: typeof customizationClipartCategories.$inferSelect & { _nameLoc?: Record<string, string> }) => ({
   id: category.id,
   name: category.name,
+  nameTranslations: category._nameLoc ?? { vi: category.name, en: "" },
   active: category.active,
   sortOrder: category.sortOrder,
   createdAt: category.createdAt,
   updatedAt: category.updatedAt,
 });
 
-const serializeAsset = (c: Context<AppEnv>, asset: typeof customizationClipartAssets.$inferSelect) => ({
+const serializeAsset = (
+  c: Context<AppEnv>,
+  asset: typeof customizationClipartAssets.$inferSelect & { _nameLoc?: Record<string, string> },
+) => ({
   id: asset.id,
   categoryId: asset.categoryId,
   sourceAssetId: asset.sourceAssetId,
   name: asset.name,
+  nameTranslations: asset._nameLoc ?? { vi: asset.name, en: "" },
   fileName: asset.fileName,
   previewUrl: toAbsoluteAssetUrl(c, asset.previewUrl) as string,
   mimeType: asset.mimeType,
@@ -47,6 +63,19 @@ const serializeAsset = (c: Context<AppEnv>, asset: typeof customizationClipartAs
   createdAt: asset.createdAt,
   updatedAt: asset.updatedAt,
 });
+
+const NAME_HYDRATE_FIELDS = [{ fieldName: "name", objectKey: "_nameLoc" }];
+const NAME_FALLBACK_FIELDS = [{ fieldName: "name", objectKey: "name" }];
+
+async function persistClipartName(
+  db: Database,
+  ownerType: "clipart_category" | "clipart_asset",
+  ownerKey: string,
+  name: string,
+  translations?: ClipartNameTranslations,
+) {
+  await upsertTranslations(db, ownerType, ownerKey, "name", clipartNameTranslationValues(name, translations));
+}
 
 function normalizeFiles(input: unknown) {
   if (!input) return [] as File[];
@@ -78,9 +107,18 @@ export const adminClipartRoute = new Hono<AppEnv>()
       activeAssetCounts.set(asset.categoryId, (activeAssetCounts.get(asset.categoryId) ?? 0) + 1);
     }
 
+    const hydratedCategories = await hydrateTranslations(
+      db,
+      "clipart_category",
+      categories,
+      (category) => category.id,
+      NAME_HYDRATE_FIELDS,
+      NAME_FALLBACK_FIELDS,
+    );
+
     return c.json(
       {
-        categories: categories.map((category) => ({
+        categories: hydratedCategories.map((category) => ({
           ...serializeCategory(category),
           activeAssetCount: activeAssetCounts.get(category.id) ?? 0,
         })),
@@ -101,7 +139,20 @@ export const adminClipartRoute = new Hono<AppEnv>()
       })
       .returning();
 
-    return c.json({ category: serializeCategory(category) }, 201);
+    if (parsed.output.nameTranslations !== undefined) {
+      await persistClipartName(db, "clipart_category", category.id, category.name, parsed.output.nameTranslations);
+    }
+
+    const [hydrated] = await hydrateTranslations(
+      db,
+      "clipart_category",
+      [category],
+      (entry) => entry.id,
+      NAME_HYDRATE_FIELDS,
+      NAME_FALLBACK_FIELDS,
+    );
+
+    return c.json({ category: serializeCategory(hydrated) }, 201);
   })
   .patch("/categories/:id", async (c) => {
     const params = parseParams(c, clipartIdParamsSchema);
@@ -115,7 +166,7 @@ export const adminClipartRoute = new Hono<AppEnv>()
     if (parsed.output.active !== undefined) updates.active = parsed.output.active;
     if (parsed.output.sortOrder !== undefined) updates.sortOrder = Math.max(0, Math.round(parsed.output.sortOrder));
 
-    if (Object.keys(updates).length === 0) {
+    if (Object.keys(updates).length === 0 && parsed.output.nameTranslations === undefined) {
       return jsonError(c, 400, "No clipart category changes were provided");
     }
 
@@ -127,7 +178,21 @@ export const adminClipartRoute = new Hono<AppEnv>()
       .returning();
 
     if (!category) return jsonError(c, 404, "Clipart category not found");
-    return c.json({ category: serializeCategory(category) }, 200);
+
+    if (parsed.output.nameTranslations !== undefined) {
+      await persistClipartName(db, "clipart_category", category.id, category.name, parsed.output.nameTranslations);
+    }
+
+    const [hydrated] = await hydrateTranslations(
+      db,
+      "clipart_category",
+      [category],
+      (entry) => entry.id,
+      NAME_HYDRATE_FIELDS,
+      NAME_FALLBACK_FIELDS,
+    );
+
+    return c.json({ category: serializeCategory(hydrated) }, 200);
   })
   .post("/categories/reorder", async (c) => {
     const parsed = await parseJson(c, clipartCategoryReorderSchema);
@@ -183,7 +248,20 @@ export const adminClipartRoute = new Hono<AppEnv>()
       )
       .orderBy(asc(customizationClipartAssets.createdAt));
 
-    return c.json({ assets: assets.map((a) => serializeAsset(c, a)) }, 200);
+    if (assets.length === 0) {
+      return c.json({ assets: [] }, 200);
+    }
+
+    const hydratedAssets = await hydrateTranslations(
+      db,
+      "clipart_asset",
+      assets,
+      (asset) => asset.id,
+      NAME_HYDRATE_FIELDS,
+      NAME_FALLBACK_FIELDS,
+    );
+
+    return c.json({ assets: hydratedAssets.map((a) => serializeAsset(c, a)) }, 200);
   })
   .post("/categories/:id/assets/batch", async (c) => {
     const params = parseParams(c, clipartIdParamsSchema);
@@ -193,9 +271,9 @@ export const adminClipartRoute = new Hono<AppEnv>()
     const files = normalizeFiles(body.files);
     const namesInput = typeof body.namesJson === "string" ? body.namesJson : "[]";
 
-    let names: string[];
+    let names: ClipartBatchAssetName[];
     try {
-      names = JSON.parse(namesInput) as string[];
+      names = JSON.parse(namesInput) as ClipartBatchAssetName[];
     } catch {
       return jsonError(c, 400, "Clipart asset names must be valid JSON");
     }
@@ -281,6 +359,10 @@ export const adminClipartRoute = new Hono<AppEnv>()
 
         insertedClipartAssetIds.push(clipartAssetId);
         insertedAssets.push(asset);
+
+        if (item.nameTranslations !== undefined) {
+          await persistClipartName(db, "clipart_asset", clipartAssetId, asset.name, item.nameTranslations);
+        }
       }
     } catch (error) {
       await Promise.allSettled(uploadedObjectKeys.map((objectKey) => c.env.CUSTOMIZATION_ASSETS.delete?.(objectKey)));
@@ -294,7 +376,16 @@ export const adminClipartRoute = new Hono<AppEnv>()
       return jsonError(c, 500, "Failed to upload clipart batch");
     }
 
-    return c.json({ assets: insertedAssets.map((a) => serializeAsset(c, a)) }, 201);
+    const hydratedInsertedAssets = await hydrateTranslations(
+      db,
+      "clipart_asset",
+      insertedAssets,
+      (asset) => asset.id,
+      NAME_HYDRATE_FIELDS,
+      NAME_FALLBACK_FIELDS,
+    );
+
+    return c.json({ assets: hydratedInsertedAssets.map((a) => serializeAsset(c, a)) }, 201);
   })
   .patch("/assets/:id", async (c) => {
     const params = parseParams(c, clipartIdParamsSchema);
@@ -307,7 +398,7 @@ export const adminClipartRoute = new Hono<AppEnv>()
     if (parsed.output.name !== undefined) updates.name = parsed.output.name;
     if (parsed.output.active !== undefined) updates.active = parsed.output.active;
 
-    if (Object.keys(updates).length === 0) {
+    if (Object.keys(updates).length === 0 && parsed.output.nameTranslations === undefined) {
       return jsonError(c, 400, "No clipart asset changes were provided");
     }
 
@@ -319,7 +410,21 @@ export const adminClipartRoute = new Hono<AppEnv>()
       .returning();
 
     if (!asset) return jsonError(c, 404, "Clipart asset not found");
-    return c.json({ asset: serializeAsset(c, asset) }, 200);
+
+    if (parsed.output.nameTranslations !== undefined) {
+      await persistClipartName(db, "clipart_asset", asset.id, asset.name, parsed.output.nameTranslations);
+    }
+
+    const [hydrated] = await hydrateTranslations(
+      db,
+      "clipart_asset",
+      [asset],
+      (entry) => entry.id,
+      NAME_HYDRATE_FIELDS,
+      NAME_FALLBACK_FIELDS,
+    );
+
+    return c.json({ asset: serializeAsset(c, hydrated) }, 200);
   })
   .delete("/assets/:id", async (c) => {
     const params = parseParams(c, clipartIdParamsSchema);

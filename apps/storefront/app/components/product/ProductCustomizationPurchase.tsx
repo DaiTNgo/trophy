@@ -12,6 +12,7 @@ export function ProductCustomizationPurchase({
   template,
   values,
   dynamicFonts,
+  locale,
   message,
   quantity,
   onMessageChange,
@@ -24,6 +25,7 @@ export function ProductCustomizationPurchase({
   template: CustomizationTemplate;
   values: CustomizationFormValues;
   dynamicFonts: DynamicFontFamily[];
+  locale?: string;
   message: string;
   quantity: number;
   onMessageChange: (message: string) => void;
@@ -45,6 +47,7 @@ export function ProductCustomizationPurchase({
         template={template}
         values={values}
         dynamicFonts={dynamicFonts}
+        locale={locale}
         message={message}
         onMessageChange={onMessageChange}
         onDeleteImage={onDeleteImage}

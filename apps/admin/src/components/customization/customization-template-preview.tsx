@@ -1,12 +1,9 @@
-import { useMemo, useState } from "react";
-import { Download, FileImage, RotateCcw } from "lucide-react";
+import { RotateCcw } from "lucide-react";
 import {
   ProductCustomizationForm,
   ProductCustomizationPreview,
 } from "@trophy/customization-react";
 import {
-  buildDesignFromForm,
-  FONT_FILES,
   type CustomizationFormValues,
   type CustomizationTemplate,
   type ClipartFieldValue,
@@ -14,27 +11,8 @@ import {
   type TextFieldValue,
 } from "@trophy/customization";
 import { createId, fileToBackground } from "./customization-template-ui";
-import { exportVectorPdfClientSide } from "../../lib/pdf-export";
-import { exportRasterPreviewClientSide, rasterExportExtension, type RasterExportFormat } from "../../lib/raster-export";
 
 type PreviewChange = (fieldId: string, value: TextFieldValue | ImageShapeFieldValue | ClipartFieldValue | null) => void;
-
-let measureSpan: HTMLSpanElement | null = null;
-function measureTextDOM(text: string, fontSizePt: number, fontId: string): number {
-  if (typeof window === "undefined" || !document.body) return text.length * fontSizePt * 0.55;
-  if (!measureSpan) {
-    measureSpan = document.createElement("span");
-    measureSpan.style.position = "absolute";
-    measureSpan.style.visibility = "hidden";
-    measureSpan.style.whiteSpace = "pre";
-    measureSpan.style.pointerEvents = "none";
-    document.body.appendChild(measureSpan);
-  }
-  measureSpan.style.fontFamily = `"${fontId}", sans-serif`;
-  measureSpan.style.fontSize = `${fontSizePt}px`;
-  measureSpan.textContent = text;
-  return measureSpan.getBoundingClientRect().width;
-}
 
 export function PreviewDialog({
   template,
@@ -42,7 +20,6 @@ export function PreviewDialog({
   onChange,
   onClose,
   onReset,
-  pendingPdfFile,
 }: {
   template: CustomizationTemplate;
   values: CustomizationFormValues;
@@ -51,51 +28,6 @@ export function PreviewDialog({
   onReset: () => void;
   pendingPdfFile?: File | null;
 }) {
-  const design = useMemo(() => buildDesignFromForm({ template, values, designId: "admin_preview", measureText: measureTextDOM }), [template, values]);
-  const [isExporting, setIsExporting] = useState(false);
-
-  async function exportPdf() {
-    setIsExporting(true);
-    try {
-      const blob = await exportVectorPdfClientSide(template, design, pendingPdfFile ?? null);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${design.id}.pdf`;
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error(error);
-      alert("Failed to export PDF");
-    } finally {
-      setIsExporting(false);
-    }
-  }
-
-  async function exportImage(format: RasterExportFormat) {
-    setIsExporting(true);
-    try {
-      const backendUrl = import.meta.env.VITE_BACKEND_URL ?? "http://localhost:8787";
-      const blob = await exportRasterPreviewClientSide(template, design, {
-        format,
-        resolveFontUrl: (fontId) => FONT_FILES[fontId]
-          ? `${backendUrl}/fonts/${FONT_FILES[fontId]}`
-          : `${backendUrl}/api/admin/brand-assets/fonts/file/${fontId}`,
-      });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${design.id}.${rasterExportExtension(blob.type)}`;
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error(error);
-      alert("Failed to export image");
-    } finally {
-      setIsExporting(false);
-    }
-  }
-
   return (
     <div className="fixed inset-0 z-50 flex bg-black/40 p-3 md:p-8">
       <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_minmax(260px,40vh)] overflow-hidden rounded-xl bg-ui-bg-base shadow-xl md:grid-cols-[minmax(0,1fr)_360px] md:grid-rows-none">
@@ -119,15 +51,6 @@ export function PreviewDialog({
             <button type="button" onClick={onReset} className="inline-flex items-center gap-2 rounded border px-3 py-2 text-sm">
               <RotateCcw className="size-4" /> Reset data
             </button>
-            {/*<button type="button" onClick={() => void exportImage("image/webp")} disabled={isExporting} className="inline-flex items-center gap-2 rounded border px-3 py-2 text-sm disabled:opacity-50">
-              <FileImage className="size-4" /> {isExporting ? "Exporting..." : "Export WebP"}
-            </button>
-            <button type="button" onClick={() => void exportImage("image/png")} disabled={isExporting} className="inline-flex items-center gap-2 rounded border px-3 py-2 text-sm disabled:opacity-50">
-              <FileImage className="size-4" /> Export PNG
-            </button>
-            <button type="button" onClick={exportPdf} disabled={isExporting} className="inline-flex items-center gap-2 rounded border px-3 py-2 text-sm disabled:opacity-50">
-              <Download className="size-4" /> {isExporting ? "Exporting..." : "Export PDF"}
-            </button>*/}
           </div>
           <ProductCustomizationForm
             template={template}

@@ -8,6 +8,7 @@ import {
   DEFAULT_FONT_FAMILY_OPTIONS,
   FONT_FILES,
   resolveFont,
+  resolveLocalizedInput,
   type DynamicFontFamily,
 } from "@trophy/customization";
 
@@ -104,8 +105,8 @@ export function OrderCustomizationPreviewModal({
 
         return {
           id: layer.id,
-          name: sourceLayer?.name ?? field?.label ?? layer.id,
-          fieldLabel: field?.label ?? null,
+          name: sourceLayer?.name ?? resolveLocalizedInput(field?.label) ?? layer.id,
+          fieldLabel: field ? resolveLocalizedInput(field.label) : null,
           text: layer.text,
           fontName: fontNames.get(fontFamilyId) ?? fontFamilyId,
           variant: fontVariantLabel(layer.isBold, layer.isItalic),

@@ -1,0 +1,25 @@
+{
+  "title": "Shopping Cart",
+  "meta_title": "Shopping Cart | Phùng Thị",
+  "meta_description": "Shopping Cart",
+  "empty_title": "Your cart is empty",
+  "continue_shopping": "Continue Shopping",
+  "subtotal": "Subtotal",
+  "checkout": "Checkout",
+  "satisfaction_guarantee_highlight": "100%",
+  "satisfaction_guarantee_text": "Satisfaction Guarantee",
+  "free_shipping_notice": "Free Shipping Over $40!",
+  "review_and_edit": "Review & edit",
+  "remove_item": "Remove",
+  "remove_item_aria": "Remove item",
+  "errors": {
+    "product_unavailable": "Product is no longer available.",
+    "variant_missing": "Variant is missing.",
+    "variant_mismatch": "Variant does not match product.",
+    "contact_price": "Contact for price.",
+    "cannot_load": "Cannot load cart."
+  },
+  "recently_viewed_title": "Recently Viewed Products",
+  "recently_viewed_prev": "Previous recently viewed products",
+  "recently_viewed_next": "Next recently viewed products"
+}

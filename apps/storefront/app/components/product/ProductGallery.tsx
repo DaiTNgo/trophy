@@ -1,5 +1,6 @@
 import { useState, useRef, type ReactNode } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 export type ProductGalleryThumbnail = {
   id: string;
@@ -22,6 +23,8 @@ export function ProductGallery({
   onPrevious?: () => void;
   onNext?: () => void;
 }) {
+  const { t } = useTranslation("products");
+
   return (
     <section className="lg:sticky lg:top-36 lg:self-start">
       <div
@@ -33,7 +36,7 @@ export function ProductGallery({
           {onPrevious && thumbnails.length > 1 ? (
             <button
               type="button"
-              aria-label="Previous product image"
+              aria-label={t("prev_image_aria")}
               onClick={onPrevious}
               className="absolute left-3 top-1/2 z-10 flex size-10 -translate-y-1/2 items-center justify-center rounded-full border border-border-subtle bg-white/90 shadow-sm transition hover:border-border-strong"
             >
@@ -44,7 +47,7 @@ export function ProductGallery({
           {onNext && thumbnails.length > 1 ? (
             <button
               type="button"
-              aria-label="Next product image"
+              aria-label={t("next_image_aria")}
               onClick={onNext}
               className="absolute right-3 top-1/2 z-10 flex size-10 -translate-y-1/2 items-center justify-center rounded-full border border-border-subtle bg-white/90 shadow-sm transition hover:border-border-strong"
             >
@@ -65,6 +68,7 @@ export function ProductGalleryThumbnails({
   thumbnails: ProductGalleryThumbnail[];
   className?: string;
 }) {
+  const { t } = useTranslation("products");
   const stripRef = useRef<HTMLDivElement | null>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
@@ -87,7 +91,7 @@ export function ProductGalleryThumbnails({
       {canScrollLeft ? (
         <button
           type="button"
-          aria-label="Scroll thumbnails left"
+          aria-label={t("scroll_thumbnails_left")}
           onClick={() => scrollBy(-1)}
           className="absolute left-1 top-1/2 z-10 flex size-7 -translate-y-1/2 items-center justify-center rounded-full border border-border-subtle bg-white shadow-sm transition hover:border-border-strong"
         >
@@ -126,7 +130,7 @@ export function ProductGalleryThumbnails({
       {canScrollRight && thumbnails.length > 5 ? (
         <button
           type="button"
-          aria-label="Scroll thumbnails right"
+          aria-label={t("scroll_thumbnails_right")}
           onClick={() => scrollBy(1)}
           className="absolute right-1 top-1/2 z-10 flex size-7 -translate-y-1/2 items-center justify-center rounded-full border border-border-subtle bg-white shadow-sm transition hover:border-border-strong"
         >

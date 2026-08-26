@@ -1,0 +1,25 @@
+{
+  "title": "Giỏ hàng",
+  "meta_title": "Giỏ hàng | Phùng Thị",
+  "meta_description": "Giỏ hàng",
+  "empty_title": "Giỏ hàng của bạn đang trống",
+  "continue_shopping": "Tiếp tục mua sắm",
+  "subtotal": "Tạm tính",
+  "checkout": "Tiến hành thanh toán",
+  "satisfaction_guarantee_highlight": "100%",
+  "satisfaction_guarantee_text": "Đảm bảo hài lòng",
+  "free_shipping_notice": "Miễn phí vận chuyển toàn quốc!",
+  "review_and_edit": "Xem & chỉnh sửa",
+  "remove_item": "Xóa",
+  "remove_item_aria": "Xóa khỏi giỏ hàng",
+  "errors": {
+    "product_unavailable": "Sản phẩm hiện không còn khả dụng.",
+    "variant_missing": "Phiên bản không tồn tại.",
+    "variant_mismatch": "Phiên bản không khớp với sản phẩm.",
+    "contact_price": "Liên hệ để biết giá.",
+    "cannot_load": "Không thể tải thông tin giỏ hàng."
+  },
+  "recently_viewed_title": "Sản phẩm đã xem gần đây",
+  "recently_viewed_prev": "Sản phẩm đã xem trước đó",
+  "recently_viewed_next": "Sản phẩm đã xem tiếp theo"
+}

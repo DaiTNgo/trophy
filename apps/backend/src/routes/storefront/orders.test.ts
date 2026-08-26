@@ -383,6 +383,10 @@ describe("storefront orders route", () => {
             customizable: true,
             requiresCustomization: true,
             isContactPrice: false,
+            customization: {
+              enabled: true,
+              formFields: [],
+            },
           },
         },
       ],

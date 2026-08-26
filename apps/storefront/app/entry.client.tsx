@@ -20,10 +20,12 @@ import enOrderLookup from "./locales/en/order-lookup.json";
 import viOrderLookup from "./locales/vi/order-lookup.json";
 import enProducts from "./locales/en/products.json";
 import viProducts from "./locales/vi/products.json";
+import enCart from "./locales/en/cart.json";
+import viCart from "./locales/vi/cart.json";
 
 const resources = {
-  en: { common: enCommon, about: enAbout, home: enHome, contact: enContact, layout: enLayout, orderLookup: enOrderLookup, products: enProducts },
-  vi: { common: viCommon, about: viAbout, home: viHome, contact: viContact, layout: viLayout, orderLookup: viOrderLookup, products: viProducts },
+  en: { common: enCommon, about: enAbout, home: enHome, contact: enContact, layout: enLayout, orderLookup: enOrderLookup, products: enProducts, cart: enCart },
+  vi: { common: viCommon, about: viAbout, home: viHome, contact: viContact, layout: viLayout, orderLookup: viOrderLookup, products: viProducts, cart: viCart },
 };
 
 async function hydrate() {

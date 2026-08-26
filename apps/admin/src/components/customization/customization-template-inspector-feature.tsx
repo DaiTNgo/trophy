@@ -26,7 +26,7 @@ export function Inspector({
   onUpdateTemplate: (updater: (current: CustomizationTemplate) => CustomizationTemplate) => void;
 }) {
   return (
-    <aside className="overflow-y-auto border-l border-ui-border-base p-4">
+    <aside className="overflow-y-auto overflow-x-hidden border-l border-ui-border-base p-4">
       {!selectedLayer ? <CanvasInspector template={template} onUpdateTemplate={onUpdateTemplate} /> : null}
       {selectedLayer?.type === "text" ? (
         <TextInspector

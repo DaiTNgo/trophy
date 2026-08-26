@@ -17,7 +17,17 @@ import type { ClipartCategory } from "../hooks/use-brand-assets";
 import { useBreadcrumbs } from "../hooks/use-breadcrumbs";
 import { backendFetch } from "../lib/fetch";
 import { ClipartUploadQueue } from "../components/customization/clipart-upload-queue";
-import { type UploadDraft, buildUploadDraftErrors } from "../lib/clipart-utils";
+import {
+  type UploadDraft,
+  buildUploadDraftErrors,
+  toClipartNamePayload,
+} from "../lib/clipart-utils";
+import {
+  LocalizedTextField,
+  createEmptyLocalizedText,
+  type AdminLocale,
+  type LocalizedTextValue,
+} from "../components/ui/medusa";
 
 type CreateClipartCategoryModalProps = {
   open: boolean;
@@ -31,7 +41,8 @@ function formatUpdatedAt(timestamp: number) {
 
 function CreateClipartCategoryModal({ open, onOpenChange }: CreateClipartCategoryModalProps) {
   const navigate = useNavigate();
-  const [name, setName] = useState("");
+  const [name, setName] = useState<LocalizedTextValue>(() => createEmptyLocalizedText());
+  const [nameLocale, setNameLocale] = useState<AdminLocale>("vi");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [uploadDrafts, setUploadDrafts] = useState<UploadDraft[]>([]);
@@ -41,7 +52,8 @@ function CreateClipartCategoryModal({ open, onOpenChange }: CreateClipartCategor
 
   useEffect(() => {
     if (!open) {
-      setName("");
+      setName(createEmptyLocalizedText());
+      setNameLocale("vi");
       setErrorMessage(null);
       setIsSaving(false);
       setUploadDrafts([]);
@@ -49,23 +61,26 @@ function CreateClipartCategoryModal({ open, onOpenChange }: CreateClipartCategor
   }, [open]);
 
   async function handleSave() {
-    if (!name.trim()) return;
+    if (!name.vi.trim()) return;
     setIsSaving(true);
     setErrorMessage(null);
     try {
       const res = await backendFetch("/api/admin/customization/clipart/categories", {
         method: "POST",
-        body: JSON.stringify({ name: name.trim() }),
+        body: JSON.stringify(toClipartNamePayload(name)),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => null);
         throw new Error(data?.error || "Failed to create clipart category");
       }
       const data = (await res.json()) as { category: { id: string } };
-      
+
       if (uploadDrafts.length > 0) {
         const formData = new FormData();
-        formData.set("namesJson", JSON.stringify(uploadDrafts.map((draft) => draft.name.trim())));
+        formData.set(
+          "namesJson",
+          JSON.stringify(uploadDrafts.map((draft) => toClipartNamePayload(draft.name))),
+        );
         for (const draft of uploadDrafts) {
           formData.append("files", draft.file);
         }
@@ -112,17 +127,17 @@ function CreateClipartCategoryModal({ open, onOpenChange }: CreateClipartCategor
         </FocusModal.Header>
         <FocusModal.Body className="flex flex-col gap-6 px-6 py-6">
           <div className="mx-auto flex w-full max-w-[720px] flex-col gap-6">
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="clipart-category-name">Category name</Label>
-              <Input
-                id="clipart-category-name"
-                placeholder="e.g. Sports"
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-                disabled={isSaving}
-                autoFocus
-              />
-            </div>
+            <LocalizedTextField
+              id="clipart-category-name"
+              label="Category name"
+              placeholder={{ vi: "VD: Thể thao", en: "e.g. Sports" }}
+              value={name}
+              locale={nameLocale}
+              onLocaleChange={setNameLocale}
+              onChange={setName}
+              requiredLocales={["vi"]}
+              disabled={isSaving}
+            />
             <div className="flex flex-col gap-2">
               <Label>Upload clipart (optional)</Label>
               <ClipartUploadQueue
@@ -145,7 +160,11 @@ function CreateClipartCategoryModal({ open, onOpenChange }: CreateClipartCategor
             <FocusModal.Close asChild>
               <Button variant="secondary">Cancel</Button>
             </FocusModal.Close>
-            <Button onClick={handleSave} isLoading={isSaving} disabled={!name.trim() || isSaving || hasUploadDraftErrors}>
+            <Button
+              onClick={handleSave}
+              isLoading={isSaving}
+              disabled={!name.vi.trim() || isSaving || hasUploadDraftErrors}
+            >
               {uploadDrafts.length > 0 ? "Create & upload" : "Create category"}
             </Button>
           </div>

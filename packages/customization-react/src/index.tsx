@@ -1,4 +1,5 @@
 import {
+  resolveLocalizedInput,
   vectorPointsToSvgPathD,
   type CustomizationFieldValue,
   type CustomizationFormField,
@@ -77,28 +78,30 @@ export function useBrowserTextMeasure(fontIds: string[]) {
     if (typeof document === "undefined" || !document.fonts) return;
 
     let cancelled = false;
-    const refreshMeasurements = () => {
-      if (!cancelled) setFontRevision((revision) => revision + 1);
-    };
     const loadFonts = async () => {
       await Promise.all(
         (fontIdsKey ? fontIdsKey.split("\u0000") : []).map((fontId) =>
           document.fonts.load(`16px ${quoteFontFamily(fontId)}`, "Aa"),
         ),
       );
-      refreshMeasurements();
+      // Only refresh measurements once after all requested fonts are ready.
+      // Do NOT subscribe to the global "loadingdone" event: that event fires
+      // for any @font-face parsed on the page, which includes the re-parse
+      // triggered by FontLoader itself. Subscribing to it creates a feedback
+      // loop that causes fontRevision to bump — and the preview to re-render
+      // a second time — on every keystroke the user types.
+      if (!cancelled) setFontRevision((revision) => revision + 1);
     };
 
     void loadFonts();
-    document.fonts.addEventListener("loadingdone", refreshMeasurements);
     return () => {
       cancelled = true;
-      document.fonts.removeEventListener("loadingdone", refreshMeasurements);
     };
   }, [fontIdsKey]);
 
   return { measureText, fontRevision };
 }
+
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -169,6 +172,7 @@ export function FormField({
   layer,
   stepNumber,
   value,
+  locale,
   issue,
   uploading,
   dynamicFonts = [],
@@ -181,6 +185,7 @@ export function FormField({
   layer: CustomizationLayer;
   stepNumber: number;
   value: CustomizationFieldValue | undefined;
+  locale?: string;
   issue?: string;
   uploading: boolean;
   dynamicFonts?: DynamicFontFamily[];
@@ -199,12 +204,12 @@ export function FormField({
           STEP {stepNumber}
           {field.helpText ? (
             <span className="ml-2 text-[11px] font-normal normal-case tracking-normal text-on-surface-variant">
-              {field.helpText}
+              {resolveLocalizedInput(field.helpText, locale)}
             </span>
           ) : null}
         </p>
         <label className="mt-0.5 block text-sm font-semibold text-on-surface">
-          {field.label}
+          {resolveLocalizedInput(field.label, locale)}
           {field.required ? (
             <span className="ml-1 text-destructive" aria-hidden>
               *
@@ -218,6 +223,7 @@ export function FormField({
           layer={layer}
           value={value}
           dynamicFonts={dynamicFonts}
+          locale={locale}
           onChange={onChange}
         />
       ) : (

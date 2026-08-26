@@ -66,6 +66,7 @@ function buildCheckoutItems(
         getLocalized(resolvedLine?.product?.variantTitle, locale) ||
         line.display.variantTitle,
       thumbnail: resolvedLine?.product?.thumbnail ?? line.display.thumbnail,
+      customization: resolvedLine?.product?.customization ?? null,
     };
   });
 }

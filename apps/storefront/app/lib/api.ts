@@ -214,7 +214,7 @@ export async function fetchStorefrontProduct(handle: string, locale?: string, ba
   const url = backendUrl(`/api/storefront/products/${encodeURIComponent(handle)}${locale ? `?locale=${locale}` : ''}`);
 
   const res = await fetchBackendWithLog("fetchStorefrontProduct", url, {
-    cache: "no-store",
+    headers: { "Cache-Control": "no-store" },
   }, backendFetch);
 
   if (!res.ok) {
@@ -436,6 +436,13 @@ export type StorefrontResolvedCartLine = {
     customizable: boolean;
     requiresCustomization: boolean;
     isContactPrice: boolean;
+    customization?: {
+      enabled: boolean;
+      formFields: Array<{
+        id: string;
+        label: string;
+      }>;
+    } | null;
   };
 };
 

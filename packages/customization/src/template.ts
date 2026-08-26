@@ -6,11 +6,25 @@ import type {
   CustomizationClipartAsset,
   ImageClipartSourcePolicy,
   ImageShapeEditorLayer,
+  LocalizedTextInput,
   RuntimeImageClipartLayer,
 } from "./types";
 
 export const normalizeSingleLine = (value: string) =>
   value.replace(/[\r\n]+/g, " ").replace(/\s+/g, " ").trim();
+
+export const resolveLocalizedInput = (
+  value: string | LocalizedTextInput | undefined | null,
+  locale?: string,
+): string => {
+  if (typeof value === "string") return value;
+  if (!value) return "";
+  if (locale === "en" && value.en?.trim()) return value.en.trim();
+  if (locale === "vi" && value.vi?.trim()) return value.vi.trim();
+  const vi = value.vi?.trim();
+  if (vi) return vi;
+  return value.en?.trim() ?? "";
+};
 
 export const isLayerVisible = (layer: CustomizationLayer) => !layer.hidden;
 

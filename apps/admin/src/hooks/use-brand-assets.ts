@@ -16,10 +16,16 @@ export type BrandFont = {
   boldItalicAssetId?: string | null;
 };
 
+export type ClipartNameTranslations = {
+  vi?: string;
+  en?: string;
+};
+
 export type BrandClipartAsset = {
   id: string;
   sourceAssetId: string;
   name: string;
+  nameTranslations?: ClipartNameTranslations;
   fileName?: string | null;
   categoryId: string;
   categoryName: string;
@@ -35,6 +41,7 @@ export type BrandClipartAsset = {
 export type ClipartCategory = {
   id: string;
   name: string;
+  nameTranslations?: ClipartNameTranslations;
   active: boolean;
   activeAssetCount?: number;
   sortOrder: number;

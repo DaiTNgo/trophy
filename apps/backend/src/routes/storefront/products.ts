@@ -29,8 +29,8 @@ import {
 } from '../../db/schema'
 import type { AppEnv } from '../../lib/env'
 import { jsonError, parseParams } from '../../lib/validation'
-import { hydrateTranslations } from '../../lib/catalog-translation'
-import { hydrateCustomization } from '../../lib/customization-translation'
+import { hydrateTranslations, hydrateAndResolveTranslations } from '../../lib/catalog-translation'
+import { hydrateAndResolveCustomization } from '../../lib/customization-translation'
 import { localeSchema, DEFAULT_LOCALE } from '../../lib/locale'
 
 const optionalQueryText = v.optional(
@@ -76,6 +76,10 @@ const handleParamsSchema = v.object({
     v.minLength(1),
     v.maxLength(255)
   )
+})
+
+const storefrontDetailQuerySchema = v.object({
+  locale: v.optional(localeSchema, DEFAULT_LOCALE)
 })
 
 function parseQuery<TOutput>(
@@ -534,6 +538,12 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
       return parsed.response
     }
 
+    const parsedQuery = parseQuery(c.req.query(), storefrontDetailQuerySchema)
+    if (!parsedQuery.success) {
+      return c.json({ error: 'Validation failed', issues: parsedQuery.issues }, 400)
+    }
+    const locale = parsedQuery.output.locale
+
     const db = getDb(c.env)
     const handle = parsed.output.handle
 
@@ -715,7 +725,7 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
         layers: JSON.parse(customizationRow.layersJson),
         formFields: JSON.parse(customizationRow.formFieldsJson)
       };
-      await hydrateCustomization(db, parsedCustomization);
+      await hydrateAndResolveCustomization(db, parsedCustomization, locale);
       const clipartCategoryIds = Array.from(
         new Set(
           (parsedCustomization.layers as ProductCustomization["layers"]).flatMap((layer) => {
@@ -766,11 +776,34 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
           ])
         : [[], []];
 
+      const resolvedClipartCategoryRows = clipartCategoryIds.length
+        ? await hydrateAndResolveTranslations(
+            db,
+            'clipart_category',
+            clipartCategoryRows,
+            (category) => category.id,
+            [{ fieldName: 'name', objectKey: 'name' }],
+            [{ fieldName: 'name', objectKey: 'name' }],
+            locale,
+          )
+        : [];
+      const resolvedClipartAssetRows = clipartCategoryIds.length
+        ? await hydrateAndResolveTranslations(
+            db,
+            'clipart_asset',
+            clipartAssetRows,
+            (asset) => asset.id,
+            [{ fieldName: 'name', objectKey: 'name' }],
+            [{ fieldName: 'name', objectKey: 'name' }],
+            locale,
+          )
+        : [];
+
       const clipartCategoriesById = new Map(
-        clipartCategoryRows.map((category) => [category.id, category] as const),
+        resolvedClipartCategoryRows.map((category) => [category.id, category] as const),
       );
-      const clipartAssetsByCategoryId = new Map<string, Array<(typeof clipartAssetRows)[number]>>();
-      for (const asset of clipartAssetRows) {
+      const clipartAssetsByCategoryId = new Map<string, Array<(typeof resolvedClipartAssetRows)[number]>>();
+      for (const asset of resolvedClipartAssetRows) {
         const current = clipartAssetsByCategoryId.get(asset.categoryId) ?? [];
         current.push(asset);
         clipartAssetsByCategoryId.set(asset.categoryId, current);

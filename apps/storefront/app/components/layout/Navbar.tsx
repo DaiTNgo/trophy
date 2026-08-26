@@ -155,9 +155,9 @@ export function Navbar({
                         activeDropdown === "products" ? null : "products",
                       )
                     }
-                    className={`flex items-center gap-1 px-4 h-full transition-colors uppercase relative z-[51] hover:text-primary ${
-                      activeDropdown === "products" || activeCategoryHandle
-                        ? "text-primary"
+                    className={`relative z-[51] flex h-full items-center gap-1 px-4 uppercase transition-colors hover:text-brand-support ${
+                      activeDropdown === "products"
+                        ? "text-brand-support"
                         : ""
                     }`}
                     style={{
@@ -183,7 +183,7 @@ export function Navbar({
                           activeDropdown === "themes" ? null : "themes",
                         )
                       }
-                      className={`flex items-center gap-1 px-4 h-full transition-colors uppercase relative z-[51] hover:text-primary ${activeDropdown === "themes" ? "text-primary" : ""}`}
+                      className={`relative z-[51] flex h-full items-center gap-1 px-4 uppercase transition-colors hover:text-brand-support ${activeDropdown === "themes" ? "text-brand-support" : ""}`}
                       style={{
                         marginBottom:
                           activeDropdown === "themes" ? "-1px" : "0",

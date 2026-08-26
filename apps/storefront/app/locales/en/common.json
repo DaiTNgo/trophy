@@ -2,6 +2,9 @@
   "welcome": "Welcome to our store",
   "cart": "Cart",
   "language": "Language",
+  "breadcrumb_aria": "Breadcrumb",
+  "breadcrumb_home": "Home",
+  "breadcrumb_collections": "Collections",
   "notFound": {
     "title": "The page you're looking for doesn't exist.",
     "description": "The link may be outdated or the page may have moved. Let's get you back to something worth celebrating.",

@@ -15,6 +15,7 @@ export function ProductCustomizationForm({
   template,
   values,
   dynamicFonts = [],
+  locale,
   message,
   resolveAssetUrl,
   onMessageChange,
@@ -26,6 +27,7 @@ export function ProductCustomizationForm({
   template: CustomizationTemplate;
   values: CustomizationFormValues;
   dynamicFonts?: DynamicFontFamily[];
+  locale?: string;
   message?: string;
   resolveAssetUrl?: ResolveCustomizationAssetUrl;
   onMessageChange?: (message: string) => void;
@@ -130,6 +132,7 @@ export function ProductCustomizationForm({
             layer={layer}
             stepNumber={index + 1}
             value={values[field.id]}
+            locale={locale}
             issue={
               validation.issues.find((issue) => issue.fieldId === field.id)
                 ?.message
@@ -158,6 +161,7 @@ export function CustomizationStudio({
   values,
   dynamicFonts = [],
   selectedVariantId,
+  locale,
   message,
   resolveAssetUrl,
   resolveFontUrl,
@@ -171,6 +175,7 @@ export function CustomizationStudio({
   values: CustomizationFormValues;
   dynamicFonts?: DynamicFontFamily[];
   selectedVariantId?: number | null;
+  locale?: string;
   message?: string;
   resolveAssetUrl?: ResolveCustomizationAssetUrl;
   resolveFontUrl?: ResolveCustomizationFontUrl;
@@ -197,6 +202,7 @@ export function CustomizationStudio({
           template={template}
           values={values}
           dynamicFonts={dynamicFonts}
+          locale={locale}
           message={message}
           resolveAssetUrl={resolveAssetUrl}
           onMessageChange={onMessageChange}
