@@ -27,7 +27,6 @@ import {
   MAX_PREVIEW_ZOOM,
   MIN_PREVIEW_ZOOM,
   useBrowserTextMeasure,
-  ShapeClipPaths,
   type PanState,
   type ResolveCustomizationAssetUrl,
   type ResolveCustomizationFontUrl,
@@ -346,7 +345,6 @@ export function ProductCustomizationPreview({
         resolveFontUrl={resolveFontUrl}
         resolveStaticFontUrl={resolveStaticFontUrl}
       />
-      <ShapeClipPaths layers={design.layers} />
       <div
         ref={viewportRef}
         className={cn(

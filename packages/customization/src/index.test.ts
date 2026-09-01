@@ -8,6 +8,7 @@ import {
   getCropPanFromImagePosition,
   getOrderedFormFields,
   getShapeClipPath,
+  getShapeSvgClip,
   getTextPathLengthPx,
   getTextPathRenderAttributes,
   getTextPathSvgD,
@@ -676,6 +677,20 @@ describe("geometry helpers", () => {
     expect(getShapeClipPath({ shape: "circle", widthPx: 200, heightPx: 200 })).toContain("ellipse(100 100 100 100)");
     expect(getShapeClipPath({ shape: "rounded_rectangle", widthPx: 200, heightPx: 100 })).toContain("roundRect(0 0 200 100 12)");
     expect(getShapeClipPath({ shape: "rectangle", widthPx: 200, heightPx: 100 })).toBe("rect(0 0 200 100)");
+  });
+
+  it("returns valid SVG clip elements from getShapeSvgClip", () => {
+    expect(getShapeSvgClip({ shape: "circle", widthPx: 200, heightPx: 200 })).toBe(
+      '<ellipse cx="100" cy="100" rx="100" ry="100" />',
+    );
+    expect(getShapeSvgClip({ shape: "rounded_rectangle", widthPx: 200, heightPx: 100 })).toBe(
+      '<rect width="200" height="100" rx="12" ry="12" />',
+    );
+    expect(getShapeSvgClip({ shape: "rectangle", widthPx: 200, heightPx: 100 })).toBe(
+      '<rect width="200" height="100" />',
+    );
+    expect(getShapeSvgClip({ shape: "star", widthPx: 200, heightPx: 200 })).toContain("<polygon points=");
+    expect(getShapeSvgClip({ shape: "heart", widthPx: 200, heightPx: 200 })).toContain("<path d=");
   });
 });
 

@@ -1,9 +1,9 @@
 import {
   FONT_FILES,
+  getShapeSvgClip,
   getTextPathRenderAttributes,
   getTextPathSvgD,
   layerGeometryToPixels,
-  vectorPointsToSvgPathD,
   type CustomizationDesign,
   type CustomizationTemplate,
   type RuntimeImageShapeLayer,
@@ -43,29 +43,6 @@ function getImageRect(layer: RuntimeImageShapeLayer, frameWidth: number, frameHe
   const centerY = frameHeight / 2 + (layer.cropYRatio || 0) * frameHeight;
 
   return { x: centerX - width / 2, y: centerY - height / 2, width, height, centerX, centerY };
-}
-
-function builtInClipPath(layer: RuntimeImageShapeLayer, width: number, height: number) {
-  const shape = layer.shape.type;
-  if (shape === "circle") return `<ellipse cx="${width / 2}" cy="${height / 2}" rx="${width / 2}" ry="${height / 2}" />`;
-  if (shape === "ellipse") return `<ellipse cx="${width / 2}" cy="${height / 2}" rx="${width / 2}" ry="${height * 0.4}" />`;
-  if (shape === "rounded_rectangle") {
-    const radius = Math.min(width, height) * 0.12;
-    return `<rect width="${width}" height="${height}" rx="${radius}" ry="${radius}" />`;
-  }
-  if (shape === "star") {
-    return `<polygon points="${[
-      [0.5, 0], [0.6293, 0.322], [0.9755, 0.3455], [0.7092, 0.568], [0.7939, 0.9045],
-      [0.5, 0.72], [0.2061, 0.9045], [0.2908, 0.568], [0.0245, 0.3455], [0.3707, 0.322],
-    ].map(([x, y]) => `${x * width},${y * height}`).join(" ")}" />`;
-  }
-  if (shape === "heart") {
-    return `<path d="M ${width * 0.5} ${height * 0.85} C ${width * 0.1} ${height * 0.55}, 0 ${height * 0.25}, ${width * 0.25} ${height * 0.12} C ${width * 0.4} 0, ${width * 0.5} ${height * 0.16}, ${width * 0.5} ${height * 0.28} C ${width * 0.5} ${height * 0.16}, ${width * 0.6} 0, ${width * 0.75} ${height * 0.12} C ${width} ${height * 0.25}, ${width * 0.9} ${height * 0.55}, ${width * 0.5} ${height * 0.85} Z" />`;
-  }
-  if (shape === "vector" && layer.shape.vectorPath) {
-    return `<path d="${vectorPointsToSvgPathD(layer.shape.vectorPath.points, layer.shape.vectorPath.closed)}" transform="scale(${width} ${height})" />`;
-  }
-  return `<rect width="${width}" height="${height}" />`;
 }
 
 function textMarkup(layer: RuntimeTextLayer, canvasWidth: number, canvasHeight: number) {
@@ -108,7 +85,13 @@ function imageMarkup(layer: RuntimeImageShapeLayer, canvasWidth: number, canvasH
   const y = rect.yPx;
   const rotateLayer = `rotate(${layer.geometry.rotationDeg} ${x + rect.widthPx / 2} ${y + rect.heightPx / 2})`;
   const rotateCrop = `rotate(${layer.cropRotationDeg} ${image.centerX} ${image.centerY})`;
-  return `<g transform="${rotateLayer}"><g transform="translate(${x} ${y})"><defs><clipPath id="${clipId}" clipPathUnits="userSpaceOnUse">${builtInClipPath(layer, rect.widthPx, rect.heightPx)}</clipPath></defs><g clip-path="url(#${clipId})"><image href="${escapeXml(layer.previewUrl)}" x="${image.x}" y="${image.y}" width="${image.width}" height="${image.height}" preserveAspectRatio="none" transform="${rotateCrop}" /></g></g></g>`;
+  const clipElement = getShapeSvgClip({
+    shape: layer.shape.type,
+    widthPx: rect.widthPx,
+    heightPx: rect.heightPx,
+    vectorPath: layer.shape.type === "vector" ? layer.shape.vectorPath : undefined,
+  });
+  return `<g transform="${rotateLayer}"><g transform="translate(${x} ${y})"><defs><clipPath id="${clipId}" clipPathUnits="userSpaceOnUse">${clipElement}</clipPath></defs><g clip-path="url(#${clipId})"><image href="${escapeXml(layer.previewUrl)}" x="${image.x}" y="${image.y}" width="${image.width}" height="${image.height}" preserveAspectRatio="none" transform="${rotateCrop}" /></g></g></g>`;
 }
 
 export function buildRasterExportSvg(template: CustomizationTemplate, design: CustomizationDesign) {
