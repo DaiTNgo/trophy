@@ -1,12 +1,13 @@
 import { useMemo, useState } from "react";
 import { zipSync } from "fflate";
 import { Button, Container, FocusModal, Heading, Text } from "@medusajs/ui";
-import { ProductCustomizationPreview } from "@trophy/customization-react";
+import { ProductCustomizationPreview, useBrowserTextMeasure } from "@trophy/customization-react";
 import {
   buildDesignFromForm,
   DEFAULT_FONT_FAMILY_OPTIONS,
   FONT_FILES,
   resolveFont,
+  resolveFontVariant,
   resolveLocalizedInput,
   type DynamicFontFamily,
 } from "@trophy/customization";
@@ -61,6 +62,41 @@ export function OrderCustomizationPreviewModal({
       })),
     [fonts],
   );
+  // Derive all font variant IDs that need @font-face rules for measurement.
+  // Mirrors the font-ID resolution in ProductCustomizationPreview.
+  const fontPreviewIds = useMemo(() => {
+    if (!template) return [];
+    return Array.from(
+      new Set(
+        [
+          ...template.layers.flatMap((layer) => {
+            if (layer.type !== "text") return [];
+            const { fontPolicy } = layer.text;
+            const families =
+              fontPolicy.mode === "fixed"
+                ? [fontPolicy.fontId]
+                : [
+                    fontPolicy.defaultFontId,
+                    ...fontPolicy.options.map((opt) => opt.value),
+                  ];
+            return families.flatMap((f) => [
+              resolveFontVariant(f, false, false, dynamicFonts),
+              resolveFontVariant(f, true, false, dynamicFonts),
+              resolveFontVariant(f, false, true, dynamicFonts),
+              resolveFontVariant(f, true, true, dynamicFonts),
+            ]);
+          }),
+          ...dynamicFonts.flatMap((font) => [
+            font.regularAssetId,
+            font.boldAssetId,
+            font.italicAssetId,
+            font.boldItalicAssetId,
+          ]),
+        ].filter(Boolean) as string[],
+      ),
+    );
+  }, [dynamicFonts, template]);
+  const { measureText } = useBrowserTextMeasure(fontPreviewIds);
   const productionTextSpecs = useMemo(() => {
     if (!template || !preview) return [];
 
@@ -75,6 +111,7 @@ export function OrderCustomizationPreviewModal({
       template,
       values: preview.values,
       designId: `order_${order.id}_item_${item.id}_production`,
+      measureText,
       dynamicFonts,
     });
 
@@ -120,7 +157,7 @@ export function OrderCustomizationPreviewModal({
           size: `${formatCanvasPosition(layer.geometry.widthRatio, canvasWidth)} × ${formatCanvasPosition(layer.geometry.heightRatio ?? layer.geometry.widthRatio, canvasHeight)}`,
         };
       });
-  }, [dynamicFonts, item.id, order.id, preview, template]);
+  }, [dynamicFonts, measureText, item.id, order.id, preview, template]);
   const uploadedImages = getUploadedImageEntries(item);
   const [isDownloadingUploads, setIsDownloadingUploads] = useState(false);
   const [downloadError, setDownloadError] = useState("");
@@ -133,9 +170,10 @@ export function OrderCustomizationPreviewModal({
       template,
       values: preview.values,
       designId: `order_${order.id}_item_${item.id}_preview`,
+      measureText,
       dynamicFonts,
     });
-  }, [dynamicFonts, item.id, order.id, preview, template]);
+  }, [dynamicFonts, measureText, item.id, order.id, preview, template]);
 
   async function exportPdf() {
     if (!template || !orderDesign) return;
