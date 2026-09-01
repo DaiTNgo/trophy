@@ -45,7 +45,7 @@ export type ClipartAssetMimeType = "image/svg+xml" | "image/png" | "image/webp";
 export type CustomizationClipartAsset = {
   id: string;
   sourceAssetId: string;
-  name: string;
+  name: string | LocalizedTextInput;
   fileName?: string | null;
   categoryId: string;
   previewUrl: string;
@@ -57,7 +57,7 @@ export type CustomizationClipartAsset = {
 
 export type ClipartCategory = {
   id: string;
-  name: string;
+  name: string | LocalizedTextInput;
 };
 
 export type ClipartCategoryMode = "fixed" | "allow_list";
@@ -72,7 +72,7 @@ export type ImageShapeSelectedSource = "upload" | "clipart";
 
 export type ChoiceOption = {
   value: string;
-  label: string;
+  label: string | LocalizedTextInput;
   swatch?: string;
 };
 

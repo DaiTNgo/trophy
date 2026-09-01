@@ -11,7 +11,7 @@ vi.mock("pdfjs-dist", () => ({
   getDocument: mocks.getDocument,
 }));
 
-vi.mock("pdfjs-dist/build/pdf.worker?url", () => ({ default: "pdf-worker" }));
+vi.mock("pdfjs-dist/build/pdf.worker.min.mjs?url", () => ({ default: "pdf-worker" }));
 
 import { convertPdfToImageFile } from "./pdf-preview";
 

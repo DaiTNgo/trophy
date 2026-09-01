@@ -5,7 +5,7 @@
  *   - Background: PDF embed (pendingPdfFile) or raster image (template.background.previewUrl)
  *   - Image shape layers: raster image embedded with vector clip path
  *   - Text layers (straight): pdf-lib native drawText() — true vector glyphs, font embedded
- *   - Text layers (path):     glyph-on-path engine (opentype.js) — vector glyphs per character
+ *   - Text layers (path):     SVG textPath rasterized to canvas at 4× then embedded as PNG
  *
  * Note (future): If CMYK color space is required for print production,
  * this client-side approach must be replaced with server-side rendering
@@ -23,11 +23,10 @@ import {
   closePath,
   endPath,
   concatTransformationMatrix,
-  degrees,
   rgb,
 } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
-import { layerGeometryToPixels } from "@trophy/customization";
+import { layerGeometryToPixels, getTextPathRenderAttributes, getTextPathSvgD } from "@trophy/customization";
 import type { CustomizationDesign, CustomizationTemplate, VectorPath } from "@trophy/customization";
 import { loadFontBytes } from "./pdf-fonts";
 import { drawStraightText } from "./pdf-text-straight";
@@ -561,14 +560,6 @@ function freeCropOffset(value?: number) {
   return Number.isFinite(value) ? value! : 0;
 }
 
-const hexToRgb = (hex: string) => {
-  const c = hex.replace("#", "");
-  return [
-    parseInt(c.substring(0, 2), 16),
-    parseInt(c.substring(2, 4), 16),
-    parseInt(c.substring(4, 6), 16),
-  ];
-};
 
 /**
  * Returns image position & size relative to the frame (top-left = 0,0).
@@ -728,20 +719,40 @@ export const exportVectorPdfClientSide = async (
   if (pendingPdfFile) {
     const bgBytes = await pendingPdfFile.arrayBuffer();
     const bgPdf   = await PDFDocument.load(bgBytes, { ignoreEncryption: true });
-    const [embeddedPage] = await pdf.embedPages([bgPdf.getPages()[0]!]);
-    pdf.removePage(0);
-    page = pdf.addPage([designWidth, designHeight]);
-    page.drawPage(embeddedPage, { x: 0, y: 0, width: designWidth, height: designHeight });
+    if (bgPdf.getPageCount() > 0) {
+      const [embeddedPage] = await pdf.embedPages([bgPdf.getPages()[0]!]);
+      pdf.removePage(0);
+      page = pdf.addPage([designWidth, designHeight]);
+      page.drawPage(embeddedPage, { x: 0, y: 0, width: designWidth, height: designHeight });
+    }
   } else if (template.background?.previewUrl) {
-    const source = await readImageBytes(template.background.previewUrl);
-    if (source) {
-      const image = await embedPdfImage({
-        pdf,
-        source,
-        widthPx: designWidth,
-        heightPx: designHeight,
-      });
-      page.drawImage(image, { x: 0, y: 0, width: designWidth, height: designHeight });
+    const isPdfBg =
+      template.background.mimeType === "application/pdf" ||
+      template.background.previewUrl.toLowerCase().endsWith(".pdf");
+
+    if (isPdfBg) {
+      const response = await fetch(template.background.previewUrl).catch(() => null);
+      if (response?.ok) {
+        const bgBytes = await response.arrayBuffer();
+        const bgPdf = await PDFDocument.load(bgBytes, { ignoreEncryption: true });
+        if (bgPdf.getPageCount() > 0) {
+          const [embeddedPage] = await pdf.embedPages([bgPdf.getPages()[0]!]);
+          pdf.removePage(0);
+          page = pdf.addPage([designWidth, designHeight]);
+          page.drawPage(embeddedPage, { x: 0, y: 0, width: designWidth, height: designHeight });
+        }
+      }
+    } else {
+      const source = await readImageBytes(template.background.previewUrl);
+      if (source) {
+        const image = await embedPdfImage({
+          pdf,
+          source,
+          widthPx: designWidth,
+          heightPx: designHeight,
+        });
+        page.drawImage(image, { x: 0, y: 0, width: designWidth, height: designHeight });
+      }
     }
   }
 
@@ -871,58 +882,76 @@ export const exportVectorPdfClientSide = async (
           frameW,
         });
       } else {
-        // ── path text: DOM Coordinate Extraction (Perfect UI Sync) ────────────
-        const textPathEl = document.getElementById(`export-textpath-${layer.id}`) as any;
-        if (!textPathEl || typeof textPathEl.getNumberOfChars !== "function") {
-          console.warn(`[PDF Export] Could not find SVGTextPathElement for layer ${layer.id}`);
-          if (rotDeg !== 0) page.pushOperators(popGraphicsState());
-          continue;
+        // ── path text: SVG rasterize + embed as image ──────────────────────
+        // Build an inline SVG with the textPath, rasterize it via canvas,
+        // and embed the resulting PNG into the PDF.  This avoids the fragile
+        // dependency on DOM element IDs from the React preview component.
+        const textWidth = layer.text.length * layer.fontSizePt * 0.55;
+        const wordCount = layer.text.trim() ? layer.text.trim().split(/\s+/).length : 0;
+        const pathAttrs = getTextPathRenderAttributes({
+          path: layer.path,
+          align: layer.align,
+          widthPx: frameW,
+          heightPx: frameH,
+          textWidthPx: textWidth,
+          charCount: layer.text.length,
+          wordCount,
+        });
+        const renderPath = pathAttrs.pathStartAngleDeg != null
+          ? { ...layer.path, startAngleDeg: pathAttrs.pathStartAngleDeg }
+          : layer.path;
+        const pathD = getTextPathSvgD({ path: renderPath, widthPx: frameW, heightPx: frameH });
+        const pathId = `pdf-export-textpath-${layer.id}`;
+        const escText = layer.text.replace(/[<>&"']/g, (c) => {
+          switch (c) { case "<": return "&lt;"; case ">": return "&gt;"; case "&": return "&amp;"; case '"': return "&quot;"; default: return "&amp;"; }
+        });
+        const dyAttr = pathAttrs.dy ? ` dy="${pathAttrs.dy}"` : "";
+        const tlAttr = pathAttrs.textLength ? ` textLength="${pathAttrs.textLength}" lengthAdjust="${pathAttrs.lengthAdjust}"` : "";
+        const wsAttr = pathAttrs.wordSpacingPx ? ` word-spacing="${pathAttrs.wordSpacingPx}"` : "";
+
+        // Embed font as data URL inside the SVG so it works in the image context.
+        let fontStyle = "";
+        const fontBytes = await loadFontBytes(layer.fontId);
+        if (fontBytes) {
+          let binary = "";
+          for (let i = 0; i < fontBytes.length; i++) binary += String.fromCharCode(fontBytes[i]!);
+          const b64 = btoa(binary);
+          fontStyle = `<style>@font-face{font-family:${JSON.stringify(layer.fontId)};src:url("data:font/ttf;base64,${b64}") format('truetype');}</style>`;
         }
 
-        const embeddedFont = await getEmbeddedFont(layer.fontId);
-        if (!embeddedFont) {
-          if (rotDeg !== 0) page.pushOperators(popGraphicsState());
-          continue;
-        }
+        const textSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="${frameW}" height="${frameH}" viewBox="0 0 ${frameW} ${frameH}">${fontStyle}<defs><path id="${pathId}" d="${pathD}" /></defs><text fill="${layer.color}" font-family="${layer.fontId}" font-size="${layer.fontSizePt}" font-weight="${layer.isBold ? 700 : 400}" font-style="${layer.isItalic ? "italic" : "normal"}" text-anchor="${pathAttrs.textAnchor}" dominant-baseline="middle"${tlAttr}${wsAttr}><textPath href="#${pathId}" startOffset="${pathAttrs.startOffset}"${dyAttr}>${escText}</textPath></text></svg>`;
 
-        const [r, g, b] = hexToRgb(layer.color);
-        const rgbColor = rgb(r / 255, g / 255, b / 255);
-
-        const charCount = textPathEl.getNumberOfChars();
-        // Fallback to layer.text if textContent is somehow empty
-        const textContent = textPathEl.textContent || layer.text;
-
-        let charIndex = 0;
-        let domIndex = 0;
-
-        while (domIndex < charCount && charIndex < textContent.length) {
-          const charCode = textContent.charCodeAt(charIndex);
-          const isSurrogate = charCode >= 0xD800 && charCode <= 0xDBFF;
-          const charStr = isSurrogate ? textContent.substring(charIndex, charIndex + 2) : textContent[charIndex];
-
-          try {
-            if (charStr && charStr.trim() !== "") {
-              const startPt = textPathEl.getStartPositionOfChar(domIndex);
-              const rot = textPathEl.getRotationOfChar(domIndex);
-
-              const px = frameX + startPt.x;
-              const py = frameTopY - startPt.y;
-
-              page.drawText(charStr, {
-                x: px,
-                y: py,
-                font: embeddedFont,
-                size: layer.fontSizePt,
-                color: rgbColor,
-                rotate: degrees(-rot), // SVG positive is clockwise, PDF positive is counter-clockwise
-              });
+        // Rasterize at 4× resolution for sharp text
+        const rasterScale = 4;
+        const rasterW = Math.round(frameW * rasterScale);
+        const rasterH = Math.round(frameH * rasterScale);
+        const svgBlob = new Blob([textSvg], { type: "image/svg+xml" });
+        const svgUrl = URL.createObjectURL(svgBlob);
+        try {
+          const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+            const el = new Image();
+            el.onload = () => resolve(el);
+            el.onerror = () => reject(new Error("Failed to rasterize path text for PDF export"));
+            el.src = svgUrl;
+          });
+          const cvs = document.createElement("canvas");
+          cvs.width = rasterW;
+          cvs.height = rasterH;
+          const ctx = cvs.getContext("2d");
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, rasterW, rasterH);
+            const pngDataUrl = cvs.toDataURL("image/png");
+            const pngData = parseDataUrl(pngDataUrl);
+            if (pngData) {
+              const pdfImage = await pdf.embedPng(pngData.bytes);
+              // Draw at the frame position in PDF bottom-up coordinates.
+              const drawX = frameX;
+              const drawY = frameCy - frameH / 2; // bottom edge in PDF coords
+              page.drawImage(pdfImage, { x: drawX, y: drawY, width: frameW, height: frameH });
             }
-          } catch (err) {
-            // getStartPositionOfChar throws if the character is out of the path length
           }
-
-          charIndex += isSurrogate ? 2 : 1;
-          domIndex++; // getNumberOfChars counts rendered characters (surrogate pairs are usually 1 rendered char, but we iterate index by index just in case)
+        } finally {
+          URL.revokeObjectURL(svgUrl);
         }
       }
 

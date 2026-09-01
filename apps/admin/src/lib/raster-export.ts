@@ -95,7 +95,9 @@ function textMarkup(layer: RuntimeTextLayer, canvasWidth: number, canvasHeight: 
   const dy = attributes.dy ? ` dy="${attributes.dy}"` : "";
   const textLength = attributes.textLength ? ` textLength="${attributes.textLength}" lengthAdjust="${attributes.lengthAdjust}"` : "";
   const wordSpacing = attributes.wordSpacingPx ? ` word-spacing="${attributes.wordSpacingPx}"` : "";
-  return `<g transform="${rotation}"><defs><path id="${pathId}" d="${getTextPathSvgD({ path, widthPx: width, heightPx: height })}" /></defs><text ${style} text-anchor="${attributes.textAnchor}" dominant-baseline="middle"${textLength}${wordSpacing}><textPath href="#${pathId}" startOffset="${attributes.startOffset}"${dy}>${escapeXml(layer.text)}</textPath></text></g>`;
+  // getTextPathSvgD produces path data in local space (0,0 → width,height).
+  // Wrap in translate(x,y) so the path is placed at the correct canvas position.
+  return `<g transform="${rotation}"><g transform="translate(${x} ${y})"><defs><path id="${pathId}" d="${getTextPathSvgD({ path, widthPx: width, heightPx: height })}" /></defs><text ${style} text-anchor="${attributes.textAnchor}" dominant-baseline="middle"${textLength}${wordSpacing}><textPath href="#${pathId}" startOffset="${attributes.startOffset}"${dy}>${escapeXml(layer.text)}</textPath></text></g></g>`;
 }
 
 function imageMarkup(layer: RuntimeImageShapeLayer, canvasWidth: number, canvasHeight: number) {
@@ -153,7 +155,9 @@ async function inlineFonts(svg: string, design: CustomizationDesign, resolveFont
     const dataUrl = await toDataUrl(url);
     return `@font-face{font-family:${JSON.stringify(fontId)};src:url(${JSON.stringify(dataUrl)}) format('truetype');}`;
   }));
-  return fontFaces.some(Boolean) ? svg.replace(">", `><style>${fontFaces.join("")}</style>`) : svg;
+  if (!fontFaces.some(Boolean)) return svg;
+  // Insert <style> right after the <svg ...> opening tag.
+  return svg.replace(/(<svg[^>]*>)/, `$1<style>${fontFaces.join("")}</style>`);
 }
 
 function canvasBlob(canvas: HTMLCanvasElement, format: RasterExportFormat) {

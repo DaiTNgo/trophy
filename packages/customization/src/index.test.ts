@@ -20,6 +20,7 @@ import {
   normalizeFontStyle,
   normalizeTextPath,
   pixelRectToLayerGeometry,
+  resolveLocalizedInput,
   validateCustomizationValues,
   vectorPointsToCssPolygon,
   validateProductCustomizationForPublish,
@@ -397,6 +398,52 @@ describe("product-owned customization validation", () => {
       "CLIPART_POLICY_INVALID",
     );
   });
+
+  it("accepts customization when form field label has only Vietnamese", () => {
+    const validCustomization: ProductCustomization = {
+      ...productCustomization,
+      formFields: productCustomization.formFields.map((field) => ({
+        ...field,
+        label: { vi: "Tên nhãn", en: "" },
+        placeholder: { vi: "Nhập chữ", en: "" },
+        helpText: undefined,
+      })),
+    };
+
+    const result = validateProductCustomizationForPublish(validCustomization);
+    expect(result.valid).toBe(true);
+    expect(result.issues).toEqual([]);
+  });
+
+  it("accepts customization when form field label has only English", () => {
+    const validCustomization: ProductCustomization = {
+      ...productCustomization,
+      formFields: productCustomization.formFields.map((field) => ({
+        ...field,
+        label: { vi: "", en: "Field Label" },
+        placeholder: undefined,
+        helpText: { vi: "", en: "Help info" },
+      })),
+    };
+
+    const result = validateProductCustomizationForPublish(validCustomization);
+    expect(result.valid).toBe(true);
+    expect(result.issues).toEqual([]);
+  });
+
+  it("rejects customization when form field label is empty in both locales", () => {
+    const invalidCustomization: ProductCustomization = {
+      ...productCustomization,
+      formFields: productCustomization.formFields.map((field) => ({
+        ...field,
+        label: { vi: "   ", en: "" },
+      })),
+    };
+
+    const result = validateProductCustomizationForPublish(invalidCustomization);
+    expect(result.valid).toBe(false);
+    expect(result.issues.map((issue) => issue.code)).toContain("LOCALIZATION_INCOMPLETE");
+  });
 });
 
 describe("image clipart runtime serialization", () => {
@@ -626,6 +673,9 @@ describe("geometry helpers", () => {
   it("returns a path clip for decorative shapes", () => {
     expect(getShapeClipPath({ shape: "heart", widthPx: 200, heightPx: 160 })).toContain("path(");
     expect(getShapeClipPath({ shape: "star", widthPx: 200, heightPx: 160 })).toContain("polygon(");
+    expect(getShapeClipPath({ shape: "circle", widthPx: 200, heightPx: 200 })).toContain("ellipse(100 100 100 100)");
+    expect(getShapeClipPath({ shape: "rounded_rectangle", widthPx: 200, heightPx: 100 })).toContain("roundRect(0 0 200 100 12)");
+    expect(getShapeClipPath({ shape: "rectangle", widthPx: 200, heightPx: 100 })).toBe("rect(0 0 200 100)");
   });
 });
 
@@ -739,5 +789,46 @@ describe("text fitting and paths", () => {
       startOffset: "50%",
       pathStartAngleDeg: -90,
     });
+  });
+
+  it("resolves font variant accurately when bold or italic formatting is applied", () => {
+    const layer: TextEditorLayer = {
+      id: "text_1",
+      name: "Text",
+      type: "text",
+      zIndex: 1,
+      geometry: { xRatio: 0.5, yRatio: 0.5, widthRatio: 0.8 },
+      text: {
+        path: { type: "straight" },
+        sampleText: "Hello",
+        minFontSizePt: 10,
+        maxFontSizePt: 30,
+        maxLines: 1,
+        colorPolicy: { mode: "fixed", color: "#000000" },
+        fontPolicy: { mode: "fixed", fontId: "script" },
+        formatPolicy: { mode: "fixed", isBold: true, isItalic: false },
+        alignPolicy: { mode: "fixed", align: "center" },
+      },
+    };
+
+    const fitted = fitTextToLayer({
+      layer,
+      value: { text: "Hello", isBold: true },
+      availableWidthPx: 300,
+    });
+    expect(fitted.fontId).toBe("script-bold");
+    expect(fitted.isBold).toBe(true);
+  });
+
+  it("resolves localized text input correctly for both string and object shapes", () => {
+    expect(resolveLocalizedInput("Simple String")).toBe("Simple String");
+    expect(resolveLocalizedInput({ vi: "Tiếng Việt", en: "English" }, "vi")).toBe("Tiếng Việt");
+    expect(resolveLocalizedInput({ vi: "Tiếng Việt", en: "English" }, "en")).toBe("English");
+    expect(resolveLocalizedInput({ vi: "Tiếng Việt", en: "English" })).toBe("Tiếng Việt");
+    expect(resolveLocalizedInput({ vi: "", en: "Only English" }, "vi")).toBe("Only English");
+    expect(resolveLocalizedInput({ vi: "", en: "Only English" })).toBe("Only English");
+    expect(resolveLocalizedInput(null)).toBe("");
+    expect(resolveLocalizedInput(undefined)).toBe("");
+    expect(resolveLocalizedInput({} as any)).toBe("");
   });
 });

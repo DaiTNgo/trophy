@@ -231,6 +231,7 @@ function EditorContent({ product, productId, mutate }: { product: CatalogProduct
             <PreviewDialog
               template={template}
               values={previewValues}
+              dynamicFonts={dynamicFonts}
               onChange={handlePreviewChange}
               onReset={resetPreviewValues}
               onClose={() => setPreviewOpen(false)}

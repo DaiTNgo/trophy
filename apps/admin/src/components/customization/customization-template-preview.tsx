@@ -7,6 +7,7 @@ import {
   type CustomizationFormValues,
   type CustomizationTemplate,
   type ClipartFieldValue,
+  type DynamicFontFamily,
   type ImageShapeFieldValue,
   type TextFieldValue,
 } from "@trophy/customization";
@@ -17,12 +18,16 @@ type PreviewChange = (fieldId: string, value: TextFieldValue | ImageShapeFieldVa
 export function PreviewDialog({
   template,
   values,
+  dynamicFonts = [],
+  locale,
   onChange,
   onClose,
   onReset,
 }: {
   template: CustomizationTemplate;
   values: CustomizationFormValues;
+  dynamicFonts?: DynamicFontFamily[];
+  locale?: string;
   onChange: PreviewChange;
   onClose: () => void;
   onReset: () => void;
@@ -35,6 +40,7 @@ export function PreviewDialog({
           <ProductCustomizationPreview
             template={template}
             values={values}
+            dynamicFonts={dynamicFonts}
             resolveFontUrl={(assetId) => `${import.meta.env.VITE_BACKEND_URL ?? "http://localhost:8787"}/api/admin/brand-assets/fonts/file/${assetId}`}
             resolveStaticFontUrl={(fileName) => `${import.meta.env.VITE_BACKEND_URL ?? "http://localhost:8787"}/fonts/${fileName}`}
             onImageValueChange={(fieldId, value) => onChange(fieldId, value)}
@@ -55,6 +61,8 @@ export function PreviewDialog({
           <ProductCustomizationForm
             template={template}
             values={values}
+            dynamicFonts={dynamicFonts}
+            locale={locale}
             onUploadImage={async (_field, file) => {
               const asset = await fileToBackground(file);
               return {

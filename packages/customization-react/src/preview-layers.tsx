@@ -184,6 +184,65 @@ export function PreviewText({
   );
 }
 
+function renderShapeClipElement(
+  shape: Extract<RuntimeLayer, { type: "image_shape" }>["shape"],
+  widthPx: number,
+  heightPx: number,
+) {
+  const w = Math.max(1, widthPx);
+  const h = Math.max(1, heightPx);
+
+  if (shape.type === "circle") {
+    return <ellipse cx={w / 2} cy={h / 2} rx={w / 2} ry={h / 2} />;
+  }
+
+  if (shape.type === "ellipse") {
+    return <ellipse cx={w / 2} cy={h / 2} rx={w / 2} ry={h * 0.4} />;
+  }
+
+  if (shape.type === "rounded_rectangle") {
+    const radius = Math.min(w, h) * 0.12;
+    return <rect x={0} y={0} width={w} height={h} rx={radius} ry={radius} />;
+  }
+
+  if (shape.type === "star") {
+    const points = [
+      [0.5, 0],
+      [0.6293, 0.322],
+      [0.9755, 0.3455],
+      [0.7092, 0.568],
+      [0.7939, 0.9045],
+      [0.5, 0.72],
+      [0.2061, 0.9045],
+      [0.2908, 0.568],
+      [0.0245, 0.3455],
+      [0.3707, 0.322],
+    ]
+      .map(([px, py]) => `${(px ?? 0) * w},${(py ?? 0) * h}`)
+      .join(" ");
+    return <polygon points={points} />;
+  }
+
+  if (shape.type === "heart") {
+    const pathD = `M ${w * 0.5} ${h * 0.85} C ${w * 0.1} ${h * 0.55}, 0 ${h * 0.25}, ${w * 0.25} ${h * 0.12} C ${w * 0.4} 0, ${w * 0.5} ${h * 0.16}, ${w * 0.5} ${h * 0.28} C ${w * 0.5} ${h * 0.16}, ${w * 0.6} 0, ${w * 0.75} ${h * 0.12} C ${w} ${h * 0.25}, ${w * 0.9} ${h * 0.55}, ${w * 0.5} ${h * 0.85} Z`;
+    return <path d={pathD} />;
+  }
+
+  if (shape.type === "vector" && shape.vectorPath) {
+    return (
+      <path
+        d={vectorPointsToSvgPathD(
+          shape.vectorPath.points,
+          shape.vectorPath.closed,
+        )}
+        transform={`scale(${w} ${h})`}
+      />
+    );
+  }
+
+  return <rect x={0} y={0} width={w} height={h} />;
+}
+
 export function PreviewImageShape({
   layer,
   width,
@@ -221,7 +280,6 @@ export function PreviewImageShape({
     cropYRatio: value?.cropYRatio ?? layer.cropYRatio,
   });
   const editable = Boolean(value && onChange);
-  const vectorPath = layer.shape.type === "vector" ? layer.shape.vectorPath : undefined;
   const inlineClipId = `inline-clip-${useId().replace(/:/g, "")}`;
   const imageSource =
     resolveAssetUrl?.(value?.previewUrl ?? layer.previewUrl) ??
@@ -385,48 +443,29 @@ export function PreviewImageShape({
           window.addEventListener("pointerup", stop);
         }}
       >
-        {vectorPath ? (
-          <svg
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-0 h-full w-full"
-            viewBox="0 0 1 1"
-            preserveAspectRatio="none"
-          >
-            <defs>
-              <clipPath id={inlineClipId} clipPathUnits="userSpaceOnUse">
-                <path d={vectorPointsToSvgPathD(vectorPath.points, vectorPath.closed)} />
-              </clipPath>
-            </defs>
+        <svg
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 h-full w-full"
+          viewBox={`0 0 ${rect.widthPx} ${rect.heightPx}`}
+          preserveAspectRatio="none"
+        >
+          <defs>
+            <clipPath id={inlineClipId} clipPathUnits="userSpaceOnUse">
+              {renderShapeClipElement(layer.shape, rect.widthPx, rect.heightPx)}
+            </clipPath>
+          </defs>
+          <g clipPath={`url(#${inlineClipId})`}>
             <image
               href={imageSource}
-              x={imageRect.xPx / Math.max(1, rect.widthPx)}
-              y={imageRect.yPx / Math.max(1, rect.heightPx)}
-              width={imageRect.widthPx / Math.max(1, rect.widthPx)}
-              height={imageRect.heightPx / Math.max(1, rect.heightPx)}
+              x={imageRect.xPx}
+              y={imageRect.yPx}
+              width={imageRect.widthPx}
+              height={imageRect.heightPx}
               preserveAspectRatio="none"
-              clipPath={`url(#${inlineClipId})`}
-              transform={`rotate(${cropRotationDeg} ${imageRect.centerXPx / Math.max(1, rect.widthPx)} ${imageRect.centerYPx / Math.max(1, rect.heightPx)})`}
+              transform={`rotate(${cropRotationDeg} ${imageRect.centerXPx} ${imageRect.centerYPx})`}
             />
-          </svg>
-        ) : (
-          <img
-            src={imageSource}
-            alt=""
-            draggable={false}
-            style={{
-              position: "absolute",
-              pointerEvents: "none",
-              maxWidth: "none",
-              userSelect: "none",
-              left: imageRect.xPx * scale,
-              top: imageRect.yPx * scale,
-              width: imageRect.widthPx * scale,
-              height: imageRect.heightPx * scale,
-              transform: `rotate(${cropRotationDeg}deg)`,
-              transformOrigin: "center",
-            }}
-          />
-        )}
+          </g>
+        </svg>
       </div>
       {selected && editable && interactive ? (
         <>

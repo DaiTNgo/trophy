@@ -230,6 +230,7 @@ export function FormField({
         <ImageField
           layer={imageLayer}
           value={value}
+          locale={locale}
           uploading={uploading}
           resolveAssetUrl={resolveAssetUrl}
           onChange={onChange}

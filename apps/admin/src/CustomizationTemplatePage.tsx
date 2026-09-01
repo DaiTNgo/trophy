@@ -124,6 +124,7 @@ export default function CustomizationTemplatePage() {
         <PreviewDialog
           template={template}
           values={previewValues}
+          dynamicFonts={dynamicFonts}
           pendingPdfFile={pendingPdfFile}
           onChange={handlePreviewChange}
           onClose={() => setPreviewOpen(false)}

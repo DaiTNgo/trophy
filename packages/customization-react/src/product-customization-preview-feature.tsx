@@ -69,25 +69,51 @@ export function ProductCustomizationPreview({
     () =>
       Array.from(
         new Set(
-          template.layers.flatMap((layer) => {
-            if (layer.type !== "text") return [];
-            const { fontPolicy } = layer.text;
-            const families =
-              fontPolicy.mode === "fixed"
-                ? [fontPolicy.fontId]
-                : [
-                    fontPolicy.defaultFontId,
-                    ...fontPolicy.options.map((option) => option.value),
-                  ];
-            return families
-              .map((fontFamily) =>
+          [
+            ...template.layers.flatMap((layer) => {
+              if (layer.type !== "text") return [];
+              const { fontPolicy } = layer.text;
+              const families =
+                fontPolicy.mode === "fixed"
+                  ? [fontPolicy.fontId]
+                  : [
+                      fontPolicy.defaultFontId,
+                      ...fontPolicy.options.map((option) => option.value),
+                    ];
+              return families.flatMap((fontFamily) => [
                 resolveFontVariant(fontFamily, false, false, dynamicFonts),
-              )
-              .filter(Boolean);
-          }),
+                resolveFontVariant(fontFamily, true, false, dynamicFonts),
+                resolveFontVariant(fontFamily, false, true, dynamicFonts),
+                resolveFontVariant(fontFamily, true, true, dynamicFonts),
+              ]);
+            }),
+            ...Object.values(values).flatMap((val) => {
+              if (
+                val &&
+                typeof val === "object" &&
+                "fontId" in val &&
+                typeof val.fontId === "string" &&
+                val.fontId
+              ) {
+                return [
+                  resolveFontVariant(val.fontId, false, false, dynamicFonts),
+                  resolveFontVariant(val.fontId, true, false, dynamicFonts),
+                  resolveFontVariant(val.fontId, false, true, dynamicFonts),
+                  resolveFontVariant(val.fontId, true, true, dynamicFonts),
+                ];
+              }
+              return [];
+            }),
+            ...dynamicFonts.flatMap((font) => [
+              font.regularAssetId,
+              font.boldAssetId,
+              font.italicAssetId,
+              font.boldItalicAssetId,
+            ]),
+          ].filter(Boolean) as string[],
         ),
       ),
-    [dynamicFonts, template.layers],
+    [dynamicFonts, template.layers, values],
   );
   const { measureText, fontRevision } = useBrowserTextMeasure(fontPreviewIds);
   const design = useMemo(
@@ -189,7 +215,7 @@ export function ProductCustomizationPreview({
 
   useEffect(() => {
     fitToView();
-  }, [fitToView]);
+  }, [fitToView, isFullscreen]);
 
   useEffect(() => {
     if (readOnly && selectedImageFieldId) setSelectedImageFieldId("");
@@ -199,10 +225,22 @@ export function ProductCustomizationPreview({
     if (!isFullscreen || typeof document === "undefined") return;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation?.();
+        setFullscreen(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown, { capture: true });
     return () => {
       document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown, { capture: true });
     };
-  }, [isFullscreen]);
+  }, [isFullscreen, setFullscreen]);
 
   function updateImageValue(fieldId: string, value: ImageShapeFieldValue) {
     onImageValueChange?.(fieldId, value);
@@ -452,20 +490,39 @@ export function ProductCustomizationPreview({
   }
 
   const fullscreenOverlay = (
-    <div className="fixed inset-0 z-[2147483647] bg-black/70 p-0 backdrop-blur-sm">
-      <div className="absolute right-4 top-4 z-[121]">
+    <div
+      className="fixed inset-0 z-[2147483647] pointer-events-auto bg-black/70 p-0 backdrop-blur-sm"
+      style={{ pointerEvents: "auto" }}
+      data-customization-fullscreen-overlay=""
+      onPointerDown={(e) => e.stopPropagation()}
+    >
+      <div
+        className="absolute right-4 top-4 z-[121] pointer-events-auto"
+        style={{ pointerEvents: "auto" }}
+      >
         <Button
+          type="button"
           variant="outline"
           size="icon"
-          className="border-white/20 bg-white/95 text-on-surface shadow-lg"
+          className="border-white/20 bg-white/95 text-on-surface shadow-lg pointer-events-auto cursor-pointer"
+          style={{ pointerEvents: "auto" }}
           aria-label="Close fullscreen preview"
           title="Close fullscreen preview"
-          onClick={() => setFullscreen(false)}
+          onClick={(e) => {
+            e.stopPropagation();
+            setFullscreen(false);
+          }}
+          onPointerDown={(e) => {
+            e.stopPropagation();
+          }}
         >
           <X className="size-4" />
         </Button>
       </div>
-      <div className="flex h-full w-full items-center justify-center">
+      <div
+        className="flex h-full w-full items-center justify-center pointer-events-auto"
+        style={{ pointerEvents: "auto" }}
+      >
         {previewFrame}
       </div>
     </div>

@@ -112,11 +112,15 @@ export function TextField({
                     const selected =
                       (textValue.color ?? colorPolicy.defaultColor) ===
                       option.value;
+                    const optionLabel = resolveLocalizedInput(
+                      option.label,
+                      locale,
+                    );
                     return (
                       <button
                         key={option.value}
                         type="button"
-                        title={option.label}
+                        title={optionLabel}
                         onClick={() =>
                           onChange({ ...textValue, color: option.value })
                         }
@@ -143,11 +147,12 @@ export function TextField({
           <div className="flex flex-wrap gap-2">
             {availableFontOptions.map((option) => {
               const selected = selectedFontId === option.value;
+              const optionLabel = resolveLocalizedInput(option.label, locale);
               return (
                 <button
                   key={option.value}
                   type="button"
-                  title={option.label}
+                  title={optionLabel}
                   onClick={() => {
                     const nextStyle = normalizeFontStyle({
                       fontFamily: option.value,
@@ -175,7 +180,7 @@ export function TextField({
                     ),
                   }}
                 >
-                  {option.label}
+                  {optionLabel}
                 </button>
               );
             })}

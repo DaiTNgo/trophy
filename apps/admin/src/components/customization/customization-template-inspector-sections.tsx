@@ -375,8 +375,8 @@ function TextStyleControls({
 }: {
   layer: TextEditorLayer;
   onUpdate: (updater: (layer: CustomizationLayer) => CustomizationLayer) => void;
-  colorOptions?: { value: string; label: string }[];
-  fontOptions?: { value: string; label: string }[];
+  colorOptions?: ChoiceOption[];
+  fontOptions?: ChoiceOption[];
   dynamicFonts?: import("@trophy/customization").DynamicFontFamily[];
   fontCapabilitiesLoaded?: boolean;
 }) {
@@ -449,7 +449,7 @@ function TextStyleControls({
                 <div key={index} className="group relative">
                   <button
                     type="button"
-                    title={option.label || option.value}
+                    title={resolveLocalizedInput(option.label) || option.value}
                     className={`size-6 rounded-full border ${layer.text.colorPolicy.mode === "shopper_selectable" && layer.text.colorPolicy.defaultColor === option.value ? "ring-2 ring-ui-fg-interactive ring-offset-1" : "border-ui-border-base"}`}
                     style={{ backgroundColor: option.value }}
                     onClick={() => updateText(onUpdate, { colorPolicy: { ...(layer.text.colorPolicy as any), defaultColor: option.value } })}
@@ -534,7 +534,7 @@ function TextStyleControls({
               <Select.Content>
                 {fontOptions.map((opt) => (
                   <Select.Item key={opt.value ?? opt} value={opt.value ?? opt}>
-                    {opt.label ?? opt}
+                    {resolveLocalizedInput(opt.label ?? opt)}
                   </Select.Item>
                 ))}
               </Select.Content>
@@ -721,6 +721,8 @@ import {
   hasAvailableFontFormat,
   layerGeometryToPixels,
   pixelRectToLayerGeometry,
+  resolveLocalizedInput,
+  type ChoiceOption,
   type CustomizationLayer,
   type CustomizationTemplate,
   type ImageShapeEditorLayer,

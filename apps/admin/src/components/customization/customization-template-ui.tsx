@@ -1,9 +1,6 @@
 import { type BackgroundAsset, type ShapeType, vectorPointsToSvgPathD, type CustomizationLayer, FONT_FILES } from "@trophy/customization";
-import * as pdfjsLib from "pdfjs-dist";
-import pdfjsWorkerUrl from "pdfjs-dist/build/pdf.worker?url";
 import { useMemo } from "react";
-
-pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl;
+import { renderPdfBufferToDataUrl } from "../../lib/pdf-preview";
 
 export type RailTab = "blocks" | "layers" | "form" | "background";
 
@@ -82,27 +79,18 @@ export async function fileToBackground(file: File): Promise<BackgroundAsset> {
   if (file.type === "application/pdf") {
     try {
       const arrayBuffer = await file.arrayBuffer();
-      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-      const page = await pdf.getPage(1);
-      const viewport = page.getViewport({ scale: 2.0 });
-      const canvas = document.createElement("canvas");
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) throw new Error("Could not create canvas context");
-      await page.render({ canvasContext: ctx, viewport } as any).promise;
-      const previewUrl = canvas.toDataURL("image/webp", 0.9);
+      const result = await renderPdfBufferToDataUrl(arrayBuffer, 2.0, "image/webp", 0.9);
       return {
         assetId: createId("background"),
         filename: file.name,
         mimeType: file.type,
-        previewUrl,
-        widthPx: Math.round(viewport.width / 2),
-        heightPx: Math.round(viewport.height / 2),
-        pdfPageCount: pdf.numPages,
+        previewUrl: result.dataUrl,
+        widthPx: Math.round(result.width / 2),
+        heightPx: Math.round(result.height / 2),
+        pdfPageCount: result.numPages,
         pendingPdfUpload: true,
       };
-    } catch (e) {
+    } catch {
       throw new Error("Failed to read PDF file.");
     }
   }

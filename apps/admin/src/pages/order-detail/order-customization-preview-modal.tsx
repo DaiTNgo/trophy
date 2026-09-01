@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import { zipSync } from "fflate";
-import { Download } from "lucide-react";
 import { Button, Container, FocusModal, Heading, Text } from "@medusajs/ui";
 import { ProductCustomizationPreview } from "@trophy/customization-react";
 import {
@@ -67,7 +66,7 @@ export function OrderCustomizationPreviewModal({
 
     const fontNames = new Map<string, string>();
     for (const font of DEFAULT_FONT_FAMILY_OPTIONS) {
-      fontNames.set(font.value, font.label);
+      fontNames.set(font.value, resolveLocalizedInput(font.label));
     }
     for (const font of dynamicFonts) {
       fontNames.set(font.id, font.name);
@@ -92,13 +91,13 @@ export function OrderCustomizationPreviewModal({
         const fontFamilyId =
           sourceLayer?.type === "text"
             ? resolveFont(
-                sourceLayer.text.fontPolicy,
-                fieldValue &&
-                  typeof fieldValue === "object" &&
-                  "text" in fieldValue
-                  ? fieldValue.fontId
-                  : undefined,
-              )
+              sourceLayer.text.fontPolicy,
+              fieldValue &&
+                typeof fieldValue === "object" &&
+                "text" in fieldValue
+                ? fieldValue.fontId
+                : undefined,
+            )
             : layer.fontId;
         const canvasWidth = template.background?.widthPx ?? 900;
         const canvasHeight = template.background?.heightPx ?? 900;
@@ -126,6 +125,7 @@ export function OrderCustomizationPreviewModal({
   const [isDownloadingUploads, setIsDownloadingUploads] = useState(false);
   const [downloadError, setDownloadError] = useState("");
   const [isExportingPreview, setIsExportingPreview] = useState(false);
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [exportError, setExportError] = useState("");
   const orderDesign = useMemo(() => {
     if (!template || !preview) return null;
@@ -136,6 +136,26 @@ export function OrderCustomizationPreviewModal({
       dynamicFonts,
     });
   }, [dynamicFonts, item.id, order.id, preview, template]);
+
+  async function exportPdf() {
+    if (!template || !orderDesign) return;
+    setIsExportingPdf(true);
+    setExportError("");
+    try {
+      const { exportVectorPdfClientSide } = await import("../../lib/pdf-export");
+      const blob = await exportVectorPdfClientSide(template, orderDesign, null);
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `${sanitizeFilenamePart(order.orderNumber)}-item-${item.id}-production.pdf`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      setExportError(error instanceof Error ? error.message : "Failed to export PDF.");
+    } finally {
+      setIsExportingPdf(false);
+    }
+  }
 
   async function exportPreviewImage(format: RasterExportFormat) {
     if (!template || !orderDesign) return;
@@ -197,14 +217,26 @@ export function OrderCustomizationPreviewModal({
     }
   }
 
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
   return (
     <FocusModal
       open={Boolean(item)}
       onOpenChange={(open) => {
-        if (!open) onClose();
+        if (!open && !isFullscreen) onClose();
       }}
     >
-      <FocusModal.Content>
+      <FocusModal.Content
+        onPointerDownOutside={(event) => {
+          if (isFullscreen) event.preventDefault();
+        }}
+        onInteractOutside={(event) => {
+          if (isFullscreen) event.preventDefault();
+        }}
+        onEscapeKeyDown={(event) => {
+          if (isFullscreen) event.preventDefault();
+        }}
+      >
         <FocusModal.Header>
           <div className="flex flex-1 items-center justify-between gap-x-2">
             <FocusModal.Title asChild>
@@ -217,19 +249,28 @@ export function OrderCustomizationPreviewModal({
               <Button
                 variant="secondary"
                 size="small"
-                disabled={!template || !preview || isExportingPreview}
-                isLoading={isExportingPreview}
-                onClick={() => void exportPreviewImage("image/webp")}
+                disabled={!template || !preview || isExportingPdf || isExportingPreview}
+                isLoading={isExportingPdf}
+                onClick={() => void exportPdf()}
               >
-                <Download /> Export WebP
+                Export PDF
               </Button>
               <Button
                 variant="secondary"
                 size="small"
-                disabled={!template || !preview || isExportingPreview}
+                disabled={!template || !preview || isExportingPdf || isExportingPreview}
+                isLoading={isExportingPreview}
+                onClick={() => void exportPreviewImage("image/webp")}
+              >
+                Export WebP
+              </Button>
+              <Button
+                variant="secondary"
+                size="small"
+                disabled={!template || !preview || isExportingPdf || isExportingPreview}
                 onClick={() => void exportPreviewImage("image/png")}
               >
-                <Download /> Export PNG
+                Export PNG
               </Button>
               {item.productionStatus === "pending_review" ? (
                 <Button
@@ -283,6 +324,7 @@ export function OrderCustomizationPreviewModal({
                   dynamicFonts={dynamicFonts}
                   readOnly
                   selectedVariantId={item.variant?.id ?? null}
+                  onFullscreenChange={setIsFullscreen}
                   resolveFontUrl={(assetId) =>
                     `${import.meta.env.VITE_BACKEND_URL ?? "http://localhost:8787"}/api/storefront/brand-assets/fonts/file/${assetId}`
                   }
@@ -374,7 +416,7 @@ export function OrderCustomizationPreviewModal({
                               {spec.name}
                             </Text>
                             {spec.fieldLabel &&
-                            spec.fieldLabel !== spec.name ? (
+                              spec.fieldLabel !== spec.name ? (
                               <Text size="xsmall" className="text-ui-fg-subtle">
                                 Field: {spec.fieldLabel}
                               </Text>

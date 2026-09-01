@@ -1,5 +1,6 @@
 import {
   getImageShapeClipartCategoryMode,
+  resolveLocalizedInput,
   type ClipartFieldValue,
   type CustomizationFieldValue,
   type ImageShapeFieldValue,
@@ -12,6 +13,7 @@ import type { ResolveCustomizationAssetUrl } from "./index";
 export function ImageField({
   layer,
   value,
+  locale,
   uploading,
   resolveAssetUrl,
   onChange,
@@ -20,6 +22,7 @@ export function ImageField({
 }: {
   layer: ImageShapeEditorLayer | null;
   value: CustomizationFieldValue | undefined;
+  locale?: string;
   uploading: boolean;
   resolveAssetUrl?: ResolveCustomizationAssetUrl;
   onChange: (value: ImageShapeFieldValue | ClipartFieldValue | null) => void;
@@ -176,14 +179,14 @@ export function ImageField({
           >
             {scopedClipartCategories.map((category) => (
               <option key={category.id} value={category.id}>
-                {category.name}
+                {resolveLocalizedInput(category.name, locale)}
               </option>
             ))}
           </select>
         </div>
       ) : clipartCategoryMode === "fixed" && layer?.clipartCategory?.name ? (
         <p className="text-xs font-semibold text-on-surface-variant">
-          {layer.clipartCategory.name}
+          {resolveLocalizedInput(layer.clipartCategory.name, locale)}
         </p>
       ) : null}
       {/* Dense 6-col icon grid */}
@@ -193,16 +196,17 @@ export function ImageField({
             clipartValue &&
             "clipartAssetId" in clipartValue &&
             clipartValue.clipartAssetId === clipart.id;
+          const clipartName = resolveLocalizedInput(clipart.name, locale);
           return (
             <button
               key={clipart.id}
               type="button"
-              title={clipart.name}
+              title={clipartName}
               onClick={() =>
                 onChange({
                   source: "clipart",
                   clipartAssetId: clipart.id,
-                  clipartAssetName: clipart.name,
+                  clipartAssetName: clipartName,
                   sourceAssetId: clipart.sourceAssetId,
                   previewUrl: clipart.previewUrl,
                   mimeType: clipart.mimeType,
@@ -221,7 +225,7 @@ export function ImageField({
                 src={
                   resolveAssetUrl?.(clipart.previewUrl) ?? clipart.previewUrl
                 }
-                alt={clipart.name}
+                alt={clipartName}
                 className="h-10 w-10 object-contain"
               />
             </button>
@@ -260,7 +264,10 @@ export function ImageField({
                   onChange({
                     source: "clipart",
                     clipartAssetId: clipart.id,
-                    clipartAssetName: clipart.name,
+                    clipartAssetName: resolveLocalizedInput(
+                      clipart.name,
+                      locale,
+                    ),
                     sourceAssetId: clipart.sourceAssetId,
                     previewUrl: clipart.previewUrl,
                     mimeType: clipart.mimeType,

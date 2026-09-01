@@ -1,5 +1,6 @@
 import {
   FONT_FILES,
+  resolveFontVariant,
   type DynamicFontFamily,
   type RuntimeLayer,
 } from "@trophy/customization";
@@ -105,11 +106,28 @@ export const FontLoader = memo(function FontLoader({
       : Array.from(
           new Set(
             layers
-              .filter(
-                (layer): layer is Extract<RuntimeLayer, { type: "text" }> =>
-                  layer.type === "text" && !!layer.fontId,
-              )
-              .map((layer) => layer.fontId),
+              .flatMap((layer) => {
+                if (layer.type !== "text") return [];
+                if ("fontId" in layer && typeof layer.fontId === "string" && layer.fontId) {
+                  return [layer.fontId];
+                }
+                const fontPolicy = (layer as any).text?.fontPolicy;
+                if (!fontPolicy) return [];
+                const families =
+                  fontPolicy.mode === "fixed"
+                    ? [fontPolicy.fontId]
+                    : [
+                        fontPolicy.defaultFontId,
+                        ...fontPolicy.options.map((option: any) => option.value),
+                      ];
+                return families.flatMap((fontFamily: string) => [
+                  resolveFontVariant(fontFamily, false, false, dynamicFonts),
+                  resolveFontVariant(fontFamily, true, false, dynamicFonts),
+                  resolveFontVariant(fontFamily, false, true, dynamicFonts),
+                  resolveFontVariant(fontFamily, true, true, dynamicFonts),
+                ]);
+              })
+              .filter(Boolean),
           ),
         );
   const dynamicFontAssetIds = new Set(

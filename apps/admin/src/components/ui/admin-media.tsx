@@ -1,10 +1,7 @@
 import { useState, useEffect } from "react";
-import * as pdfjsLib from "pdfjs-dist";
 import { backendFetch } from "../../lib/fetch";
-import pdfjsWorkerUrl from "pdfjs-dist/build/pdf.worker?url";
+import { renderPdfBufferToDataUrl } from "../../lib/pdf-preview";
 import { Package, FileText } from "lucide-react";
-
-pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl;
 
 export type AdminMediaProps = {
   src?: string;
@@ -64,26 +61,9 @@ export function AdminMedia({ src, mimeType, className = "", fallback, alt = "Med
           const arrayBuffer = await blob.arrayBuffer();
           if (isCancelled) return;
 
-          const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
-          const pdfDocument = await loadingTask.promise;
-          if (isCancelled) return;
-
-          if (pdfDocument.numPages > 0) {
-            const page = await pdfDocument.getPage(1);
-            if (isCancelled) return;
-
-            const viewport = page.getViewport({ scale: 1.0 });
-            const canvas = document.createElement("canvas");
-            canvas.width = viewport.width;
-            canvas.height = viewport.height;
-            const ctx = canvas.getContext("2d");
-
-            if (ctx) {
-              await page.render({ canvasContext: ctx, viewport } as any).promise;
-              if (!isCancelled) {
-                setDataUrl(canvas.toDataURL("image/webp", 0.9));
-              }
-            }
+          const result = await renderPdfBufferToDataUrl(arrayBuffer, 1.0, "image/webp", 0.9);
+          if (!isCancelled) {
+            setDataUrl(result.dataUrl);
           }
         } catch (e) {
           console.error("Failed to render PDF preview", e);

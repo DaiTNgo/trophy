@@ -1,10 +1,7 @@
 import { useEffect, useState } from "react";
-import * as pdfjsLib from "pdfjs-dist";
 import { backendFetch } from "../../lib/fetch";
-import pdfjsWorkerUrl from "pdfjs-dist/build/pdf.worker?url";
+import { renderPdfBufferToDataUrl } from "../../lib/pdf-preview";
 import { Package, FileText } from "lucide-react";
-
-pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl;
 
 export type MediaPreviewProps = {
   /**
@@ -154,22 +151,9 @@ function UrlPreview({
           const buffer = await res.blob().then((b) => b.arrayBuffer());
           if (isCancelled) return;
 
-          const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
-          if (isCancelled) return;
-
-          if (pdf.numPages > 0) {
-            const page = await pdf.getPage(1);
-            if (isCancelled) return;
-
-            const viewport = page.getViewport({ scale: 1.0 });
-            const canvas = document.createElement("canvas");
-            canvas.width = viewport.width;
-            canvas.height = viewport.height;
-            const ctx = canvas.getContext("2d");
-            if (ctx) {
-              await page.render({ canvasContext: ctx, viewport } as any).promise;
-              if (!isCancelled) setDataUrl(canvas.toDataURL("image/webp", 0.9));
-            }
+          const result = await renderPdfBufferToDataUrl(buffer, 1.0, "image/webp", 0.9);
+          if (!isCancelled) {
+            setDataUrl(result.dataUrl);
           }
         } catch {
           if (!isCancelled) setError(true);

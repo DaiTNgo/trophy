@@ -355,7 +355,6 @@ function FormFieldLocalizedInputs({
         onChange={(value) =>
           onUpdateField(field.id, (current) => ({ ...current, label: value }))
         }
-        requiredLocales={["vi", "en"]}
       />
       <LocalizedTextField
         id={`form-field-placeholder-${field.id}`}

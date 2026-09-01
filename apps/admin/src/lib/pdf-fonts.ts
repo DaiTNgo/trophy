@@ -1,16 +1,18 @@
-
-// ─── font file map ────────────────────────────────────────────────────────────
-// Admin-managed: users select from pre-approved fonts; no custom uploads.
+import { FONT_FILES } from "@trophy/customization";
 
 export const fontFiles: Record<string, string> = {
+  ...FONT_FILES,
+  "sans": "SansBold.ttf",
   "sans-regular": "SansBold.ttf",
   "sans-bold": "SansBold.ttf",
   "sans-italic": "SansBold.ttf",
   "sans-bold-italic": "SansBold.ttf",
+  "serif": "SerifDisplay.ttf",
   "serif-regular": "SerifDisplay.ttf",
   "serif-bold": "SerifDisplay.ttf",
   "serif-italic": "SerifDisplay.ttf",
   "serif-bold-italic": "SerifDisplay.ttf",
+  "script": "ScriptElegant.ttf",
   "script-regular": "ScriptElegant.ttf",
   "script-bold": "ScriptElegant.ttf",
   "script-italic": "ScriptElegant.ttf",
@@ -23,7 +25,7 @@ const fontBytesCache = new Map<string, Uint8Array>();
 
 export async function loadFontBytes(variantId: string): Promise<Uint8Array | null> {
   if (fontBytesCache.has(variantId)) return fontBytesCache.get(variantId)!;
-  const filename = fontFiles[variantId];
+  const filename = fontFiles[variantId] ?? FONT_FILES[variantId];
   const backendUrl = import.meta.env.VITE_BACKEND_URL ?? "http://localhost:8787";
   
   // If filename exists in fontFiles, it's a static font.
@@ -32,7 +34,11 @@ export async function loadFontBytes(variantId: string): Promise<Uint8Array | nul
     ? `${backendUrl}/fonts/${filename}`
     : `${backendUrl}/api/admin/brand-assets/fonts/file/${variantId}`;
     
-  const response = await fetch(url).catch(() => null);
+  let response = await fetch(url).catch(() => null);
+  if (!response?.ok && !filename) {
+    // Fallback to storefront font asset route if admin route returns 404
+    response = await fetch(`${backendUrl}/api/storefront/brand-assets/fonts/file/${variantId}`).catch(() => null);
+  }
   if (!response?.ok) return null;
   const bytes = new Uint8Array(await response.arrayBuffer());
   fontBytesCache.set(variantId, bytes);

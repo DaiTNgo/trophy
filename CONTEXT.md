@@ -73,7 +73,7 @@ Shopper-facing catalog text that can have Vietnamese and English values, such as
 _Avoid_: translated product record, language-specific product
 
 **Catalog Translation Completeness**:
-The readiness state describing whether localized catalog content satisfies the field-specific publish rules. Product title requires Vietnamese (`vi`) only; English (`en`) product title is optional. Product subtitle and description are optional in both locales and do not block draft or publish. Other shopper-facing localized fields may require both Vietnamese and English when their active feature spec says so. Completeness affects admin warnings and publish readiness, but it does not create separate products, variants, or prices.
+The readiness state describing whether localized catalog content satisfies the field-specific publish rules. Product title requires Vietnamese (`vi`) only; English (`en`) product title is optional. Product subtitle and description are optional in both locales and do not block draft or publish. Customization form field labels require at least one locale (`vi` or `en`), while customization form field placeholders and help texts are optional in both locales. Other shopper-facing localized fields may require both Vietnamese and English when their active feature spec says so. Completeness affects admin warnings and publish readiness, but it does not create separate products, variants, or prices.
 _Avoid_: market readiness, currency readiness
 
 **Canonical Catalog Identity**:
@@ -220,6 +220,11 @@ _Avoid_: whole category selection, global icon library, shopper icon search
 **Customization Template**:
 The admin-defined configuration for a customizable product, including editable layers, form fields, and visual placement rules. Its background choices come from the variants' independently stored Customization Media rather than from Gallery Media.
 _Avoid_: customization config, editor setup
+
+**Customization Shape Clipping**:
+The unified geometric masking applied to an Image Shape Layer across storefront preview, admin preview, and raster/PDF production export. Predefined shapes (`rectangle`, `circle`, `rounded_rectangle`, `star`, `heart`, `ellipse`) and custom `vector` shapes clip the user-uploaded or clipart asset to their exact geometric boundary, with `circle` producing an elliptical/circular clip and `rounded_rectangle` producing consistent rounded corners scaled to the layer frame (`radius = Math.min(w, h) * 0.12`).
+_Avoid_: unclipped preview image, rectangular-only image frame
+
 
 **Embedded Product Customization**:
 A customization template edited inside the product creation flow and saved through the product's lifecycle rather than through a separate template draft or publish workflow. It stores customization rules, not separate background assets.
