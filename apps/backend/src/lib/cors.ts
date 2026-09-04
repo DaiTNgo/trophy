@@ -139,12 +139,12 @@ function buildCorsHeaders(
 export function createCorsMiddleware(policy: CorsPolicy) {
   return async (c: Context<AppEnv>, next: Next) => {
     const requestOrigin = c.req.header("origin");
-    if (!requestOrigin) {
+    if (!requestOrigin && !policy.allowAnyOrigin) {
       return next();
     }
 
     const allowedOrigins = getAppCorsOrigins(c.env);
-    if (!policy.allowAnyOrigin && !allowedOrigins.includes(requestOrigin)) {
+    if (!policy.allowAnyOrigin && !allowedOrigins.includes(requestOrigin!)) {
       return c.body(null, 403);
     }
 
@@ -160,10 +160,14 @@ export function createCorsMiddleware(policy: CorsPolicy) {
       return new Response(null, { status: 204, headers });
     }
 
-    await next();
-
-    headers.forEach((value, key) => {
-      c.header(key, value);
-    });
+    try {
+      await next();
+    } finally {
+      const res = new Response(c.res.body, c.res);
+      headers.forEach((value, key) => {
+        res.headers.set(key, value);
+      });
+      c.res = res;
+    }
   };
 }
