@@ -196,6 +196,7 @@ export function OrderCustomizationPreviewModal({
   }
 
   // oxlint-disable-next-line no-unused-vars
+  // @ts-ignore
   async function exportPreviewImage(format: RasterExportFormat) {
     if (!template || !orderDesign) return;
     setIsExportingPreview(true);

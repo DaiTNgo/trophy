@@ -16,12 +16,10 @@ import {
   PDFDocument,
   pushGraphicsState,
   popGraphicsState,
-  clip,
   moveTo,
   lineTo,
   appendBezierCurve,
   closePath,
-  endPath,
   concatTransformationMatrix,
   rgb,
 } from "pdf-lib";
@@ -30,6 +28,7 @@ import { layerGeometryToPixels, getTextPathRenderAttributes, getTextPathSvgD } f
 import type { CustomizationDesign, CustomizationTemplate, VectorPath } from "@trophy/customization";
 import { loadFontBytes } from "./pdf-fonts";
 import { drawStraightText } from "./pdf-text-straight";
+import { backendFetch, BACKEND_URL } from "./fetch";
 
 // ─── image loading ────────────────────────────────────────────────────────────
 
@@ -53,7 +52,8 @@ const readImageBytes = async (url: string | File) => {
   }
   const dataUrl = parseDataUrl(url);
   if (dataUrl) return dataUrl;
-  const response = await fetch(url).catch(() => null);
+  const isExternal = url.startsWith("blob:") || url.startsWith("data:") || (url.startsWith("http") && !url.startsWith(BACKEND_URL));
+  const response = await (isExternal ? fetch(url) : backendFetch(url)).catch(() => null);
   if (!response?.ok) return null;
   const mimeType = response.headers.get("content-type")?.split(";")[0] ?? "";
   if (
@@ -494,7 +494,7 @@ const parseSvgVectorDocument = (bytes: Uint8Array): ParsedSvgVectorDocument | nu
   };
 };
 
-const drawSvgVectorImage = ({
+export const drawSvgVectorImage = ({
   page,
   source,
   imgX,
@@ -565,7 +565,7 @@ function freeCropOffset(value?: number) {
  * Returns image position & size relative to the frame (top-left = 0,0).
  * Matches `getFreeImageRect` in the preview component exactly.
  */
-function getFreeImageRect({
+export function getFreeImageRect({
   sourceWidthPx,
   sourceHeightPx,
   frameWidthPx,
@@ -609,7 +609,7 @@ function getFreeImageRect({
 // ─── clipping path operators ───────────────────────────────────────────────────
 // (x, y) = bottom-left of frame in PDF bottom-up coordinates.
 
-function addClipShapeOperators(
+export function addClipShapeOperators(
   page: ReturnType<PDFDocument["addPage"]>,
   shape: string,
   x: number,
@@ -737,7 +737,11 @@ export const exportVectorPdfClientSide = async (
       template.background.previewUrl.toLowerCase().endsWith(".pdf");
 
     if (isPdfBg) {
-      const response = await fetch(template.background.previewUrl).catch(() => null);
+      const pdfUrl = template.background.pdfAssetId
+        ? `/api/assets/customizations/${template.background.pdfAssetId}/content`
+        : template.background.previewUrl;
+      const isExternal = pdfUrl.startsWith("blob:") || pdfUrl.startsWith("data:") || (pdfUrl.startsWith("http") && !pdfUrl.startsWith(BACKEND_URL));
+      const response = await (isExternal ? fetch(pdfUrl) : backendFetch(pdfUrl)).catch(() => null);
       if (response?.ok) {
         const bgBytes = await response.arrayBuffer();
         const bgPdf = await PDFDocument.load(bgBytes, { ignoreEncryption: true });
