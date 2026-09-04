@@ -158,7 +158,7 @@ export type ImageShapeEditorLayer = LayerBase & {
     vectorPath?: VectorPath;
   };
   upload: {
-    fit: "cover";
+    fit: "cover" | "contain";
     defaultCrop?: ImageCrop;
   };
   sourcePolicy?: ImageClipartSourcePolicy;
@@ -291,6 +291,7 @@ export type RuntimeImageShapeLayer = {
   cropYRatio: number;
   cropRotationDeg: number;
   zIndex: number;
+  fit?: "cover" | "contain";
   contentSource?: "upload" | "clipart";
   clipartAssetId?: string;
   clipartAssetName?: string;

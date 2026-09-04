@@ -573,6 +573,7 @@ function getFreeImageRect({
   cropScale,
   cropXRatio,
   cropYRatio,
+  fit,
 }: {
   sourceWidthPx: number;
   sourceHeightPx: number;
@@ -581,19 +582,24 @@ function getFreeImageRect({
   cropScale?: number;
   cropXRatio?: number;
   cropYRatio?: number;
+  fit?: "cover" | "contain";
 }) {
   const safeSourceW = Math.max(1, sourceWidthPx);
   const safeSourceH = Math.max(1, sourceHeightPx);
-  const safeFrameW  = Math.max(1, frameWidthPx);
-  const safeFrameH  = Math.max(1, frameHeightPx);
-  const baseCoverScale = Math.max(safeFrameW / safeSourceW, safeFrameH / safeSourceH);
-  const scale  = freeImageScale(cropScale);
-  const widthPx  = safeSourceW * baseCoverScale * scale;
-  const heightPx = safeSourceH * baseCoverScale * scale;
+  const safeFrameW = Math.max(1, frameWidthPx);
+  const safeFrameH = Math.max(1, frameHeightPx);
+
+  const baseScale = fit === "contain"
+    ? Math.min(safeFrameW / safeSourceW, safeFrameH / safeSourceH)
+    : Math.max(safeFrameW / safeSourceW, safeFrameH / safeSourceH);
+
+  const scale = freeImageScale(cropScale);
+  const widthPx = safeSourceW * baseScale * scale;
+  const heightPx = safeSourceH * baseScale * scale;
   const centerXPx = safeFrameW / 2 + freeCropOffset(cropXRatio) * safeFrameW;
   const centerYPx = safeFrameH / 2 + freeCropOffset(cropYRatio) * safeFrameH;
   return {
-    xPx: centerXPx - widthPx  / 2,
+    xPx: centerXPx - widthPx / 2,
     yPx: centerYPx - heightPx / 2,
     widthPx,
     heightPx,
@@ -648,33 +654,33 @@ function addClipShapeOperators(
       const px = x + pts[i]![0] * width;
       const py = y + (1 - pts[i]![1]) * height; // bottom-up
       if (i === 0) page.pushOperators(moveTo(px, py));
-      else         page.pushOperators(lineTo(px, py));
+      else page.pushOperators(lineTo(px, py));
     }
     page.pushOperators(closePath());
   } else if (shape === "heart") {
     const tx = (rx: number) => x + rx * width;
     const ty = (ry: number) => y + (1 - ry) * height;
     page.pushOperators(moveTo(tx(0.5), ty(0.85)));
-    page.pushOperators(appendBezierCurve(tx(0.1), ty(0.55), tx(0),   ty(0.25), tx(0.25), ty(0.12)));
-    page.pushOperators(appendBezierCurve(tx(0.4), ty(0),    tx(0.5), ty(0.16), tx(0.5),  ty(0.28)));
-    page.pushOperators(appendBezierCurve(tx(0.5), ty(0.16), tx(0.6), ty(0),    tx(0.75), ty(0.12)));
-    page.pushOperators(appendBezierCurve(tx(1),   ty(0.25), tx(0.9), ty(0.55), tx(0.5),  ty(0.85)));
+    page.pushOperators(appendBezierCurve(tx(0.1), ty(0.55), tx(0), ty(0.25), tx(0.25), ty(0.12)));
+    page.pushOperators(appendBezierCurve(tx(0.4), ty(0), tx(0.5), ty(0.16), tx(0.5), ty(0.28)));
+    page.pushOperators(appendBezierCurve(tx(0.5), ty(0.16), tx(0.6), ty(0), tx(0.75), ty(0.12)));
+    page.pushOperators(appendBezierCurve(tx(1), ty(0.25), tx(0.9), ty(0.55), tx(0.5), ty(0.85)));
     page.pushOperators(closePath());
   } else if (shape === "vector" && vectorPath && vectorPath.points.length > 0) {
     for (let i = 0; i < vectorPath.points.length; i++) {
-      const pt  = vectorPath.points[i]!;
-      const px  = x + pt.xRatio * width;
-      const py  = y + (1 - pt.yRatio) * height;
+      const pt = vectorPath.points[i]!;
+      const px = x + pt.xRatio * width;
+      const py = y + (1 - pt.yRatio) * height;
       if (i === 0) {
         page.pushOperators(moveTo(px, py));
       } else {
         const prev = vectorPath.points[i - 1]!;
-        const ppx  = x + prev.xRatio * width;
-        const ppy  = y + (1 - prev.yRatio) * height;
-        const c1x  = ppx + (prev.outHandle?.xRatio ?? 0) * width;
-        const c1y  = ppy - (prev.outHandle?.yRatio ?? 0) * height;
-        const c2x  = px  + (pt.inHandle?.xRatio ?? 0) * width;
-        const c2y  = py  - (pt.inHandle?.yRatio ?? 0) * height;
+        const ppx = x + prev.xRatio * width;
+        const ppy = y + (1 - prev.yRatio) * height;
+        const c1x = ppx + (prev.outHandle?.xRatio ?? 0) * width;
+        const c1y = ppy - (prev.outHandle?.yRatio ?? 0) * height;
+        const c2x = px + (pt.inHandle?.xRatio ?? 0) * width;
+        const c2y = py - (pt.inHandle?.yRatio ?? 0) * height;
         page.pushOperators(appendBezierCurve(c1x, c1y, c2x, c2y, px, py));
       }
     }
@@ -710,7 +716,7 @@ export const exportVectorPdfClientSide = async (
     return embedded;
   };
 
-  const designWidth  = template.background?.widthPx  ?? 900;
+  const designWidth = template.background?.widthPx ?? 900;
   const designHeight = template.background?.heightPx ?? 900;
 
   // ── background ──────────────────────────────────────────────────────────────
@@ -718,7 +724,7 @@ export const exportVectorPdfClientSide = async (
 
   if (pendingPdfFile) {
     const bgBytes = await pendingPdfFile.arrayBuffer();
-    const bgPdf   = await PDFDocument.load(bgBytes, { ignoreEncryption: true });
+    const bgPdf = await PDFDocument.load(bgBytes, { ignoreEncryption: true });
     if (bgPdf.getPageCount() > 0) {
       const [embeddedPage] = await pdf.embedPages([bgPdf.getPages()[0]!]);
       pdf.removePage(0);
@@ -765,79 +771,86 @@ export const exportVectorPdfClientSide = async (
 
     // ── image_shape ────────────────────────────────────────────────────────────
     if (layer.type === "image_shape") {
-      const source = await readImageBytes(layer.previewUrl);
-      if (!source) continue;
-
-      const rect    = layerGeometryToPixels({ geometry: layer.geometry, background });
-      const frameW  = rect.widthPx;
-      const frameH  = rect.heightPx;
-      const frameCx = rect.centerXPx;
-      const frameCy = pageHeight - rect.centerYPx; // PDF bottom-up
-      const frameX  = frameCx - frameW / 2;
-      const frameY  = frameCy - frameH / 2;
-
-      const imgRect = getFreeImageRect({
-        sourceWidthPx: layer.sourceWidthPx,
-        sourceHeightPx: layer.sourceHeightPx,
-        frameWidthPx: frameW,
-        frameHeightPx: frameH,
-        cropScale: layer.cropScale,
-        cropXRatio: layer.cropXRatio,
-        cropYRatio: layer.cropYRatio,
-      });
-
-      const imgX = (frameCx - frameW / 2) + imgRect.xPx;
-      const imgY = (frameCy + frameH / 2) - imgRect.yPx - imgRect.heightPx;
-
-      const rotDeg = layer.geometry.rotationDeg;
-      page.pushOperators(pushGraphicsState());
-
-      if (rotDeg !== 0) {
-        const rad  = (-rotDeg * Math.PI) / 180;
-        const cosR = Math.cos(rad);
-        const sinR = Math.sin(rad);
-        page.pushOperators(concatTransformationMatrix(
-          cosR, sinR, -sinR, cosR,
-          frameCx * (1 - cosR) + frameCy * sinR,
-          frameCy * (1 - cosR) - frameCx * sinR
-        ));
-      }
-
-      addClipShapeOperators(page, layer.shape.type, frameX, frameY, frameW, frameH, layer.shape.vectorPath);
-      page.pushOperators(clip());
-      page.pushOperators(endPath());
-
-      const drewVectorSvg = drawSvgVectorImage({
-        page,
-        source,
-        imgX,
-        imgY,
-        imgWidth: imgRect.widthPx,
-        imgHeight: imgRect.heightPx,
-      });
-
-      if (!drewVectorSvg) {
-        const image = await embedPdfImage({
-          pdf,
-          source,
-          widthPx: layer.sourceWidthPx,
-          heightPx: layer.sourceHeightPx,
-        });
-        page.drawImage(image, { x: imgX, y: imgY, width: imgRect.widthPx, height: imgRect.heightPx });
-      }
-
-      page.pushOperators(popGraphicsState());
+      // not ready yet
+      // @TODO
       continue;
+      // const source = await readImageBytes(layer.previewUrl);
+      // if (!source) continue;
+
+      // const rect = layerGeometryToPixels({ geometry: layer.geometry, background });
+      // const frameW = rect.widthPx;
+      // const frameH = rect.heightPx;
+      // const frameCx = rect.centerXPx;
+      // const frameCy = pageHeight - rect.centerYPx; // PDF bottom-up
+      // const frameX = frameCx - frameW / 2;
+      // const frameY = frameCy - frameH / 2;
+
+      // const sourceLayer = template.layers.find((l) => l.id === layer.layerId);
+      // const fit = sourceLayer?.type === "image_shape" ? sourceLayer.upload.fit : "cover";
+
+      // const imgRect = getFreeImageRect({
+      //   sourceWidthPx: layer.sourceWidthPx,
+      //   sourceHeightPx: layer.sourceHeightPx,
+      //   frameWidthPx: frameW,
+      //   frameHeightPx: frameH,
+      //   cropScale: layer.cropScale,
+      //   cropXRatio: layer.cropXRatio,
+      //   cropYRatio: layer.cropYRatio,
+      //   fit,
+      // });
+
+      // const imgX = (frameCx - frameW / 2) + imgRect.xPx;
+      // const imgY = (frameCy + frameH / 2) - imgRect.yPx - imgRect.heightPx;
+
+      // const rotDeg = layer.geometry.rotationDeg;
+      // page.pushOperators(pushGraphicsState());
+
+      // if (rotDeg !== 0) {
+      //   const rad = (-rotDeg * Math.PI) / 180;
+      //   const cosR = Math.cos(rad);
+      //   const sinR = Math.sin(rad);
+      //   page.pushOperators(concatTransformationMatrix(
+      //     cosR, sinR, -sinR, cosR,
+      //     frameCx * (1 - cosR) + frameCy * sinR,
+      //     frameCy * (1 - cosR) - frameCx * sinR
+      //   ));
+      // }
+
+      // addClipShapeOperators(page, layer.shape.type, frameX, frameY, frameW, frameH, layer.shape.vectorPath);
+      // page.pushOperators(clip());
+      // page.pushOperators(endPath());
+
+      // const drewVectorSvg = drawSvgVectorImage({
+      //   page,
+      //   source,
+      //   imgX,
+      //   imgY,
+      //   imgWidth: imgRect.widthPx,
+      //   imgHeight: imgRect.heightPx,
+      // });
+
+      // if (!drewVectorSvg) {
+      //   const image = await embedPdfImage({
+      //     pdf,
+      //     source,
+      //     widthPx: layer.sourceWidthPx,
+      //     heightPx: layer.sourceHeightPx,
+      //   });
+      //   page.drawImage(image, { x: imgX, y: imgY, width: imgRect.widthPx, height: imgRect.heightPx });
+      // }
+
+      // page.pushOperators(popGraphicsState());
+      // continue;
     }
 
     // ── text ───────────────────────────────────────────────────────────────────
     if (layer.type === "text") {
       if (!layer.text.trim()) continue;
 
-      const rect   = layerGeometryToPixels({ geometry: layer.geometry, background });
+      const rect = layerGeometryToPixels({ geometry: layer.geometry, background });
       const frameW = rect.widthPx;
 
-      const textLineH  = layer.fontSizePt * 1.35;
+      const textLineH = layer.fontSizePt * 1.35;
       const closedPath = layer.path.type === "closed_ellipse";
       const frameH = closedPath
         ? Math.max(1, (layer.geometry.heightRatio ?? layer.geometry.widthRatio) * designHeight)
@@ -847,13 +860,13 @@ export const exportVectorPdfClientSide = async (
       const frameCy = pageHeight - rect.centerYPx; // PDF bottom-up center
 
       // For rendering, frame top-left in PDF coords:
-      const frameX    = frameCx - frameW / 2;
+      const frameX = frameCx - frameW / 2;
       const frameTopY = frameCy + frameH / 2; // top edge in PDF (bottom-up) = center + half height
 
       const rotDeg = layer.geometry.rotationDeg;
       if (rotDeg !== 0) {
         page.pushOperators(pushGraphicsState());
-        const rad  = (-rotDeg * Math.PI) / 180;
+        const rad = (-rotDeg * Math.PI) / 180;
         const cosR = Math.cos(rad);
         const sinR = Math.sin(rad);
         page.pushOperators(concatTransformationMatrix(
@@ -919,12 +932,17 @@ export const exportVectorPdfClientSide = async (
           fontStyle = `<style>@font-face{font-family:${JSON.stringify(layer.fontId)};src:url("data:font/ttf;base64,${b64}") format('truetype');}</style>`;
         }
 
-        const textSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="${frameW}" height="${frameH}" viewBox="0 0 ${frameW} ${frameH}">${fontStyle}<defs><path id="${pathId}" d="${pathD}" /></defs><text fill="${layer.color}" font-family="${layer.fontId}" font-size="${layer.fontSizePt}" font-weight="${layer.isBold ? 700 : 400}" font-style="${layer.isItalic ? "italic" : "normal"}" text-anchor="${pathAttrs.textAnchor}" dominant-baseline="middle"${tlAttr}${wsAttr}><textPath href="#${pathId}" startOffset="${pathAttrs.startOffset}"${dyAttr}>${escText}</textPath></text></svg>`;
+        // Add padding to prevent clipping of glyphs that extend beyond the path bounds
+        const pad = layer.fontSizePt * 2;
+        const svgW = frameW + pad * 2;
+        const svgH = frameH + pad * 2;
+
+        const textSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="${svgW}" height="${svgH}" viewBox="${-pad} ${-pad} ${svgW} ${svgH}">${fontStyle}<defs><path id="${pathId}" d="${pathD}" /></defs><text fill="${layer.color}" font-family="${layer.fontId}" font-size="${layer.fontSizePt}" font-weight="${layer.isBold ? 700 : 400}" font-style="${layer.isItalic ? "italic" : "normal"}" text-anchor="${pathAttrs.textAnchor}" dominant-baseline="middle"${tlAttr}${wsAttr}><textPath href="#${pathId}" startOffset="${pathAttrs.startOffset}"${dyAttr}>${escText}</textPath></text></svg>`;
 
         // Rasterize at 4× resolution for sharp text
         const rasterScale = 4;
-        const rasterW = Math.round(frameW * rasterScale);
-        const rasterH = Math.round(frameH * rasterScale);
+        const rasterW = Math.round(svgW * rasterScale);
+        const rasterH = Math.round(svgH * rasterScale);
         const svgBlob = new Blob([textSvg], { type: "image/svg+xml" });
         const svgUrl = URL.createObjectURL(svgBlob);
         try {
@@ -944,10 +962,10 @@ export const exportVectorPdfClientSide = async (
             const pngData = parseDataUrl(pngDataUrl);
             if (pngData) {
               const pdfImage = await pdf.embedPng(pngData.bytes);
-              // Draw at the frame position in PDF bottom-up coordinates.
-              const drawX = frameX;
-              const drawY = frameCy - frameH / 2; // bottom edge in PDF coords
-              page.drawImage(pdfImage, { x: drawX, y: drawY, width: frameW, height: frameH });
+              // Draw at the frame position in PDF bottom-up coordinates, adjusted for padding.
+              const drawX = frameX - pad;
+              const drawY = frameCy - frameH / 2 - pad; // bottom edge in PDF coords minus padding
+              page.drawImage(pdfImage, { x: drawX, y: drawY, width: svgW, height: svgH });
             }
           }
         } finally {

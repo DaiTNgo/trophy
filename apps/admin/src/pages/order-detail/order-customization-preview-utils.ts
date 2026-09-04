@@ -55,6 +55,7 @@ export function extensionFromContentType(contentType: string) {
   if (contentType.includes("webp")) return "webp";
   if (contentType.includes("gif")) return "gif";
   if (contentType.includes("svg")) return "svg";
+  if (contentType.includes("pdf")) return "pdf";
   return "bin";
 }
 
@@ -84,12 +85,13 @@ export function getUploadedImageEntries(item: OrderDetailItem) {
         fieldId,
         label: labelsByFieldId.get(fieldId) ?? fieldId,
         previewUrl: value.previewUrl,
+        assetId: value.assetId,
       };
     })
     .filter(
       (
         entry,
-      ): entry is { fieldId: string; label: string; previewUrl: string } =>
+      ): entry is { fieldId: string; label: string; previewUrl: string; assetId: string } =>
         entry !== null,
     );
 }

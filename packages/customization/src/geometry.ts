@@ -14,10 +14,10 @@ export const layerGeometryToPixels = ({
   geometry: LayerGeometry;
   background: Pick<BackgroundAsset, "widthPx" | "heightPx">;
 }) => {
-  const widthPx = geometry.widthRatio * background.widthPx;
-  const heightPx = (geometry.heightRatio ?? 0) * background.heightPx;
-  const centerXPx = geometry.xRatio * background.widthPx;
-  const centerYPx = geometry.yRatio * background.heightPx;
+  const widthPx = (geometry.widthRatio ?? 1) * background.widthPx;
+  const heightPx = (geometry.heightRatio ?? 1) * background.heightPx;
+  const centerXPx = (geometry.xRatio ?? 0) * background.widthPx;
+  const centerYPx = (geometry.yRatio ?? 0) * background.heightPx;
   return {
     xPx: centerXPx - widthPx / 2,
     yPx: centerYPx - heightPx / 2,

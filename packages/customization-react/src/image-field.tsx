@@ -107,10 +107,10 @@ export function ImageField({
       {!uploaded ? (
         <label className="flex h-20 cursor-pointer items-center justify-center gap-2 rounded border border-dashed border-outline bg-white px-4 text-sm text-on-surface-variant transition hover:border-accent hover:text-accent">
           <ImagePlus className="size-4" />
-          {uploading ? "Uploading..." : "Choose PNG or JPEG"}
+          {uploading ? "Uploading..." : "Choose PNG, JPEG, or PDF"}
           <input
             type="file"
-            accept="image/png,image/jpeg"
+            accept="image/png,image/jpeg,application/pdf"
             disabled={uploading}
             onChange={(event) => {
               const file = event.target.files?.[0];
@@ -125,7 +125,7 @@ export function ImageField({
           <img
             src={resolveAssetUrl?.(uploaded.previewUrl) ?? uploaded.previewUrl}
             alt=""
-            className="h-14 w-14 shrink-0 rounded object-cover"
+            className="h-14 w-14 shrink-0 rounded object-contain"
           />
           <div className="flex flex-1 items-center gap-2">
             <label className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded border border-outline bg-white px-3 text-xs font-semibold text-on-surface transition hover:border-accent">
@@ -133,7 +133,7 @@ export function ImageField({
               Replace
               <input
                 type="file"
-                accept="image/png,image/jpeg"
+                accept="image/png,image/jpeg,application/pdf"
                 disabled={uploading}
                 onChange={(event) => {
                   const file = event.target.files?.[0];

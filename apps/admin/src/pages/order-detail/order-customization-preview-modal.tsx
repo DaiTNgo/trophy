@@ -195,6 +195,7 @@ export function OrderCustomizationPreviewModal({
     }
   }
 
+  // oxlint-disable-next-line no-unused-vars
   async function exportPreviewImage(format: RasterExportFormat) {
     if (!template || !orderDesign) return;
     setIsExportingPreview(true);
@@ -226,8 +227,10 @@ export function OrderCustomizationPreviewModal({
 
     try {
       const zipFiles: Record<string, Uint8Array> = {};
+      const backendUrl = import.meta.env.VITE_BACKEND_URL ?? "http://localhost:8787";
       for (const [index, upload] of uploadedImages.entries()) {
-        const { bytes, extension } = await fetchUploadBytes(upload.previewUrl);
+        const contentUrl = `${backendUrl}/api/assets/customizations/${upload.assetId}/content`;
+        const { bytes, extension } = await fetchUploadBytes(contentUrl);
         const filename = [
           sanitizeFilenamePart(order.orderNumber),
           `item-${item.id}`,
@@ -293,7 +296,7 @@ export function OrderCustomizationPreviewModal({
               >
                 Export PDF
               </Button>
-              <Button
+              {/*<Button
                 variant="secondary"
                 size="small"
                 disabled={!template || !preview || isExportingPdf || isExportingPreview}
@@ -309,7 +312,7 @@ export function OrderCustomizationPreviewModal({
                 onClick={() => void exportPreviewImage("image/png")}
               >
                 Export PNG
-              </Button>
+              </Button>*/}
               {item.productionStatus === "pending_review" ? (
                 <Button
                   variant="primary"
