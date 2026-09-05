@@ -10,17 +10,13 @@
   "hotline_value": "0816 999 296",
   "hotline_desc": "Call directly for quick consultation.",
 
+  "hotline2_label": "Hotline",
+  "hotline2_value": "0901 234 567",
+  "hotline2_desc": "Alternative line when primary is busy.",
+
   "email_label": "Email",
   "email_value": "Lienhe.phungthi@gmail.com",
   "email_desc": "Send details to receive a quote via email.",
-
-  "messenger_label": "Messenger",
-  "messenger_value": "Phùng Thị",
-  "messenger_desc": "Message us directly on Messenger.",
-
-  "zalo_label": "Zalo",
-  "zalo_value": "Zalo OA",
-  "zalo_desc": "Contact us via Zalo for support.",
 
   "product_info_badge": "Product you're viewing",
   "variant_label": "Variant",
