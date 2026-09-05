@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { backendFetch } from "../../lib/fetch";
+import { backendFetch, BACKEND_URL } from "../../lib/fetch";
 import { renderPdfBufferToDataUrl } from "../../lib/pdf-preview";
 import { Package, FileText } from "lucide-react";
 
@@ -137,6 +137,8 @@ function UrlPreview({
       return;
     }
 
+    const resolvedUrl = src.startsWith("/") ? `${BACKEND_URL.replace(/\/$/, "")}${src}` : src;
+
     // PDF
     const isPdf = mimeType === "application/pdf" || src.toLowerCase().endsWith(".pdf");
 
@@ -146,7 +148,8 @@ function UrlPreview({
 
       const load = async () => {
         try {
-          const res = await backendFetch(src);
+          const isAsset = src.startsWith("/api/assets/") || src.includes("/api/assets/");
+          const res = isAsset ? await fetch(resolvedUrl) : await backendFetch(src);
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
           const buffer = await res.blob().then((b) => b.arrayBuffer());
           if (isCancelled) return;
@@ -167,7 +170,7 @@ function UrlPreview({
     }
 
     // Images are public capability URLs. Let the browser load them directly.
-    setDataUrl(src);
+    setDataUrl(resolvedUrl);
     setIsLoadingPdf(false);
   }, [src, mimeType]);
 
@@ -197,7 +200,13 @@ function UrlPreview({
   }
 
   return (
-    <img src={dataUrl} alt={alt} className={className} onError={() => setError(true)} />
+    <img
+      src={dataUrl}
+      alt={alt}
+      className={className}
+      crossOrigin="anonymous"
+      onError={() => setError(true)}
+    />
   );
 }
 

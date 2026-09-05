@@ -109,6 +109,7 @@ export default function CustomizationTemplateListPage() {
                     src={template.previewUrl}
                     alt={template.name}
                     className="h-full w-full object-contain p-4"
+                    crossOrigin="anonymous"
                   />
                 ) : (
                   <div className="flex h-full items-center justify-center text-stone-400">

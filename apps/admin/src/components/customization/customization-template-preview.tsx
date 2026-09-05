@@ -12,6 +12,8 @@ import {
   type TextFieldValue,
 } from "@trophy/customization";
 import { createId, fileToBackground } from "./customization-template-ui";
+import { BACKEND_URL } from "../../lib/fetch";
+
 
 type PreviewChange = (fieldId: string, value: TextFieldValue | ImageShapeFieldValue | ClipartFieldValue | null) => void;
 
@@ -41,8 +43,8 @@ export function PreviewDialog({
             template={template}
             values={values}
             dynamicFonts={dynamicFonts}
-            resolveFontUrl={(assetId) => `${import.meta.env.VITE_BACKEND_URL ?? "http://localhost:8787"}/api/admin/brand-assets/fonts/file/${assetId}`}
-            resolveStaticFontUrl={(fileName) => `${import.meta.env.VITE_BACKEND_URL ?? "http://localhost:8787"}/fonts/${fileName}`}
+            resolveFontUrl={(assetId) => `${BACKEND_URL}/api/storefront/brand-assets/fonts/file/${assetId}`}
+            resolveStaticFontUrl={(fileName) => `${BACKEND_URL}/fonts/${fileName}`}
             onImageValueChange={(fieldId, value) => onChange(fieldId, value)}
           />
         </div>

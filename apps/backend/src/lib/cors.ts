@@ -53,8 +53,8 @@ export const PRODUCT_ASSET_CORS_POLICY: CorsPolicy = {
 };
 
 export const PUBLIC_ASSET_CORS_POLICY: CorsPolicy = {
-  allowHeaders: [],
-  allowMethods: [],
+  allowHeaders: ["*"],
+  allowMethods: ["GET", "HEAD", "OPTIONS"],
   allowAnyOrigin: true,
   exposeHeaders: ["Content-Length", "ETag"],
 };
@@ -121,9 +121,7 @@ function buildCorsHeaders(
   );
   headers.set(
     "Vary",
-    policy.allowAnyOrigin
-      ? "Access-Control-Request-Method, Access-Control-Request-Headers"
-      : "Origin, Access-Control-Request-Headers",
+    "Origin, Access-Control-Request-Method, Access-Control-Request-Headers",
   );
 
   if (policy.credentials) {
@@ -163,11 +161,13 @@ export function createCorsMiddleware(policy: CorsPolicy) {
     try {
       await next();
     } finally {
-      const res = new Response(c.res.body, c.res);
-      headers.forEach((value, key) => {
-        res.headers.set(key, value);
-      });
-      c.res = res;
+      if (c.res) {
+        const res = new Response(c.res.body, c.res);
+        headers.forEach((value, key) => {
+          res.headers.set(key, value);
+        });
+        c.res = res;
+      }
     }
   };
 }

@@ -28,7 +28,7 @@ import { layerGeometryToPixels, getTextPathRenderAttributes, getTextPathSvgD } f
 import type { CustomizationDesign, CustomizationTemplate, VectorPath } from "@trophy/customization";
 import { loadFontBytes } from "./pdf-fonts";
 import { drawStraightText } from "./pdf-text-straight";
-import { backendFetch, BACKEND_URL } from "./fetch";
+import { BACKEND_URL } from "./fetch";
 
 // ─── image loading ────────────────────────────────────────────────────────────
 
@@ -46,14 +46,20 @@ const parseDataUrl = (value: string) => {
   };
 };
 
+const fetchAssetResponse = async (inputUrl: string) => {
+  const resolvedUrl = inputUrl.startsWith("/")
+    ? `${BACKEND_URL.replace(/\/$/, "")}${inputUrl}`
+    : inputUrl;
+  return fetch(resolvedUrl, { cache: "reload" }).catch(() => null);
+};
+
 const readImageBytes = async (url: string | File) => {
   if (url instanceof File) {
     return { mimeType: url.type, bytes: new Uint8Array(await url.arrayBuffer()) };
   }
   const dataUrl = parseDataUrl(url);
   if (dataUrl) return dataUrl;
-  const isExternal = url.startsWith("blob:") || url.startsWith("data:") || (url.startsWith("http") && !url.startsWith(BACKEND_URL));
-  const response = await (isExternal ? fetch(url) : backendFetch(url)).catch(() => null);
+  const response = await fetchAssetResponse(url);
   if (!response?.ok) return null;
   const mimeType = response.headers.get("content-type")?.split(";")[0] ?? "";
   if (
@@ -740,8 +746,7 @@ export const exportVectorPdfClientSide = async (
       const pdfUrl = template.background.pdfAssetId
         ? `/api/assets/customizations/${template.background.pdfAssetId}/content`
         : template.background.previewUrl;
-      const isExternal = pdfUrl.startsWith("blob:") || pdfUrl.startsWith("data:") || (pdfUrl.startsWith("http") && !pdfUrl.startsWith(BACKEND_URL));
-      const response = await (isExternal ? fetch(pdfUrl) : backendFetch(pdfUrl)).catch(() => null);
+      const response = await fetchAssetResponse(pdfUrl);
       if (response?.ok) {
         const bgBytes = await response.arrayBuffer();
         const bgPdf = await PDFDocument.load(bgBytes, { ignoreEncryption: true });

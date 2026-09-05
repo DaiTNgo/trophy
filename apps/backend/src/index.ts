@@ -5,6 +5,10 @@ import { processR2CleanupJobs } from './lib/r2-cleanup-outbox'
 import { processMisaDeletionJobs } from './lib/misa-deletion-outbox'
 import { processExpiredShopperDraftAssets } from './lib/shopper-draft-cleanup'
 import { assetsRoute } from './routes/assets/index'
+import { fontsRoute } from './routes/fonts'
+
+app.use('/fonts/*', createCorsMiddleware(PUBLIC_ASSET_CORS_POLICY))
+app.route('/fonts', fontsRoute)
 
 app.use('/api/assets/*', createCorsMiddleware(PUBLIC_ASSET_CORS_POLICY))
 app.route('/api/assets', assetsRoute)

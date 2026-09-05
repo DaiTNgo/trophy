@@ -281,7 +281,7 @@ export function EditorCanvas({
             );
           }}
         >
-          <img src={background.previewUrl} alt="" className="pointer-events-none absolute inset-0 h-full w-full select-none object-fill" draggable={false} />
+          <img src={background.previewUrl} alt="" crossOrigin="anonymous" className="pointer-events-none absolute inset-0 h-full w-full select-none object-fill" draggable={false} />
           {isDrawing && pendingVectorPoints.length > 0 ? (
             <>
               <svg className="pointer-events-none absolute inset-0 h-full w-full" viewBox="0 0 1 1" preserveAspectRatio="none">

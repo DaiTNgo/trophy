@@ -5,6 +5,7 @@ import {
   SESSION_CORS_POLICY,
   STOREFRONT_CORS_POLICY,
   createCorsMiddleware,
+  getAppCorsOrigins,
 } from "./lib/cors";
 import { adminRoute } from "./routes/admin";
 import { storefrontRoute } from "./routes/storefront";
@@ -60,6 +61,52 @@ app.get("/", (c) => {
 
 app.on(["GET", "POST"], `${AUTH_BASE_PATH}/*`, (c) => {
   return getAuth(c.env).handler(c.req.raw);
+});
+
+app.onError((err, c) => {
+  console.error(
+    "[backend error]",
+    JSON.stringify({
+      event: "unhandled.error",
+      timestamp: new Date().toISOString(),
+      path: c.req.path,
+      method: c.req.method,
+      message: err.message,
+      stack: err.stack,
+    }),
+  );
+
+  const requestOrigin = c.req.header("origin");
+  const allowedOrigins = getAppCorsOrigins(c.env);
+  const isPublic =
+    c.req.path.startsWith("/api/assets") ||
+    c.req.path.startsWith("/fonts") ||
+    c.req.path.startsWith("/api/storefront");
+
+  const origin = isPublic
+    ? "*"
+    : allowedOrigins.includes(requestOrigin ?? "")
+      ? requestOrigin
+      : allowedOrigins[0] ?? "*";
+
+  const headers: Record<string, string> = {
+    "Access-Control-Allow-Origin": origin ?? "*",
+    "Access-Control-Allow-Methods": "GET, POST, PATCH, PUT, DELETE, OPTIONS",
+    "Access-Control-Allow-Headers": "*",
+    Vary: "Origin, Access-Control-Request-Headers",
+  };
+
+  if (origin !== "*") {
+    headers["Access-Control-Allow-Credentials"] = "true";
+  }
+
+  return c.json(
+    {
+      error: err.message || "Internal Server Error",
+    },
+    500,
+    headers,
+  );
 });
 
 export const routes = app

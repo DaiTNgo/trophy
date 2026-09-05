@@ -1,6 +1,7 @@
 import { type BackgroundAsset, type ShapeType, vectorPointsToSvgPathD, type CustomizationLayer, FONT_FILES } from "@trophy/customization";
 import { useMemo } from "react";
 import { renderPdfBufferToDataUrl } from "../../lib/pdf-preview";
+import { BACKEND_URL } from "../../lib/fetch";
 
 export type RailTab = "blocks" | "layers" | "form" | "background";
 
@@ -18,8 +19,6 @@ export function FontLoader({ layers, dynamicFonts = [] }: { layers: Customizatio
     return Array.from(ids);
   }, [layers]);
 
-  const backendUrl = import.meta.env.VITE_BACKEND_URL ?? "http://localhost:8787";
-
   return (
     <>
       {fontFamilies.map((familyId) => {
@@ -34,27 +33,41 @@ export function FontLoader({ layers, dynamicFonts = [] }: { layers: Customizatio
             <style key={v.variantId} dangerouslySetInnerHTML={{ __html: `
               @font-face {
                 font-family: '${v.variantId}';
-                src: url('${backendUrl}/api/admin/brand-assets/fonts/file/${v.assetId}') format('truetype');
+                src: url('${BACKEND_URL}/api/storefront/brand-assets/fonts/file/${v.assetId}') format('truetype');
               }
             `}} />
           ));
         }
 
         // Static font fallback
-        // We can't await inside render, so we'll just inject the 4 variants if they exist in FONT_FILES
-        return ["regular", "bold", "italic", "bold-italic"].map(weight => {
-          const variantId = `${familyId}-${weight}`;
-          const file = FONT_FILES[variantId];
-          if (!file) return null;
-          return (
-            <style key={variantId} dangerouslySetInnerHTML={{ __html: `
-              @font-face {
-                font-family: '${variantId}';
-                src: url('${backendUrl}/fonts/${file}') format('truetype');
-              }
-            `}} />
-          );
-        });
+        const directFile = FONT_FILES[familyId];
+        const directStyle = directFile ? (
+          <style key={familyId} dangerouslySetInnerHTML={{ __html: `
+            @font-face {
+              font-family: '${familyId}';
+              src: url('${BACKEND_URL}/fonts/${directFile}') format('truetype');
+            }
+          `}} />
+        ) : null;
+
+        return (
+          <span key={familyId}>
+            {directStyle}
+            {["regular", "bold", "italic", "bold-italic"].map(weight => {
+              const variantId = `${familyId}-${weight}`;
+              const file = FONT_FILES[variantId];
+              if (!file) return null;
+              return (
+                <style key={variantId} dangerouslySetInnerHTML={{ __html: `
+                  @font-face {
+                    font-family: '${variantId}';
+                    src: url('${BACKEND_URL}/fonts/${file}') format('truetype');
+                  }
+                `}} />
+              );
+            })}
+          </span>
+        );
       })}
     </>
   );

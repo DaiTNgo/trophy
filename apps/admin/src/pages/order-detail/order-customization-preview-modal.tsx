@@ -17,6 +17,8 @@ import type { AdminOrderDetail } from "../../lib/orders-client";
 import { exportRasterPreviewClientSide, rasterExportExtension, type RasterExportFormat } from "../../lib/raster-export";
 import { buildOrderItemCustomizationTemplate, fetchUploadBytes, fontVariantLabel, formatCanvasPosition, getUploadedImageEntries, textPathLabel, sanitizeFilenamePart } from "./order-customization-preview-utils";
 import type { OrderDetailItem } from "./order-detail-utils";
+import { BACKEND_URL } from "../../lib/fetch";
+
 
 
 
@@ -202,12 +204,11 @@ export function OrderCustomizationPreviewModal({
     setIsExportingPreview(true);
     setExportError("");
     try {
-      const backendUrl = import.meta.env.VITE_BACKEND_URL ?? "http://localhost:8787";
       const blob = await exportRasterPreviewClientSide(template, orderDesign, {
         format,
         resolveFontUrl: (fontId) => FONT_FILES[fontId]
-          ? `${backendUrl}/fonts/${FONT_FILES[fontId]}`
-          : `${backendUrl}/api/storefront/brand-assets/fonts/file/${fontId}`,
+          ? `${BACKEND_URL}/fonts/${FONT_FILES[fontId]}`
+          : `${BACKEND_URL}/api/storefront/brand-assets/fonts/file/${fontId}`,
       });
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
@@ -228,9 +229,8 @@ export function OrderCustomizationPreviewModal({
 
     try {
       const zipFiles: Record<string, Uint8Array> = {};
-      const backendUrl = import.meta.env.VITE_BACKEND_URL ?? "http://localhost:8787";
       for (const [index, upload] of uploadedImages.entries()) {
-        const contentUrl = `${backendUrl}/api/assets/customizations/${upload.assetId}/content`;
+        const contentUrl = `${BACKEND_URL}/api/assets/customizations/${upload.assetId}/content`;
         const { bytes, extension } = await fetchUploadBytes(contentUrl);
         const filename = [
           sanitizeFilenamePart(order.orderNumber),
@@ -368,10 +368,10 @@ export function OrderCustomizationPreviewModal({
                   selectedVariantId={item.variant?.id ?? null}
                   onFullscreenChange={setIsFullscreen}
                   resolveFontUrl={(assetId) =>
-                    `${import.meta.env.VITE_BACKEND_URL ?? "http://localhost:8787"}/api/storefront/brand-assets/fonts/file/${assetId}`
+                    `${BACKEND_URL}/api/storefront/brand-assets/fonts/file/${assetId}`
                   }
                   resolveStaticFontUrl={(fileName) =>
-                    `${import.meta.env.VITE_BACKEND_URL ?? "http://localhost:8787"}/fonts/${fileName}`
+                    `${BACKEND_URL}/fonts/${fileName}`
                   }
                 />
               </div>

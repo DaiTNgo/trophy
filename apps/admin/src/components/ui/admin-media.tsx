@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { backendFetch } from "../../lib/fetch";
+import { backendFetch, BACKEND_URL } from "../../lib/fetch";
 import { renderPdfBufferToDataUrl } from "../../lib/pdf-preview";
 import { Package, FileText } from "lucide-react";
 
@@ -43,6 +43,8 @@ export function AdminMedia({ src, mimeType, className = "", fallback, alt = "Med
       return;
     }
 
+    const resolvedUrl = src.startsWith("/") ? `${BACKEND_URL.replace(/\/$/, "")}${src}` : src;
+
     // ── PDF ───────────────────────────────────────────────────────────────
     const isPdf =
       mimeType === "application/pdf" || src.toLowerCase().endsWith(".pdf");
@@ -53,8 +55,8 @@ export function AdminMedia({ src, mimeType, className = "", fallback, alt = "Med
 
       const loadPdfPreview = async () => {
         try {
-          const fullUrl = src;
-          const res = await backendFetch(fullUrl);
+          const isAsset = src.startsWith("/api/assets/") || src.includes("/api/assets/");
+          const res = isAsset ? await fetch(resolvedUrl) : await backendFetch(src);
           if (!res.ok) throw new Error(`Failed to fetch PDF: ${res.status}`);
           const blob = await res.blob();
           if (isCancelled) return;
@@ -81,7 +83,7 @@ export function AdminMedia({ src, mimeType, className = "", fallback, alt = "Med
 
     // ── Remote image URL ──────────────────────────────────────────────────
     // Asset content URLs are public, so the browser can render them directly.
-    setDataUrl(src);
+    setDataUrl(resolvedUrl);
     setIsLoadingPdf(false);
   }, [src, mimeType]);
 
@@ -117,6 +119,7 @@ export function AdminMedia({ src, mimeType, className = "", fallback, alt = "Med
       src={dataUrl}
       alt={alt}
       className={className}
+      crossOrigin="anonymous"
       onError={() => setError(true)}
     />
   );

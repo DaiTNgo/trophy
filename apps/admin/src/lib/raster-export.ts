@@ -9,7 +9,7 @@ import {
   type RuntimeImageShapeLayer,
   type RuntimeTextLayer,
 } from "@trophy/customization";
-import { backendFetch, BACKEND_URL } from "./fetch";
+import { BACKEND_URL } from "./fetch";
 
 export type RasterExportFormat = "image/png" | "image/webp";
 
@@ -110,8 +110,10 @@ export function buildRasterExportSvg(template: CustomizationTemplate, design: Cu
 }
 
 async function toDataUrl(url: string) {
-  const isExternal = url.startsWith("blob:") || url.startsWith("data:") || (url.startsWith("http") && !url.startsWith(BACKEND_URL));
-  const response = await (isExternal ? fetch(url, { mode: "cors" }) : backendFetch(url));
+  const resolvedUrl = url.startsWith("/")
+    ? `${BACKEND_URL.replace(/\/$/, "")}${url}`
+    : url;
+  const response = await fetch(resolvedUrl, { cache: "reload" });
   if (!response.ok) throw new Error(`Could not load export asset (${response.status}).`);
   const blob = await response.blob();
   return new Promise<string>((resolve, reject) => {

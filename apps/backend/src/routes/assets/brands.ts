@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import type { AppEnv } from "../../lib/env";
+import { getStaticFontBytes } from "../../lib/static-fonts";
 
 export const assetsBrandsRoute = new Hono<AppEnv>()
   .get("/:id/content", async (c) => {
@@ -7,6 +8,15 @@ export const assetsBrandsRoute = new Hono<AppEnv>()
     // The id here is the filename or asset id.
     const id = c.req.param("id");
     
+    const staticBytes = getStaticFontBytes(id);
+    if (staticBytes) {
+      const headers = new Headers();
+      headers.set("content-type", "font/ttf");
+      headers.set("cache-control", "public, max-age=31536000, immutable");
+      headers.set("x-content-type-options", "nosniff");
+      return new Response(staticBytes, { headers });
+    }
+
     // Some assets are uploaded as `font_${id}.ttf`, let's check if the ID has extension
     const filename = id.includes(".") ? id : `${id}.ttf`;
     const key = `fonts/${filename}`;
@@ -20,11 +30,22 @@ export const assetsBrandsRoute = new Hono<AppEnv>()
     object.writeHttpMetadata(headers);
     headers.set("etag", object.httpEtag);
     headers.set("cache-control", "public, max-age=31536000, immutable");
+    headers.set("x-content-type-options", "nosniff");
     
     return new Response(object.body as unknown as ReadableStream, { headers });
   })
   .get("/fonts/file/:filename", async (c) => {
     const filename = c.req.param("filename");
+
+    const staticBytes = getStaticFontBytes(filename);
+    if (staticBytes) {
+      const headers = new Headers();
+      headers.set("content-type", "font/ttf");
+      headers.set("cache-control", "public, max-age=31536000, immutable");
+      headers.set("x-content-type-options", "nosniff");
+      return new Response(staticBytes, { headers });
+    }
+
     const key = `fonts/${filename}`;
     const object = await c.env.CUSTOMIZATION_ASSETS.get(key);
     
@@ -36,6 +57,7 @@ export const assetsBrandsRoute = new Hono<AppEnv>()
     object.writeHttpMetadata(headers);
     headers.set("etag", object.httpEtag);
     headers.set("cache-control", "public, max-age=31536000, immutable");
+    headers.set("x-content-type-options", "nosniff");
     
     return new Response(object.body as unknown as ReadableStream, { headers });
   });
