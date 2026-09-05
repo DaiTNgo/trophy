@@ -1,4 +1,4 @@
-import type { BackgroundAsset, LayerGeometry, ShapeType, VectorPoint } from "./types";
+import type { BackgroundAsset, LayerGeometry, ShapeType, VectorPath, VectorPoint } from "./types";
 
 export const clamp = (value: number, min: number, max: number) =>
   Math.min(max, Math.max(min, Number.isFinite(value) ? value : min));
@@ -14,10 +14,10 @@ export const layerGeometryToPixels = ({
   geometry: LayerGeometry;
   background: Pick<BackgroundAsset, "widthPx" | "heightPx">;
 }) => {
-  const widthPx = geometry.widthRatio * background.widthPx;
-  const heightPx = (geometry.heightRatio ?? 0) * background.heightPx;
-  const centerXPx = geometry.xRatio * background.widthPx;
-  const centerYPx = geometry.yRatio * background.heightPx;
+  const widthPx = (geometry.widthRatio ?? 1) * background.widthPx;
+  const heightPx = (geometry.heightRatio ?? 1) * background.heightPx;
+  const centerXPx = (geometry.xRatio ?? 0) * background.widthPx;
+  const centerYPx = (geometry.yRatio ?? 0) * background.heightPx;
   return {
     xPx: centerXPx - widthPx / 2,
     yPx: centerYPx - heightPx / 2,
@@ -147,6 +147,46 @@ export const getShapeClipPath = ({
     return `path(M ${w / 2} ${h * 0.85} C ${w * 0.1} ${h * 0.55}, 0 ${h * 0.25}, ${w * 0.25} ${h * 0.12} C ${w * 0.4} 0, ${w / 2} ${h * 0.16}, ${w / 2} ${h * 0.28} C ${w / 2} ${h * 0.16}, ${w * 0.6} 0, ${w * 0.75} ${h * 0.12} C ${w} ${h * 0.25}, ${w * 0.9} ${h * 0.55}, ${w / 2} ${h * 0.85} Z)`;
   }
   return `rect(0 0 ${w} ${h})`;
+};
+
+export const getShapeSvgClip = ({
+  shape,
+  widthPx,
+  heightPx,
+  vectorPath,
+}: {
+  shape: ShapeType;
+  widthPx: number;
+  heightPx: number;
+  vectorPath?: VectorPath;
+}) => {
+  const w = Math.max(1, widthPx);
+  const h = Math.max(1, heightPx);
+  if (shape === "circle") {
+    return `<ellipse cx="${w / 2}" cy="${h / 2}" rx="${w / 2}" ry="${h / 2}" />`;
+  }
+  if (shape === "ellipse") {
+    return `<ellipse cx="${w / 2}" cy="${h / 2}" rx="${w / 2}" ry="${h * 0.4}" />`;
+  }
+  if (shape === "rounded_rectangle") {
+    const radius = Math.min(w, h) * 0.12;
+    return `<rect width="${w}" height="${h}" rx="${radius}" ry="${radius}" />`;
+  }
+  if (shape === "star") {
+    const points = Array.from({ length: 10 }, (_, index) => {
+      const angle = -Math.PI / 2 + (index * Math.PI) / 5;
+      const radius = index % 2 === 0 ? 0.5 : 0.22;
+      return `${w / 2 + Math.cos(angle) * w * radius},${h / 2 + Math.sin(angle) * h * radius}`;
+    }).join(" ");
+    return `<polygon points="${points}" />`;
+  }
+  if (shape === "heart") {
+    return `<path d="M ${w * 0.5} ${h * 0.85} C ${w * 0.1} ${h * 0.55}, 0 ${h * 0.25}, ${w * 0.25} ${h * 0.12} C ${w * 0.4} 0, ${w * 0.5} ${h * 0.16}, ${w * 0.5} ${h * 0.28} C ${w * 0.5} ${h * 0.16}, ${w * 0.6} 0, ${w * 0.75} ${h * 0.12} C ${w} ${h * 0.25}, ${w * 0.9} ${h * 0.55}, ${w * 0.5} ${h * 0.85} Z" />`;
+  }
+  if (shape === "vector" && vectorPath && vectorPath.points.length > 0) {
+    return `<path d="${vectorPointsToSvgPathD(vectorPath.points, vectorPath.closed)}" transform="scale(${w} ${h})" />`;
+  }
+  return `<rect width="${w}" height="${h}" />`;
 };
 
 export const vectorPointsToSvgPathD = (points: VectorPoint[], closed: boolean) => {

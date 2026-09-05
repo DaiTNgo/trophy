@@ -5,7 +5,7 @@
  *   - Background: PDF embed (pendingPdfFile) or raster image (template.background.previewUrl)
  *   - Image shape layers: raster image embedded with vector clip path
  *   - Text layers (straight): pdf-lib native drawText() — true vector glyphs, font embedded
- *   - Text layers (path):     glyph-on-path engine (opentype.js) — vector glyphs per character
+ *   - Text layers (path):     SVG textPath rasterized to canvas at 4× then embedded as PNG
  *
  * Note (future): If CMYK color space is required for print production,
  * this client-side approach must be replaced with server-side rendering
@@ -16,21 +16,19 @@ import {
   PDFDocument,
   pushGraphicsState,
   popGraphicsState,
-  clip,
   moveTo,
   lineTo,
   appendBezierCurve,
   closePath,
-  endPath,
   concatTransformationMatrix,
-  degrees,
   rgb,
 } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
-import { layerGeometryToPixels } from "@trophy/customization";
+import { layerGeometryToPixels, getTextPathRenderAttributes, getTextPathSvgD } from "@trophy/customization";
 import type { CustomizationDesign, CustomizationTemplate, VectorPath } from "@trophy/customization";
 import { loadFontBytes } from "./pdf-fonts";
 import { drawStraightText } from "./pdf-text-straight";
+import { BACKEND_URL } from "./fetch";
 
 // ─── image loading ────────────────────────────────────────────────────────────
 
@@ -48,13 +46,20 @@ const parseDataUrl = (value: string) => {
   };
 };
 
+const fetchAssetResponse = async (inputUrl: string) => {
+  const resolvedUrl = inputUrl.startsWith("/")
+    ? `${BACKEND_URL.replace(/\/$/, "")}${inputUrl}`
+    : inputUrl;
+  return fetch(resolvedUrl, { cache: "reload" }).catch(() => null);
+};
+
 const readImageBytes = async (url: string | File) => {
   if (url instanceof File) {
     return { mimeType: url.type, bytes: new Uint8Array(await url.arrayBuffer()) };
   }
   const dataUrl = parseDataUrl(url);
   if (dataUrl) return dataUrl;
-  const response = await fetch(url).catch(() => null);
+  const response = await fetchAssetResponse(url);
   if (!response?.ok) return null;
   const mimeType = response.headers.get("content-type")?.split(";")[0] ?? "";
   if (
@@ -495,7 +500,7 @@ const parseSvgVectorDocument = (bytes: Uint8Array): ParsedSvgVectorDocument | nu
   };
 };
 
-const drawSvgVectorImage = ({
+export const drawSvgVectorImage = ({
   page,
   source,
   imgX,
@@ -561,20 +566,12 @@ function freeCropOffset(value?: number) {
   return Number.isFinite(value) ? value! : 0;
 }
 
-const hexToRgb = (hex: string) => {
-  const c = hex.replace("#", "");
-  return [
-    parseInt(c.substring(0, 2), 16),
-    parseInt(c.substring(2, 4), 16),
-    parseInt(c.substring(4, 6), 16),
-  ];
-};
 
 /**
  * Returns image position & size relative to the frame (top-left = 0,0).
  * Matches `getFreeImageRect` in the preview component exactly.
  */
-function getFreeImageRect({
+export function getFreeImageRect({
   sourceWidthPx,
   sourceHeightPx,
   frameWidthPx,
@@ -582,6 +579,7 @@ function getFreeImageRect({
   cropScale,
   cropXRatio,
   cropYRatio,
+  fit,
 }: {
   sourceWidthPx: number;
   sourceHeightPx: number;
@@ -590,19 +588,24 @@ function getFreeImageRect({
   cropScale?: number;
   cropXRatio?: number;
   cropYRatio?: number;
+  fit?: "cover" | "contain";
 }) {
   const safeSourceW = Math.max(1, sourceWidthPx);
   const safeSourceH = Math.max(1, sourceHeightPx);
-  const safeFrameW  = Math.max(1, frameWidthPx);
-  const safeFrameH  = Math.max(1, frameHeightPx);
-  const baseCoverScale = Math.max(safeFrameW / safeSourceW, safeFrameH / safeSourceH);
-  const scale  = freeImageScale(cropScale);
-  const widthPx  = safeSourceW * baseCoverScale * scale;
-  const heightPx = safeSourceH * baseCoverScale * scale;
+  const safeFrameW = Math.max(1, frameWidthPx);
+  const safeFrameH = Math.max(1, frameHeightPx);
+
+  const baseScale = fit === "contain"
+    ? Math.min(safeFrameW / safeSourceW, safeFrameH / safeSourceH)
+    : Math.max(safeFrameW / safeSourceW, safeFrameH / safeSourceH);
+
+  const scale = freeImageScale(cropScale);
+  const widthPx = safeSourceW * baseScale * scale;
+  const heightPx = safeSourceH * baseScale * scale;
   const centerXPx = safeFrameW / 2 + freeCropOffset(cropXRatio) * safeFrameW;
   const centerYPx = safeFrameH / 2 + freeCropOffset(cropYRatio) * safeFrameH;
   return {
-    xPx: centerXPx - widthPx  / 2,
+    xPx: centerXPx - widthPx / 2,
     yPx: centerYPx - heightPx / 2,
     widthPx,
     heightPx,
@@ -612,7 +615,7 @@ function getFreeImageRect({
 // ─── clipping path operators ───────────────────────────────────────────────────
 // (x, y) = bottom-left of frame in PDF bottom-up coordinates.
 
-function addClipShapeOperators(
+export function addClipShapeOperators(
   page: ReturnType<PDFDocument["addPage"]>,
   shape: string,
   x: number,
@@ -657,33 +660,33 @@ function addClipShapeOperators(
       const px = x + pts[i]![0] * width;
       const py = y + (1 - pts[i]![1]) * height; // bottom-up
       if (i === 0) page.pushOperators(moveTo(px, py));
-      else         page.pushOperators(lineTo(px, py));
+      else page.pushOperators(lineTo(px, py));
     }
     page.pushOperators(closePath());
   } else if (shape === "heart") {
     const tx = (rx: number) => x + rx * width;
     const ty = (ry: number) => y + (1 - ry) * height;
     page.pushOperators(moveTo(tx(0.5), ty(0.85)));
-    page.pushOperators(appendBezierCurve(tx(0.1), ty(0.55), tx(0),   ty(0.25), tx(0.25), ty(0.12)));
-    page.pushOperators(appendBezierCurve(tx(0.4), ty(0),    tx(0.5), ty(0.16), tx(0.5),  ty(0.28)));
-    page.pushOperators(appendBezierCurve(tx(0.5), ty(0.16), tx(0.6), ty(0),    tx(0.75), ty(0.12)));
-    page.pushOperators(appendBezierCurve(tx(1),   ty(0.25), tx(0.9), ty(0.55), tx(0.5),  ty(0.85)));
+    page.pushOperators(appendBezierCurve(tx(0.1), ty(0.55), tx(0), ty(0.25), tx(0.25), ty(0.12)));
+    page.pushOperators(appendBezierCurve(tx(0.4), ty(0), tx(0.5), ty(0.16), tx(0.5), ty(0.28)));
+    page.pushOperators(appendBezierCurve(tx(0.5), ty(0.16), tx(0.6), ty(0), tx(0.75), ty(0.12)));
+    page.pushOperators(appendBezierCurve(tx(1), ty(0.25), tx(0.9), ty(0.55), tx(0.5), ty(0.85)));
     page.pushOperators(closePath());
   } else if (shape === "vector" && vectorPath && vectorPath.points.length > 0) {
     for (let i = 0; i < vectorPath.points.length; i++) {
-      const pt  = vectorPath.points[i]!;
-      const px  = x + pt.xRatio * width;
-      const py  = y + (1 - pt.yRatio) * height;
+      const pt = vectorPath.points[i]!;
+      const px = x + pt.xRatio * width;
+      const py = y + (1 - pt.yRatio) * height;
       if (i === 0) {
         page.pushOperators(moveTo(px, py));
       } else {
         const prev = vectorPath.points[i - 1]!;
-        const ppx  = x + prev.xRatio * width;
-        const ppy  = y + (1 - prev.yRatio) * height;
-        const c1x  = ppx + (prev.outHandle?.xRatio ?? 0) * width;
-        const c1y  = ppy - (prev.outHandle?.yRatio ?? 0) * height;
-        const c2x  = px  + (pt.inHandle?.xRatio ?? 0) * width;
-        const c2y  = py  - (pt.inHandle?.yRatio ?? 0) * height;
+        const ppx = x + prev.xRatio * width;
+        const ppy = y + (1 - prev.yRatio) * height;
+        const c1x = ppx + (prev.outHandle?.xRatio ?? 0) * width;
+        const c1y = ppy - (prev.outHandle?.yRatio ?? 0) * height;
+        const c2x = px + (pt.inHandle?.xRatio ?? 0) * width;
+        const c2y = py - (pt.inHandle?.yRatio ?? 0) * height;
         page.pushOperators(appendBezierCurve(c1x, c1y, c2x, c2y, px, py));
       }
     }
@@ -719,7 +722,7 @@ export const exportVectorPdfClientSide = async (
     return embedded;
   };
 
-  const designWidth  = template.background?.widthPx  ?? 900;
+  const designWidth = template.background?.widthPx ?? 900;
   const designHeight = template.background?.heightPx ?? 900;
 
   // ── background ──────────────────────────────────────────────────────────────
@@ -727,21 +730,44 @@ export const exportVectorPdfClientSide = async (
 
   if (pendingPdfFile) {
     const bgBytes = await pendingPdfFile.arrayBuffer();
-    const bgPdf   = await PDFDocument.load(bgBytes, { ignoreEncryption: true });
-    const [embeddedPage] = await pdf.embedPages([bgPdf.getPages()[0]!]);
-    pdf.removePage(0);
-    page = pdf.addPage([designWidth, designHeight]);
-    page.drawPage(embeddedPage, { x: 0, y: 0, width: designWidth, height: designHeight });
+    const bgPdf = await PDFDocument.load(bgBytes, { ignoreEncryption: true });
+    if (bgPdf.getPageCount() > 0) {
+      const [embeddedPage] = await pdf.embedPages([bgPdf.getPages()[0]!]);
+      pdf.removePage(0);
+      page = pdf.addPage([designWidth, designHeight]);
+      page.drawPage(embeddedPage, { x: 0, y: 0, width: designWidth, height: designHeight });
+    }
   } else if (template.background?.previewUrl) {
-    const source = await readImageBytes(template.background.previewUrl);
-    if (source) {
-      const image = await embedPdfImage({
-        pdf,
-        source,
-        widthPx: designWidth,
-        heightPx: designHeight,
-      });
-      page.drawImage(image, { x: 0, y: 0, width: designWidth, height: designHeight });
+    const isPdfBg =
+      template.background.mimeType === "application/pdf" ||
+      template.background.previewUrl.toLowerCase().endsWith(".pdf");
+
+    if (isPdfBg) {
+      const pdfUrl = template.background.pdfAssetId
+        ? `/api/assets/customizations/${template.background.pdfAssetId}/content`
+        : template.background.previewUrl;
+      const response = await fetchAssetResponse(pdfUrl);
+      if (response?.ok) {
+        const bgBytes = await response.arrayBuffer();
+        const bgPdf = await PDFDocument.load(bgBytes, { ignoreEncryption: true });
+        if (bgPdf.getPageCount() > 0) {
+          const [embeddedPage] = await pdf.embedPages([bgPdf.getPages()[0]!]);
+          pdf.removePage(0);
+          page = pdf.addPage([designWidth, designHeight]);
+          page.drawPage(embeddedPage, { x: 0, y: 0, width: designWidth, height: designHeight });
+        }
+      }
+    } else {
+      const source = await readImageBytes(template.background.previewUrl);
+      if (source) {
+        const image = await embedPdfImage({
+          pdf,
+          source,
+          widthPx: designWidth,
+          heightPx: designHeight,
+        });
+        page.drawImage(image, { x: 0, y: 0, width: designWidth, height: designHeight });
+      }
     }
   }
 
@@ -754,79 +780,86 @@ export const exportVectorPdfClientSide = async (
 
     // ── image_shape ────────────────────────────────────────────────────────────
     if (layer.type === "image_shape") {
-      const source = await readImageBytes(layer.previewUrl);
-      if (!source) continue;
-
-      const rect    = layerGeometryToPixels({ geometry: layer.geometry, background });
-      const frameW  = rect.widthPx;
-      const frameH  = rect.heightPx;
-      const frameCx = rect.centerXPx;
-      const frameCy = pageHeight - rect.centerYPx; // PDF bottom-up
-      const frameX  = frameCx - frameW / 2;
-      const frameY  = frameCy - frameH / 2;
-
-      const imgRect = getFreeImageRect({
-        sourceWidthPx: layer.sourceWidthPx,
-        sourceHeightPx: layer.sourceHeightPx,
-        frameWidthPx: frameW,
-        frameHeightPx: frameH,
-        cropScale: layer.cropScale,
-        cropXRatio: layer.cropXRatio,
-        cropYRatio: layer.cropYRatio,
-      });
-
-      const imgX = (frameCx - frameW / 2) + imgRect.xPx;
-      const imgY = (frameCy + frameH / 2) - imgRect.yPx - imgRect.heightPx;
-
-      const rotDeg = layer.geometry.rotationDeg;
-      page.pushOperators(pushGraphicsState());
-
-      if (rotDeg !== 0) {
-        const rad  = (-rotDeg * Math.PI) / 180;
-        const cosR = Math.cos(rad);
-        const sinR = Math.sin(rad);
-        page.pushOperators(concatTransformationMatrix(
-          cosR, sinR, -sinR, cosR,
-          frameCx * (1 - cosR) + frameCy * sinR,
-          frameCy * (1 - cosR) - frameCx * sinR
-        ));
-      }
-
-      addClipShapeOperators(page, layer.shape.type, frameX, frameY, frameW, frameH, layer.shape.vectorPath);
-      page.pushOperators(clip());
-      page.pushOperators(endPath());
-
-      const drewVectorSvg = drawSvgVectorImage({
-        page,
-        source,
-        imgX,
-        imgY,
-        imgWidth: imgRect.widthPx,
-        imgHeight: imgRect.heightPx,
-      });
-
-      if (!drewVectorSvg) {
-        const image = await embedPdfImage({
-          pdf,
-          source,
-          widthPx: layer.sourceWidthPx,
-          heightPx: layer.sourceHeightPx,
-        });
-        page.drawImage(image, { x: imgX, y: imgY, width: imgRect.widthPx, height: imgRect.heightPx });
-      }
-
-      page.pushOperators(popGraphicsState());
+      // not ready yet
+      // @TODO
       continue;
+      // const source = await readImageBytes(layer.previewUrl);
+      // if (!source) continue;
+
+      // const rect = layerGeometryToPixels({ geometry: layer.geometry, background });
+      // const frameW = rect.widthPx;
+      // const frameH = rect.heightPx;
+      // const frameCx = rect.centerXPx;
+      // const frameCy = pageHeight - rect.centerYPx; // PDF bottom-up
+      // const frameX = frameCx - frameW / 2;
+      // const frameY = frameCy - frameH / 2;
+
+      // const sourceLayer = template.layers.find((l) => l.id === layer.layerId);
+      // const fit = sourceLayer?.type === "image_shape" ? sourceLayer.upload.fit : "cover";
+
+      // const imgRect = getFreeImageRect({
+      //   sourceWidthPx: layer.sourceWidthPx,
+      //   sourceHeightPx: layer.sourceHeightPx,
+      //   frameWidthPx: frameW,
+      //   frameHeightPx: frameH,
+      //   cropScale: layer.cropScale,
+      //   cropXRatio: layer.cropXRatio,
+      //   cropYRatio: layer.cropYRatio,
+      //   fit,
+      // });
+
+      // const imgX = (frameCx - frameW / 2) + imgRect.xPx;
+      // const imgY = (frameCy + frameH / 2) - imgRect.yPx - imgRect.heightPx;
+
+      // const rotDeg = layer.geometry.rotationDeg;
+      // page.pushOperators(pushGraphicsState());
+
+      // if (rotDeg !== 0) {
+      //   const rad = (-rotDeg * Math.PI) / 180;
+      //   const cosR = Math.cos(rad);
+      //   const sinR = Math.sin(rad);
+      //   page.pushOperators(concatTransformationMatrix(
+      //     cosR, sinR, -sinR, cosR,
+      //     frameCx * (1 - cosR) + frameCy * sinR,
+      //     frameCy * (1 - cosR) - frameCx * sinR
+      //   ));
+      // }
+
+      // addClipShapeOperators(page, layer.shape.type, frameX, frameY, frameW, frameH, layer.shape.vectorPath);
+      // page.pushOperators(clip());
+      // page.pushOperators(endPath());
+
+      // const drewVectorSvg = drawSvgVectorImage({
+      //   page,
+      //   source,
+      //   imgX,
+      //   imgY,
+      //   imgWidth: imgRect.widthPx,
+      //   imgHeight: imgRect.heightPx,
+      // });
+
+      // if (!drewVectorSvg) {
+      //   const image = await embedPdfImage({
+      //     pdf,
+      //     source,
+      //     widthPx: layer.sourceWidthPx,
+      //     heightPx: layer.sourceHeightPx,
+      //   });
+      //   page.drawImage(image, { x: imgX, y: imgY, width: imgRect.widthPx, height: imgRect.heightPx });
+      // }
+
+      // page.pushOperators(popGraphicsState());
+      // continue;
     }
 
     // ── text ───────────────────────────────────────────────────────────────────
     if (layer.type === "text") {
       if (!layer.text.trim()) continue;
 
-      const rect   = layerGeometryToPixels({ geometry: layer.geometry, background });
+      const rect = layerGeometryToPixels({ geometry: layer.geometry, background });
       const frameW = rect.widthPx;
 
-      const textLineH  = layer.fontSizePt * 1.35;
+      const textLineH = layer.fontSizePt * 1.35;
       const closedPath = layer.path.type === "closed_ellipse";
       const frameH = closedPath
         ? Math.max(1, (layer.geometry.heightRatio ?? layer.geometry.widthRatio) * designHeight)
@@ -836,13 +869,13 @@ export const exportVectorPdfClientSide = async (
       const frameCy = pageHeight - rect.centerYPx; // PDF bottom-up center
 
       // For rendering, frame top-left in PDF coords:
-      const frameX    = frameCx - frameW / 2;
+      const frameX = frameCx - frameW / 2;
       const frameTopY = frameCy + frameH / 2; // top edge in PDF (bottom-up) = center + half height
 
       const rotDeg = layer.geometry.rotationDeg;
       if (rotDeg !== 0) {
         page.pushOperators(pushGraphicsState());
-        const rad  = (-rotDeg * Math.PI) / 180;
+        const rad = (-rotDeg * Math.PI) / 180;
         const cosR = Math.cos(rad);
         const sinR = Math.sin(rad);
         page.pushOperators(concatTransformationMatrix(
@@ -871,58 +904,81 @@ export const exportVectorPdfClientSide = async (
           frameW,
         });
       } else {
-        // ── path text: DOM Coordinate Extraction (Perfect UI Sync) ────────────
-        const textPathEl = document.getElementById(`export-textpath-${layer.id}`) as any;
-        if (!textPathEl || typeof textPathEl.getNumberOfChars !== "function") {
-          console.warn(`[PDF Export] Could not find SVGTextPathElement for layer ${layer.id}`);
-          if (rotDeg !== 0) page.pushOperators(popGraphicsState());
-          continue;
+        // ── path text: SVG rasterize + embed as image ──────────────────────
+        // Build an inline SVG with the textPath, rasterize it via canvas,
+        // and embed the resulting PNG into the PDF.  This avoids the fragile
+        // dependency on DOM element IDs from the React preview component.
+        const textWidth = layer.text.length * layer.fontSizePt * 0.55;
+        const wordCount = layer.text.trim() ? layer.text.trim().split(/\s+/).length : 0;
+        const pathAttrs = getTextPathRenderAttributes({
+          path: layer.path,
+          align: layer.align,
+          widthPx: frameW,
+          heightPx: frameH,
+          textWidthPx: textWidth,
+          charCount: layer.text.length,
+          wordCount,
+        });
+        const renderPath = pathAttrs.pathStartAngleDeg != null
+          ? { ...layer.path, startAngleDeg: pathAttrs.pathStartAngleDeg }
+          : layer.path;
+        const pathD = getTextPathSvgD({ path: renderPath, widthPx: frameW, heightPx: frameH });
+        const pathId = `pdf-export-textpath-${layer.id}`;
+        const escText = layer.text.replace(/[<>&"']/g, (c) => {
+          switch (c) { case "<": return "&lt;"; case ">": return "&gt;"; case "&": return "&amp;"; case '"': return "&quot;"; default: return "&amp;"; }
+        });
+        const dyAttr = pathAttrs.dy ? ` dy="${pathAttrs.dy}"` : "";
+        const tlAttr = pathAttrs.textLength ? ` textLength="${pathAttrs.textLength}" lengthAdjust="${pathAttrs.lengthAdjust}"` : "";
+        const wsAttr = pathAttrs.wordSpacingPx ? ` word-spacing="${pathAttrs.wordSpacingPx}"` : "";
+
+        // Embed font as data URL inside the SVG so it works in the image context.
+        let fontStyle = "";
+        const fontBytes = await loadFontBytes(layer.fontId);
+        if (fontBytes) {
+          let binary = "";
+          for (let i = 0; i < fontBytes.length; i++) binary += String.fromCharCode(fontBytes[i]!);
+          const b64 = btoa(binary);
+          fontStyle = `<style>@font-face{font-family:${JSON.stringify(layer.fontId)};src:url("data:font/ttf;base64,${b64}") format('truetype');}</style>`;
         }
 
-        const embeddedFont = await getEmbeddedFont(layer.fontId);
-        if (!embeddedFont) {
-          if (rotDeg !== 0) page.pushOperators(popGraphicsState());
-          continue;
-        }
+        // Add padding to prevent clipping of glyphs that extend beyond the path bounds
+        const pad = layer.fontSizePt * 2;
+        const svgW = frameW + pad * 2;
+        const svgH = frameH + pad * 2;
 
-        const [r, g, b] = hexToRgb(layer.color);
-        const rgbColor = rgb(r / 255, g / 255, b / 255);
+        const textSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="${svgW}" height="${svgH}" viewBox="${-pad} ${-pad} ${svgW} ${svgH}">${fontStyle}<defs><path id="${pathId}" d="${pathD}" /></defs><text fill="${layer.color}" font-family="${layer.fontId}" font-size="${layer.fontSizePt}" font-weight="${layer.isBold ? 700 : 400}" font-style="${layer.isItalic ? "italic" : "normal"}" text-anchor="${pathAttrs.textAnchor}" dominant-baseline="middle"${tlAttr}${wsAttr}><textPath href="#${pathId}" startOffset="${pathAttrs.startOffset}"${dyAttr}>${escText}</textPath></text></svg>`;
 
-        const charCount = textPathEl.getNumberOfChars();
-        // Fallback to layer.text if textContent is somehow empty
-        const textContent = textPathEl.textContent || layer.text;
-
-        let charIndex = 0;
-        let domIndex = 0;
-
-        while (domIndex < charCount && charIndex < textContent.length) {
-          const charCode = textContent.charCodeAt(charIndex);
-          const isSurrogate = charCode >= 0xD800 && charCode <= 0xDBFF;
-          const charStr = isSurrogate ? textContent.substring(charIndex, charIndex + 2) : textContent[charIndex];
-
-          try {
-            if (charStr && charStr.trim() !== "") {
-              const startPt = textPathEl.getStartPositionOfChar(domIndex);
-              const rot = textPathEl.getRotationOfChar(domIndex);
-
-              const px = frameX + startPt.x;
-              const py = frameTopY - startPt.y;
-
-              page.drawText(charStr, {
-                x: px,
-                y: py,
-                font: embeddedFont,
-                size: layer.fontSizePt,
-                color: rgbColor,
-                rotate: degrees(-rot), // SVG positive is clockwise, PDF positive is counter-clockwise
-              });
+        // Rasterize at 4× resolution for sharp text
+        const rasterScale = 4;
+        const rasterW = Math.round(svgW * rasterScale);
+        const rasterH = Math.round(svgH * rasterScale);
+        const svgBlob = new Blob([textSvg], { type: "image/svg+xml" });
+        const svgUrl = URL.createObjectURL(svgBlob);
+        try {
+          const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+            const el = new Image();
+            el.onload = () => resolve(el);
+            el.onerror = () => reject(new Error("Failed to rasterize path text for PDF export"));
+            el.src = svgUrl;
+          });
+          const cvs = document.createElement("canvas");
+          cvs.width = rasterW;
+          cvs.height = rasterH;
+          const ctx = cvs.getContext("2d");
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, rasterW, rasterH);
+            const pngDataUrl = cvs.toDataURL("image/png");
+            const pngData = parseDataUrl(pngDataUrl);
+            if (pngData) {
+              const pdfImage = await pdf.embedPng(pngData.bytes);
+              // Draw at the frame position in PDF bottom-up coordinates, adjusted for padding.
+              const drawX = frameX - pad;
+              const drawY = frameCy - frameH / 2 - pad; // bottom edge in PDF coords minus padding
+              page.drawImage(pdfImage, { x: drawX, y: drawY, width: svgW, height: svgH });
             }
-          } catch (err) {
-            // getStartPositionOfChar throws if the character is out of the path length
           }
-
-          charIndex += isSurrogate ? 2 : 1;
-          domIndex++; // getNumberOfChars counts rendered characters (surrogate pairs are usually 1 rendered char, but we iterate index by index just in case)
+        } finally {
+          URL.revokeObjectURL(svgUrl);
         }
       }
 

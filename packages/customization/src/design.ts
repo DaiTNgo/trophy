@@ -89,6 +89,7 @@ export const buildDesignFromForm = ({
         cropXRatio: 0,
         cropYRatio: 0,
         cropRotationDeg: 0,
+        fit: (layer as any).upload?.fit ?? "contain",
         contentSource: "clipart",
         clipartAssetId: selectedClipart.clipartAssetId,
         clipartAssetName: selectedClipart.clipartAssetName,
@@ -115,6 +116,7 @@ export const buildDesignFromForm = ({
       cropXRatio: normalizeCropPan(value.cropXRatio),
       cropYRatio: normalizeCropPan(value.cropYRatio),
       cropRotationDeg: normalizeCropRotation(value.cropRotationDeg),
+      fit: (layer as any).upload?.fit ?? "contain",
       contentSource: "upload",
     });
   }

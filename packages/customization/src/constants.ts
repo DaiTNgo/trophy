@@ -179,7 +179,7 @@ export const DEFAULT_TEMPLATE: CustomizationTemplate = {
       zIndex: 1,
       geometry: { xRatio: 0.5, yRatio: 0.31, widthRatio: 0.2, heightRatio: 0.2, rotationDeg: 0 },
       shape: { type: "circle", lockAspectRatio: true },
-      upload: { fit: "cover", defaultCrop: { scale: 1, xRatio: 0, yRatio: 0 } },
+      upload: { fit: "contain", defaultCrop: { scale: 1, xRatio: 0, yRatio: 0 } },
     },
     {
       id: "line_1",

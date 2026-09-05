@@ -1,10 +1,7 @@
 import { useState, useEffect } from "react";
-import * as pdfjsLib from "pdfjs-dist";
-import { backendFetch } from "../../lib/fetch";
-import pdfjsWorkerUrl from "pdfjs-dist/build/pdf.worker?url";
+import { backendFetch, BACKEND_URL } from "../../lib/fetch";
+import { renderPdfBufferToDataUrl } from "../../lib/pdf-preview";
 import { Package, FileText } from "lucide-react";
-
-pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl;
 
 export type AdminMediaProps = {
   src?: string;
@@ -46,6 +43,8 @@ export function AdminMedia({ src, mimeType, className = "", fallback, alt = "Med
       return;
     }
 
+    const resolvedUrl = src.startsWith("/") ? `${BACKEND_URL.replace(/\/$/, "")}${src}` : src;
+
     // ── PDF ───────────────────────────────────────────────────────────────
     const isPdf =
       mimeType === "application/pdf" || src.toLowerCase().endsWith(".pdf");
@@ -56,34 +55,17 @@ export function AdminMedia({ src, mimeType, className = "", fallback, alt = "Med
 
       const loadPdfPreview = async () => {
         try {
-          const fullUrl = src;
-          const res = await backendFetch(fullUrl);
+          const isAsset = src.startsWith("/api/assets/") || src.includes("/api/assets/");
+          const res = isAsset ? await fetch(resolvedUrl) : await backendFetch(src);
           if (!res.ok) throw new Error(`Failed to fetch PDF: ${res.status}`);
           const blob = await res.blob();
           if (isCancelled) return;
           const arrayBuffer = await blob.arrayBuffer();
           if (isCancelled) return;
 
-          const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
-          const pdfDocument = await loadingTask.promise;
-          if (isCancelled) return;
-
-          if (pdfDocument.numPages > 0) {
-            const page = await pdfDocument.getPage(1);
-            if (isCancelled) return;
-
-            const viewport = page.getViewport({ scale: 1.0 });
-            const canvas = document.createElement("canvas");
-            canvas.width = viewport.width;
-            canvas.height = viewport.height;
-            const ctx = canvas.getContext("2d");
-
-            if (ctx) {
-              await page.render({ canvasContext: ctx, viewport } as any).promise;
-              if (!isCancelled) {
-                setDataUrl(canvas.toDataURL("image/webp", 0.9));
-              }
-            }
+          const result = await renderPdfBufferToDataUrl(arrayBuffer, 1.0, "image/webp", 0.9);
+          if (!isCancelled) {
+            setDataUrl(result.dataUrl);
           }
         } catch (e) {
           console.error("Failed to render PDF preview", e);
@@ -101,7 +83,7 @@ export function AdminMedia({ src, mimeType, className = "", fallback, alt = "Med
 
     // ── Remote image URL ──────────────────────────────────────────────────
     // Asset content URLs are public, so the browser can render them directly.
-    setDataUrl(src);
+    setDataUrl(resolvedUrl);
     setIsLoadingPdf(false);
   }, [src, mimeType]);
 
@@ -137,6 +119,7 @@ export function AdminMedia({ src, mimeType, className = "", fallback, alt = "Med
       src={dataUrl}
       alt={alt}
       className={className}
+      crossOrigin="anonymous"
       onError={() => setError(true)}
     />
   );

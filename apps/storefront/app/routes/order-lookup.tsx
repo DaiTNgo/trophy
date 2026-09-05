@@ -362,6 +362,9 @@ export default function OrderLookupRoute() {
                     onInteractOutside={(event) => {
                       if (isCustomizationFullscreen) event.preventDefault();
                     }}
+                    onEscapeKeyDown={(event) => {
+                      if (isCustomizationFullscreen) event.preventDefault();
+                    }}
                   >
                     {selectedItem ? (
                       <>

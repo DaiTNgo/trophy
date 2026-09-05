@@ -355,7 +355,6 @@ function FormFieldLocalizedInputs({
         onChange={(value) =>
           onUpdateField(field.id, (current) => ({ ...current, label: value }))
         }
-        requiredLocales={["vi", "en"]}
       />
       <LocalizedTextField
         id={`form-field-placeholder-${field.id}`}
@@ -563,6 +562,7 @@ export function BackgroundPanel({
             src={background.previewUrl}
             alt=""
             className="aspect-video w-full rounded-md border object-contain"
+            crossOrigin="anonymous"
           />
           <p className="text-sm text-ui-fg-subtle">
             {background.filename ?? background.assetId}
@@ -615,6 +615,7 @@ export function EmbeddedBackgroundPanel({
             src={template.background.previewUrl}
             alt=""
             className="aspect-video w-full rounded-md border object-contain"
+            crossOrigin="anonymous"
           />
           <p className="text-sm text-ui-fg-subtle">
             {template.background.filename ?? template.background.assetId}
@@ -632,7 +633,7 @@ export function EmbeddedBackgroundPanel({
             onClick={() => onSelectAssetId(item.assetId)}
             className={`flex w-full items-center gap-3 rounded-md border px-2 py-2 text-left ${selectedAssetId === item.assetId ? "border-ui-border-interactive bg-ui-bg-base" : "border-ui-border-base"}`}
           >
-            <img src={item.previewUrl} alt="" className="h-14 w-14 rounded border object-cover" />
+            <img src={item.previewUrl} alt="" className="h-14 w-14 rounded border object-cover" crossOrigin="anonymous" />
             <div className="min-w-0">
               <p className="truncate text-sm font-medium text-ui-fg-base">
                 {item.filename ?? item.assetId}

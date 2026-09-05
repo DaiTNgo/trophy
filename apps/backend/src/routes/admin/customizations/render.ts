@@ -1,5 +1,10 @@
-import { getTextPathRenderAttributes, getTextPathSvgD, vectorPointsToSvgPathD } from "@trophy/customization";
-import type { CustomizationDesign, CustomizationTemplate } from "@trophy/customization";
+import {
+  getShapeSvgClip,
+  getTextPathRenderAttributes,
+  getTextPathSvgD,
+  type CustomizationDesign,
+  type CustomizationTemplate,
+} from "@trophy/customization";
 
 const escapeXml = (value: string) =>
   value
@@ -50,50 +55,6 @@ const textPathD = (layer: Extract<CustomizationDesign["layers"][number], { type:
   return `M ${cx - w / 2} ${cy} L ${cx + w / 2} ${cy}`;
 };
 
-const shapeClipSvg = ({
-  shape,
-  x,
-  y,
-  width,
-  height,
-  vectorPath,
-}: {
-  shape: string;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  vectorPath?: import("@trophy/customization").VectorPath;
-}) => {
-  if (shape === "circle" || shape === "ellipse") {
-    return `<ellipse cx="${x + width / 2}" cy="${y + height / 2}" rx="${width / 2}" ry="${height / 2}" />`;
-  }
-  if (shape === "rounded_rectangle") {
-    const radius = Math.min(width, height) * 0.12;
-    return `<rect x="${x}" y="${y}" width="${width}" height="${height}" rx="${radius}" />`;
-  }
-  if (shape === "star") {
-    const points = Array.from({ length: 10 }, (_, index) => {
-      const angle = -Math.PI / 2 + (index * Math.PI) / 5;
-      const radius = index % 2 === 0 ? 0.5 : 0.22;
-      return `${x + width / 2 + Math.cos(angle) * width * radius},${y + height / 2 + Math.sin(angle) * height * radius}`;
-    }).join(" ");
-    return `<polygon points="${points}" />`;
-  }
-  if (shape === "heart") {
-    return `<path d="M ${x + width / 2} ${y + height * 0.85} C ${x + width * 0.1} ${y + height * 0.55}, ${x} ${y + height * 0.25}, ${x + width * 0.25} ${y + height * 0.12} C ${x + width * 0.4} ${y}, ${x + width / 2} ${y + height * 0.16}, ${x + width / 2} ${y + height * 0.28} C ${x + width / 2} ${y + height * 0.16}, ${x + width * 0.6} ${y}, ${x + width * 0.75} ${y + height * 0.12} C ${x + width} ${y + height * 0.25}, ${x + width * 0.9} ${y + height * 0.55}, ${x + width / 2} ${y + height * 0.85} Z" />`;
-  }
-  if (shape === "vector" && vectorPath && vectorPath.points.length > 0) {
-    const d = vectorPointsToSvgPathD(vectorPath.points, vectorPath.closed);
-    const scaledD = d.replace(
-      /([+-]?\d*\.?\d+)\s+([+-]?\d*\.?\d+)/g,
-      (_, xRatio: string, yRatio: string) => `${x + Number(xRatio) * width} ${y + Number(yRatio) * height}`,
-    );
-    return `<path d="${scaledD}" />`;
-  }
-  return `<rect x="${x}" y="${y}" width="${width}" height="${height}" />`;
-};
-
 export const renderPreviewSvg = (template: CustomizationTemplate, design: CustomizationDesign) => {
   const width = template.background?.widthPx ?? 900;
   const height = template.background?.heightPx ?? 900;
@@ -140,7 +101,13 @@ export const renderPreviewSvg = (template: CustomizationTemplate, design: Custom
       const x = layer.geometry.xRatio * width - frameWidth / 2;
       const y = layer.geometry.yRatio * height - frameHeight / 2;
       const clipId = `clip-${escapeXml(layer.id).replace(/[^a-zA-Z0-9_-]/g, "-")}`;
-      return `<clipPath id="${clipId}">${shapeClipSvg({ shape: layer.shape.type, x, y, width: frameWidth, height: frameHeight, vectorPath: layer.shape.type === "vector" ? layer.shape.vectorPath : undefined })}</clipPath><image clip-path="url(#${clipId})" href="${escapeXml(layer.previewUrl)}" x="${x}" y="${y}" width="${frameWidth}" height="${frameHeight}" preserveAspectRatio="xMidYMid slice" />`;
+      const clipElement = getShapeSvgClip({
+        shape: layer.shape.type,
+        widthPx: frameWidth,
+        heightPx: frameHeight,
+        vectorPath: layer.shape.type === "vector" ? layer.shape.vectorPath : undefined,
+      });
+      return `<clipPath id="${clipId}">${clipElement}</clipPath><image clip-path="url(#${clipId})" href="${escapeXml(layer.previewUrl)}" x="${x}" y="${y}" width="${frameWidth}" height="${frameHeight}" preserveAspectRatio="xMidYMid slice" />`;
     })
     .join("");
   return `<?xml version="1.0" encoding="UTF-8"?><svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">${template.background ? `<image href="${escapeXml(template.background.previewUrl)}" x="0" y="0" width="${width}" height="${height}" />` : ""}${body}</svg>`;

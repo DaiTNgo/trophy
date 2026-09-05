@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html>
+<body>
+<script>
+fetch('https://backend.dai-ngo.workers.dev/api/assets/products/dccc84ad-2e6c-4027-a86e-5a286d8e55a5/content', {
+  headers: {
+    'Authorization': 'Bearer test'
+  },
+  credentials: 'omit'
+}).then(r => console.log(r.status)).catch(e => console.error(e));
+</script>
+</body>
+</html>

@@ -24,6 +24,8 @@ export function backendStaticFontUrl(fileName: string) {
   return backendUrl(`/fonts/${encodeURIComponent(fileName)}`);
 }
 
+import { renderPdfBufferToDataUrl } from "./pdf-preview";
+
 export type StorefrontCustomizationAsset = {
   id: string;
   widthPx: number;
@@ -37,18 +39,42 @@ export async function uploadStorefrontCustomizationAsset(
   shopperDraftId: string,
   shopperFieldId: string,
 ): Promise<StorefrontCustomizationAsset> {
+  const isMultipart = file.type === "application/pdf";
+  const headers: Record<string, string> = {
+    "X-Upload-Token": uploadToken,
+    "X-Shopper-Draft-Id": shopperDraftId,
+    "X-Shopper-Field-Id": shopperFieldId,
+  };
+  let body: BodyInit;
+
+  if (isMultipart) {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const arrayBuffer = await file.arrayBuffer();
+    const result = await renderPdfBufferToDataUrl(arrayBuffer, 2.0, "image/webp", 0.9);
+
+    const thumbnailRes = await fetch(result.dataUrl);
+    const thumbnailBlob = await thumbnailRes.blob();
+    formData.append("thumbnail", thumbnailBlob, "preview.webp");
+
+    formData.append("width", String(Math.round(result.width / 2)));
+    formData.append("height", String(Math.round(result.height / 2)));
+    formData.append("pageCount", String(result.numPages));
+
+    body = formData;
+  } else {
+    headers["Content-Type"] = file.type;
+    body = file;
+  }
+
   const response = await fetchBackendWithLog("uploadStorefrontCustomizationAsset", backendUrl("/api/storefront/customizations/assets"), {
     method: "POST",
-    headers: {
-      "Content-Type": file.type,
-      "X-Upload-Token": uploadToken,
-      "X-Shopper-Draft-Id": shopperDraftId,
-      "X-Shopper-Field-Id": shopperFieldId,
-    },
-    body: file,
+    headers,
+    body,
   });
   const payload = (await response.json()) as {
-    asset?: StorefrontCustomizationAsset;
+    asset?: StorefrontCustomizationAsset & { widthPt?: number; heightPt?: number; previewUrl?: string };
     error?: string;
   };
   if (!response.ok || !payload.asset) {
@@ -57,7 +83,9 @@ export async function uploadStorefrontCustomizationAsset(
 
   return {
     ...payload.asset,
-    contentUrl: backendAssetUrl(payload.asset.contentUrl),
+    widthPx: Number.isFinite(payload.asset.widthPx) ? payload.asset.widthPx! : Number.isFinite(payload.asset.widthPt) ? payload.asset.widthPt! : 1,
+    heightPx: Number.isFinite(payload.asset.heightPx) ? payload.asset.heightPx! : Number.isFinite(payload.asset.heightPt) ? payload.asset.heightPt! : 1,
+    contentUrl: backendAssetUrl(payload.asset.previewUrl ?? payload.asset.contentUrl),
   };
 }
 

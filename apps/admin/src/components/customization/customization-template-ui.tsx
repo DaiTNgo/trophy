@@ -1,9 +1,7 @@
 import { type BackgroundAsset, type ShapeType, vectorPointsToSvgPathD, type CustomizationLayer, FONT_FILES } from "@trophy/customization";
-import * as pdfjsLib from "pdfjs-dist";
-import pdfjsWorkerUrl from "pdfjs-dist/build/pdf.worker?url";
 import { useMemo } from "react";
-
-pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl;
+import { renderPdfBufferToDataUrl } from "../../lib/pdf-preview";
+import { BACKEND_URL } from "../../lib/fetch";
 
 export type RailTab = "blocks" | "layers" | "form" | "background";
 
@@ -21,8 +19,6 @@ export function FontLoader({ layers, dynamicFonts = [] }: { layers: Customizatio
     return Array.from(ids);
   }, [layers]);
 
-  const backendUrl = import.meta.env.VITE_BACKEND_URL ?? "http://localhost:8787";
-
   return (
     <>
       {fontFamilies.map((familyId) => {
@@ -37,27 +33,41 @@ export function FontLoader({ layers, dynamicFonts = [] }: { layers: Customizatio
             <style key={v.variantId} dangerouslySetInnerHTML={{ __html: `
               @font-face {
                 font-family: '${v.variantId}';
-                src: url('${backendUrl}/api/admin/brand-assets/fonts/file/${v.assetId}') format('truetype');
+                src: url('${BACKEND_URL}/api/storefront/brand-assets/fonts/file/${v.assetId}') format('truetype');
               }
             `}} />
           ));
         }
 
         // Static font fallback
-        // We can't await inside render, so we'll just inject the 4 variants if they exist in FONT_FILES
-        return ["regular", "bold", "italic", "bold-italic"].map(weight => {
-          const variantId = `${familyId}-${weight}`;
-          const file = FONT_FILES[variantId];
-          if (!file) return null;
-          return (
-            <style key={variantId} dangerouslySetInnerHTML={{ __html: `
-              @font-face {
-                font-family: '${variantId}';
-                src: url('${backendUrl}/fonts/${file}') format('truetype');
-              }
-            `}} />
-          );
-        });
+        const directFile = FONT_FILES[familyId];
+        const directStyle = directFile ? (
+          <style key={familyId} dangerouslySetInnerHTML={{ __html: `
+            @font-face {
+              font-family: '${familyId}';
+              src: url('${BACKEND_URL}/fonts/${directFile}') format('truetype');
+            }
+          `}} />
+        ) : null;
+
+        return (
+          <span key={familyId}>
+            {directStyle}
+            {["regular", "bold", "italic", "bold-italic"].map(weight => {
+              const variantId = `${familyId}-${weight}`;
+              const file = FONT_FILES[variantId];
+              if (!file) return null;
+              return (
+                <style key={variantId} dangerouslySetInnerHTML={{ __html: `
+                  @font-face {
+                    font-family: '${variantId}';
+                    src: url('${BACKEND_URL}/fonts/${file}') format('truetype');
+                  }
+                `}} />
+              );
+            })}
+          </span>
+        );
       })}
     </>
   );
@@ -82,27 +92,18 @@ export async function fileToBackground(file: File): Promise<BackgroundAsset> {
   if (file.type === "application/pdf") {
     try {
       const arrayBuffer = await file.arrayBuffer();
-      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-      const page = await pdf.getPage(1);
-      const viewport = page.getViewport({ scale: 2.0 });
-      const canvas = document.createElement("canvas");
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) throw new Error("Could not create canvas context");
-      await page.render({ canvasContext: ctx, viewport } as any).promise;
-      const previewUrl = canvas.toDataURL("image/webp", 0.9);
+      const result = await renderPdfBufferToDataUrl(arrayBuffer, 2.0, "image/webp", 0.9);
       return {
         assetId: createId("background"),
         filename: file.name,
         mimeType: file.type,
-        previewUrl,
-        widthPx: Math.round(viewport.width / 2),
-        heightPx: Math.round(viewport.height / 2),
-        pdfPageCount: pdf.numPages,
+        previewUrl: result.dataUrl,
+        widthPx: Math.round(result.width / 2),
+        heightPx: Math.round(result.height / 2),
+        pdfPageCount: result.numPages,
         pendingPdfUpload: true,
       };
-    } catch (e) {
+    } catch {
       throw new Error("Failed to read PDF file.");
     }
   }

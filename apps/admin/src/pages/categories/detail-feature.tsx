@@ -520,6 +520,7 @@ export function CategoryDetailPage() {
                               src={product.media[0].url}
                               alt={product.title}
                               className="w-8 h-8 rounded object-cover"
+                              crossOrigin="anonymous"
                             />
                           ) : (
                             <div className="w-8 h-8 bg-ui-bg-component rounded" />

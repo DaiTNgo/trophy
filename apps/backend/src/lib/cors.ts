@@ -53,8 +53,8 @@ export const PRODUCT_ASSET_CORS_POLICY: CorsPolicy = {
 };
 
 export const PUBLIC_ASSET_CORS_POLICY: CorsPolicy = {
-  allowHeaders: [],
-  allowMethods: [],
+  allowHeaders: ["*"],
+  allowMethods: ["GET", "HEAD", "OPTIONS"],
   allowAnyOrigin: true,
   exposeHeaders: ["Content-Length", "ETag"],
 };
@@ -121,9 +121,7 @@ function buildCorsHeaders(
   );
   headers.set(
     "Vary",
-    policy.allowAnyOrigin
-      ? "Access-Control-Request-Method, Access-Control-Request-Headers"
-      : "Origin, Access-Control-Request-Headers",
+    "Origin, Access-Control-Request-Method, Access-Control-Request-Headers",
   );
 
   if (policy.credentials) {
@@ -139,12 +137,12 @@ function buildCorsHeaders(
 export function createCorsMiddleware(policy: CorsPolicy) {
   return async (c: Context<AppEnv>, next: Next) => {
     const requestOrigin = c.req.header("origin");
-    if (!requestOrigin) {
+    if (!requestOrigin && !policy.allowAnyOrigin) {
       return next();
     }
 
     const allowedOrigins = getAppCorsOrigins(c.env);
-    if (!policy.allowAnyOrigin && !allowedOrigins.includes(requestOrigin)) {
+    if (!policy.allowAnyOrigin && !allowedOrigins.includes(requestOrigin!)) {
       return c.body(null, 403);
     }
 
@@ -160,10 +158,16 @@ export function createCorsMiddleware(policy: CorsPolicy) {
       return new Response(null, { status: 204, headers });
     }
 
-    await next();
-
-    headers.forEach((value, key) => {
-      c.header(key, value);
-    });
+    try {
+      await next();
+    } finally {
+      if (c.res) {
+        const res = new Response(c.res.body, c.res);
+        headers.forEach((value, key) => {
+          res.headers.set(key, value);
+        });
+        c.res = res;
+      }
+    }
   };
 }

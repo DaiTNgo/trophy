@@ -45,7 +45,7 @@ export type ClipartAssetMimeType = "image/svg+xml" | "image/png" | "image/webp";
 export type CustomizationClipartAsset = {
   id: string;
   sourceAssetId: string;
-  name: string;
+  name: string | LocalizedTextInput;
   fileName?: string | null;
   categoryId: string;
   previewUrl: string;
@@ -57,7 +57,7 @@ export type CustomizationClipartAsset = {
 
 export type ClipartCategory = {
   id: string;
-  name: string;
+  name: string | LocalizedTextInput;
 };
 
 export type ClipartCategoryMode = "fixed" | "allow_list";
@@ -72,7 +72,7 @@ export type ImageShapeSelectedSource = "upload" | "clipart";
 
 export type ChoiceOption = {
   value: string;
-  label: string;
+  label: string | LocalizedTextInput;
   swatch?: string;
 };
 
@@ -158,7 +158,7 @@ export type ImageShapeEditorLayer = LayerBase & {
     vectorPath?: VectorPath;
   };
   upload: {
-    fit: "cover";
+    fit: "cover" | "contain";
     defaultCrop?: ImageCrop;
   };
   sourcePolicy?: ImageClipartSourcePolicy;
@@ -291,6 +291,7 @@ export type RuntimeImageShapeLayer = {
   cropYRatio: number;
   cropRotationDeg: number;
   zIndex: number;
+  fit?: "cover" | "contain";
   contentSource?: "upload" | "clipart";
   clipartAssetId?: string;
   clipartAssetName?: string;

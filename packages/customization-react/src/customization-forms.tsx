@@ -72,8 +72,8 @@ export function ProductCustomizationForm({
   }
 
   async function uploadImage(field: CustomizationFormField, file: File) {
-    if (!["image/png", "image/jpeg"].includes(file.type)) {
-      setMessage("Use a PNG or JPEG image.");
+    if (!["image/png", "image/jpeg", "application/pdf"].includes(file.type)) {
+      setMessage("Use a PNG, JPEG, or PDF file.");
       return;
     }
     if (file.size > 20 * 1024 * 1024) {

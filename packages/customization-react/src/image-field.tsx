@@ -1,5 +1,6 @@
 import {
   getImageShapeClipartCategoryMode,
+  resolveLocalizedInput,
   type ClipartFieldValue,
   type CustomizationFieldValue,
   type ImageShapeFieldValue,
@@ -12,6 +13,7 @@ import type { ResolveCustomizationAssetUrl } from "./index";
 export function ImageField({
   layer,
   value,
+  locale,
   uploading,
   resolveAssetUrl,
   onChange,
@@ -20,6 +22,7 @@ export function ImageField({
 }: {
   layer: ImageShapeEditorLayer | null;
   value: CustomizationFieldValue | undefined;
+  locale?: string;
   uploading: boolean;
   resolveAssetUrl?: ResolveCustomizationAssetUrl;
   onChange: (value: ImageShapeFieldValue | ClipartFieldValue | null) => void;
@@ -104,10 +107,10 @@ export function ImageField({
       {!uploaded ? (
         <label className="flex h-20 cursor-pointer items-center justify-center gap-2 rounded border border-dashed border-outline bg-white px-4 text-sm text-on-surface-variant transition hover:border-accent hover:text-accent">
           <ImagePlus className="size-4" />
-          {uploading ? "Uploading..." : "Choose PNG or JPEG"}
+          {uploading ? "Uploading..." : "Choose PNG, JPEG, or PDF"}
           <input
             type="file"
-            accept="image/png,image/jpeg"
+            accept="image/png,image/jpeg,application/pdf"
             disabled={uploading}
             onChange={(event) => {
               const file = event.target.files?.[0];
@@ -122,7 +125,7 @@ export function ImageField({
           <img
             src={resolveAssetUrl?.(uploaded.previewUrl) ?? uploaded.previewUrl}
             alt=""
-            className="h-14 w-14 shrink-0 rounded object-cover"
+            className="h-14 w-14 shrink-0 rounded object-contain"
           />
           <div className="flex flex-1 items-center gap-2">
             <label className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded border border-outline bg-white px-3 text-xs font-semibold text-on-surface transition hover:border-accent">
@@ -130,7 +133,7 @@ export function ImageField({
               Replace
               <input
                 type="file"
-                accept="image/png,image/jpeg"
+                accept="image/png,image/jpeg,application/pdf"
                 disabled={uploading}
                 onChange={(event) => {
                   const file = event.target.files?.[0];
@@ -176,14 +179,14 @@ export function ImageField({
           >
             {scopedClipartCategories.map((category) => (
               <option key={category.id} value={category.id}>
-                {category.name}
+                {resolveLocalizedInput(category.name, locale)}
               </option>
             ))}
           </select>
         </div>
       ) : clipartCategoryMode === "fixed" && layer?.clipartCategory?.name ? (
         <p className="text-xs font-semibold text-on-surface-variant">
-          {layer.clipartCategory.name}
+          {resolveLocalizedInput(layer.clipartCategory.name, locale)}
         </p>
       ) : null}
       {/* Dense 6-col icon grid */}
@@ -193,16 +196,17 @@ export function ImageField({
             clipartValue &&
             "clipartAssetId" in clipartValue &&
             clipartValue.clipartAssetId === clipart.id;
+          const clipartName = resolveLocalizedInput(clipart.name, locale);
           return (
             <button
               key={clipart.id}
               type="button"
-              title={clipart.name}
+              title={clipartName}
               onClick={() =>
                 onChange({
                   source: "clipart",
                   clipartAssetId: clipart.id,
-                  clipartAssetName: clipart.name,
+                  clipartAssetName: clipartName,
                   sourceAssetId: clipart.sourceAssetId,
                   previewUrl: clipart.previewUrl,
                   mimeType: clipart.mimeType,
@@ -221,7 +225,7 @@ export function ImageField({
                 src={
                   resolveAssetUrl?.(clipart.previewUrl) ?? clipart.previewUrl
                 }
-                alt={clipart.name}
+                alt={clipartName}
                 className="h-10 w-10 object-contain"
               />
             </button>
@@ -260,7 +264,10 @@ export function ImageField({
                   onChange({
                     source: "clipart",
                     clipartAssetId: clipart.id,
-                    clipartAssetName: clipart.name,
+                    clipartAssetName: resolveLocalizedInput(
+                      clipart.name,
+                      locale,
+                    ),
                     sourceAssetId: clipart.sourceAssetId,
                     previewUrl: clipart.previewUrl,
                     mimeType: clipart.mimeType,

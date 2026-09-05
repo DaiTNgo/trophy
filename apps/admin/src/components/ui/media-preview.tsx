@@ -1,10 +1,7 @@
 import { useEffect, useState } from "react";
-import * as pdfjsLib from "pdfjs-dist";
-import { backendFetch } from "../../lib/fetch";
-import pdfjsWorkerUrl from "pdfjs-dist/build/pdf.worker?url";
+import { backendFetch, BACKEND_URL } from "../../lib/fetch";
+import { renderPdfBufferToDataUrl } from "../../lib/pdf-preview";
 import { Package, FileText } from "lucide-react";
-
-pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl;
 
 export type MediaPreviewProps = {
   /**
@@ -140,6 +137,8 @@ function UrlPreview({
       return;
     }
 
+    const resolvedUrl = src.startsWith("/") ? `${BACKEND_URL.replace(/\/$/, "")}${src}` : src;
+
     // PDF
     const isPdf = mimeType === "application/pdf" || src.toLowerCase().endsWith(".pdf");
 
@@ -149,27 +148,15 @@ function UrlPreview({
 
       const load = async () => {
         try {
-          const res = await backendFetch(src);
+          const isAsset = src.startsWith("/api/assets/") || src.includes("/api/assets/");
+          const res = isAsset ? await fetch(resolvedUrl) : await backendFetch(src);
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
           const buffer = await res.blob().then((b) => b.arrayBuffer());
           if (isCancelled) return;
 
-          const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
-          if (isCancelled) return;
-
-          if (pdf.numPages > 0) {
-            const page = await pdf.getPage(1);
-            if (isCancelled) return;
-
-            const viewport = page.getViewport({ scale: 1.0 });
-            const canvas = document.createElement("canvas");
-            canvas.width = viewport.width;
-            canvas.height = viewport.height;
-            const ctx = canvas.getContext("2d");
-            if (ctx) {
-              await page.render({ canvasContext: ctx, viewport } as any).promise;
-              if (!isCancelled) setDataUrl(canvas.toDataURL("image/webp", 0.9));
-            }
+          const result = await renderPdfBufferToDataUrl(buffer, 1.0, "image/webp", 0.9);
+          if (!isCancelled) {
+            setDataUrl(result.dataUrl);
           }
         } catch {
           if (!isCancelled) setError(true);
@@ -183,7 +170,7 @@ function UrlPreview({
     }
 
     // Images are public capability URLs. Let the browser load them directly.
-    setDataUrl(src);
+    setDataUrl(resolvedUrl);
     setIsLoadingPdf(false);
   }, [src, mimeType]);
 
@@ -213,7 +200,13 @@ function UrlPreview({
   }
 
   return (
-    <img src={dataUrl} alt={alt} className={className} onError={() => setError(true)} />
+    <img
+      src={dataUrl}
+      alt={alt}
+      className={className}
+      crossOrigin="anonymous"
+      onError={() => setError(true)}
+    />
   );
 }
 

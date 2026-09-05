@@ -4,6 +4,7 @@ import { getDb } from "../../db/client";
 import { brandColors, fontFamilies } from "../../db/schema";
 import type { AppEnv } from "../../lib/env";
 import { jsonError } from "../../lib/validation";
+import { getStaticFontBytes } from "../../lib/static-fonts";
 
 export const adminBrandAssetsRoute = new Hono<AppEnv>()
   .get("/colors", async (c) => {
@@ -37,6 +38,16 @@ export const adminBrandAssetsRoute = new Hono<AppEnv>()
   })
   .get("/fonts/file/:assetId", async (c) => {
     const assetId = c.req.param("assetId");
+
+    const staticBytes = getStaticFontBytes(assetId);
+    if (staticBytes) {
+      const headers = new Headers();
+      headers.set("content-type", "font/ttf");
+      headers.set("cache-control", "public, max-age=31536000, immutable");
+      headers.set("x-content-type-options", "nosniff");
+      return new Response(staticBytes as unknown as BodyInit, { headers });
+    }
+
     const object = await c.env.CUSTOMIZATION_ASSETS.get(`fonts/${assetId}.ttf`);
 
     if (!object) {
@@ -46,7 +57,8 @@ export const adminBrandAssetsRoute = new Hono<AppEnv>()
     const headers = new Headers();
     object.writeHttpMetadata(headers);
     headers.set("etag", object.httpEtag);
-    headers.set("cache-control", "private, max-age=31536000, immutable");
+    headers.set("cache-control", "public, max-age=31536000, immutable");
+    headers.set("x-content-type-options", "nosniff");
     return new Response(object.body as unknown as ReadableStream, { headers });
   })
   .post("/fonts", async (c) => {

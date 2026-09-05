@@ -1,13 +1,11 @@
 import {
   resolveLocalizedInput,
-  vectorPointsToSvgPathD,
   type CustomizationFieldValue,
   type CustomizationFormField,
   type CustomizationLayer,
   type DynamicFontFamily,
   type ImageShapeFieldValue,
   type ImageShapeEditorLayer,
-  type RuntimeLayer,
 } from "@trophy/customization";
 import {
   useCallback,
@@ -230,6 +228,7 @@ export function FormField({
         <ImageField
           layer={imageLayer}
           value={value}
+          locale={locale}
           uploading={uploading}
           resolveAssetUrl={resolveAssetUrl}
           onChange={onChange}
@@ -241,42 +240,5 @@ export function FormField({
         <p className="mt-2 text-xs font-medium text-destructive">{issue}</p>
       ) : null}
     </section>
-  );
-}
-
-
-
-export function ShapeClipPaths({ layers }: { layers?: RuntimeLayer[] }) {
-  return (
-    <svg width="0" height="0" className="absolute pointer-events-none">
-      <defs>
-        <clipPath id="clip-shape-heart" clipPathUnits="objectBoundingBox">
-          <path d="M 0.5 0.85 C 0.1 0.55 0 0.25 0.25 0.12 C 0.4 0 0.5 0.16 0.5 0.28 C 0.5 0.16 0.6 0 0.75 0.12 C 1 0.25 0.9 0.55 0.5 0.85 Z" />
-        </clipPath>
-        {layers?.map((layer) => {
-          if (
-            layer.type === "image_shape" &&
-            layer.shape.type === "vector" &&
-            layer.shape.vectorPath
-          ) {
-            return (
-              <clipPath
-                key={layer.id}
-                id={`clip-vector-${layer.id}`}
-                clipPathUnits="objectBoundingBox"
-              >
-                <path
-                  d={vectorPointsToSvgPathD(
-                    layer.shape.vectorPath.points,
-                    layer.shape.vectorPath.closed,
-                  )}
-                />
-              </clipPath>
-            );
-          }
-          return null;
-        })}
-      </defs>
-    </svg>
   );
 }

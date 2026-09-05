@@ -14,16 +14,18 @@ export const normalizeSingleLine = (value: string) =>
   value.replace(/[\r\n]+/g, " ").replace(/\s+/g, " ").trim();
 
 export const resolveLocalizedInput = (
-  value: string | LocalizedTextInput | undefined | null,
+  value: string | LocalizedTextInput | unknown | undefined | null,
   locale?: string,
 ): string => {
   if (typeof value === "string") return value;
   if (!value) return "";
-  if (locale === "en" && value.en?.trim()) return value.en.trim();
-  if (locale === "vi" && value.vi?.trim()) return value.vi.trim();
-  const vi = value.vi?.trim();
+  if (typeof value !== "object") return String(value);
+  const localized = value as LocalizedTextInput;
+  if (locale === "en" && localized.en?.trim()) return localized.en.trim();
+  if (locale === "vi" && localized.vi?.trim()) return localized.vi.trim();
+  const vi = localized.vi?.trim();
   if (vi) return vi;
-  return value.en?.trim() ?? "";
+  return localized.en?.trim() ?? "";
 };
 
 export const isLayerVisible = (layer: CustomizationLayer) => !layer.hidden;

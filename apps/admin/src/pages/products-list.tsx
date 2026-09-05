@@ -323,6 +323,7 @@ export function ProductsListPage() {
                                 src={product.media[0].contentUrl}
                                 alt={product.title?.vi || product.title?.en}
                                 className="h-full w-full object-cover"
+                                crossOrigin="anonymous"
                               />
                             </div>
                           )}
