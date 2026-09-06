@@ -291,6 +291,7 @@ export function ProductDetailLayout({
                       onMessageChange={setMessage}
                       onDeleteImage={deleteCustomizationImage}
                       onUploadImage={uploadCustomizationImage}
+                      onFieldFocus={setSelectedCustomizationFieldId}
                       onValueChange={(fieldId, value) => {
                         setCustomizationValues((current) => ({
                           ...current,
@@ -347,6 +348,7 @@ export function ProductDetailLayout({
                     onMessageChange={setMessage}
                     onDeleteImage={deleteCustomizationImage}
                     onUploadImage={uploadCustomizationImage}
+                    onFieldFocus={setSelectedCustomizationFieldId}
                     onValueChange={(fieldId, value) => {
                       setCustomizationValues((current) => ({
                         ...current,

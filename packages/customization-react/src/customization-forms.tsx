@@ -22,6 +22,7 @@ export function ProductCustomizationForm({
   onDeleteImage,
   onUploadImage,
   onInteraction,
+  onFieldFocus,
   onValueChange,
 }: {
   template: CustomizationTemplate;
@@ -34,6 +35,7 @@ export function ProductCustomizationForm({
   onDeleteImage?: CustomizationDeleteImage;
   onUploadImage?: CustomizationUploadImage;
   onInteraction?: () => void;
+  onFieldFocus?: (fieldId: string) => void;
   onValueChange: (fieldId: string, value: CustomizationFieldValue) => void;
 }) {
   const [uploadingFieldId, setUploadingFieldId] = useState("");
@@ -149,6 +151,7 @@ export function ProductCustomizationForm({
             }}
             onUpload={(file) => uploadImage(field, file)}
             onRemove={() => void removeImage(field)}
+            onFocus={() => onFieldFocus?.(field.id)}
           />
         );
       })}
