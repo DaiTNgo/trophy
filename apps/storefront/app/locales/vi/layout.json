@@ -46,13 +46,14 @@
   "footer_company_name": "CÔNG TY TNHH SX THƯƠNG MẠI PHÙNG THỊ",
   "footer_tax_code": "MST: 0314042508",
   "footer_hotline": "Hotline:",
-  "footer_zalo": "Zalo: 0816 999 296",
+  "footer_hotline2": "Hotline 2:",
   "footer_email": "Email:",
   "footer_copyright": "© 2024 PHÙNG THỊ. Đã đăng ký bản quyền.",
   "footer_privacy": "Chính sách bảo mật",
   "footer_terms": "Điều khoản sử dụng",
 
-  "contact_call": "Gọi 0816 999 296",
+  "contact_call": "Gọi điện",
+  "contact_call_number": "Gọi {{number}}",
   "contact_fab_close": "Đóng",
   "contact_fab_open": "Liên hệ",
 

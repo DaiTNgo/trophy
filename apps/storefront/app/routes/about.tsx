@@ -11,7 +11,6 @@ import {
   Pickaxe,
   Award,
   Phone,
-  MessageCircle,
   Mail,
   PenLine,
   FileCheck,
@@ -385,13 +384,11 @@ export default function AboutRoute() {
               0816 999 296
             </a>
             <a
-              href="https://zalo.me/352826287636550047"
-              target="_blank"
-              rel="noopener noreferrer"
+              href="tel:0966100050"
               className="flex items-center gap-2 transition-colors hover:text-brand-accent"
             >
-              <MessageCircle className="size-4" />
-              Zalo OA
+              <Phone className="size-4" />
+              0966 100 050
             </a>
             <a
               href="mailto:Lienhe.phungthi@gmail.com"

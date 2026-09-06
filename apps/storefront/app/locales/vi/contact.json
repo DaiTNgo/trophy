@@ -10,17 +10,13 @@
   "hotline_value": "0816 999 296",
   "hotline_desc": "Gọi trực tiếp để được tư vấn nhanh.",
 
+  "hotline2_label": "Hotline",
+  "hotline2_value": "0966 100 050",
+  "hotline2_desc": "Liên hệ bổ sung khi hotline bận.",
+
   "email_label": "Email",
   "email_value": "Lienhe.phungthi@gmail.com",
   "email_desc": "Gửi thông tin để nhận báo giá qua email.",
-
-  "messenger_label": "Messenger",
-  "messenger_value": "Phùng Thị",
-  "messenger_desc": "Nhắn tin trực tiếp trên Messenger.",
-
-  "zalo_label": "Zalo",
-  "zalo_value": "Zalo OA",
-  "zalo_desc": "Liên hệ qua Zalo để được hỗ trợ.",
 
   "product_info_badge": "Biến thể bạn đang xem",
   "variant_label": "Variant",

@@ -1,5 +1,5 @@
 import { Link, useSearchParams } from "react-router";
-import { ArrowLeft, Mail, MapPin, MessageCircle, Phone, Send } from "lucide-react";
+import { ArrowLeft, Mail, MapPin, Phone, Send } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { getLocale } from "../i18n.server";
 import type { Route } from "./+types/contact";
@@ -53,11 +53,10 @@ export default function ContactRoute() {
         <div className="mb-16 grid gap-4 sm:grid-cols-2">
           {([
             { key: "hotline", href: "tel:0816999296" },
+            { key: "hotline2", href: "tel:0966100050" },
             { key: "email", href: "mailto:Lienhe.phungthi@gmail.com" },
-            { key: "messenger", href: "https://www.messenger.com/t/cupphalephungthi" },
-            { key: "zalo", href: "https://zalo.me/352826287636550047" },
           ] as const).map(({ key, href }) => {
-            const Icon = key === "hotline" ? Phone : key === "email" ? Mail : MessageCircle;
+            const Icon = key === "email" ? Mail : Phone;
             const isExternal = href.startsWith("http");
             return (
               <a

@@ -1,7 +1,6 @@
 import {
   Mail,
   MapPin,
-  MessageCircle,
   Phone
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -96,8 +95,14 @@ export function Footer() {
                   </a>
                 </p>
                 <p className="flex items-center gap-1.5">
-                  <MessageCircle className="size-4 shrink-0" />
-                  {t("footer_zalo")}
+                  <Phone className="size-4 shrink-0" />
+                  {t("footer_hotline2")}
+                  <a
+                    href="tel:0966100050"
+                    className="transition-colors hover:text-brand-accent"
+                  >
+                    0966 100 050
+                  </a>
                 </p>
                 <p className="flex items-center gap-1.5">
                   <Mail className="size-4 shrink-0" />

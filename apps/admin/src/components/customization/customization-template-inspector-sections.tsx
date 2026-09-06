@@ -541,6 +541,82 @@ function TextStyleControls({
             </Select>
           </div>
         )}
+        {layer.text.fontPolicy.mode === "shopper_selectable" && (() => {
+          const policy = layer.text.fontPolicy;
+          const usedValues = new Set(policy.options.map((o) => o.value));
+          const addableOptions = fontOptions.filter((o) => !usedValues.has(o.value));
+          return (
+            <div className="space-y-3 rounded-md border border-ui-border-base bg-ui-bg-subtle p-3">
+              <p className="text-xs font-medium text-ui-fg-muted">Allowed Fonts</p>
+              <div className="flex flex-wrap gap-2">
+                {policy.options.map((option) => {
+                  const isDefault = policy.defaultFontId === option.value;
+                  const label = resolveLocalizedInput(option.label) || option.value;
+                  return (
+                    <div
+                      key={option.value}
+                      className={`group flex items-center gap-1 rounded border px-2 py-1 text-xs cursor-pointer transition ${
+                        isDefault
+                          ? "border-ui-fg-interactive text-ui-fg-base font-semibold"
+                          : "border-ui-border-base bg-ui-bg-base text-ui-fg-base hover:border-ui-fg-interactive"
+                      }`}
+                      title={isDefault ? "Default font" : "Click to set as default"}
+                      onClick={() =>
+                        updateText(onUpdate, {
+                          fontPolicy: { ...policy, defaultFontId: option.value },
+                        })
+                      }
+                    >
+                      <span>{label}</span>
+                      <button
+                        type="button"
+                        className="ml-0.5 flex size-3.5 items-center justify-center rounded-full text-[10px] opacity-50 hover:opacity-100 hover:text-red-500"
+                        title="Remove font"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const nextOptions = policy.options.filter((o) => o.value !== option.value);
+                          const nextDefault =
+                            policy.defaultFontId === option.value
+                              ? nextOptions[0]?.value ?? "sans"
+                              : policy.defaultFontId;
+                          updateText(onUpdate, {
+                            fontPolicy: { ...policy, options: nextOptions, defaultFontId: nextDefault },
+                          });
+                        }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+              {addableOptions.length > 0 && (
+                <Select
+                  value=""
+                  onValueChange={(value) => {
+                    const opt = fontOptions.find((o) => o.value === value);
+                    if (!opt) return;
+                    updateText(onUpdate, {
+                      fontPolicy: { ...policy, options: [...policy.options, opt] },
+                    });
+                  }}
+                >
+                  <Select.Trigger>
+                    <span className="text-xs text-ui-fg-muted">+ Add font</span>
+                  </Select.Trigger>
+                  <Select.Content>
+                    {addableOptions.map((opt) => (
+                      <Select.Item key={opt.value} value={opt.value}>
+                        {resolveLocalizedInput(opt.label) || opt.value}
+                      </Select.Item>
+                    ))}
+                  </Select.Content>
+                </Select>
+              )}
+              <p className="text-[10px] text-ui-fg-muted">Click a font to set as default.</p>
+            </div>
+          );
+        })()}
       </div>
       {supportsFormat ? <div className="space-y-2 pt-2 border-t border-ui-border-base">
         <div className="space-y-1">
