@@ -151,6 +151,13 @@ function UrlPreview({
           const isAsset = src.startsWith("/api/assets/") || src.includes("/api/assets/");
           const res = isAsset ? await fetch(resolvedUrl) : await backendFetch(src);
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const contentType = res.headers.get("content-type");
+          if (contentType && contentType.startsWith("image/")) {
+            const blob = await res.blob();
+            if (!isCancelled) setDataUrl(URL.createObjectURL(blob));
+            return;
+          }
+
           const buffer = await res.blob().then((b) => b.arrayBuffer());
           if (isCancelled) return;
 

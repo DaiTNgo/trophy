@@ -10,7 +10,17 @@ import { jsonError, parseParams } from '../../lib/validation'
 import { readProduct } from './product-reader'
 import { variantParamsSchema } from './product-schemas'
 
-type UploadedMedia = { id: string; fileName: string; mimeType: string; widthPx: number; heightPx: number; byteSize: number; buffer: ArrayBuffer }
+type UploadedMedia = {
+  id: string
+  fileName: string
+  mimeType: string
+  widthPx: number
+  heightPx: number
+  byteSize: number
+  buffer: ArrayBuffer
+  previewBuffer?: ArrayBuffer
+  previewMimeType?: string
+}
 
 async function variantResponse(c: Parameters<typeof readProduct>[0], db: ReturnType<typeof getDb>, productId: number, variantId: number) {
   const product = await readProduct(c, db, productId)
@@ -23,16 +33,49 @@ async function parseFiles(request: Request) {
   const form = await request.formData().catch(() => null)
   if (!form) return { error: 'Multipart form data is required' } as const
   const files = form.getAll('files').filter((value): value is File => value instanceof File)
-  if (files.length === 0 || files.length !== [...form.values()].filter((value) => value instanceof File).length) return { error: 'One or more files are required' } as const
+  const preview = form.get('preview')
+  const previewFile = preview instanceof File ? preview : null
+  const totalFiles = [...form.values()].filter((value) => value instanceof File).length
+  const expectedTotal = files.length + (previewFile ? 1 : 0)
+  if (files.length === 0 || totalFiles !== expectedTotal) return { error: 'One or more files are required' } as const
   const result: UploadedMedia[] = []
   for (const file of files) {
     const mimeType = file.type.trim().toLowerCase()
     if (!allowedMimeTypes.has(mimeType)) return { error: 'Only PNG, JPEG, WEBP, and PDF product assets are supported' } as const
     if (file.size <= 0 || file.size > MAX_ASSET_BYTES) return { error: 'Product asset exceeds the 20 MB limit' } as const
     const buffer = await file.arrayBuffer()
-    const dimensions = mimeType === 'application/pdf' ? { width: 800, height: 1131 } : readImageDimensions(mimeType, new Uint8Array(buffer))
+    let previewBuffer: ArrayBuffer | undefined
+    let previewMimeType: string | undefined
+    if (previewFile && mimeType === 'application/pdf') {
+      previewBuffer = await previewFile.arrayBuffer()
+      previewMimeType = previewFile.type.trim().toLowerCase()
+    }
+    const widthStr = form.get('width') || form.get('widthPx')
+    const heightStr = form.get('height') || form.get('heightPx')
+    const clientWidth = widthStr ? Number(widthStr) : NaN
+    const clientHeight = heightStr ? Number(heightStr) : NaN
+    let dimensions: { width: number; height: number } | null = null
+    if (Number.isFinite(clientWidth) && Number.isFinite(clientHeight) && clientWidth > 0 && clientHeight > 0) {
+      dimensions = { width: clientWidth, height: clientHeight }
+    } else if (previewBuffer && previewMimeType) {
+      dimensions = readImageDimensions(previewMimeType, new Uint8Array(previewBuffer))
+    } else if (mimeType === 'application/pdf') {
+      dimensions = { width: 800, height: 1131 }
+    } else {
+      dimensions = readImageDimensions(mimeType, new Uint8Array(buffer))
+    }
     if (!dimensions || dimensions.width < 1 || dimensions.height < 1) return { error: 'Media data is invalid or unsupported' } as const
-    result.push({ id: crypto.randomUUID(), fileName: file.name, mimeType, widthPx: dimensions.width, heightPx: dimensions.height, byteSize: buffer.byteLength, buffer })
+    result.push({
+      id: crypto.randomUUID(),
+      fileName: file.name,
+      mimeType,
+      widthPx: dimensions.width,
+      heightPx: dimensions.height,
+      byteSize: buffer.byteLength,
+      buffer,
+      previewBuffer,
+      previewMimeType,
+    })
   }
   return { files: result } as const
 }
@@ -56,7 +99,13 @@ export const productVariantMediaManagementRoute = new Hono<AppEnv>()
         const objectKey = buildCatalogVariantMediaKey({ productId: product.id, variantId: variant.id, assetId: file.id, extension: extensionForMimeType(file.mimeType) })
         await c.env.CUSTOMIZATION_ASSETS.put(objectKey, file.buffer, { httpMetadata: { contentType: file.mimeType } })
         objectKeys.push(objectKey)
-        await db.insert(productAssets).values({ id: file.id, ownerKey: `catalog:${product.id}`, objectKey, fileName: file.fileName, mimeType: file.mimeType, widthPx: file.widthPx, heightPx: file.heightPx, byteSize: file.byteSize })
+        let previewObjectKey: string | null = null
+        if (file.previewBuffer && file.previewMimeType) {
+          previewObjectKey = `catalog/${product.id}/variants/${variant.id}/media/${file.id}/preview.${extensionForMimeType(file.previewMimeType)}`
+          await c.env.CUSTOMIZATION_ASSETS.put(previewObjectKey, file.previewBuffer, { httpMetadata: { contentType: file.previewMimeType } })
+          objectKeys.push(previewObjectKey)
+        }
+        await db.insert(productAssets).values({ id: file.id, ownerKey: `catalog:${product.id}`, objectKey, previewObjectKey, fileName: file.fileName, mimeType: file.mimeType, widthPx: file.widthPx, heightPx: file.heightPx, byteSize: file.byteSize })
         await db.insert(productVariantMedia).values({ variantId: variant.id, assetId: file.id, position: nextPosition + objectKeys.length - 1 })
       }
     } catch (error) {
@@ -76,6 +125,9 @@ export const productVariantMediaManagementRoute = new Hono<AppEnv>()
     const asset = await db.select().from(productAssets).where(eq(productAssets.id, assetId)).get()
     if (!asset) return jsonError(c, 404, 'Variant Media asset not found')
     await c.env.CUSTOMIZATION_ASSETS.delete(asset.objectKey)
+    if (asset.previewObjectKey) {
+      await c.env.CUSTOMIZATION_ASSETS.delete(asset.previewObjectKey).catch(() => undefined)
+    }
     await db.delete(productVariantMedia).where(and(eq(productVariantMedia.variantId, params.output.variantId), eq(productVariantMedia.assetId, assetId)))
     await db.delete(productMedia).where(and(eq(productMedia.productId, params.output.id), eq(productMedia.assetId, assetId)))
     await db.delete(productAssets).where(eq(productAssets.id, assetId))
@@ -102,15 +154,35 @@ export const productVariantMediaManagementRoute = new Hono<AppEnv>()
     if (sibling && (sibling.widthPx !== file.widthPx || sibling.heightPx !== file.heightPx)) return jsonError(c, 409, `Customization Background must be ${sibling.widthPx} x ${sibling.heightPx} px`)
     const oldAssetId = variant.customizationMedia?.id ?? null
     const objectKey = buildCatalogVariantCustomizationBackgroundKey({ productId: product.id, variantId: variant.id, assetId: file.id, extension: extensionForMimeType(file.mimeType) })
+    let previewObjectKey: string | null = null
+    if (file.previewBuffer && file.previewMimeType) {
+      previewObjectKey = `catalog/${product.id}/variants/${variant.id}/customization-background/${file.id}/preview.${extensionForMimeType(file.previewMimeType)}`
+    }
     try {
       await c.env.CUSTOMIZATION_ASSETS.put(objectKey, file.buffer, { httpMetadata: { contentType: file.mimeType } })
-      await db.insert(productAssets).values({ id: file.id, ownerKey: `catalog:${product.id}`, objectKey, fileName: file.fileName, mimeType: file.mimeType, widthPx: file.widthPx, heightPx: file.heightPx, byteSize: file.byteSize })
+      if (previewObjectKey && file.previewBuffer && file.previewMimeType) {
+        await c.env.CUSTOMIZATION_ASSETS.put(previewObjectKey, file.previewBuffer, { httpMetadata: { contentType: file.previewMimeType } })
+      }
+      await db.insert(productAssets).values({
+        id: file.id,
+        ownerKey: `catalog:${product.id}`,
+        objectKey,
+        previewObjectKey,
+        fileName: file.fileName,
+        mimeType: file.mimeType,
+        widthPx: file.widthPx,
+        heightPx: file.heightPx,
+        byteSize: file.byteSize,
+      })
       await db.delete(productVariantCustomizationMedia).where(eq(productVariantCustomizationMedia.variantId, variant.id))
       await db.insert(productVariantCustomizationMedia).values({ variantId: variant.id, assetId: file.id, updatedAt: new Date().toISOString() })
       if (oldAssetId) {
         const oldAsset = await db.select().from(productAssets).where(eq(productAssets.id, oldAssetId)).get()
         if (oldAsset) {
           await c.env.CUSTOMIZATION_ASSETS.delete(oldAsset.objectKey)
+          if (oldAsset.previewObjectKey) {
+            await c.env.CUSTOMIZATION_ASSETS.delete(oldAsset.previewObjectKey).catch(() => undefined)
+          }
           await db.delete(productMedia).where(and(eq(productMedia.productId, product.id), eq(productMedia.assetId, oldAsset.id)))
           await db.delete(productAssets).where(eq(productAssets.id, oldAsset.id))
         }
@@ -121,6 +193,9 @@ export const productVariantMediaManagementRoute = new Hono<AppEnv>()
       }
     } catch (error) {
       await c.env.CUSTOMIZATION_ASSETS.delete(objectKey).catch(() => undefined)
+      if (previewObjectKey) {
+        await c.env.CUSTOMIZATION_ASSETS.delete(previewObjectKey).catch(() => undefined)
+      }
       return jsonError(c, 500, error instanceof Error ? error.message : 'Unable to replace Customization Background')
     }
     return (await variantResponse(c, db, product.id, variant.id)) ?? jsonError(c, 404, 'Variant not found')

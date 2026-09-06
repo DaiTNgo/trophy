@@ -151,7 +151,7 @@ describe("storefront customization assets routes", () => {
     db.asset = {
       id: assetId,
       objectKey: "shopper-drafts/draft-123/uploads/team-logo/asset.source.png",
-      previewObjectKey: "shopper-drafts/draft-123/uploads/team-logo/asset.preview.png",
+      previewObjectKey: "shopper-drafts/draft-123/uploads/team-logo/asset.preview.webp",
     };
 
     const res = await storefrontRoute.request(
@@ -173,7 +173,7 @@ describe("storefront customization assets routes", () => {
       "shopper-drafts/draft-123/uploads/team-logo/asset.source.png",
     );
     expect(env.CUSTOMIZATION_ASSETS.delete).toHaveBeenCalledWith(
-      "shopper-drafts/draft-123/uploads/team-logo/asset.preview.png",
+      "shopper-drafts/draft-123/uploads/team-logo/asset.preview.webp",
     );
     expect(db.delete).toHaveBeenCalledOnce();
   });

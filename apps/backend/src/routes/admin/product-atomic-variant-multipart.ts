@@ -12,6 +12,8 @@ export type ValidatedAtomicVariantMedia = {
   heightPx: number
   byteSize: number
   buffer: ArrayBuffer
+  previewBuffer?: ArrayBuffer
+  previewMimeType?: string
 }
 
 const invalid = (error: string) => ({ success: false as const, error })
@@ -41,12 +43,19 @@ async function validateCustomizationFileWithDeclaration(
   file: File,
   fieldId: string,
   dimensions: { widthPx: number; heightPx: number },
+  previewFile?: File,
 ): Promise<ValidatedAtomicVariantMedia | string> {
   const mimeType = file.type.trim().toLowerCase()
   if (!allowedMimeTypes.has(mimeType)) return 'Only PNG, JPEG, WEBP, and PDF product assets are supported'
   if (file.size <= 0 || file.size > MAX_ASSET_BYTES) return 'Product asset exceeds the 20 MB limit'
   const buffer = await file.arrayBuffer()
   if (buffer.byteLength !== file.size || buffer.byteLength > MAX_ASSET_BYTES) return 'Product asset size is invalid'
+  let previewBuffer: ArrayBuffer | undefined
+  let previewMimeType: string | undefined
+  if (previewFile && mimeType === 'application/pdf') {
+    previewBuffer = await previewFile.arrayBuffer()
+    previewMimeType = previewFile.type.trim().toLowerCase()
+  }
   return {
     fieldId,
     id: crypto.randomUUID(),
@@ -56,34 +65,45 @@ async function validateCustomizationFileWithDeclaration(
     heightPx: dimensions.heightPx,
     byteSize: buffer.byteLength,
     buffer,
+    previewBuffer,
+    previewMimeType,
   }
 }
 
-export async function parseAtomicVariantMultipart(request: Request): Promise<{ success: true; variant: ValidatedAtomicVariant } | { success: false; error: string }> {
+export async function parseAtomicVariantMultipart(
+  request: Request,
+): Promise<{ success: true; variant: ValidatedAtomicVariant } | { success: false; error: string }> {
   const formData = await request.formData().catch(() => null)
   if (!formData) return invalid('Multipart form data is required')
-
   const payload = formData.get('payload')
-  if (typeof payload !== 'string') return invalid('Multipart payload is required')
-  const json = (() => {
-    try { return JSON.parse(payload) } catch { return undefined }
-  })()
-  if (json === undefined) return invalid('Multipart payload must be valid JSON')
-  const parsed = v.safeParse(atomicVariantCreateSchema, json)
-  if (!parsed.success) return invalid('Multipart payload validation failed')
+  if (typeof payload !== 'string') return invalid('Payload JSON is required')
+  let parsedPayload: unknown
+  try {
+    parsedPayload = JSON.parse(payload)
+  } catch {
+    return invalid('Payload must be valid JSON')
+  }
+
+  const parsed = v.safeParse(atomicVariantCreateSchema, parsedPayload)
+  if (!parsed.success) return invalid('Validation error')
 
   const declaredIds = [
     ...parsed.output.galleryMedia.map((media) => media.mediaId),
-    ...(parsed.output.customizationMedia ? [parsed.output.customizationMedia.mediaId] : [])
+    ...(parsed.output.customizationMedia ? [parsed.output.customizationMedia.mediaId] : []),
   ]
-  if (new Set(declaredIds).size !== declaredIds.length) return invalid('Each declared media ID must be unique')
 
   const supplied = new Map<string, File>()
+  const suppliedPreviews = new Map<string, File>()
   for (const [name, value] of formData.entries()) {
     if (name === 'payload') continue
     if (!(value instanceof File)) return invalid(`Multipart field ${name} must be a file`)
-    if (supplied.has(name)) return invalid(`Multipart field ${name} must appear exactly once`)
-    supplied.set(name, value)
+    if (name.endsWith('_preview')) {
+      const baseId = name.replace(/_preview$/, '')
+      suppliedPreviews.set(baseId, value)
+    } else {
+      if (supplied.has(name)) return invalid(`Multipart field ${name} must appear exactly once`)
+      supplied.set(name, value)
+    }
   }
   if (declaredIds.some((id) => !supplied.has(id)) || supplied.size !== declaredIds.length) {
     return invalid('Each declared media ID must have exactly one matching file and no unreferenced files')
@@ -99,7 +119,8 @@ export async function parseAtomicVariantMultipart(request: Request): Promise<{ s
   let customizationMedia: ValidatedAtomicVariantMedia | null = null
   if (parsed.output.customizationMedia) {
     const file = supplied.get(parsed.output.customizationMedia.mediaId)!
-    const result = await validateCustomizationFileWithDeclaration(file, parsed.output.customizationMedia.mediaId, parsed.output.customizationMedia)
+    const previewFile = suppliedPreviews.get(parsed.output.customizationMedia.mediaId)
+    const result = await validateCustomizationFileWithDeclaration(file, parsed.output.customizationMedia.mediaId, parsed.output.customizationMedia, previewFile)
     if (typeof result === 'string') return invalid(result)
     customizationMedia = result
   }

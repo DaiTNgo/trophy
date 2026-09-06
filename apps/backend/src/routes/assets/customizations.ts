@@ -22,6 +22,34 @@ export const assetsCustomizationsRoute = new Hono<AppEnv>()
       return jsonError(c, 404, "Customization asset not found");
     }
 
+    const objectKey = asset.previewObjectKey ?? asset.objectKey;
+    const object = await c.env.CUSTOMIZATION_ASSETS.get(objectKey);
+    if (!object) {
+      return jsonError(c, 404, "Customization asset object not found");
+    }
+
+    const headers = new Headers();
+    object.writeHttpMetadata(headers);
+    headers.set("etag", object.httpEtag);
+    headers.set("cache-control", "public, max-age=31536000, immutable");
+    headers.set("x-content-type-options", "nosniff");
+    return new Response(object.body, { headers });
+  })
+  .get("/:id/export", async (c) => {
+    const params = parseParams(c, assetParamsSchema);
+    if (!params.success) {
+      return params.response;
+    }
+
+    const asset = await getDb(c.env)
+      .select()
+      .from(customizationAssets)
+      .where(eq(customizationAssets.id, params.output.id))
+      .get();
+    if (!asset) {
+      return jsonError(c, 404, "Customization asset not found");
+    }
+
     const object = await c.env.CUSTOMIZATION_ASSETS.get(asset.objectKey);
     if (!object) {
       return jsonError(c, 404, "Customization asset object not found");
@@ -32,6 +60,7 @@ export const assetsCustomizationsRoute = new Hono<AppEnv>()
     headers.set("etag", object.httpEtag);
     headers.set("cache-control", "public, max-age=31536000, immutable");
     headers.set("x-content-type-options", "nosniff");
+    headers.set("content-disposition", `attachment; filename="customization-asset-${asset.id}"`);
     return new Response(object.body, { headers });
   })
   .get("/:id/preview", async (c) => {

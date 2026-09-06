@@ -148,7 +148,7 @@ export type CreateFullProductPayload = {
     optionValues: Array<{ optionTitle: string; value: string }>;
     attributes?: Array<{ name: LocalizedInput; value: LocalizedInput; unit?: string | null }>;
     media: Array<{ mediaId: string; file: File }>;
-    customizationMedia?: { mediaId: string; file: File } | null;
+    customizationMedia?: { mediaId: string; file: File; previewFile?: File } | null;
   }>;
   customization?: {
     enabled: boolean;
@@ -176,6 +176,9 @@ export async function createFullProduct(payload: CreateFullProductPayload) {
     variant.media.forEach(({ mediaId, file }) => formData.append(mediaId, file));
     if (variant.customizationMedia) {
       formData.append(variant.customizationMedia.mediaId, variant.customizationMedia.file);
+      if (variant.customizationMedia.previewFile) {
+        formData.append(`${variant.customizationMedia.mediaId}_preview`, variant.customizationMedia.previewFile);
+      }
     }
   });
   const response = await backendFetch("/api/admin/products/full-create", {
@@ -645,8 +648,12 @@ export async function removeManagedVariantMedia(id: string, variantId: number, a
   return readManagedVariantMediaResponse(response, "Failed to remove Variant Media.");
 }
 
-export async function replaceVariantCustomizationBackground(id: string, variantId: number, file: File) {
-  const formData = new FormData(); formData.append("files", file);
+export async function replaceVariantCustomizationBackground(id: string, variantId: number, file: File, previewFile?: File) {
+  const formData = new FormData();
+  formData.append("files", file);
+  if (previewFile) {
+    formData.append("preview", previewFile);
+  }
   const response = await backendFetch(`/api/admin/products/${id}/variants/${variantId}/customization-media/replace`, { method: "POST", body: formData });
   return readManagedVariantMediaResponse(response, "Failed to replace Customization Background.");
 }
@@ -663,17 +670,15 @@ export async function updateProductCustomization(id: string, revision: string, p
     body: JSON.stringify(payload),
   });
   if (!response.ok) {
-    const err = await response.json().catch(() => null);
-    throw new ProductCommandError(err?.error || "Failed to update customization.", response.status);
+    const body = await response.json().catch(() => null) as { error?: string } | null;
+    throw new ProductCommandError(body?.error ?? "Failed to update product customization.", response.status);
   }
-  const body = await response.json();
-  return body.item as ApiProduct;
 }
 
 export type CustomizationActivationInput = {
   layers: unknown[];
   formFields: unknown[];
-  backgrounds: Array<{ variantId: string; file: File; widthPx: number; heightPx: number }>;
+  backgrounds: Array<{ variantId: string; file: File; previewFile?: File; widthPx: number; heightPx: number }>;
 };
 
 const revisionHeaders = (revision: string) => ({ "If-Match": revision });
@@ -685,7 +690,12 @@ export async function activateCustomization(id: string, revision: string, input:
     formFields: input.formFields,
     backgrounds: Object.fromEntries(input.backgrounds.map(({ variantId, widthPx, heightPx }) => [variantId, { widthPx, heightPx }])),
   }));
-  input.backgrounds.forEach(({ variantId, file }) => formData.append(variantId, file));
+  input.backgrounds.forEach(({ variantId, file, previewFile }) => {
+    formData.append(variantId, file);
+    if (previewFile) {
+      formData.append(`${variantId}_preview`, previewFile);
+    }
+  });
   const response = await backendFetch(`/api/admin/products/${id}/customization/activate`, {
     method: "POST",
     body: formData,
@@ -720,7 +730,12 @@ export async function repairCustomization(id: string, revision: string, input: C
     formFields: input.formFields,
     backgrounds: Object.fromEntries(input.backgrounds.map(({ variantId, widthPx, heightPx }) => [variantId, { widthPx, heightPx }])),
   }));
-  input.backgrounds.forEach(({ variantId, file }) => formData.append(variantId, file));
+  input.backgrounds.forEach(({ variantId, file, previewFile }) => {
+    formData.append(variantId, file);
+    if (previewFile) {
+      formData.append(`${variantId}_preview`, previewFile);
+    }
+  });
   const response = await backendFetch(`/api/admin/products/${id}/customization/repair`, {
     method: "POST",
     body: formData,
@@ -746,7 +761,7 @@ export async function atomicCreateVariant(
     optionValueIds: number[];
     attributes?: Array<{ name: LocalizedInput; value: LocalizedInput; unit?: string | null }>;
     galleryMedia: Array<{ mediaId: string; file: File }>;
-    customizationMedia?: { mediaId: string; file: File; widthPx: number; heightPx: number } | null;
+    customizationMedia?: { mediaId: string; file: File; previewFile?: File; widthPx: number; heightPx: number } | null;
   },
 ) {
   const formData = new FormData();
@@ -771,6 +786,9 @@ export async function atomicCreateVariant(
   payload.galleryMedia.forEach(({ mediaId, file }) => formData.append(mediaId, file));
   if (payload.customizationMedia) {
     formData.append(payload.customizationMedia.mediaId, payload.customizationMedia.file);
+    if (payload.customizationMedia.previewFile) {
+      formData.append(`${payload.customizationMedia.mediaId}_preview`, payload.customizationMedia.previewFile);
+    }
   }
   const response = await backendFetch(`/api/admin/products/${id}/variants/atomic-create`, {
     method: "POST",

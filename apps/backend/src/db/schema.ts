@@ -337,6 +337,7 @@ export const productAssets = sqliteTable(
     id: text("id").primaryKey(),
     ownerKey: text("owner_key").notNull(),
     objectKey: text("object_key").notNull(),
+    previewObjectKey: text("preview_object_key"),
     fileName: text("file_name").notNull(),
     mimeType: text("mime_type").notNull(),
     widthPx: integer("width_px"),
@@ -642,6 +643,8 @@ export const orderItemMediaTransferAssets = sqliteTable(
     sourceAssetId: text("source_asset_id").notNull(),
     sourceObjectKey: text("source_object_key").notNull(),
     targetObjectKey: text("target_object_key").notNull(),
+    sourcePreviewObjectKey: text("source_preview_object_key"),
+    targetPreviewObjectKey: text("target_preview_object_key"),
     status: text("status").notNull().default("pending"),
     lastError: text("last_error"),
     createdAt: integer("created_at", { mode: "timestamp_ms" })

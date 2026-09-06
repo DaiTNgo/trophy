@@ -58,6 +58,13 @@ export function AdminMedia({ src, mimeType, className = "", fallback, alt = "Med
           const isAsset = src.startsWith("/api/assets/") || src.includes("/api/assets/");
           const res = isAsset ? await fetch(resolvedUrl) : await backendFetch(src);
           if (!res.ok) throw new Error(`Failed to fetch PDF: ${res.status}`);
+          const contentType = res.headers.get("content-type");
+          if (contentType && contentType.startsWith("image/")) {
+            const blob = await res.blob();
+            if (!isCancelled) setDataUrl(URL.createObjectURL(blob));
+            return;
+          }
+
           const blob = await res.blob();
           if (isCancelled) return;
           const arrayBuffer = await blob.arrayBuffer();

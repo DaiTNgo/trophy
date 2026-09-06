@@ -848,6 +848,81 @@ describe("storefront orders route", () => {
     });
   });
 
+  it("transfers customized media and rewrites order item snapshot URLs to order asset paths", async () => {
+    db.getQueue.push(
+      {
+        id: 1,
+        title: "Champion Cup",
+        handle: "champion-cup",
+        status: "published",
+      },
+      { id: 10, productId: 1, title: "Gold", sku: "SKU-1", priceAmount: 5000 },
+      { assetId: "asset-1", position: 0 },
+      {
+        enabled: true,
+        canvasWidthPx: 1200,
+        canvasHeightPx: 900,
+        layersJson: "[]",
+        formFieldsJson: "[]",
+      },
+      { variantId: 10, assetId: "customization-asset-1" },
+      {
+        id: "customization-asset-1",
+        objectKey: "catalog/1/customization-asset-1.png",
+        previewObjectKey: null,
+        mimeType: "image/png",
+      },
+      {
+        id: "customization-asset-1",
+        objectKey: "catalog/1/customization-asset-1.png",
+        previewObjectKey: null,
+        mimeType: "image/png",
+      },
+    );
+    db.returningQueue.push(
+      [{ id: 999, createdAt: new Date("2026-07-05T00:00:00.000Z") }],
+      [{ id: 42 }],
+    );
+
+    const res = await storefrontOrdersRoute.request("/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ...validPayload,
+        items: [
+          {
+            productId: 1,
+            variantId: 10,
+            quantity: 1,
+            customization: {
+              values: {},
+            },
+          },
+        ],
+      }),
+    });
+
+    expect(res.status).toBe(201);
+
+    const updatedOrderItem = db.updateValuesCalls.find(
+      (value: any) =>
+        value &&
+        typeof value === "object" &&
+        "backgroundSnapshotJson" in value,
+    ) as
+      | {
+          backgroundSnapshotJson: string | null;
+        }
+      | undefined;
+
+    expect(updatedOrderItem).toBeDefined();
+    const rewrittenBackground = updatedOrderItem?.backgroundSnapshotJson
+      ? JSON.parse(updatedOrderItem.backgroundSnapshotJson)
+      : null;
+
+    expect(rewrittenBackground?.previewUrl).toMatch(/\/api\/assets\/orders\/[0-9a-f-]+\/content/);
+  });
+
   it("rejects order lookup with the wrong phone", async () => {
     db.getQueue.push({
       id: 5,

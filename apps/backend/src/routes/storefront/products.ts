@@ -868,7 +868,8 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
             heightPx: m.heightPx,
             byteSize: m.byteSize,
             position: m.position,
-            contentUrl: toAbsoluteAssetUrl(c, `/api/assets/products/${m.assetId}/content`) as string
+            contentUrl: toAbsoluteAssetUrl(c, `/api/assets/products/${m.assetId}/content`) as string,
+            previewUrl: toAbsoluteAssetUrl(c, `/api/assets/products/${m.assetId}/preview`) as string,
           })),
           customizationMedia: (() => {
             const m = variantCustomizationMediaByVariantId.get(variant.id)
@@ -881,7 +882,8 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
                   widthPx: m.widthPx,
                   heightPx: m.heightPx,
                   byteSize: m.byteSize,
-                  contentUrl: toAbsoluteAssetUrl(c, `/api/assets/products/${m.assetId}/content`) as string
+                  contentUrl: toAbsoluteAssetUrl(c, `/api/assets/products/${m.assetId}/content`) as string,
+                  previewUrl: toAbsoluteAssetUrl(c, `/api/assets/products/${m.assetId}/preview`) as string,
                 }
               : null
           })(),

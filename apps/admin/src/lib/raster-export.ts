@@ -102,7 +102,7 @@ export function buildRasterExportSvg(template: CustomizationTemplate, design: Cu
   const height = template.background?.heightPx ?? 900;
   const background = template.background?.previewUrl
     ? `<image href="${escapeXml(template.background.previewUrl)}" width="${width}" height="${height}" preserveAspectRatio="none" />`
-    : `<rect width="${width}" height="${height}" fill="white" />`;
+    : ``;
   const layers = [...design.layers].sort((left, right) => left.zIndex - right.zIndex).map((layer) =>
     layer.type === "text" ? textMarkup(layer, width, height) : imageMarkup(layer, width, height),
   ).join("");
@@ -178,6 +178,8 @@ export async function exportRasterPreviewClientSide(template: CustomizationTempl
     canvas.height = Math.round(height * scale);
     const context = canvas.getContext("2d");
     if (!context) throw new Error("Could not create an image export canvas.");
+    // Clear default white fill so transparent backgrounds stay transparent
+    context.clearRect(0, 0, canvas.width, canvas.height);
     context.drawImage(image, 0, 0, canvas.width, canvas.height);
     return canvasBlob(canvas, options.format ?? "image/webp");
   } finally {

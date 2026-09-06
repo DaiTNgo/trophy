@@ -28,7 +28,7 @@ import { layerGeometryToPixels, getTextPathRenderAttributes, getTextPathSvgD } f
 import type { CustomizationDesign, CustomizationTemplate, VectorPath } from "@trophy/customization";
 import { loadFontBytes } from "./pdf-fonts";
 import { drawStraightText } from "./pdf-text-straight";
-import { BACKEND_URL } from "./fetch";
+import { backendFetch } from "./fetch";
 
 // ─── image loading ────────────────────────────────────────────────────────────
 
@@ -47,10 +47,7 @@ const parseDataUrl = (value: string) => {
 };
 
 const fetchAssetResponse = async (inputUrl: string) => {
-  const resolvedUrl = inputUrl.startsWith("/")
-    ? `${BACKEND_URL.replace(/\/$/, "")}${inputUrl}`
-    : inputUrl;
-  return fetch(resolvedUrl, { cache: "reload" }).catch(() => null);
+  return backendFetch(inputUrl, { cache: "reload" }).catch(() => null);
 };
 
 const readImageBytes = async (url: string | File) => {
@@ -101,6 +98,8 @@ const embedRasterizedImage = async ({
       throw new Error("Failed to create export rasterization canvas");
     }
 
+    // Clear default white fill so transparent images stay transparent when embedded
+    context.clearRect(0, 0, canvas.width, canvas.height);
     context.drawImage(image, 0, 0, canvas.width, canvas.height);
     const pngSource = parseDataUrl(canvas.toDataURL("image/png"));
     if (!pngSource) {
@@ -740,21 +739,45 @@ export const exportVectorPdfClientSide = async (
   } else if (template.background?.previewUrl) {
     const isPdfBg =
       template.background.mimeType === "application/pdf" ||
-      template.background.previewUrl.toLowerCase().endsWith(".pdf");
+      template.background.previewUrl.toLowerCase().endsWith(".pdf") ||
+      template.background.contentUrl?.toLowerCase().endsWith(".pdf");
 
     if (isPdfBg) {
-      const pdfUrl = template.background.pdfAssetId
-        ? `/api/assets/customizations/${template.background.pdfAssetId}/content`
-        : template.background.previewUrl;
+      const pdfUrl =
+        template.background.contentUrl
+          ? template.background.contentUrl
+          : template.background.pdfAssetId
+            ? (template.background.pdfAssetId.startsWith("/")
+              ? template.background.pdfAssetId
+              : `/api/assets/products/${template.background.pdfAssetId}/export`)
+            : template.background.previewUrl;
       const response = await fetchAssetResponse(pdfUrl);
+      let pdfEmbedded = false;
       if (response?.ok) {
-        const bgBytes = await response.arrayBuffer();
-        const bgPdf = await PDFDocument.load(bgBytes, { ignoreEncryption: true });
-        if (bgPdf.getPageCount() > 0) {
-          const [embeddedPage] = await pdf.embedPages([bgPdf.getPages()[0]!]);
-          pdf.removePage(0);
-          page = pdf.addPage([designWidth, designHeight]);
-          page.drawPage(embeddedPage, { x: 0, y: 0, width: designWidth, height: designHeight });
+        try {
+          const bgBytes = await response.arrayBuffer();
+          const bgPdf = await PDFDocument.load(bgBytes, { ignoreEncryption: true });
+          if (bgPdf.getPageCount() > 0) {
+            const [embeddedPage] = await pdf.embedPages([bgPdf.getPages()[0]!]);
+            pdf.removePage(0);
+            page = pdf.addPage([designWidth, designHeight]);
+            page.drawPage(embeddedPage, { x: 0, y: 0, width: designWidth, height: designHeight });
+            pdfEmbedded = true;
+          }
+        } catch {
+          pdfEmbedded = false;
+        }
+      }
+      if (!pdfEmbedded) {
+        const source = await readImageBytes(template.background.previewUrl);
+        if (source) {
+          const image = await embedPdfImage({
+            pdf,
+            source,
+            widthPx: designWidth,
+            heightPx: designHeight,
+          });
+          page.drawImage(image, { x: 0, y: 0, width: designWidth, height: designHeight });
         }
       }
     } else {
@@ -966,6 +989,8 @@ export const exportVectorPdfClientSide = async (
           cvs.height = rasterH;
           const ctx = cvs.getContext("2d");
           if (ctx) {
+            // Clear default white fill so transparent SVG text stays transparent
+            ctx.clearRect(0, 0, rasterW, rasterH);
             ctx.drawImage(img, 0, 0, rasterW, rasterH);
             const pngDataUrl = cvs.toDataURL("image/png");
             const pngData = parseDataUrl(pngDataUrl);

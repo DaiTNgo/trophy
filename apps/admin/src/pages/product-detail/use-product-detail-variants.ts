@@ -259,18 +259,20 @@ export function useProductDetailVariants({ product, mutate, updateProduct }: Pro
             file.type === "application/pdf" ? convertPdfToImageFile(file) : file,
           ),
         );
-        const customizationBackground =
-          variantForm.customizationBackground?.type === "application/pdf"
-            ? await convertPdfToImageFile(variantForm.customizationBackground)
-            : variantForm.customizationBackground;
+        const originalCustomizationBg = variantForm.customizationBackground;
+        const customizationPreview =
+          originalCustomizationBg?.type === "application/pdf"
+            ? await convertPdfToImageFile(originalCustomizationBg)
+            : undefined;
 
-        if (product.customization?.enabled && !customizationBackground) {
+        if (product.customization?.enabled && !originalCustomizationBg) {
           throw new Error("A Customization Background is required while customization is active.");
         }
-        const customizationDimensions = customizationBackground
-          ? await readImageDimensions(customizationBackground).catch(() => null)
+        const fileForDimensions = customizationPreview ?? originalCustomizationBg;
+        const customizationDimensions = fileForDimensions
+          ? await readImageDimensions(fileForDimensions).catch(() => null)
           : null;
-        if (product.customization?.enabled && variantForm.customizationBackground) {
+        if (product.customization?.enabled && originalCustomizationBg) {
           if (
             !customizationDimensions ||
             customizationDimensions.width !== product.customization.canvasWidthPx ||
@@ -294,10 +296,11 @@ export function useProductDetailVariants({ product, mutate, updateProduct }: Pro
             mediaId: crypto.randomUUID(),
             file,
           })),
-          customizationMedia: customizationBackground
+          customizationMedia: originalCustomizationBg
             ? {
                 mediaId: crypto.randomUUID(),
-                file: customizationBackground,
+                file: originalCustomizationBg,
+                previewFile: customizationPreview,
                 widthPx: customizationDimensions?.width ?? 0,
                 heightPx: customizationDimensions?.height ?? 0,
               }
