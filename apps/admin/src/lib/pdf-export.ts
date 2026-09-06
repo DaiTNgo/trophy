@@ -578,7 +578,6 @@ export function getFreeImageRect({
   cropScale,
   cropXRatio,
   cropYRatio,
-  fit,
 }: {
   sourceWidthPx: number;
   sourceHeightPx: number;
@@ -587,16 +586,13 @@ export function getFreeImageRect({
   cropScale?: number;
   cropXRatio?: number;
   cropYRatio?: number;
-  fit?: "cover" | "contain";
 }) {
   const safeSourceW = Math.max(1, sourceWidthPx);
   const safeSourceH = Math.max(1, sourceHeightPx);
   const safeFrameW = Math.max(1, frameWidthPx);
   const safeFrameH = Math.max(1, frameHeightPx);
 
-  const baseScale = fit === "contain"
-    ? Math.min(safeFrameW / safeSourceW, safeFrameH / safeSourceH)
-    : Math.max(safeFrameW / safeSourceW, safeFrameH / safeSourceH);
+  const baseScale = Math.min(safeFrameW / safeSourceW, safeFrameH / safeSourceH);
 
   const scale = freeImageScale(cropScale);
   const widthPx = safeSourceW * baseScale * scale;
@@ -828,7 +824,6 @@ export const exportVectorPdfClientSide = async (
       //   cropScale: layer.cropScale,
       //   cropXRatio: layer.cropXRatio,
       //   cropYRatio: layer.cropYRatio,
-      //   fit,
       // });
 
       // const imgX = (frameCx - frameW / 2) + imgRect.xPx;

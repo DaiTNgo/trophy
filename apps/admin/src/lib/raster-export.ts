@@ -37,9 +37,7 @@ function getImageRect(layer: RuntimeImageShapeLayer, frameWidth: number, frameHe
   const sourceWidth = Math.max(1, layer.sourceWidthPx);
   const sourceHeight = Math.max(1, layer.sourceHeightPx);
   const scale = Math.max(MIN_IMAGE_SCALE, layer.cropScale || 1);
-  const baseScale = layer.fit === "contain"
-    ? Math.min(frameWidth / sourceWidth, frameHeight / sourceHeight)
-    : Math.max(frameWidth / sourceWidth, frameHeight / sourceHeight);
+  const baseScale = Math.min(frameWidth / sourceWidth, frameHeight / sourceHeight);
   const width = sourceWidth * baseScale * scale;
   const height = sourceHeight * baseScale * scale;
   const centerX = frameWidth / 2 + (layer.cropXRatio || 0) * frameWidth;

@@ -222,8 +222,8 @@ The admin-defined configuration for a customizable product, including editable l
 _Avoid_: customization config, editor setup
 
 **Customization Shape Clipping**:
-The unified geometric masking applied to an Image Shape Layer across storefront preview, admin preview, and raster/PDF production export. Predefined shapes (`rectangle`, `circle`, `rounded_rectangle`, `star`, `heart`, `ellipse`) and custom `vector` shapes clip the user-uploaded or clipart asset to their exact geometric boundary, with `circle` producing an elliptical/circular clip and `rounded_rectangle` producing consistent rounded corners scaled to the layer frame (`radius = Math.min(w, h) * 0.12`).
-_Avoid_: unclipped preview image, rectangular-only image frame
+The unified geometric masking applied to an Image Shape Layer across storefront preview, admin preview, and raster/PDF production export. Predefined shapes (`rectangle`, `circle`, `rounded_rectangle`, `star`, `heart`, `ellipse`) and custom `vector` shapes clip the user-uploaded or clipart asset to their exact geometric boundary, with `circle` producing an elliptical/circular clip and `rounded_rectangle` producing consistent rounded corners scaled to the layer frame (`radius = Math.min(w, h) * 0.12`). Uploaded media (including images and PDFs) is scaled to `contain` within the bounding box so the entire media is initially visible without being cropped, leaving any empty space transparent.
+_Avoid_: unclipped preview image, rectangular-only image frame, cover scaling, cropping to fill
 
 
 **Embedded Product Customization**:

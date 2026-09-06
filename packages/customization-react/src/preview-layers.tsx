@@ -28,7 +28,6 @@ function getFreeImageRect({
   cropScale,
   cropXRatio,
   cropYRatio,
-  fit,
 }: {
   sourceWidthPx: number;
   sourceHeightPx: number;
@@ -37,16 +36,13 @@ function getFreeImageRect({
   cropScale?: number;
   cropXRatio?: number;
   cropYRatio?: number;
-  fit?: "cover" | "contain";
 }) {
   const safeSourceWidth = Math.max(1, sourceWidthPx || 1);
   const safeSourceHeight = Math.max(1, sourceHeightPx || 1);
   const safeFrameWidth = Math.max(1, frameWidthPx || 1);
   const safeFrameHeight = Math.max(1, frameHeightPx || 1);
   
-  const baseScale = fit === "contain"
-    ? Math.min(safeFrameWidth / safeSourceWidth, safeFrameHeight / safeSourceHeight)
-    : Math.max(safeFrameWidth / safeSourceWidth, safeFrameHeight / safeSourceHeight);
+  const baseScale = Math.min(safeFrameWidth / safeSourceWidth, safeFrameHeight / safeSourceHeight);
     
   const scale = freeImageScale(cropScale);
   const widthPx = safeSourceWidth * baseScale * scale;
@@ -281,7 +277,7 @@ export function PreviewImageShape({
     cropScale: value?.cropScale ?? layer.cropScale,
     cropXRatio: value?.cropXRatio ?? layer.cropXRatio,
     cropYRatio: value?.cropYRatio ?? layer.cropYRatio,
-    fit: layer.fit ?? "contain",
+
   });
   const editable = Boolean(value && onChange);
   const inlineClipId = `inline-clip-${useId().replace(/:/g, "")}`;

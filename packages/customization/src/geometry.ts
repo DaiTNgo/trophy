@@ -51,7 +51,7 @@ export const pixelRectToLayerGeometry = ({
   rotationDeg,
 });
 
-export const getCoverImageRect = ({
+export const getContainImageRect = ({
   sourceWidthPx,
   sourceHeightPx,
   frameWidthPx,
@@ -72,7 +72,7 @@ export const getCoverImageRect = ({
   const safeSourceHeight = Math.max(1, sourceHeightPx);
   const safeFrameWidth = Math.max(1, frameWidthPx);
   const safeFrameHeight = Math.max(1, frameHeightPx);
-  const scale = Math.max(safeFrameWidth / safeSourceWidth, safeFrameHeight / safeSourceHeight) *
+  const scale = Math.min(safeFrameWidth / safeSourceWidth, safeFrameHeight / safeSourceHeight) *
     normalizeCropScale(cropScale);
   const widthPx = safeSourceWidth * scale;
   const heightPx = safeSourceHeight * scale;
@@ -82,8 +82,8 @@ export const getCoverImageRect = ({
   const panY = normalizeCropPan(cropYRatio);
 
   return {
-    xPx: -safeFrameWidth / 2 - (overflowXPx * (panX + 1)) / 2,
-    yPx: -safeFrameHeight / 2 - (overflowYPx * (panY + 1)) / 2,
+    xPx: -widthPx / 2 - (overflowXPx * panX) / 2,
+    yPx: -heightPx / 2 - (overflowYPx * panY) / 2,
     widthPx,
     heightPx,
     overflowXPx,
