@@ -91,10 +91,23 @@ export const productAssetsRoute = new Hono<AppEnv>()
       },
     });
 
+    const preview = formData?.get("preview") || formData?.get("thumbnail");
+    const previewFile = preview instanceof File ? preview : null;
+    let previewObjectKey: string | null = null;
+    if (previewFile && mimeType === "application/pdf") {
+      const previewBuffer = await previewFile.arrayBuffer();
+      const previewMimeType = previewFile.type.trim().toLowerCase();
+      previewObjectKey = `product-assets/${session.userId}/${id}/preview.${extensionForMimeType(previewMimeType)}`;
+      await c.env.CUSTOMIZATION_ASSETS.put(previewObjectKey, previewBuffer, {
+        httpMetadata: { contentType: previewMimeType },
+      });
+    }
+
     await getDb(c.env).insert(productAssets).values({
       id,
       ownerKey: session.userId,
       objectKey,
+      previewObjectKey,
       fileName: file.name,
       mimeType,
       widthPx: dimensions.width,
@@ -112,6 +125,7 @@ export const productAssetsRoute = new Hono<AppEnv>()
           heightPx: dimensions.height,
           byteSize: buffer.byteLength,
           contentUrl: toAbsoluteAssetUrl(c, `/api/assets/products/${id}/content`) as string,
+          previewUrl: toAbsoluteAssetUrl(c, `/api/assets/products/${id}/preview`) as string,
         },
       },
       201,

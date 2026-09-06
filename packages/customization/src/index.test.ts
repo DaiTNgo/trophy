@@ -469,7 +469,7 @@ describe("image clipart runtime serialization", () => {
       clipartAssets: [{ id: "clipart_star" }, { id: "clipart_shield" }],
       upload: {
         enabled: false,
-        fit: "cover",
+        fit: "contain",
         panEnabled: true,
         zoomEnabled: true,
       },

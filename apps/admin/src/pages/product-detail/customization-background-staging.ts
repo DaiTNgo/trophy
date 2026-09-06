@@ -2,6 +2,7 @@ import type { BackgroundAsset } from "@trophy/customization";
 
 export type StagedCustomizationBackground = {
   file: File;
+  previewFile?: File;
   widthPx: number;
   heightPx: number;
   previewUrl?: string;

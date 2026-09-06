@@ -47,6 +47,8 @@ export function ProductCustomizationPreview({
   resolveAssetUrl,
   resolveFontUrl,
   resolveStaticFontUrl,
+  selectedFieldId,
+  onSelectedFieldChange,
   onImageValueChange,
   onFullscreenChange,
 }: {
@@ -61,6 +63,8 @@ export function ProductCustomizationPreview({
   resolveAssetUrl?: ResolveCustomizationAssetUrl;
   resolveFontUrl?: ResolveCustomizationFontUrl;
   resolveStaticFontUrl?: ResolveCustomizationStaticFontUrl;
+  selectedFieldId?: string;
+  onSelectedFieldChange?: (fieldId: string) => void;
   onImageValueChange?: (fieldId: string, value: ImageShapeFieldValue) => void;
   onFullscreenChange?: (open: boolean) => void;
 }) {
@@ -174,7 +178,11 @@ export function ProductCustomizationPreview({
         } => entry !== null,
       );
   }, [template.formFields, template.layers, values]);
-  const [selectedImageFieldId, setSelectedImageFieldId] = useState("");
+  const [internalSelectedFieldId, setInternalSelectedFieldId] = useState("");
+  
+  const selectedImageFieldId = selectedFieldId ?? internalSelectedFieldId;
+  const setSelectedImageFieldId = onSelectedFieldChange ?? setInternalSelectedFieldId;
+
   const selectedImageField =
     editableImageFields.find(
       (entry) => entry.field.id === selectedImageFieldId,

@@ -47,6 +47,8 @@ export type StoredVariantSnapshot = {
 export type StoredBackgroundSnapshot = {
   assetId: string;
   previewUrl: string;
+  contentUrl?: string | null;
+  mimeType?: string | null;
   widthPx: number | null;
   heightPx: number | null;
 };

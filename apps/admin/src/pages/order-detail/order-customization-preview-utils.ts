@@ -21,9 +21,11 @@ export function buildOrderItemCustomizationTemplate(
     background: item.background
       ? {
           assetId: item.background.assetId,
+          pdfAssetId: item.background.mimeType === "application/pdf" ? item.background.assetId : undefined,
           previewUrl: item.background.previewUrl,
+          contentUrl: item.background.contentUrl ?? item.background.previewUrl,
           filename: item.background.assetId,
-          mimeType: "image/*",
+          mimeType: item.background.mimeType ?? "image/*",
           widthPx:
             preview.templateSnapshot.canvasWidthPx ??
             item.background.widthPx ??

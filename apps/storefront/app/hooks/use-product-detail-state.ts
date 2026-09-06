@@ -89,6 +89,7 @@ export function useProductDetailState({
   const [isMobilePreviewSticky, setIsMobilePreviewSticky] = useState(false);
   const [isCartLineRevision, setIsCartLineRevision] = useState(false);
   const [revisionNotice, setRevisionNotice] = useState("");
+  const [selectedCustomizationFieldId, setSelectedCustomizationFieldId] = useState("");
   const [hasInvalidRevisionVariant, setHasInvalidRevisionVariant] =
     useState(false);
 
@@ -544,6 +545,14 @@ export function useProductDetailState({
         field.id,
       );
 
+      // Auto-select the image field for the user to resize/move
+      setSelectedCustomizationFieldId(field.id);
+      
+      // Auto-scroll the preview into view if it might be out of sight
+      if (previewSectionRef.current) {
+        previewSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+
       return {
         assetId: asset.id,
         previewUrl: asset.contentUrl,
@@ -647,5 +656,7 @@ export function useProductDetailState({
     uploadCustomizationImage,
     deleteCustomizationImage,
     visibleOptions,
+    selectedCustomizationFieldId,
+    setSelectedCustomizationFieldId,
   };
 }

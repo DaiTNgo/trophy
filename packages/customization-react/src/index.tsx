@@ -178,6 +178,7 @@ export function FormField({
   onChange,
   onUpload,
   onRemove,
+  onFocus,
 }: {
   field: CustomizationFormField;
   layer: CustomizationLayer;
@@ -191,11 +192,16 @@ export function FormField({
   onChange: (value: CustomizationFieldValue) => void;
   onUpload: (file: File) => void;
   onRemove?: () => void;
+  onFocus?: () => void;
 }) {
   const imageLayer =
     layer.type === "image_shape" ? (layer as ImageShapeEditorLayer) : null;
   return (
-    <section className="py-4">
+    <section
+      className="py-4"
+      onPointerDown={() => onFocus?.()}
+      onFocusCapture={() => onFocus?.()}
+    >
       {/* Step header */}
       <div className="mb-3">
         <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-accent">

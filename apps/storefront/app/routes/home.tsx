@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { BestSellersSection } from "../components/home/BestSellersSection";
+import { BrandShowcaseSection } from "../components/home/BrandShowcaseSection";
 import { CategoriesSection } from "../components/home/CategoriesSection";
 import { HeroSection } from "../components/home/HeroSection";
 import { QuoteTicker } from "../components/home/QuoteTicker";
@@ -78,6 +79,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       {/*<ProofRow />*/}
 
       <CategoriesSection categories={categories} locale={locale} />
+
+      <BrandShowcaseSection />
 
       <BestSellersSection
         products={standardBestSellers}

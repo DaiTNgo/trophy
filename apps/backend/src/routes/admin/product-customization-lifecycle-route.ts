@@ -141,10 +141,17 @@ export const productCustomizationLifecycleRoute = new Hono<AppEnv>()
         })
         await c.env.CUSTOMIZATION_ASSETS.put(objectKey, background.buffer, { httpMetadata: { contentType: background.mimeType } })
         writtenObjectKeys.push(objectKey)
+        let previewObjectKey: string | null = null
+        if (background.previewBuffer && background.previewMimeType) {
+          previewObjectKey = `catalog/${product.id}/variants/${background.variantId}/customization-background/${assetId}/preview.${extensionForMimeType(background.previewMimeType)}`
+          await c.env.CUSTOMIZATION_ASSETS.put(previewObjectKey, background.previewBuffer, { httpMetadata: { contentType: background.previewMimeType } })
+          writtenObjectKeys.push(previewObjectKey)
+        }
         assetRows.push({
           id: assetId,
           ownerKey: `catalog:${product.id}`,
           objectKey,
+          previewObjectKey,
           fileName: background.fileName,
           mimeType: background.mimeType,
           widthPx: background.widthPx,
@@ -365,10 +372,17 @@ export const productCustomizationLifecycleRoute = new Hono<AppEnv>()
         })
         await c.env.CUSTOMIZATION_ASSETS.put(objectKey, background.buffer, { httpMetadata: { contentType: background.mimeType } })
         writtenObjectKeys.push(objectKey)
+        let previewObjectKey: string | null = null
+        if (background.previewBuffer && background.previewMimeType) {
+          previewObjectKey = `catalog/${product.id}/variants/${background.variantId}/customization-background/${assetId}/preview.${extensionForMimeType(background.previewMimeType)}`
+          await c.env.CUSTOMIZATION_ASSETS.put(previewObjectKey, background.previewBuffer, { httpMetadata: { contentType: background.previewMimeType } })
+          writtenObjectKeys.push(previewObjectKey)
+        }
         assetRows.push({
           id: assetId,
           ownerKey: `catalog:${product.id}`,
           objectKey,
+          previewObjectKey,
           fileName: background.fileName,
           mimeType: background.mimeType,
           widthPx: background.widthPx,

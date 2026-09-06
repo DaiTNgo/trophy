@@ -2,6 +2,27 @@
 
 ## Current Session
 
+- 2026-09-05: **Preserve vector PDF for Customization Backgrounds & Admin PDF Export.**
+  - Background: Khi upload file PDF làm Customization Background trong Admin, hệ thống trước đây convert sang WebP ở client rồi lưu WebP lên R2/D1 (`product_assets`), khiến file PDF gốc bị mất và tính năng Export PDF trong Admin Order Detail phải rasterize background thành ảnh thay vì vector page.
+  - Architecture & Dual Storage:
+    - Schema: Thêm `previewObjectKey` vào bảng `productAssets` (`apps/backend/src/db/schema.ts`).
+    - Assets Route: Thêm route `GET /api/assets/products/:id/preview` phục vụ `previewObjectKey` (fallback về `objectKey` nếu `null`).
+    - Backend Uploads: Nâng cấp các luồng upload (`customization-media/replace`, `atomic-create`, `activate`, `repair`, `full-create`, `product-assets`) hỗ trợ lưu file gốc (PDF) vào `objectKey` và companion preview (WebP) vào `previewObjectKey` trong R2 `CUSTOMIZATION_ASSETS` và `productAssets`.
+    - Admin UI: Cập nhật các flow quản lý variant và customization (`use-product-detail-variants`, `variant-media-manager`, `product-detail-customization`, `use-create-product`) giữ nguyên file PDF gốc làm `file`, đồng thời sinh companion WebP preview (`previewFile`) bằng `convertPdfToImageFile(file)` để phục vụ render `<img src="...">` và canvas preview.
+    - Snapshot: Cập nhật `createOrder` trong Storefront để snapshot `contentUrl` (URL file PDF gốc) và `previewUrl` (URL preview WebP) vào `backgroundSnapshot` của order item.
+    - Admin Export PDF: Cập nhật `exportVectorPdfClientSide` trong `pdf-export.ts` ưu tiên tải file PDF vector gốc từ `template.background.contentUrl` (qua `backendFetch`), nhúng vector page bằng `pdf.embedPages([bgPdf.getPages()[0]])`, giữ nguyên toàn bộ text và shape layers vector trên file PDF gốc, với cơ chế fallback tự động về raster preview nếu tải vector PDF thất bại.
+  - Verification:
+    - Unit test mới: `apps/backend/src/routes/assets/products.test.ts` (5 tests covering `GET /:id/content`, `GET /:id/preview`, fallback, 404s).
+    - `pnpm --filter backend test` (42 test files, 267 tests passed).
+    - `pnpm --filter backend check` (tsc --noEmit clean).
+    - `pnpm --filter backend build` (Vite production build clean).
+    - `pnpm --filter admin test` (7 test files, 24 tests passed).
+    - `pnpm --filter admin build` (clean build).
+    - `pnpm --filter router-cf typecheck` (wrangler types + typegen + tsc -b clean).
+    - `pnpm --filter router-cf build` (react-router build clean).
+    - `pnpm --filter customization test` (41 tests passed).
+    - `./init.sh` passed completely end-to-end.
+
 - 2026-09-05: **Troubleshooting — Export CORS error do stale disk cache.** Admin Order Detail preview hiển thị ảnh bình thường qua `<img>` tag nhưng export (PDF/raster) báo CORS error với cùng URL asset. Root cause: `<img>` fetch không gửi `Origin` header nên response được cache bởi browser với `cache-control: public, max-age=31536000, immutable` — response này được cache từ trước khi CORS middleware (`PUBLIC_ASSET_CORS_POLICY`) được deploy cho `/api/assets/*`, nên không có `Access-Control-Allow-Origin` header. Khi export gọi `fetch()` (có `Origin` header), browser lấy response từ disk cache cũ → không có CORS header → browser block. Fix: thêm `{ cache: "reload" }` vào `fetch()` trong `toDataUrl` (`raster-export.ts`) và `fetchAssetResponse` (`pdf-export.ts`) để bypass disk cache khi export, buộc browser fetch mới từ server (server đã có CORS header đúng). Song song đó đã đơn giản hóa `raster-export.ts` bỏ `backendFetch` và `isExternal` logic thừa vì `/api/assets/*` là public route không cần auth. Verification: `pnpm --filter admin build` passes.
 
 - 2026-09-05: Resolved CORS failures when loading images and fonts during PDF export and Order Detail preview. Root causes: (1) Browser HTTP cache collision between `no-cors` `<img>` loads and subsequent `cors` `fetch()` calls in PDF export, exacerbated by missing `Origin` in backend CORS `Vary` header, (2) `pdf-export.ts` using `backendFetch` with `Authorization: Bearer <token>` on public asset URLs, triggering rejected preflight headers, (3) Missing `/fonts/*` route on Cloudflare Workers backend returning 404 with no CORS headers for static font files, and (4) Admin font loaders querying authenticated `/api/admin/brand-assets/fonts/file/:id` instead of public `/api/storefront/brand-assets/fonts/file/:id`. Implemented embedded static font serving with TTF bytes and alias support (`/fonts/:filename`), public CORS middleware with `allowHeaders: ["*"]` and `Vary: Origin, Access-Control-Request-Method, Access-Control-Request-Headers`, unauthenticated `fetch` for asset URLs in PDF exporter and media previews, public storefront font route prioritization with fallback to `SansBold.ttf`, and `crossOrigin="anonymous"` on admin image elements. Verification: `pnpm --filter backend test` (41 files, 262 tests passed), `pnpm --filter backend check`, `pnpm --filter backend build`, `pnpm --filter admin build`, and full `./init.sh` passed end-to-end.

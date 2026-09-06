@@ -4,6 +4,7 @@ export type StorefrontVariantMedia = {
   id: string;
   assetId: string;
   contentUrl: string;
+  previewUrl?: string | null;
   fileName: string;
   mimeType: string;
   widthPx: number | null;
@@ -86,7 +87,8 @@ function getVariantBackground(
 
   return {
     assetId: media.assetId,
-    previewUrl: media.contentUrl,
+    previewUrl: media.previewUrl ?? media.contentUrl,
+    contentUrl: media.contentUrl,
     filename: media.fileName,
     mimeType: media.mimeType,
     widthPx: customization.canvasWidthPx ?? media.widthPx,

@@ -355,7 +355,8 @@ export async function readProduct(
           heightPx: media.heightPx,
           byteSize: media.byteSize,
           position: media.position,
-          contentUrl: toAbsoluteAssetUrl(c, `/api/assets/products/${media.assetId}/content`) as string
+          contentUrl: toAbsoluteAssetUrl(c, `/api/assets/products/${media.assetId}/content`) as string,
+          previewUrl: toAbsoluteAssetUrl(c, `/api/assets/products/${media.assetId}/preview`) as string,
         })),
         customizationMedia: (() => {
           const media = variantCustomizationMediaByVariantId.get(variant.id)
@@ -367,7 +368,8 @@ export async function readProduct(
                 widthPx: media.widthPx,
                 heightPx: media.heightPx,
                 byteSize: media.byteSize,
-                contentUrl: toAbsoluteAssetUrl(c, `/api/assets/products/${media.assetId}/content`) as string
+                contentUrl: toAbsoluteAssetUrl(c, `/api/assets/products/${media.assetId}/content`) as string,
+                previewUrl: toAbsoluteAssetUrl(c, `/api/assets/products/${media.assetId}/preview`) as string,
               }
             : null
         })(),

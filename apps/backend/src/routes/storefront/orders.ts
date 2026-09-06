@@ -17,6 +17,7 @@ import {
   orderItems,
   orders,
   products,
+  productAssets,
   productCustomizations,
   productVariantCustomizationMedia,
   productVariantMedia,
@@ -34,6 +35,8 @@ import {
   parseVatDetails,
   parseProductSnapshot,
   parseVariantSnapshot,
+  type StoredProductSnapshot,
+  type StoredVariantSnapshot,
   type StoredCustomizationSnapshot,
 } from "../../lib/order-utils";
 import { jsonError, parseJson } from "../../lib/validation";
@@ -43,6 +46,7 @@ import {
   syncMisaOrder,
   validateMisaCheckoutCustomer,
 } from "../../lib/misa";
+import { transferOrderItemMedia } from "../../lib/order-media-transfer-service";
 
 type OrderStatus = "pending" | "confirmed" | "cancelled";
 type PaymentStatus = "pending" | "paid" | "failed" | "refunded";
@@ -260,6 +264,8 @@ const LOCAL_CHECKOUT_ACCESS_SECRET = "trophy-local-checkout-access-secret";
 type BackgroundSnapshot = {
   assetId: string;
   previewUrl: string;
+  contentUrl?: string | null;
+  mimeType?: string | null;
   widthPx: number | null;
   heightPx: number | null;
 };
@@ -271,8 +277,8 @@ type ItemValidationResult =
       ok: true;
       unitPrice: number;
       lineSubtotal: number;
-      productSnapshot: object;
-      variantSnapshot: object;
+      productSnapshot: StoredProductSnapshot;
+      variantSnapshot: StoredVariantSnapshot;
       backgroundSnapshot: BackgroundSnapshot | null;
       customizationSnapshot: CustomizationSnapshot | null;
       productionStatus: ProductionStatus;
@@ -515,15 +521,26 @@ async function validateAndBuildItemSnapshot(
     ? await lookupVariantCustomizationMedia(db, item.variantId)
     : null;
   const backgroundAssetId = customizationMedia?.assetId ?? firstMedia?.assetId;
+  const backgroundAsset = backgroundAssetId
+    ? await db.select().from(productAssets).where(eq(productAssets.id, backgroundAssetId)).get()
+    : null;
+  const isPdf = backgroundAsset?.mimeType === "application/pdf";
   const backgroundSnapshot: BackgroundSnapshot | null = backgroundAssetId
     ? {
         assetId: backgroundAssetId,
-        previewUrl: toAbsoluteAssetUrl(
+        contentUrl: toAbsoluteAssetUrl(
           c,
           `/api/assets/products/${backgroundAssetId}/content`,
         ) as string,
-        widthPx: null,
-        heightPx: null,
+        previewUrl: toAbsoluteAssetUrl(
+          c,
+          isPdf
+            ? `/api/assets/products/${backgroundAssetId}/preview`
+            : `/api/assets/products/${backgroundAssetId}/content`,
+        ) as string,
+        mimeType: backgroundAsset?.mimeType ?? null,
+        widthPx: backgroundAsset?.widthPx ?? null,
+        heightPx: backgroundAsset?.heightPx ?? null,
       }
     : null;
   const isCustomizable = customizationRow?.enabled === true;
@@ -1051,8 +1068,8 @@ export const storefrontOrdersRoute = new Hono<AppEnv>()
       input: OrderItemInput;
       unitPrice: number;
       lineSubtotal: number;
-      productSnapshot: object;
-      variantSnapshot: object;
+      productSnapshot: StoredProductSnapshot;
+      variantSnapshot: StoredVariantSnapshot;
       backgroundSnapshot: BackgroundSnapshot | null;
       customizationSnapshot: CustomizationSnapshot | null;
       productionStatus: ProductionStatus;
@@ -1177,24 +1194,66 @@ export const storefrontOrdersRoute = new Hono<AppEnv>()
       .where(eq(orders.id, insertedOrder.id));
 
     for (const item of validatedItems) {
-      await db.insert(orderItems).values({
-        orderId: insertedOrder.id,
-        productId: item.input.productId,
-        variantId: item.input.variantId,
-        quantity: item.input.quantity,
-        unitPriceAmount: item.unitPrice,
-        lineSubtotalAmount: item.lineSubtotal,
-        productSnapshotJson: JSON.stringify(item.productSnapshot),
-        variantSnapshotJson: JSON.stringify(item.variantSnapshot),
-        backgroundSnapshotJson: item.backgroundSnapshot
-          ? JSON.stringify(item.backgroundSnapshot)
-          : null,
-        customizationSnapshotJson: item.customizationSnapshot
-          ? JSON.stringify(item.customizationSnapshot)
-          : null,
-        productionStatus: item.productionStatus,
-        createdAt: new Date(now),
-      });
+      const insertedRows = await db
+        .insert(orderItems)
+        .values({
+          orderId: insertedOrder.id,
+          productId: item.input.productId,
+          variantId: item.input.variantId,
+          quantity: item.input.quantity,
+          unitPriceAmount: item.unitPrice,
+          lineSubtotalAmount: item.lineSubtotal,
+          productSnapshotJson: JSON.stringify(item.productSnapshot),
+          variantSnapshotJson: JSON.stringify(item.variantSnapshot),
+          backgroundSnapshotJson: item.backgroundSnapshot
+            ? JSON.stringify(item.backgroundSnapshot)
+            : null,
+          customizationSnapshotJson: item.customizationSnapshot
+            ? JSON.stringify(item.customizationSnapshot)
+            : null,
+          productionStatus: item.productionStatus,
+          createdAt: new Date(now),
+        })
+        .returning({ id: orderItems.id });
+
+      const itemId = insertedRows?.[0]?.id ?? 1;
+
+      if (item.customizationSnapshot) {
+        try {
+          const transferResult = await transferOrderItemMedia(c, db, {
+            order: { id: insertedOrder.id, orderNumber },
+            item: {
+              id: itemId,
+              productId: item.input.productId,
+              variantId: item.input.variantId,
+            },
+            backgroundSnapshot: item.backgroundSnapshot,
+            customizationSnapshot: item.customizationSnapshot,
+          });
+
+          const rewrittenProductSnapshot = {
+            ...item.productSnapshot,
+            thumbnail:
+              transferResult.backgroundSnapshot?.previewUrl ??
+              item.productSnapshot.thumbnail,
+          };
+
+          await db
+            .update(orderItems)
+            .set({
+              productSnapshotJson: JSON.stringify(rewrittenProductSnapshot),
+              backgroundSnapshotJson: transferResult.backgroundSnapshot
+                ? JSON.stringify(transferResult.backgroundSnapshot)
+                : null,
+              customizationSnapshotJson: transferResult.customizationSnapshot
+                ? JSON.stringify(transferResult.customizationSnapshot)
+                : null,
+            })
+            .where(eq(orderItems.id, itemId));
+        } catch {
+          // Required custom-media copy failure must not block checkout
+        }
+      }
     }
 
     if (isMisaConfigured(c.env)) {

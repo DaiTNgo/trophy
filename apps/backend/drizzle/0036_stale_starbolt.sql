@@ -1,0 +1,1 @@
+ALTER TABLE `product_assets` ADD `preview_object_key` text;

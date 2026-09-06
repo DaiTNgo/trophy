@@ -38,9 +38,13 @@ export async function renderPdfBufferToDataUrl(
     throw new Error("Unable to create canvas context for PDF preview.");
   }
 
+  // Clear default white fill so transparent PDFs stay transparent
+  canvasContext.clearRect(0, 0, canvas.width, canvas.height);
+
   await page.render({
     canvasContext,
     viewport,
+    background: "rgba(0,0,0,0)",
   } as any).promise;
 
   const dataUrl = canvas.toDataURL(mimeType, quality);
@@ -89,9 +93,13 @@ export async function convertPdfToImageFile(file: File): Promise<File> {
     throw new Error("Unable to create canvas context for PDF preview.");
   }
   
+  // Clear default white fill so transparent PDFs stay transparent
+  canvasContext.clearRect(0, 0, canvas.width, canvas.height);
+
   await page.render({
     canvasContext,
     viewport,
+    background: "rgba(0,0,0,0)",
   } as any).promise;
   
   return new Promise((resolve, reject) => {

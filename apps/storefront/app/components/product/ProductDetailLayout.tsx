@@ -73,6 +73,8 @@ export function ProductDetailLayout({
     specs,
     uploadCustomizationImage,
     visibleOptions,
+    selectedCustomizationFieldId,
+    setSelectedCustomizationFieldId,
   } = state;
   const optionGroups = (
     <ProductOptionGroups
@@ -97,6 +99,8 @@ export function ProductDetailLayout({
       resolveFontUrl={backendFontUrl}
       resolveStaticFontUrl={backendStaticFontUrl}
       selectedVariantId={selectedVariant?.id ?? null}
+      selectedFieldId={selectedCustomizationFieldId}
+      onSelectedFieldChange={setSelectedCustomizationFieldId}
       onImageValueChange={(fieldId, value) => {
         setCustomizationValues((current) => ({ ...current, [fieldId]: value }));
       }}
@@ -287,6 +291,7 @@ export function ProductDetailLayout({
                       onMessageChange={setMessage}
                       onDeleteImage={deleteCustomizationImage}
                       onUploadImage={uploadCustomizationImage}
+                      onFieldFocus={setSelectedCustomizationFieldId}
                       onValueChange={(fieldId, value) => {
                         setCustomizationValues((current) => ({
                           ...current,
@@ -343,6 +348,7 @@ export function ProductDetailLayout({
                     onMessageChange={setMessage}
                     onDeleteImage={deleteCustomizationImage}
                     onUploadImage={uploadCustomizationImage}
+                    onFieldFocus={setSelectedCustomizationFieldId}
                     onValueChange={(fieldId, value) => {
                       setCustomizationValues((current) => ({
                         ...current,

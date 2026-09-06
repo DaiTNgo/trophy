@@ -514,7 +514,11 @@ export function useCreateProduct() {
           const customizationMedia = variant.customizationMedia
             ? (() => {
                 if (!variant.customizationMedia.file) throw new Error("Customization Media must be selected again before saving.");
-                return { mediaId: variant.customizationMedia.id, file: variant.customizationMedia.file };
+                return {
+                  mediaId: variant.customizationMedia.id,
+                  file: variant.customizationMedia.file,
+                  previewFile: variant.customizationMedia.previewFile,
+                };
               })()
             : null;
           return {
@@ -903,11 +907,10 @@ export function useCreateProduct() {
           "Only PNG, JPEG, WebP, and PDF product assets are supported.",
         );
       }
-      const fileToProcess =
-        file.type === "application/pdf"
-          ? await convertPdfToImageFile(file)
-          : file;
-      const objectUrl = URL.createObjectURL(fileToProcess);
+      const isPdf = file.type === "application/pdf";
+      const previewFile = isPdf ? await convertPdfToImageFile(file) : undefined;
+      const fileForPreview = previewFile ?? file;
+      const objectUrl = URL.createObjectURL(fileForPreview);
       const dimensions = await new Promise<{ width: number; height: number }>(
         (resolve, reject) => {
           const image = new Image();
@@ -937,16 +940,20 @@ export function useCreateProduct() {
         (variant) =>
           buildVariantSignature(variant.options) === variantSignature,
       )?.customizationMedia;
-      if (previous?.isPending) URL.revokeObjectURL(previous.contentUrl);
+      if (previous?.isPending) {
+        URL.revokeObjectURL(previous.previewUrl ?? previous.contentUrl);
+      }
       updateVariantCustomizationMedia(variantSignature, {
         id: `pending_${crypto.randomUUID()}`,
-        fileName: fileToProcess.name,
-        mimeType: fileToProcess.type,
+        fileName: file.name,
+        mimeType: file.type,
         widthPx: dimensions.width,
         heightPx: dimensions.height,
-        byteSize: fileToProcess.size,
+        byteSize: file.size,
         contentUrl: objectUrl,
-        file: fileToProcess,
+        previewUrl: objectUrl,
+        file,
+        previewFile,
         isPending: true,
       });
     } catch (error) {

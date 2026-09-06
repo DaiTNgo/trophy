@@ -22,7 +22,8 @@ export const hasEmbeddedCustomizationDraft = (draft: EmbeddedCustomizationDraft)
 
 export const toPreviewBackgroundAsset = (asset: ProductVariantMedia): BackgroundAsset => ({
   assetId: asset.id,
-  previewUrl: asset.contentUrl,
+  previewUrl: asset.previewUrl ?? asset.contentUrl,
+  contentUrl: asset.contentUrl,
   filename: asset.fileName,
   mimeType: asset.mimeType,
   widthPx: asset.widthPx,

@@ -230,7 +230,7 @@ export function OrderCustomizationPreviewModal({
     try {
       const zipFiles: Record<string, Uint8Array> = {};
       for (const [index, upload] of uploadedImages.entries()) {
-        const contentUrl = `${BACKEND_URL}/api/assets/customizations/${upload.assetId}/content`;
+        const contentUrl = `${BACKEND_URL}/api/assets/customizations/${upload.assetId}/export`;
         const { bytes, extension } = await fetchUploadBytes(contentUrl);
         const filename = [
           sanitizeFilenamePart(order.orderNumber),
