@@ -568,24 +568,26 @@ function TextStyleControls({
                       }
                     >
                       <span>{label}</span>
-                      <button
-                        type="button"
-                        className="ml-0.5 flex size-3.5 items-center justify-center rounded-full text-[10px] opacity-50 hover:opacity-100 hover:text-red-500"
-                        title="Remove font"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          const nextOptions = policy.options.filter((o) => o.value !== option.value);
-                          const nextDefault =
-                            policy.defaultFontId === option.value
-                              ? nextOptions[0]?.value ?? "sans"
-                              : policy.defaultFontId;
-                          updateText(onUpdate, {
-                            fontPolicy: { ...policy, options: nextOptions, defaultFontId: nextDefault },
-                          });
-                        }}
-                      >
-                        ×
-                      </button>
+                      {policy.options.length > 1 && (
+                        <button
+                          type="button"
+                          className="ml-0.5 flex size-3.5 items-center justify-center rounded-full text-[10px] opacity-50 hover:opacity-100 hover:text-red-500"
+                          title="Remove font"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const nextOptions = policy.options.filter((o) => o.value !== option.value);
+                            const nextDefault =
+                              policy.defaultFontId === option.value
+                                ? nextOptions[0]?.value ?? "sans"
+                                : policy.defaultFontId;
+                            updateText(onUpdate, {
+                              fontPolicy: { ...policy, options: nextOptions, defaultFontId: nextDefault },
+                            });
+                          }}
+                        >
+                          ×
+                        </button>
+                      )}
                     </div>
                   );
                 })}
