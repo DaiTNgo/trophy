@@ -147,10 +147,17 @@ export const productAtomicVariantCreateRoute = new Hono<AppEnv>().post('/:id/var
       })
       await c.env.CUSTOMIZATION_ASSETS.put(objectKey, customizationMedia.buffer, { httpMetadata: { contentType: customizationMedia.mimeType } })
       writtenObjectKeys.push(objectKey)
+      let previewObjectKey: string | null = null
+      if (customizationMedia.previewBuffer && customizationMedia.previewMimeType) {
+        previewObjectKey = `catalog/${product.id}/variants/${writeToken}/customization-background/${customizationMedia.id}/preview.${extensionForMimeType(customizationMedia.previewMimeType)}`
+        await c.env.CUSTOMIZATION_ASSETS.put(previewObjectKey, customizationMedia.previewBuffer, { httpMetadata: { contentType: customizationMedia.previewMimeType } })
+        writtenObjectKeys.push(previewObjectKey)
+      }
       assetRows.push({
         id: customizationMedia.id,
         ownerKey: `catalog:${product.id}`,
         objectKey,
+        previewObjectKey,
         fileName: customizationMedia.fileName,
         mimeType: customizationMedia.mimeType,
         widthPx: customizationMedia.widthPx,

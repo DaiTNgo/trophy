@@ -384,11 +384,11 @@ export default function AboutRoute() {
               0816 999 296
             </a>
             <a
-              href="tel:0901234567"
+              href="tel:0966100050"
               className="flex items-center gap-2 transition-colors hover:text-brand-accent"
             >
               <Phone className="size-4" />
-              0901 234 567
+              0966 100 050
             </a>
             <a
               href="mailto:Lienhe.phungthi@gmail.com"

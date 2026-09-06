@@ -4,7 +4,7 @@ import { Phone, X } from "lucide-react";
 
 const PHONES = [
   { href: "tel:0816999296", display: "0816 999 296" },
-  { href: "tel:0901234567", display: "0901 234 567" },
+  { href: "tel:0966100050", display: "0966 100 050" },
 ];
 
 export function ContactButtons() {

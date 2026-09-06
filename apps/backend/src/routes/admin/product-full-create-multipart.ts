@@ -14,6 +14,8 @@ export type ValidatedFullCreateMedia = {
   heightPx: number
   byteSize: number
   buffer: ArrayBuffer
+  previewBuffer?: ArrayBuffer
+  previewMimeType?: string
 }
 
 const invalid = (error: string) => ({ success: false as const, error })
@@ -38,10 +40,16 @@ export async function parseFullCreateMultipart(request: Request) {
   if (new Set(declaredIds).size !== declaredIds.length) return invalid('Each declared media ID must be unique')
 
   const supplied = new Map<string, File[]>()
+  const suppliedPreviews = new Map<string, File>()
   for (const [name, value] of formData.entries()) {
     if (name === 'payload') continue
     if (!(value instanceof File)) return invalid(`Multipart field ${name} must be a file`)
-    supplied.set(name, [...(supplied.get(name) ?? []), value])
+    if (name.endsWith('_preview')) {
+      const baseId = name.replace(/_preview$/, '')
+      suppliedPreviews.set(baseId, value)
+    } else {
+      supplied.set(name, [...(supplied.get(name) ?? []), value])
+    }
   }
   if (supplied.size !== declaredIds.length || declaredIds.some((id) => supplied.get(id)?.length !== 1)) {
     return invalid('Each declared media ID must have exactly one matching file and no unreferenced files')
@@ -59,16 +67,40 @@ export async function parseFullCreateMultipart(request: Request) {
       ? { width: 800, height: 1131 }
       : readImageDimensions(mimeType, new Uint8Array(buffer))
     if (!dimensions || dimensions.width < 1 || dimensions.height < 1) return invalid('Media data is invalid or unsupported')
-    media.set(id, { id: crypto.randomUUID(), fieldId: id, fileName: file.name, mimeType, widthPx: dimensions.width, heightPx: dimensions.height, byteSize: buffer.byteLength, buffer })
+    let previewBuffer: ArrayBuffer | undefined
+    let previewMimeType: string | undefined
+    const previewFile = suppliedPreviews.get(id)
+    if (previewFile && mimeType === 'application/pdf') {
+      previewBuffer = await previewFile.arrayBuffer()
+      previewMimeType = previewFile.type.trim().toLowerCase()
+    }
+    media.set(id, {
+      id: crypto.randomUUID(),
+      fieldId: id,
+      fileName: file.name,
+      mimeType,
+      widthPx: dimensions.width,
+      heightPx: dimensions.height,
+      byteSize: buffer.byteLength,
+      buffer,
+      previewBuffer,
+      previewMimeType,
+    })
   }
 
   return { success: true as const, input: parsed.output, media }
 }
 
-export const fullCreateAssetInput = (media: ValidatedFullCreateMedia, objectKey: string, productId: number) => ({
+export const fullCreateAssetInput = (
+  media: ValidatedFullCreateMedia,
+  objectKey: string,
+  productId: number,
+  previewObjectKey: string | null = null,
+) => ({
   id: media.id,
   ownerKey: `catalog:${productId}`,
   objectKey,
+  previewObjectKey,
   fileName: media.fileName,
   mimeType: media.mimeType,
   widthPx: media.widthPx,

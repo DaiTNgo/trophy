@@ -27,6 +27,7 @@ const buildAsset = ({
     id,
     ownerKey: "admin",
     objectKey: `product-assets/${id}.png`,
+    previewObjectKey: null,
     fileName: `${id}.png`,
     mimeType: "image/png",
     widthPx,

@@ -53,7 +53,7 @@ export default function ContactRoute() {
         <div className="mb-16 grid gap-4 sm:grid-cols-2">
           {([
             { key: "hotline", href: "tel:0816999296" },
-            { key: "hotline2", href: "tel:0901234567" },
+            { key: "hotline2", href: "tel:0966100050" },
             { key: "email", href: "mailto:Lienhe.phungthi@gmail.com" },
           ] as const).map(({ key, href }) => {
             const Icon = key === "email" ? Mail : Phone;

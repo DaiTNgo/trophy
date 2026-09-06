@@ -266,11 +266,15 @@ export async function fetchStorefrontProduct(handle: string, locale?: string, ba
       media: variant.media.map((media) => ({
         ...media,
         contentUrl: backendAssetUrl(media.contentUrl),
+        previewUrl: (media as any).previewUrl ? backendAssetUrl((media as any).previewUrl) : null,
       })),
       customizationMedia: variant.customizationMedia
         ? {
             ...variant.customizationMedia,
             contentUrl: backendAssetUrl(variant.customizationMedia.contentUrl),
+            previewUrl: (variant.customizationMedia as any).previewUrl
+              ? backendAssetUrl((variant.customizationMedia as any).previewUrl)
+              : null,
           }
         : null,
     })),

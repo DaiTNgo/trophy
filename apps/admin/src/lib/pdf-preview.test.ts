@@ -33,7 +33,7 @@ describe("convertPdfToImageFile", () => {
       createElement: vi.fn().mockReturnValue({
         width: 0,
         height: 0,
-        getContext: () => ({}),
+        getContext: () => ({ clearRect: vi.fn() }),
         toBlob: (callback: BlobCallback, type?: string) =>
           callback(new Blob(["webp"], { type })),
       }),

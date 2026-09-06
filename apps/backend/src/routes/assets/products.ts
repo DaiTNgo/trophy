@@ -6,9 +6,36 @@ import { assetParamsSchema } from "../../lib/asset-utils";
 import type { AppEnv } from "../../lib/env";
 import { jsonError, parseParams } from "../../lib/validation";
 
-export const assetsProductsRoute = new Hono<AppEnv>().get(
-  "/:id/content",
-  async (c) => {
+export const assetsProductsRoute = new Hono<AppEnv>()
+  .get("/:id/content", async (c) => {
+    const params = parseParams(c, assetParamsSchema);
+    if (!params.success) {
+      return params.response;
+    }
+
+    const asset = await getDb(c.env)
+      .select()
+      .from(productAssets)
+      .where(eq(productAssets.id, params.output.id))
+      .get();
+    if (!asset) {
+      return jsonError(c, 404, "Product asset not found");
+    }
+
+    const objectKey = asset.previewObjectKey ?? asset.objectKey;
+    const object = await c.env.CUSTOMIZATION_ASSETS.get(objectKey);
+    if (!object) {
+      return jsonError(c, 404, "Product asset object not found");
+    }
+
+    const headers = new Headers();
+    object.writeHttpMetadata(headers);
+    headers.set("etag", object.httpEtag);
+    headers.set("cache-control", "public, max-age=31536000, immutable"); // update to public since it's a public capability URL
+    headers.set("x-content-type-options", "nosniff");
+    return new Response(object.body, { headers });
+  })
+  .get("/:id/export", async (c) => {
     const params = parseParams(c, assetParamsSchema);
     if (!params.success) {
       return params.response;
@@ -33,6 +60,36 @@ export const assetsProductsRoute = new Hono<AppEnv>().get(
     headers.set("etag", object.httpEtag);
     headers.set("cache-control", "public, max-age=31536000, immutable"); // update to public since it's a public capability URL
     headers.set("x-content-type-options", "nosniff");
+    if (asset.fileName) {
+      headers.set("content-disposition", `attachment; filename="${encodeURIComponent(asset.fileName)}"`);
+    }
     return new Response(object.body, { headers });
-  }
-);
+  })
+  .get("/:id/preview", async (c) => {
+    const params = parseParams(c, assetParamsSchema);
+    if (!params.success) {
+      return params.response;
+    }
+
+    const asset = await getDb(c.env)
+      .select()
+      .from(productAssets)
+      .where(eq(productAssets.id, params.output.id))
+      .get();
+    if (!asset) {
+      return jsonError(c, 404, "Product asset not found");
+    }
+
+    const objectKey = asset.previewObjectKey ?? asset.objectKey;
+    const object = await c.env.CUSTOMIZATION_ASSETS.get(objectKey);
+    if (!object) {
+      return jsonError(c, 404, "Product asset preview object not found");
+    }
+
+    const headers = new Headers();
+    object.writeHttpMetadata(headers);
+    headers.set("etag", object.httpEtag);
+    headers.set("cache-control", "public, max-age=31536000, immutable");
+    headers.set("x-content-type-options", "nosniff");
+    return new Response(object.body, { headers });
+  });

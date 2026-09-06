@@ -82,15 +82,14 @@ export function VariantMediaManager({
     }
   }
   async function replaceBackground(file: File) {
-    const fileToUpload =
-      file.type === "application/pdf"
-        ? await convertPdfToImageFile(file)
-        : file;
+    const isPdf = file.type === "application/pdf";
+    const previewFile = isPdf ? await convertPdfToImageFile(file) : undefined;
+    const fileForDimensions = previewFile ?? file;
     const sibling = product.variants.find(
       (item) => item.id !== variant.id && item.customizationMedia,
     )?.customizationMedia;
     if (sibling) {
-      const dimensions = await readDimensions(fileToUpload).catch(() => null);
+      const dimensions = await readDimensions(fileForDimensions).catch(() => null);
       if (
         !dimensions ||
         dimensions.width !== sibling.widthPx ||
@@ -106,7 +105,8 @@ export function VariantMediaManager({
       replaceVariantCustomizationBackground(
         product.id,
         Number(variant.id),
-        fileToUpload,
+        file,
+        previewFile,
       ),
     );
   }

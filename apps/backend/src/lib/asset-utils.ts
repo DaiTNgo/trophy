@@ -17,5 +17,6 @@ export const extensionForMimeType = (mimeType: string) => {
   if (mimeType === "image/png") return "png";
   if (mimeType === "image/webp") return "webp";
   if (mimeType === "application/pdf") return "pdf";
+  if (mimeType === "image/svg+xml") return "svg";
   return "jpg";
 };

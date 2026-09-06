@@ -98,10 +98,10 @@ export function Footer() {
                   <Phone className="size-4 shrink-0" />
                   {t("footer_hotline2")}
                   <a
-                    href="tel:0901234567"
+                    href="tel:0966100050"
                     className="transition-colors hover:text-brand-accent"
                   >
-                    0901 234 567
+                    0966 100 050
                   </a>
                 </p>
                 <p className="flex items-center gap-1.5">

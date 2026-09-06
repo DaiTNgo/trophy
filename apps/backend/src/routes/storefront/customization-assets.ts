@@ -115,9 +115,9 @@ export const customizationAssetsRoute = new Hono<AppEnv>()
     });
 
     if (previewBuffer) {
-      previewObjectKey = objectKey.replace(/\.source\.[a-z0-9]+$/, ".preview.png");
+      previewObjectKey = objectKey.replace(/\.source\.[a-z0-9]+$/, ".preview.webp");
       await c.env.CUSTOMIZATION_ASSETS.put(previewObjectKey, previewBuffer, {
-        httpMetadata: { contentType: "image/png" },
+        httpMetadata: { contentType: "image/webp" },
         customMetadata: {
         assetId: id,
         draftId: shopperDraftId,

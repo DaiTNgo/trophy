@@ -11,6 +11,8 @@ export type ValidatedCustomizationBackground = {
   heightPx: number
   byteSize: number
   buffer: ArrayBuffer
+  previewBuffer?: ArrayBuffer
+  previewMimeType?: string
 }
 
 const invalid = (error: string) => ({ success: false as const, error })
@@ -94,9 +96,15 @@ async function validateBackgroundCustomizationMedia(
   declared: Record<string, DeclaredDimensions>,
 ): Promise<{ success: true; backgrounds: ValidatedCustomizationBackground[] } | { success: false; error: string }> {
   const submitted = new Map<string, File[]>()
+  const submittedPreviews = new Map<string, File>()
   for (const [name, value] of formData.entries()) {
     if (value instanceof File) {
-      submitted.set(name, [...(submitted.get(name) ?? []), value])
+      if (name.endsWith('_preview')) {
+        const variantKey = name.replace(/_preview$/, '')
+        submittedPreviews.set(variantKey, value)
+      } else {
+        submitted.set(name, [...(submitted.get(name) ?? []), value])
+      }
     }
   }
   if (
@@ -115,7 +123,25 @@ async function validateBackgroundCustomizationMedia(
     const buffer = await file.arrayBuffer()
     if (buffer.byteLength !== file.size || buffer.byteLength > MAX_ASSET_BYTES) return invalid('Product asset size is invalid')
     const dimensions = declared[String(variantId)]
-    backgrounds.push({ variantId, id: crypto.randomUUID(), fileName: file.name, mimeType, widthPx: dimensions.widthPx, heightPx: dimensions.heightPx, byteSize: buffer.byteLength, buffer })
+    let previewBuffer: ArrayBuffer | undefined
+    let previewMimeType: string | undefined
+    const previewFile = submittedPreviews.get(String(variantId))
+    if (previewFile && mimeType === 'application/pdf') {
+      previewBuffer = await previewFile.arrayBuffer()
+      previewMimeType = previewFile.type.trim().toLowerCase()
+    }
+    backgrounds.push({
+      variantId,
+      id: crypto.randomUUID(),
+      fileName: file.name,
+      mimeType,
+      widthPx: dimensions.widthPx,
+      heightPx: dimensions.heightPx,
+      byteSize: buffer.byteLength,
+      buffer,
+      previewBuffer,
+      previewMimeType,
+    })
   }
   return { success: true, backgrounds }
 }

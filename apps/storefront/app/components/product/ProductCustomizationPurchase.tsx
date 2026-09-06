@@ -19,6 +19,7 @@ export function ProductCustomizationPurchase({
   onDeleteImage,
   onUploadImage,
   onInteraction,
+  onFieldFocus,
   onValueChange,
   onQuantityChange,
 }: {
@@ -35,6 +36,7 @@ export function ProductCustomizationPurchase({
     file: File,
   ) => Promise<ImageShapeFieldValue>;
   onInteraction: () => void;
+  onFieldFocus?: (fieldId: string) => void;
   onValueChange: (
     fieldId: string,
     value: CustomizationFormValues[string],
@@ -53,6 +55,7 @@ export function ProductCustomizationPurchase({
         onDeleteImage={onDeleteImage}
         onUploadImage={onUploadImage}
         onInteraction={onInteraction}
+        onFieldFocus={onFieldFocus}
         onValueChange={onValueChange}
       />
       <div className="mt-4 border-t border-border-subtle pt-4">

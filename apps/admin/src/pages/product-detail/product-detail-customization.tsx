@@ -128,8 +128,9 @@ function CustomizationBackgroundModal({
     const generatedUrls: string[] = [];
     const next = Object.fromEntries(
       Object.entries(files).map(([variantId, staged]) => {
+        const fileForPreview = staged.previewFile ?? staged.file;
         const previewUrl =
-          staged.previewUrl ?? URL.createObjectURL(staged.file);
+          staged.previewUrl ?? URL.createObjectURL(fileForPreview);
         if (!staged.previewUrl) generatedUrls.push(previewUrl);
         return [variantId, previewUrl];
       }),
@@ -202,17 +203,19 @@ function CustomizationBackgroundModal({
     previewUrl?: string,
   ) => {
     const isPdf = file.type === "application/pdf";
-    const fileToStage = isPdf ? await convertPdfToImageFile(file) : file;
+    const previewFile = isPdf ? await convertPdfToImageFile(file) : undefined;
+    const fileForDimensions = previewFile ?? file;
     const size = dimensions && !isPdf
       ? dimensions
-      : await readImageDimensions(fileToStage).then(({ width, height }) => ({
+      : await readImageDimensions(fileForDimensions).then(({ width, height }) => ({
         widthPx: width,
         heightPx: height,
       }));
     setFiles((current) => ({
       ...current,
       [variantId]: {
-        file: fileToStage,
+        file,
+        previewFile,
         widthPx: size.widthPx,
         heightPx: size.heightPx,
         previewUrl: isPdf ? undefined : previewUrl,
@@ -275,6 +278,7 @@ function CustomizationBackgroundModal({
       const backgrounds = variants.map((variant) => ({
         variantId: variant.id,
         file: files[variant.id]!.file,
+        previewFile: files[variant.id]!.previewFile,
         widthPx: files[variant.id]!.widthPx,
         heightPx: files[variant.id]!.heightPx,
       }));

@@ -23,6 +23,7 @@ export type VectorPath = {
 export type BackgroundAsset = {
   assetId: string;
   previewUrl: string;
+  contentUrl?: string;
   filename?: string;
   mimeType?: string;
   widthPx: number;
