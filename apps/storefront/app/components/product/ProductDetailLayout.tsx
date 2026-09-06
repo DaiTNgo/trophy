@@ -73,6 +73,8 @@ export function ProductDetailLayout({
     specs,
     uploadCustomizationImage,
     visibleOptions,
+    selectedCustomizationFieldId,
+    setSelectedCustomizationFieldId,
   } = state;
   const optionGroups = (
     <ProductOptionGroups
@@ -97,6 +99,8 @@ export function ProductDetailLayout({
       resolveFontUrl={backendFontUrl}
       resolveStaticFontUrl={backendStaticFontUrl}
       selectedVariantId={selectedVariant?.id ?? null}
+      selectedFieldId={selectedCustomizationFieldId}
+      onSelectedFieldChange={setSelectedCustomizationFieldId}
       onImageValueChange={(fieldId, value) => {
         setCustomizationValues((current) => ({ ...current, [fieldId]: value }));
       }}
