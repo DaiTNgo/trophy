@@ -2,6 +2,20 @@
 
 ## Current Session
 
+- 2026-09-08: **Consolidated image folders & created infinite marquee carousel for real ceremony award moments.**
+  - Merged `apps/storefront/public/df7093a5-50a7-4667-af1e-19321d3f855d` (13 images) and `apps/storefront/public/Downloads` (12 images) into unified folder `apps/storefront/public/images/gallery/` (25 images total) and removed the old folders.
+  - Created `AwardMomentsSection.tsx` in `apps/storefront/app/components/home/`:
+    - Displays all 25 ceremony/tournament photos in a continuous, infinite marquee carousel running like the `PartnerLogosSection` ("trusted" section) with left/right gradient fade masks and pause-on-hover.
+    - Responsive card layout (`w-[280px] sm:w-[340px] md:w-[390px]`, `aspect-[16/10]`, rounded-2xl, hover zoom, and dark gradient caption).
+    - Interactive lightbox modal with full image view, keyboard navigation (left/right arrows, escape), and image counter (`1 / 25`).
+  - Positioned `<AwardMomentsSection />` directly below `BestSellersSection` ("Create an Award That Feels Uniquely Yours") in `apps/storefront/app/routes/home.tsx`.
+  - Added localized text in `apps/storefront/app/locales/{en,vi}/home.json` for eyebrow, title, and subtitle.
+  - Verification:
+    - `pnpm --filter router-cf typecheck` clean.
+    - `pnpm --filter router-cf build` clean.
+    - `./init.sh` passed completely (backend tests 277/277, backend build, admin build, storefront typecheck + build).
+    - Visual browser verification: confirmed marquee scrolling, gradient edge mask, pause on hover, card click opening lightbox modal with caption, next/prev image navigation, and escape closing.
+
 - 2026-09-05: **Preserve vector PDF for Customization Backgrounds & Admin PDF Export.**
   - Background: Khi upload file PDF làm Customization Background trong Admin, hệ thống trước đây convert sang WebP ở client rồi lưu WebP lên R2/D1 (`product_assets`), khiến file PDF gốc bị mất và tính năng Export PDF trong Admin Order Detail phải rasterize background thành ảnh thay vì vector page.
   - Architecture & Dual Storage:

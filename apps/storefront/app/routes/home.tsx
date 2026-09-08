@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { BestSellersSection } from "../components/home/BestSellersSection";
+import { AwardMomentsSection } from "../components/home/AwardMomentsSection";
 import { BrandShowcaseSection } from "../components/home/BrandShowcaseSection";
 import { CategoriesSection } from "../components/home/CategoriesSection";
 import { HeroSection } from "../components/home/HeroSection";
@@ -97,6 +98,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         title={t("best_sellers_customizable_title")}
         subtitle={t("best_sellers_customizable_subtitle")}
       />
+      <AwardMomentsSection />
+
 
       {/*<ShopByOccasionSection />*/}
 
