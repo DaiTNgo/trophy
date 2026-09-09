@@ -5,6 +5,8 @@ import {
 
 type CustomizationInput = {
   enabled: boolean
+  canvasWidthPx?: number | null
+  canvasHeightPx?: number | null
   layers: unknown[]
   formFields: unknown[]
 }
@@ -21,8 +23,13 @@ type ProductAsset = {
 
 export function deriveCustomizationCanvas(
   submittedVariants: SubmittedVariant[],
-  assetsById: Map<string, ProductAsset>
+  assetsById: Map<string, ProductAsset>,
+  customization?: { canvasWidthPx?: number | null; canvasHeightPx?: number | null } | null
 ) {
+  if (customization?.canvasWidthPx && customization?.canvasHeightPx) {
+    return { canvasWidthPx: customization.canvasWidthPx, canvasHeightPx: customization.canvasHeightPx }
+  }
+
   for (const variant of submittedVariants) {
     const assetId = variant.customizationMedia?.assetId
     const asset = assetId ? assetsById.get(assetId) : null
@@ -49,7 +56,7 @@ export function buildProductCustomizationInsert({
 }) {
   if (!customization?.enabled) return null
 
-  const derivedCanvas = deriveCustomizationCanvas(submittedVariants, assetsById)
+  const derivedCanvas = deriveCustomizationCanvas(submittedVariants, assetsById, customization)
   return {
     productId,
     enabled: true,
@@ -172,7 +179,7 @@ export function validateCustomizationPublishReadiness({
     }
   }
 
-  const derivedCanvas = deriveCustomizationCanvas(submittedVariants, assetsById)
+  const derivedCanvas = deriveCustomizationCanvas(submittedVariants, assetsById, customization)
   if (!derivedCanvas.canvasWidthPx || !derivedCanvas.canvasHeightPx) {
     return 'Customization requires at least one valid Customization Media asset before publish'
   }

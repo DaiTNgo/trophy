@@ -4,7 +4,7 @@ import { getDb } from '../../db/client'
 import { productAssets, productMedia, productVariantCustomizationMedia, productVariantMedia, products } from '../../db/schema'
 import { allowedMimeTypes, extensionForMimeType, MAX_ASSET_BYTES } from '../../lib/asset-utils'
 import type { AppEnv } from '../../lib/env'
-import { readImageDimensions } from '../../lib/image-dimensions'
+import { resolveAssetDimensions } from '../../lib/image-dimensions'
 import { buildCatalogVariantCustomizationBackgroundKey, buildCatalogVariantMediaKey } from '../../lib/r2-media-keys'
 import { jsonError, parseParams } from '../../lib/validation'
 import { readProduct } from './product-reader'
@@ -54,17 +54,11 @@ async function parseFiles(request: Request) {
     const heightStr = form.get('height') || form.get('heightPx')
     const clientWidth = widthStr ? Number(widthStr) : NaN
     const clientHeight = heightStr ? Number(heightStr) : NaN
-    let dimensions: { width: number; height: number } | null = null
-    if (Number.isFinite(clientWidth) && Number.isFinite(clientHeight) && clientWidth > 0 && clientHeight > 0) {
-      dimensions = { width: clientWidth, height: clientHeight }
-    } else if (previewBuffer && previewMimeType) {
-      dimensions = readImageDimensions(previewMimeType, new Uint8Array(previewBuffer))
-    } else if (mimeType === 'application/pdf') {
-      dimensions = { width: 800, height: 1131 }
-    } else {
-      dimensions = readImageDimensions(mimeType, new Uint8Array(buffer))
-    }
-    if (!dimensions || dimensions.width < 1 || dimensions.height < 1) return { error: 'Media data is invalid or unsupported' } as const
+    const declared = Number.isFinite(clientWidth) && Number.isFinite(clientHeight) && clientWidth > 0 && clientHeight > 0
+      ? { widthPx: clientWidth, heightPx: clientHeight }
+      : null
+    const dimensions = resolveAssetDimensions({ declared, mimeType, buffer, previewBuffer, previewMimeType })
+    if (!dimensions) return { error: 'Media data is invalid or unsupported' } as const
     result.push({
       id: crypto.randomUUID(),
       fileName: file.name,
@@ -151,7 +145,11 @@ export const productVariantMediaManagementRoute = new Hono<AppEnv>()
     if (!product.customization?.enabled) return jsonError(c, 409, 'Customization is disabled for this product')
     const file = parsedFiles.files[0]
     const sibling = product.variants.find((item) => item.id !== variant.id && item.customizationMedia)?.customizationMedia
-    if (sibling && (sibling.widthPx !== file.widthPx || sibling.heightPx !== file.heightPx)) return jsonError(c, 409, `Customization Background must be ${sibling.widthPx} x ${sibling.heightPx} px`)
+    const expectedWidth = product.customization.canvasWidthPx ?? sibling?.widthPx
+    const expectedHeight = product.customization.canvasHeightPx ?? sibling?.heightPx
+    if (expectedWidth && expectedHeight && (file.widthPx !== expectedWidth || file.heightPx !== expectedHeight)) {
+      return jsonError(c, 409, `Customization Background must be ${expectedWidth} x ${expectedHeight} px`)
+    }
     const oldAssetId = variant.customizationMedia?.id ?? null
     const objectKey = buildCatalogVariantCustomizationBackgroundKey({ productId: product.id, variantId: variant.id, assetId: file.id, extension: extensionForMimeType(file.mimeType) })
     let previewObjectKey: string | null = null

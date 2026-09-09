@@ -172,4 +172,15 @@ describe('admin full-create initial product thumbnail', () => {
     expect(response.status).toBe(201)
     expect(error).toHaveBeenCalledWith('initial product thumbnail assignment failed', expect.objectContaining({ productId: 71, assetId: 'gallery-first' }))
   })
+
+  it('returns 400 when parseFullCreateMultipart rejects media with missing dimensions', async () => {
+    vi.mocked(parseFullCreateMultipart).mockResolvedValueOnce({
+      success: false,
+      error: 'Media data is invalid or unsupported',
+    } as never)
+
+    const response = await productCommandRoute.request('/full-create', { method: 'POST' }, { CUSTOMIZATION_ASSETS: { put: vi.fn() } } as never)
+    expect(response.status).toBe(400)
+    expect(await response.json()).toMatchObject({ error: 'Media data is invalid or unsupported' })
+  })
 })

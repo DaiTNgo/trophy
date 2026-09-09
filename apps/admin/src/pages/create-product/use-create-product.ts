@@ -509,7 +509,12 @@ export function useCreateProduct() {
         .map((variant, index) => {
           const media = variant.media.map((asset) => {
             if (!asset.file) throw new Error("Variant media must be selected again before saving.");
-            return { mediaId: asset.id, file: asset.file };
+            return {
+              mediaId: asset.id,
+              file: asset.file,
+              widthPx: asset.widthPx,
+              heightPx: asset.heightPx,
+            };
           });
           const customizationMedia = variant.customizationMedia
             ? (() => {
@@ -518,6 +523,8 @@ export function useCreateProduct() {
                   mediaId: variant.customizationMedia.id,
                   file: variant.customizationMedia.file,
                   previewFile: variant.customizationMedia.previewFile,
+                  widthPx: variant.customizationMedia.widthPx,
+                  heightPx: variant.customizationMedia.heightPx,
                 };
               })()
             : null;

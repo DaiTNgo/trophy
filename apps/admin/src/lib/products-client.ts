@@ -147,8 +147,8 @@ export type CreateFullProductPayload = {
     isDefault?: boolean;
     optionValues: Array<{ optionTitle: string; value: string }>;
     attributes?: Array<{ name: LocalizedInput; value: LocalizedInput; unit?: string | null }>;
-    media: Array<{ mediaId: string; file: File }>;
-    customizationMedia?: { mediaId: string; file: File; previewFile?: File } | null;
+    media: Array<{ mediaId: string; file: File; widthPx?: number; heightPx?: number }>;
+    customizationMedia?: { mediaId: string; file: File; previewFile?: File; widthPx?: number; heightPx?: number } | null;
   }>;
   customization?: {
     enabled: boolean;
@@ -165,9 +165,21 @@ export async function createFullProduct(payload: CreateFullProductPayload) {
     ...payload,
     variants: payload.variants.map((variant) => ({
       ...variant,
-      media: variant.media.map(({ mediaId }) => ({ mediaId })),
+      media: variant.media.map(({ mediaId, widthPx, heightPx }) => ({
+        mediaId,
+        ...(typeof widthPx === "number" ? { widthPx } : {}),
+        ...(typeof heightPx === "number" ? { heightPx } : {}),
+      })),
       customizationMedia: variant.customizationMedia
-        ? { mediaId: variant.customizationMedia.mediaId }
+        ? {
+            mediaId: variant.customizationMedia.mediaId,
+            ...(typeof variant.customizationMedia.widthPx === "number"
+              ? { widthPx: variant.customizationMedia.widthPx }
+              : {}),
+            ...(typeof variant.customizationMedia.heightPx === "number"
+              ? { heightPx: variant.customizationMedia.heightPx }
+              : {}),
+          }
         : null,
     })),
   };
@@ -648,11 +660,21 @@ export async function removeManagedVariantMedia(id: string, variantId: number, a
   return readManagedVariantMediaResponse(response, "Failed to remove Variant Media.");
 }
 
-export async function replaceVariantCustomizationBackground(id: string, variantId: number, file: File, previewFile?: File) {
+export async function replaceVariantCustomizationBackground(
+  id: string,
+  variantId: number,
+  file: File,
+  previewFile?: File,
+  dimensions?: { width: number; height: number }
+) {
   const formData = new FormData();
   formData.append("files", file);
   if (previewFile) {
     formData.append("preview", previewFile);
+  }
+  if (dimensions?.width && dimensions?.height) {
+    formData.append("widthPx", String(dimensions.width));
+    formData.append("heightPx", String(dimensions.height));
   }
   const response = await backendFetch(`/api/admin/products/${id}/variants/${variantId}/customization-media/replace`, { method: "POST", body: formData });
   return readManagedVariantMediaResponse(response, "Failed to replace Customization Background.");

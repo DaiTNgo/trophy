@@ -1,8 +1,7 @@
 import * as v from 'valibot'
 import { allowedMimeTypes, MAX_ASSET_BYTES } from '../../lib/asset-utils'
-import { readImageDimensions } from '../../lib/image-dimensions'
+import { resolveAssetDimensions } from '../../lib/image-dimensions'
 import { atomicVariantCreateSchema } from './product-schemas'
-
 export type ValidatedAtomicVariantMedia = {
   fieldId: string
   id: string
@@ -26,23 +25,10 @@ export type ValidatedAtomicVariant = {
   customizationMedia: ValidatedAtomicVariantMedia | null
 }
 
-async function validateFileWithField(file: File, fieldId: string): Promise<ValidatedAtomicVariantMedia | string> {
-  const mimeType = file.type.trim().toLowerCase()
-  if (!allowedMimeTypes.has(mimeType)) return 'Only PNG, JPEG, WEBP, and PDF product assets are supported'
-  if (file.size <= 0 || file.size > MAX_ASSET_BYTES) return 'Product asset exceeds the 20 MB limit'
-  const buffer = await file.arrayBuffer()
-  if (buffer.byteLength !== file.size || buffer.byteLength > MAX_ASSET_BYTES) return 'Product asset size is invalid'
-  const dimensions = mimeType === 'application/pdf'
-    ? { width: 800, height: 1131 }
-    : readImageDimensions(mimeType, new Uint8Array(buffer))
-  if (!dimensions || dimensions.width < 1 || dimensions.height < 1) return 'Media data is invalid or unsupported'
-  return { fieldId, id: crypto.randomUUID(), fileName: file.name, mimeType, widthPx: dimensions.width, heightPx: dimensions.height, byteSize: buffer.byteLength, buffer }
-}
-
-async function validateCustomizationFileWithDeclaration(
+async function validateFileWithField(
   file: File,
   fieldId: string,
-  dimensions: { widthPx: number; heightPx: number },
+  declared?: { widthPx?: number; heightPx?: number },
   previewFile?: File,
 ): Promise<ValidatedAtomicVariantMedia | string> {
   const mimeType = file.type.trim().toLowerCase()
@@ -56,19 +42,11 @@ async function validateCustomizationFileWithDeclaration(
     previewBuffer = await previewFile.arrayBuffer()
     previewMimeType = previewFile.type.trim().toLowerCase()
   }
-  return {
-    fieldId,
-    id: crypto.randomUUID(),
-    fileName: file.name,
-    mimeType,
-    widthPx: dimensions.widthPx,
-    heightPx: dimensions.heightPx,
-    byteSize: buffer.byteLength,
-    buffer,
-    previewBuffer,
-    previewMimeType,
-  }
+  const dimensions = resolveAssetDimensions({ declared, mimeType, buffer, previewBuffer, previewMimeType })
+  if (!dimensions) return 'Media data is invalid or unsupported'
+  return { fieldId, id: crypto.randomUUID(), fileName: file.name, mimeType, widthPx: dimensions.width, heightPx: dimensions.height, byteSize: buffer.byteLength, buffer, previewBuffer, previewMimeType }
 }
+
 
 export async function parseAtomicVariantMultipart(
   request: Request,
@@ -112,7 +90,8 @@ export async function parseAtomicVariantMultipart(
   const galleryMedia: ValidatedAtomicVariantMedia[] = []
   for (const media of parsed.output.galleryMedia) {
     const file = supplied.get(media.mediaId)!
-    const result = await validateFileWithField(file, media.mediaId)
+    const previewFile = suppliedPreviews.get(media.mediaId)
+    const result = await validateFileWithField(file, media.mediaId, media, previewFile)
     if (typeof result === 'string') return invalid(result)
     galleryMedia.push(result)
   }
@@ -120,7 +99,7 @@ export async function parseAtomicVariantMultipart(
   if (parsed.output.customizationMedia) {
     const file = supplied.get(parsed.output.customizationMedia.mediaId)!
     const previewFile = suppliedPreviews.get(parsed.output.customizationMedia.mediaId)
-    const result = await validateCustomizationFileWithDeclaration(file, parsed.output.customizationMedia.mediaId, parsed.output.customizationMedia, previewFile)
+    const result = await validateFileWithField(file, parsed.output.customizationMedia.mediaId, parsed.output.customizationMedia, previewFile)
     if (typeof result === 'string') return invalid(result)
     customizationMedia = result
   }

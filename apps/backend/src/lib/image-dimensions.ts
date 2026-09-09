@@ -113,3 +113,34 @@ export const readImageDimensions = (mimeType: string, bytes: Uint8Array) => {
   if (mimeType === "image/webp") return readWebpDimensions(bytes);
   return readJpegDimensions(bytes);
 };
+
+export const resolveAssetDimensions = ({
+  declared,
+  mimeType,
+  buffer,
+  previewBuffer,
+  previewMimeType,
+}: {
+  declared?: { widthPx?: number; heightPx?: number } | null;
+  mimeType: string;
+  buffer: ArrayBuffer;
+  previewBuffer?: ArrayBuffer | null;
+  previewMimeType?: string | null;
+}): { width: number; height: number } | null => {
+  if (declared?.widthPx && declared?.heightPx && declared.widthPx > 0 && declared.heightPx > 0) {
+    return { width: declared.widthPx, height: declared.heightPx };
+  }
+  if (previewBuffer && previewMimeType) {
+    const previewDims = readImageDimensions(previewMimeType, new Uint8Array(previewBuffer));
+    if (previewDims && previewDims.width > 0 && previewDims.height > 0) {
+      return previewDims;
+    }
+  }
+  if (mimeType !== "application/pdf") {
+    const fileDims = readImageDimensions(mimeType, new Uint8Array(buffer));
+    if (fileDims && fileDims.width > 0 && fileDims.height > 0) {
+      return fileDims;
+    }
+  }
+  return null;
+};
