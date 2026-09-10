@@ -12,7 +12,15 @@ import {
   type TextFieldValue,
   type VectorPoint,
 } from "@trophy/customization";
-import { createId, shapeLabel, type RailTab } from "../components/customization/customization-template-ui";
+import {
+  createId,
+  type RailTab,
+  createDefaultTextLayer,
+  createDefaultTextOnPathLayer,
+  createDefaultImageShapeLayer,
+  createDefaultPolygonLayer,
+  createDefaultVectorShapeLayer,
+} from "../components/customization/customization-template-ui";
 import { getProductCustomizationPublishIssue } from "./product-customization-publish";
 
 const maxZ = (layers: CustomizationLayer[]) => layers.length > 0 ? Math.max(...layers.map((layer) => layer.zIndex)) : 0;
@@ -89,144 +97,46 @@ export function useProductCustomizationEditor(
 
   const selectedLayer = template.layers.find((l) => l.id === selectedLayerId);
 
-  function addTextLayer() {
-    const id = createId("layer");
-    const fieldId = createId("field");
-    const newLayer: CustomizationLayer = {
-      id,
-      type: "text",
-      name: "New text",
-      geometry: { xRatio: 0.1, yRatio: 0.1, widthRatio: 0.8, rotationDeg: 0 },
-      zIndex: maxZ(template.layers) + 1,
-      hidden: false,
-      locked: false,
-      text: {
-        sampleText: "Sample",
-        maxLines: 1,
-        minFontSizePt: 12,
-        maxFontSizePt: 72,
-        alignPolicy: { mode: "fixed", align: "left" },
-        colorPolicy: { mode: "fixed", color: "#000000" },
-        fontPolicy: { mode: "fixed", fontId: "inter" },
-        formatPolicy: { mode: "fixed", isBold: false, isItalic: false },
-        path: { type: "straight" },
-      }
-    };
-    const newField: CustomizationFormField = {
-      id: fieldId,
-      layerId: id,
-      type: "text",
-      label: "New text",
-      required: false,
-      order: template.formFields.length + 1,
-    } as any;
+  function addLayer(layer: CustomizationLayer, field: CustomizationFormField) {
     updateTemplate((current) => ({
       ...current,
-      layers: [...current.layers, newLayer],
-      formFields: [...current.formFields, newField],
+      layers: [...current.layers, layer],
+      formFields: [...current.formFields, field],
     }));
-    setSelectedLayerId(id);
+    setSelectedLayerId(layer.id);
+  }
+
+  function addTextLayer() {
+    const { layer, field } = createDefaultTextLayer({
+      zIndex: maxZ(template.layers) + 1,
+      order: template.formFields.length + 1,
+    });
+    addLayer(layer, field);
   }
 
   function addTextOnPathLayer() {
-    addTextLayer(); // simplified for now
+    const { layer, field } = createDefaultTextOnPathLayer({
+      zIndex: maxZ(template.layers) + 1,
+      order: template.formFields.length + 1,
+    });
+    addLayer(layer, field);
+    setPathEditingLayerId(layer.id);
   }
 
   function addImageShape(shapeType: ShapeType) {
-    const id = createId("layer");
-    const fieldId = createId("field");
-    const newLayer: CustomizationLayer = {
-      id,
-      type: "image_shape",
-      name: shapeLabel(shapeType),
-      geometry: { xRatio: 0.25, yRatio: 0.25, widthRatio: 0.5, heightRatio: 0.5, rotationDeg: 0 },
+    const { layer, field } = createDefaultImageShapeLayer(shapeType, {
       zIndex: maxZ(template.layers) + 1,
-      hidden: false,
-      locked: false,
-      shape: {
-        type: shapeType,
-        lockAspectRatio: false,
-      },
-      upload: {
-        fit: "cover"
-      },
-      sourcePolicy: "upload_only",
-    };
-    const newField: CustomizationFormField = {
-      id: fieldId,
-      layerId: id,
-      type: "image",
-      label: shapeLabel(shapeType),
-      required: false,
       order: template.formFields.length + 1,
-    } as any;
-    updateTemplate((current) => ({
-      ...current,
-      layers: [...current.layers, newLayer],
-      formFields: [...current.formFields, newField],
-    }));
-    setSelectedLayerId(id);
+    });
+    addLayer(layer, field);
   }
 
-  function addPolygon(sides: number | any = 6) {
-    if (!template.background) return;
-    const actualSides = typeof sides === "number" ? sides : 6;
-    const id = createId("image_shape");
-    const radius = 0.4;
-    const cx = 0.5;
-    const cy = 0.5;
-    const polygonPoints: VectorPoint[] = Array.from(
-      { length: actualSides },
-      (_, index) => {
-        const angle = -Math.PI / 2 + (index * 2 * Math.PI) / actualSides;
-        return {
-          id: createId("vector_point"),
-          type: "corner",
-          xRatio: cx + Math.cos(angle) * radius,
-          yRatio: cy + Math.sin(angle) * radius,
-        };
-      },
-    );
-
-    const fieldId = createId("field");
-    const newLayer: CustomizationLayer = {
-      id,
-      type: "image_shape",
-      name: `Polygon (${actualSides})`,
-      geometry: {
-        xRatio: 0.5,
-        yRatio: 0.5,
-        widthRatio: 0.25,
-        heightRatio: 0.25,
-        rotationDeg: 0,
-      },
+  function addPolygon(sides: number = 6) {
+    const { layer, field } = createDefaultPolygonLayer(sides, {
       zIndex: maxZ(template.layers) + 1,
-      hidden: false,
-      locked: false,
-      shape: {
-        type: "vector",
-        lockAspectRatio: false,
-        vectorPath: { points: polygonPoints, closed: true },
-      },
-      upload: { fit: "cover", defaultCrop: { scale: 1, xRatio: 0, yRatio: 0 } },
-      sourcePolicy: "upload_only",
-    };
-    const newField: CustomizationFormField = {
-      id: fieldId,
-      layerId: id,
-      type: "image",
-      label: "Upload image",
-      helpText: "Your image will be clipped to the polygon shape.",
-      required: false,
       order: template.formFields.length + 1,
-    } as any;
-
-    updateTemplate((current) => ({
-      ...current,
-      layers: [...current.layers, newLayer],
-      formFields: [...current.formFields, newField],
-    }));
-    setSelectedLayerId(id);
+    });
+    addLayer(layer, field);
   }
 
   function startDrawMode() {
@@ -264,64 +174,13 @@ export function useProductCustomizationEditor(
       cancelDrawMode();
       return;
     }
-    const id = createId("layer");
-    const fieldId = createId("field");
-    const xs = pendingVectorPoints.map((p) => p.xRatio);
-    const ys = pendingVectorPoints.map((p) => p.yRatio);
-    const minX = Math.min(...xs);
-    const maxX = Math.max(...xs);
-    const minY = Math.min(...ys);
-    const maxY = Math.max(...ys);
-
-    const newLayer: CustomizationLayer = {
-      id,
-      type: "image_shape",
-      name: "Custom Shape",
-      geometry: {
-        xRatio: minX,
-        yRatio: minY,
-        widthRatio: maxX - minX,
-        heightRatio: maxY - minY,
-        rotationDeg: 0,
-      },
+    const { layer, field } = createDefaultVectorShapeLayer(pendingVectorPoints, {
       zIndex: maxZ(template.layers) + 1,
-      hidden: false,
-      locked: false,
-      shape: {
-        type: "vector",
-        lockAspectRatio: false,
-        vectorPath: {
-          closed: true,
-          points: pendingVectorPoints.map((p) => ({
-            ...p,
-            xRatio: (p.xRatio - minX) / (maxX - minX),
-            yRatio: (p.yRatio - minY) / (maxY - minY),
-          })),
-        }
-      },
-      upload: {
-        fit: "cover"
-      }
-    };
-
-    const newField: CustomizationFormField = {
-      id: fieldId,
-      layerId: id,
-      type: "image",
-      label: "Custom Shape",
-      required: false,
       order: template.formFields.length + 1,
-    } as any;
-
-    updateTemplate((current) => ({
-      ...current,
-      layers: [...current.layers, newLayer],
-      formFields: [...current.formFields, newField],
-    }));
-
+    });
+    addLayer(layer, field);
     setIsDrawing(false);
     setPendingVectorPoints([]);
-    setSelectedLayerId(id);
   }
 
   function deleteSelectedLayer() {
