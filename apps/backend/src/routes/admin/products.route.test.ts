@@ -281,6 +281,76 @@ describe("admin products operation-specific routes", () => {
     expect(db.mutations).toContainEqual({ kind: "update", set: expect.objectContaining({ misaSyncStatus: "failed", misaLastError: "MISA rejected product" }) });
   });
 
+  it("synchronizes customization canvas dimensions from variant media at publish", async () => {
+    const variant = {
+      id: 20,
+      productId: 1,
+      title: "Gold",
+      sku: null,
+      priceAmount: 5000,
+      inventoryQuantity: 8,
+      allowBackorder: false,
+      isDefault: true,
+      position: 0,
+      createdAt: "2026-07-04T00:00:00.000Z",
+      updatedAt: "2026-07-04T00:00:00.000Z",
+    };
+    const customizationMediaRow = {
+      variantId: 20,
+      assetId: "asset-1",
+      fileName: "background.png",
+      mimeType: "image/png",
+      widthPx: 1190,
+      heightPx: 1683,
+      byteSize: 2048,
+    };
+    const customizationRow = {
+      enabled: true,
+      canvasWidthPx: 800,
+      canvasHeightPx: 1131,
+      layersJson: "[]",
+      formFieldsJson: "[]",
+    };
+
+    queueReadProduct(
+      db,
+      { id: 1, title: "Champion Cup", status: "draft" },
+      {
+        variantRows: [variant],
+        variantCustomizationMediaRows: [customizationMediaRow],
+        customizationRow,
+      },
+    );
+    queueReadProduct(
+      db,
+      { id: 1, title: "Champion Cup", status: "published" },
+      {
+        variantRows: [variant],
+        variantCustomizationMediaRows: [customizationMediaRow],
+        customizationRow: {
+          ...customizationRow,
+          canvasWidthPx: 1190,
+          canvasHeightPx: 1683,
+        },
+      },
+    );
+
+    const response = await productsRoute.request("/1/publish", { method: "POST" }, {
+      MISA_CLIENT_ID: "client",
+      MISA_CLIENT_SECRET: "secret",
+    } as never);
+
+    expect(response.status).toBe(200);
+    expect(db.mutations).toContainEqual({ kind: "update", set: expect.objectContaining({ status: "published" }) });
+    expect(db.mutations).toContainEqual({
+      kind: "update",
+      set: expect.objectContaining({
+        canvasWidthPx: 1190,
+        canvasHeightPx: 1683,
+      }),
+    });
+  });
+
   it("returns product overview save without waiting for a stalled MISA name update", async () => {
     const variant = {
       id: 20,

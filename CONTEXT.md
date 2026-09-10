@@ -247,9 +247,8 @@ A product variant that can support shopper-facing customization because it has e
 _Avoid_: valid variant, completed variant
 
 **Background Size Contract**:
-The rule that all Customization Backgrounds for a customizable product declare identical canvas width and height, allowing one customization template to render consistently across every variant background. The admin client supplies and validates this canvas metadata before save; the backend only verifies that submitted and saved declarations agree.
+The rule that all Customization Backgrounds for a customizable product share identical canvas width and height, allowing one customization template to render consistently across every variant background. For published products and during product publish, this contract is strictly enforced. In draft status, variant backgrounds are unconstrained to allow operators to iterate and replace assets freely, and upon successful publish or template save, the product canvas size automatically synchronizes to the variant background dimensions.
 _Avoid_: same-size warning, image dimension hint
-
 **Declared Background Dimensions**:
 The width and height metadata supplied by the admin client for a Customization Background. It is the canvas-size source of truth, including for PDF backgrounds; it is not media dimensions inferred or decoded by the backend.
 _Avoid_: backend-derived canvas size, fixed PDF canvas size
@@ -259,9 +258,8 @@ A short-lived, server-held reservation for a Product while activation, repair, o
 _Avoid_: permanent product lock, browser-tab lock, revision timestamp
 
 **Customization Background**:
-The one independently uploaded asset owned by a variant and explicitly designated as its Background Choice for shopper customization. It is not Gallery Media, cannot be shared with another variant, and only Customization Backgrounds are subject to the Background Size Contract. It has no delete action; an operator can only replace it after client-side and authoritative server-side dimension validation succeeds.
+The one independently uploaded asset owned by a variant and explicitly designated as its Background Choice for shopper customization. It is not Gallery Media, cannot be shared with another variant, and only Customization Backgrounds are subject to the Background Size Contract. It has no delete action; an operator can replace it at any time. In published status, replacement requires matching the existing canvas dimensions; in draft status, replacement is unconstrained by prior canvas dimensions.
 _Avoid_: gallery image, all variant media, upload background
-
 **Variant Media**:
 Media owned by exactly one product variant and shown for that variant. New items append in the operator's selected-file order. It can be selected as a Product Thumbnail without creating a second R2 object.
 _Avoid_: product media upload, shared gallery file, customization background
@@ -331,9 +329,8 @@ The per-customized-order-item process that copies its required media into the or
 _Avoid_: failed checkout, incomplete order rejection, media copy as payment state
 
 **Customization Publish Readiness**:
-The product-level condition that a customizable product must satisfy before it can be published, including one Customization Background for every variant, matching background dimensions, and a valid customization editor model. Draft products may be incomplete but cannot open the customization editor until its required backgrounds are available.
+The product-level condition that a customizable product must satisfy before it can be published, including one Customization Background for every variant, matching background dimensions across all variants, and a valid customization editor model. Upon publish, the product's canvas dimensions automatically synchronize to the verified variant background dimensions. Draft products may be incomplete during authoring.
 _Avoid_: template publish validation, customization status
-
 **Customization Setup Session**:
 The unsaved admin FocusModal workflow for enabling customization on a published product. It stages each variant's Customization Background and the template, then submits one atomic multipart command that validates all state before creating an active customization record. Closing or failing validation leaves the product without customization enabled or newly created assets. It is distinct from a Shopper Customization Draft.
 _Avoid_: persisted setup state, active customization, unpublished product, shopper draft

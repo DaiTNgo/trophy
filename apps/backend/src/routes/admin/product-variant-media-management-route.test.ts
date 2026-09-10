@@ -17,9 +17,10 @@ describe('productVariantMediaManagementRoute customization-media/replace', () =>
     vi.clearAllMocks()
   })
 
-  it('rejects replacement when dimensions mismatch existing canvas dimensions', async () => {
+  it('rejects replacement when dimensions mismatch existing canvas dimensions on a published product', async () => {
     const mockProduct = {
       id: 7,
+      status: 'published',
       variants: [{ id: 12, customizationMedia: { id: 'old-asset', widthPx: 1190, heightPx: 1683 } }],
       customization: { enabled: true, canvasWidthPx: 1190, canvasHeightPx: 1683 },
     }
@@ -38,6 +39,53 @@ describe('productVariantMediaManagementRoute customization-media/replace', () =>
     expect(res.status).toBe(409)
     const json = await res.json()
     expect(json).toMatchObject({ error: 'Customization Background must be 1190 x 1683 px' })
+  })
+
+  it('allows replacement with different dimensions when product is a draft', async () => {
+    const mockProduct = {
+      id: 7,
+      status: 'draft',
+      variants: [{ id: 12, customizationMedia: { id: 'old-asset', widthPx: 800, heightPx: 1131 } }],
+      customization: { enabled: true, canvasWidthPx: 800, canvasHeightPx: 1131 },
+    }
+    const updatedVariant = { id: 12, customizationMedia: { id: 'new-asset', widthPx: 1190, heightPx: 1683 } }
+    vi.mocked(readProduct)
+      .mockResolvedValueOnce(mockProduct as never)
+      .mockResolvedValueOnce({ ...mockProduct, variants: [updatedVariant] } as never)
+
+    const mockDb = {
+      insert: vi.fn(() => ({ values: vi.fn(() => Promise.resolve()) })),
+      delete: vi.fn(() => ({ where: vi.fn(() => Promise.resolve()) })),
+      select: vi.fn(() => ({ from: vi.fn(() => ({ where: vi.fn(() => ({ get: vi.fn(() => Promise.resolve(null)) })) })) })),
+      batch: vi.fn(() => Promise.resolve()),
+      update: vi.fn(() => ({ set: vi.fn(() => ({ where: vi.fn(() => Promise.resolve()) })) })),
+    }
+    vi.mocked(getDb).mockReturnValue(mockDb as never)
+
+    const form = new FormData()
+    form.append('files', new File(['dummy'], 'new-bg.png', { type: 'image/png' }))
+    form.append('widthPx', '1190')
+    form.append('heightPx', '1683')
+
+    const env = {
+      CUSTOMIZATION_ASSETS: {
+        put: vi.fn(() => Promise.resolve()),
+        delete: vi.fn(() => Promise.resolve()),
+      },
+    }
+
+    const res = await productVariantMediaManagementRoute.request(
+      '/7/variants/12/customization-media/replace',
+      {
+        method: 'POST',
+        body: form,
+      },
+      env as never,
+    )
+
+    expect(res.status).toBe(200)
+    const json = await res.json()
+    expect(json).toMatchObject({ variant: updatedVariant })
   })
 
   it('rejects replacement when PDF has no dimensions and no preview', async () => {

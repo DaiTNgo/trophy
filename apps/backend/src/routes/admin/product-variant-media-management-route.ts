@@ -144,11 +144,13 @@ export const productVariantMediaManagementRoute = new Hono<AppEnv>()
     if (!variant) return jsonError(c, 404, 'Variant not found')
     if (!product.customization?.enabled) return jsonError(c, 409, 'Customization is disabled for this product')
     const file = parsedFiles.files[0]
-    const sibling = product.variants.find((item) => item.id !== variant.id && item.customizationMedia)?.customizationMedia
-    const expectedWidth = product.customization.canvasWidthPx ?? sibling?.widthPx
-    const expectedHeight = product.customization.canvasHeightPx ?? sibling?.heightPx
-    if (expectedWidth && expectedHeight && (file.widthPx !== expectedWidth || file.heightPx !== expectedHeight)) {
-      return jsonError(c, 409, `Customization Background must be ${expectedWidth} x ${expectedHeight} px`)
+    if (product.status === 'published') {
+      const sibling = product.variants.find((item) => item.id !== variant.id && item.customizationMedia)?.customizationMedia
+      const expectedWidth = product.customization.canvasWidthPx ?? sibling?.widthPx
+      const expectedHeight = product.customization.canvasHeightPx ?? sibling?.heightPx
+      if (expectedWidth && expectedHeight && (file.widthPx !== expectedWidth || file.heightPx !== expectedHeight)) {
+        return jsonError(c, 409, `Customization Background must be ${expectedWidth} x ${expectedHeight} px`)
+      }
     }
     const oldAssetId = variant.customizationMedia?.id ?? null
     const objectKey = buildCatalogVariantCustomizationBackgroundKey({ productId: product.id, variantId: variant.id, assetId: file.id, extension: extensionForMimeType(file.mimeType) })

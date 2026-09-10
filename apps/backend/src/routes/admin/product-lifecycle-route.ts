@@ -42,10 +42,25 @@ export const productLifecycleRoute = new Hono<AppEnv>()
     const publishError = validatePublishable(product)
     if (publishError) return jsonError(c, 409, publishError)
 
+    const now = nowIso()
     await db
       .update(products)
-      .set({ status: 'published', updatedAt: nowIso() })
+      .set({ status: 'published', updatedAt: now })
       .where(eq(products.id, product.id))
+
+    if (product.customization?.enabled) {
+      const firstMedia = product.variants.find((variant) => variant.customizationMedia)?.customizationMedia
+      if (firstMedia?.widthPx && firstMedia.heightPx) {
+        await db
+          .update(productCustomizations)
+          .set({
+            canvasWidthPx: firstMedia.widthPx,
+            canvasHeightPx: firstMedia.heightPx,
+            updatedAt: now,
+          })
+          .where(eq(productCustomizations.productId, product.id))
+      }
+    }
 
     await syncMisaProductVariants(c, db, product)
     return c.json({ item: await readProduct(c, db, product.id) }, 200)
