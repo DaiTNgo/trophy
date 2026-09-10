@@ -1,3 +1,4 @@
+import { Toaster, TooltipProvider } from "@medusajs/ui";
 import { Navigate, createBrowserRouter, RouterProvider, Outlet, useLocation } from "react-router";
 import { AuthScreenState } from "./components/ui/medusa/auth-screen-state";
 import { AdminShell } from "./components/layout/admin-shell";
@@ -25,6 +26,8 @@ import { BrandColorsPage } from "./pages/brand-colors";
 import { BrandFontsPage } from "./pages/brand-fonts";
 import { ClipartPage } from "./pages/clipart";
 import { ClipartDetailPage } from "./pages/clipart-detail";
+import { ArticlesListPage } from "./pages/articles-list";
+import { ArticleEditorPage } from "./pages/article-editor";
 
 function ProtectedRoute() {
   const auth = useAuth();
@@ -98,6 +101,9 @@ const router = createBrowserRouter([
           { path: "super-admin/recovery", Component: SuperAdminRecoveryPage },
           { path: "customization/clipart", Component: ClipartPage },
           { path: "customization/clipart/:categoryId", Component: ClipartDetailPage },
+          { path: "articles", Component: ArticlesListPage },
+          { path: "articles/new", Component: ArticleEditorPage },
+          { path: "articles/:id", Component: ArticleEditorPage },
           { path: "customization/colors", Component: BrandColorsPage },
           { path: "customization/fonts", Component: BrandFontsPage },
           { path: "customization/brand-assets", Component: () => <Navigate to="/customization/colors" replace /> },
@@ -108,15 +114,15 @@ const router = createBrowserRouter([
   { path: "*", Component: () => <Navigate to="/orders" replace /> },
 ]);
 
-import { Toaster } from "@medusajs/ui";
-
 function App() {
   return (
     <AuthProvider>
       <CatalogProvider>
         <BreadcrumbProvider>
-          <RouterProvider router={router} />
-          <Toaster />
+          <TooltipProvider>
+            <RouterProvider router={router} />
+            <Toaster />
+          </TooltipProvider>
         </BreadcrumbProvider>
       </CatalogProvider>
     </AuthProvider>

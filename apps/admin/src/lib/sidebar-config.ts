@@ -1,5 +1,5 @@
 import type { ComponentType } from "react";
-import { Boxes, Package, Palette, Settings, ShoppingCart, Tag, Type, Users } from "lucide-react";
+import { Boxes, Newspaper, Package, Palette, Settings, ShoppingCart, Tag, Type, Users } from "lucide-react";
 
 export type SidebarNavItem = {
   label: string;
@@ -67,6 +67,12 @@ export const operationsSidebarItems: SidebarNavItem[] = [
     ],
   },
   {
+    label: "News",
+    to: "/articles",
+    icon: Newspaper,
+    prefixes: ["/articles"],
+  },
+  {
     label: "Team",
     to: "/team",
     icon: Users,
@@ -88,6 +94,7 @@ export const shellSections = [
   { label: "Orders", prefixes: ["/orders"] },
   { label: "Products", prefixes: ["/products", "/collections", "/categories"] },
   { label: "Customization", prefixes: ["/customization"] },
+  { label: "News", prefixes: ["/articles"] },
   { label: "Team", prefixes: ["/team"] },
   { label: "Settings", prefixes: ["/settings"] },
 ];

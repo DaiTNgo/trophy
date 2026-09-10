@@ -3,6 +3,8 @@ import { getAdminSession } from "../../lib/admin-session";
 import { requireAdminSession } from "../../lib/middleware";
 import type { AppEnv } from "../../lib/env";
 import { adminAccountsRoute } from "./accounts";
+import { adminArticlesRoute } from "./articles";
+import { adminArticleCategoriesRoute } from "./article-categories";
 import { adminBootstrapRoute } from "./bootstrap";
 import { adminBrandAssetsRoute } from "./brand-assets";
 import { adminClipartRoute } from "./clipart";
@@ -53,4 +55,6 @@ export const adminRoute = new Hono<AppEnv>()
   .route("/misa", adminMisaRoute)
   .route("/products/assets", adminProductAssetsRoute)
   .route("/product-metadata", adminProductMetadataRoute)
-  .route("/products", adminProductsRoute);
+  .route("/products", adminProductsRoute)
+  .route("/articles", adminArticlesRoute)
+  .route("/article-categories", adminArticleCategoriesRoute);

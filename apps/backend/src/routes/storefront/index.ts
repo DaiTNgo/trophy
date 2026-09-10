@@ -7,6 +7,7 @@ import { storefrontProductsRoute } from "./products";
 import { customizationAssetsRoute as storefrontCustomizationAssetsRoute } from "./customization-assets";
 import { customizationsRoute as storefrontCustomizationsRoute } from "./customizations/index";
 import { storefrontOrdersRoute } from "./orders";
+import { storefrontArticlesRoute } from "./articles";
 
 export const storefrontRoute = new Hono<AppEnv>()
   .route("/brand-assets", storefrontBrandAssetsRoute)
@@ -15,5 +16,5 @@ export const storefrontRoute = new Hono<AppEnv>()
   .route("/products", storefrontProductsRoute)
   .route("/customizations/assets", storefrontCustomizationAssetsRoute)
   .route("/customizations", storefrontCustomizationsRoute)
-  .route("/orders", storefrontOrdersRoute);
-
+  .route("/orders", storefrontOrdersRoute)
+  .route("/articles", storefrontArticlesRoute);

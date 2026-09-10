@@ -30,6 +30,11 @@ export function Footer() {
                     {t("footer_all_products")}
                   </Link>
                 </li>
+                <li>
+                  <Link className="transition-colors hover:text-brand-accent" to="/news">
+                    {t("footer_news")}
+                  </Link>
+                </li>
               </ul>
             </div>
 

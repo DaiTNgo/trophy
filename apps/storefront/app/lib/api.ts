@@ -611,6 +611,142 @@ export async function resolveStorefrontCartLines(
   };
 }
 
+// ─── Articles (Storefront) ─────────────────────────────────────────────────────
+
+export type StorefrontArticleListItem = {
+  id: string;
+  title: string;
+  slug: string;
+  excerpt: string | null;
+  featuredImageUrl: string | null;
+  featuredImageAlt: string | null;
+  status: string;
+  featured: boolean;
+  publishedAt: number | null;
+  categories: Array<{ id: string; name: string; slug: string }>;
+  authorName: string | null;
+  readingTimeMinutes: number;
+};
+
+export type StorefrontArticleListResponse = {
+  items: StorefrontArticleListItem[];
+  page: number;
+  limit: number;
+  total: number;
+};
+
+export type StorefrontArticleDetail = {
+  id: string;
+  title: string;
+  slug: string;
+  excerpt: string | null;
+  contentHtml: string;
+  featuredImageUrl: string | null;
+  featuredImageAlt: string | null;
+  status: string;
+  featured: boolean;
+  publishedAt: number | null;
+  metaTitle: string | null;
+  metaDescription: string | null;
+  ogImageUrl: string | null;
+  canonicalUrl: string | null;
+  viewCount: number;
+  authorName: string | null;
+  categories: Array<{ id: string; name: string; slug: string }>;
+  linkedProducts: Array<{
+    id: number;
+    title: string;
+    handle: string;
+    thumbnailUrl: string | null;
+    minPrice: number | null;
+  }>;
+  readingTimeMinutes: number;
+  createdAt: number;
+  updatedAt: number;
+};
+
+export type StorefrontArticleCategory = {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  displayOrder: number;
+  articleCount: number;
+};
+
+export async function fetchStorefrontArticleCategories(backendFetch?: BackendFetch): Promise<StorefrontArticleCategory[]> {
+  const res = await fetchBackendWithLog("fetchStorefrontArticleCategories", backendUrl("/api/storefront/articles/categories"), undefined, backendFetch);
+
+  if (!res.ok) {
+    throw new Response("Failed to load article categories", { status: res.status });
+  }
+
+  const data = (await res.json()) as { items: StorefrontArticleCategory[] };
+  return data.items;
+}
+
+export async function fetchStorefrontArticles(params: {
+  page?: number;
+  limit?: number;
+  category?: string;
+  q?: string;
+}, backendFetch?: BackendFetch): Promise<StorefrontArticleListResponse> {
+  const searchParams = new URLSearchParams();
+  if (params.page) searchParams.set("page", String(params.page));
+  if (params.limit) searchParams.set("limit", String(params.limit));
+  if (params.category) searchParams.set("category", params.category);
+  if (params.q) searchParams.set("q", params.q);
+
+  const qs = searchParams.toString();
+  const url = backendUrl(`/api/storefront/articles${qs ? `?${qs}` : ""}`);
+
+  const res = await fetchBackendWithLog("fetchStorefrontArticles", url, undefined, backendFetch);
+
+  if (!res.ok) {
+    throw new Response("Failed to load articles", { status: res.status });
+  }
+
+  const data: StorefrontArticleListResponse = await res.json();
+
+  return {
+    ...data,
+    items: data.items.map((item) => ({
+      ...item,
+      featuredImageUrl: backendAssetUrl(item.featuredImageUrl) || null,
+    })),
+  };
+}
+
+export async function fetchStorefrontArticle(
+  slug: string,
+  backendFetch?: BackendFetch,
+): Promise<StorefrontArticleDetail> {
+  const url = backendUrl(`/api/storefront/articles/${encodeURIComponent(slug)}`);
+
+  const res = await fetchBackendWithLog("fetchStorefrontArticle", url, {
+    headers: { "Cache-Control": "no-store" },
+  }, backendFetch);
+
+  if (!res.ok) {
+    if (res.status === 404) {
+      throw new Response("Not Found", { status: 404 });
+    }
+    throw new Response("Failed to load article", { status: res.status });
+  }
+
+  const data: StorefrontArticleDetail = await res.json();
+
+  return {
+    ...data,
+    featuredImageUrl: backendAssetUrl(data.featuredImageUrl) || null,
+    ogImageUrl: backendAssetUrl(data.ogImageUrl) || null,
+    linkedProducts: data.linkedProducts.map((p) => ({
+      ...p,
+      thumbnailUrl: backendAssetUrl(p.thumbnailUrl) || null,
+    })),
+  };
+}
+
 export async function lookupStorefrontOrder(payload: {
   orderNumber: string;
   phone: string;
