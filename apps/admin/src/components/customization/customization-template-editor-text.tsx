@@ -282,7 +282,6 @@ export function ResizeHandles({ layer, background, zoom, onUpdate }: { layer: Cu
     <>
       {handles.map((handle) => {
         const cursor = getHandleCursor(handle);
-        const isPill = handle === "left" || handle === "right";
         return (
           <button
             key={handle}
@@ -292,7 +291,7 @@ export function ResizeHandles({ layer, background, zoom, onUpdate }: { layer: Cu
             style={{
               ...handleStyle(handle, zoom),
               width: 24,
-              height: isPill ? 32 : 24,
+              height: 24,
               cursor,
             }}
             onPointerDown={(event) => {
@@ -326,17 +325,10 @@ export function ResizeHandles({ layer, background, zoom, onUpdate }: { layer: Cu
               window.addEventListener("pointercancel", stop);
             }}
           >
-            {isPill ? (
-              <span
-                className="w-1.5 h-4.5 rounded-full bg-ui-fg-interactive border border-white shadow-sm transition-transform duration-100 group-hover:scale-125 group-active:scale-125 pointer-events-none"
-                style={{ cursor }}
-              />
-            ) : (
-              <span
-                className="size-2.5 rounded-full bg-ui-fg-interactive border-2 border-white shadow-sm transition-transform duration-100 group-hover:scale-125 group-active:scale-125 pointer-events-none"
-                style={{ cursor }}
-              />
-            )}
+            <span
+              className="size-2.5 rounded-full bg-ui-fg-interactive border-2 border-white shadow-sm transition-transform duration-100 group-hover:scale-125 group-active:scale-125 pointer-events-none"
+              style={{ cursor }}
+            />
           </button>
         );
       })}
