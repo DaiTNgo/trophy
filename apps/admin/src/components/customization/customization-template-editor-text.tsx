@@ -3,14 +3,14 @@ import {
   fitTextToLayer,
   getTextPathRenderAttributes,
   getTextPathSvgD,
-  layerGeometryToPixels,
-  pixelRectToLayerGeometry,
+  getLayerPixelRect,
+  layerPixelRectToGeometry,
   type BackgroundAsset,
   type CustomizationLayer,
   type DynamicFontFamily,
   type TextEditorLayer,
 } from "@trophy/customization";
-import { handleStyle, resizeRect } from "./customization-template-editor";
+import { getHandleCursor, handleStyle, resizeRect } from "./customization-template-editor";
 
 let textMeasureCanvas: HTMLCanvasElement | null = null;
 function quoteFontFamily(fontId: string) { return `"${fontId.replace(/["\\]/g, "\\$&")}"`; }
@@ -280,36 +280,66 @@ export function ResizeHandles({ layer, background, zoom, onUpdate }: { layer: Cu
   const handles = layer.type === "text" ? (closedTextPath ? ["nw", "n", "ne", "e", "se", "s", "sw", "w"] : ["left", "right"]) : layer.shape.lockAspectRatio ? ["nw", "ne", "sw", "se"] : ["nw", "n", "ne", "e", "se", "s", "sw", "w"];
   return (
     <>
-      {handles.map((handle) => (
-        <button
-          key={handle}
-          type="button"
-          className="absolute size-2 rounded-full bg-ui-fg-interactive"
-          style={handleStyle(handle)}
-          onPointerDown={(event) => {
-            event.stopPropagation();
-            const startX = event.clientX;
-            const startY = event.clientY;
-            const start = layerGeometryToPixels({ geometry: layer.geometry, background });
-            function move(pointer: PointerEvent) {
-              const dx = (pointer.clientX - startX) / zoom;
-              const dy = (pointer.clientY - startY) / zoom;
-              const next = resizeRect(start, handle, dx, dy, layer.type === "image_shape" && layer.shape.lockAspectRatio);
-              const geometry = pixelRectToLayerGeometry({ ...next, heightPx: layer.type === "image_shape" || closedTextPath ? next.heightPx : undefined, background });
-              onUpdate((current) => {
-                const keepTextHeight = current.type === "text" && current.text.path.type === "closed_ellipse";
-                return { ...current, geometry: current.type === "text" ? { ...geometry, heightRatio: keepTextHeight ? geometry.heightRatio ?? 0.1 : undefined } : { ...geometry, heightRatio: geometry.heightRatio ?? 0.1 } } as CustomizationLayer;
-              });
-            }
-            function stop() {
-              window.removeEventListener("pointermove", move);
-              window.removeEventListener("pointerup", stop);
-            }
-            window.addEventListener("pointermove", move);
-            window.addEventListener("pointerup", stop);
-          }}
-        />
-      ))}
+      {handles.map((handle) => {
+        const cursor = getHandleCursor(handle);
+        const isPill = handle === "left" || handle === "right";
+        return (
+          <button
+            key={handle}
+            type="button"
+            aria-label={`Resize handle ${handle}`}
+            className="group absolute z-20 flex items-center justify-center p-0 bg-transparent border-0 touch-none outline-none select-none"
+            style={{
+              ...handleStyle(handle, zoom),
+              width: 24,
+              height: isPill ? 32 : 24,
+              cursor,
+            }}
+            onPointerDown={(event) => {
+              event.stopPropagation();
+              const startX = event.clientX;
+              const startY = event.clientY;
+              const start = getLayerPixelRect({ layer, background });
+              const prevCursor = document.body.style.cursor;
+              const prevUserSelect = document.body.style.userSelect;
+              document.body.style.cursor = cursor;
+              document.body.style.userSelect = "none";
+
+              function move(pointer: PointerEvent) {
+                const dx = (pointer.clientX - startX) / zoom;
+                const dy = (pointer.clientY - startY) / zoom;
+                const next = resizeRect(start, handle, dx, dy, layer.type === "image_shape" && layer.shape.lockAspectRatio);
+                const geometry = layerPixelRectToGeometry({ rect: next, layer, background });
+                onUpdate((current) => ({ ...current, geometry } as CustomizationLayer));
+              }
+
+              function stop() {
+                document.body.style.cursor = prevCursor;
+                document.body.style.userSelect = prevUserSelect;
+                window.removeEventListener("pointermove", move);
+                window.removeEventListener("pointerup", stop);
+                window.removeEventListener("pointercancel", stop);
+              }
+
+              window.addEventListener("pointermove", move);
+              window.addEventListener("pointerup", stop);
+              window.addEventListener("pointercancel", stop);
+            }}
+          >
+            {isPill ? (
+              <span
+                className="w-1.5 h-4.5 rounded-full bg-ui-fg-interactive border border-white shadow-sm transition-transform duration-100 group-hover:scale-125 group-active:scale-125 pointer-events-none"
+                style={{ cursor }}
+              />
+            ) : (
+              <span
+                className="size-2.5 rounded-full bg-ui-fg-interactive border-2 border-white shadow-sm transition-transform duration-100 group-hover:scale-125 group-active:scale-125 pointer-events-none"
+                style={{ cursor }}
+              />
+            )}
+          </button>
+        );
+      })}
     </>
   );
 }

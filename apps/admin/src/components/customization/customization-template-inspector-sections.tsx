@@ -333,16 +333,42 @@ function VectorPointsTable({
   );
 }
 
-function PositionFields({ template, layer, onUpdate, textOnly }: { template: CustomizationTemplate; layer: CustomizationLayer; onUpdate: (updater: (layer: CustomizationLayer) => CustomizationLayer) => void; textOnly?: boolean }) {
+export function PositionFields({ template, layer, onUpdate, textOnly }: { template: CustomizationTemplate; layer: CustomizationLayer; onUpdate: (updater: (layer: CustomizationLayer) => CustomizationLayer) => void; textOnly?: boolean }) {
   const background = template.background;
   if (!background) return null;
-  const rect = layerGeometryToPixels({ geometry: layer.geometry, background });
+  const rect = getLayerPixelRect({ layer, background });
   const closedTextPath = layer.type === "text" && layer.text.path.type === "closed_ellipse";
+  const isTextLocked = textOnly && !closedTextPath;
+  const lockAspectRatio = layer.type === "image_shape" && layer.shape.lockAspectRatio;
+
   const updateRect = (next: Partial<typeof rect>) => {
     const merged = { ...rect, ...next };
-    const geometry = pixelRectToLayerGeometry({ ...merged, heightPx: textOnly && !closedTextPath ? undefined : merged.heightPx, background });
-    onUpdate((current) => ({ ...current, geometry: current.type === "text" ? { ...geometry, heightRatio: closedTextPath ? geometry.heightRatio ?? 0.1 : undefined } : { ...geometry, heightRatio: geometry.heightRatio ?? 0.1 } }) as CustomizationLayer);
+    const geometry = layerPixelRectToGeometry({ rect: merged, layer, background });
+    onUpdate((current) => ({ ...current, geometry } as CustomizationLayer));
   };
+
+  const handleWidthChange = (val: number) => {
+    const widthPx = Math.max(18, val);
+    if (lockAspectRatio && rect.widthPx > 0 && rect.heightPx > 0) {
+      const ratio = rect.heightPx / rect.widthPx;
+      const heightPx = Math.max(18, Math.round(widthPx * ratio));
+      updateRect({ widthPx, heightPx });
+    } else {
+      updateRect({ widthPx });
+    }
+  };
+
+  const handleHeightChange = (val: number) => {
+    const heightPx = Math.max(18, val);
+    if (lockAspectRatio && rect.widthPx > 0 && rect.heightPx > 0) {
+      const ratio = rect.widthPx / rect.heightPx;
+      const widthPx = Math.max(18, Math.round(heightPx * ratio));
+      updateRect({ widthPx, heightPx });
+    } else {
+      updateRect({ heightPx });
+    }
+  };
+
   return (
     <div className="grid grid-cols-2 gap-2">
       <div className="space-y-1">
@@ -355,11 +381,11 @@ function PositionFields({ template, layer, onUpdate, textOnly }: { template: Cus
       </div>
       <div className="space-y-1">
         <Label size="small" weight="plus" className="text-ui-fg-subtle">W</Label>
-        <Input type="number" value={String(Math.round(rect.widthPx))} onChange={(e) => updateRect({ widthPx: Number(e.target.value) })} />
+        <Input type="number" value={String(Math.round(rect.widthPx))} onChange={(e) => handleWidthChange(Number(e.target.value))} />
       </div>
       <div className="space-y-1">
         <Label size="small" weight="plus" className="text-ui-fg-subtle">H</Label>
-        <Input type="number" value={String(Math.round(textOnly && layer.type === "text" && !closedTextPath ? layer.text.maxLines * layer.text.maxFontSizePt * 1.35 : rect.heightPx))} disabled={textOnly && !closedTextPath} onChange={(e) => updateRect({ heightPx: Number(e.target.value) })} />
+        <Input type="number" value={String(Math.round(rect.heightPx))} disabled={isTextLocked} onChange={(e) => handleHeightChange(Number(e.target.value))} />
       </div>
     </div>
   );
@@ -795,8 +821,8 @@ import {
   DEFAULT_FONT_FAMILY_OPTIONS,
   DEFAULT_TEXT_COLOR_OPTIONS,
   hasAvailableFontFormat,
-  layerGeometryToPixels,
-  pixelRectToLayerGeometry,
+  getLayerPixelRect,
+  layerPixelRectToGeometry,
   resolveLocalizedInput,
   type ChoiceOption,
   type CustomizationLayer,

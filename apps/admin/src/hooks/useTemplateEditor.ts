@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import {
   DEFAULT_TEMPLATE,
   createDefaultFormValues,
-  layerGeometryToPixels,
-  pixelRectToLayerGeometry,
+  getLayerPixelRect,
+  layerPixelRectToGeometry,
   validateTemplateForPublish,
   type BackgroundAsset,
   type CustomizationFormField,
@@ -465,18 +465,14 @@ export function useTemplateEditor(editParam: string | null) {
       const background = template.background;
       if (!background) return;
       updateLayer(selectedLayer.id, (layer) => {
-        const rect = layerGeometryToPixels({ geometry: layer.geometry, background });
+        const rect = getLayerPixelRect({ layer, background });
         const next = {
           ...rect,
           xPx: rect.xPx + (event.key === "ArrowLeft" ? -delta : event.key === "ArrowRight" ? delta : 0),
           yPx: rect.yPx + (event.key === "ArrowUp" ? -delta : event.key === "ArrowDown" ? delta : 0),
         };
-        const geometry = pixelRectToLayerGeometry({
-          ...next,
-          heightPx: layer.type === "image_shape" || (layer.type === "text" && layer.text.path.type === "closed_ellipse") ? next.heightPx : undefined,
-          background,
-        });
-        return { ...layer, geometry: layer.type === "text" ? { ...geometry, heightRatio: layer.text.path.type === "closed_ellipse" ? geometry.heightRatio ?? 0.1 : undefined } : { ...geometry, heightRatio: geometry.heightRatio ?? 0.1 } } as CustomizationLayer;
+        const geometry = layerPixelRectToGeometry({ rect: next, layer, background });
+        return { ...layer, geometry } as CustomizationLayer;
       });
     }
     window.addEventListener("keydown", onKeyDown);

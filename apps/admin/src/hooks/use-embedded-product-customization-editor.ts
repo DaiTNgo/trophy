@@ -1,7 +1,7 @@
 import {
   createDefaultFormValues,
-  layerGeometryToPixels,
-  pixelRectToLayerGeometry,
+  getLayerPixelRect,
+  layerPixelRectToGeometry,
   type BackgroundAsset,
   type CustomizationFormField,
   type CustomizationFormValues,
@@ -417,23 +417,16 @@ export function useEmbeddedProductCustomizationEditor({
       const localBackground = template.background;
       if (!localBackground) return;
       updateLayer(selectedLayer.id, (layer) => {
-        const rect = layerGeometryToPixels({ geometry: layer.geometry, background: localBackground });
+        const rect = getLayerPixelRect({ layer, background: localBackground });
         const next = {
           ...rect,
           xPx: rect.xPx + (event.key === "ArrowLeft" ? -delta : event.key === "ArrowRight" ? delta : 0),
           yPx: rect.yPx + (event.key === "ArrowUp" ? -delta : event.key === "ArrowDown" ? delta : 0),
         };
-        const geometry = pixelRectToLayerGeometry({
-          ...next,
-          heightPx: layer.type === "image_shape" || (layer.type === "text" && layer.text.path.type === "closed_ellipse") ? next.heightPx : undefined,
-          background: localBackground,
-        });
+        const geometry = layerPixelRectToGeometry({ rect: next, layer, background: localBackground });
         return {
           ...layer,
-          geometry:
-            layer.type === "text"
-              ? { ...geometry, heightRatio: layer.text.path.type === "closed_ellipse" ? geometry.heightRatio ?? 0.1 : undefined }
-              : { ...geometry, heightRatio: geometry.heightRatio ?? 0.1 },
+          geometry,
         } as CustomizationLayer;
       });
     }

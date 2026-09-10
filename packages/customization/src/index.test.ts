@@ -17,7 +17,10 @@ import {
   getUsableFontOptions,
   hasAvailableFontFormat,
   isUsableFontFamily,
+  getLayerPixelRect,
+  getLayerVisualHeightPx,
   layerGeometryToPixels,
+  layerPixelRectToGeometry,
   normalizeFontStyle,
   normalizeTextPath,
   pixelRectToLayerGeometry,
@@ -653,6 +656,26 @@ describe("geometry helpers", () => {
     expect(rect.yPx).toBeCloseTo(270);
     expect(rect.widthPx).toBeCloseTo(360);
     expect(rect.heightPx).toBeCloseTo(180);
+  });
+
+  it("calculates visual bounding box and converts back without drift for text layers", () => {
+    const background = DEFAULT_TEMPLATE.background;
+    if (!background) throw new Error("Missing background fixture");
+
+    const textLayer = DEFAULT_TEMPLATE.layers.find((l) => l.type === "text")!;
+    const rect = getLayerPixelRect({ layer: textLayer, background });
+
+    // Visual height must equal lines * fontSize * 1.35
+    const expectedHeight = getLayerVisualHeightPx(textLayer, background);
+    expect(rect.heightPx).toBe(expectedHeight);
+    expect(rect.yPx).toBeCloseTo(textLayer.geometry.yRatio * background.heightPx - expectedHeight / 2);
+
+    // Editing X should not shift Y
+    const updatedRect = { ...rect, xPx: rect.xPx + 50 };
+    const nextGeometry = layerPixelRectToGeometry({ rect: updatedRect, layer: textLayer, background });
+
+    expect(nextGeometry.yRatio).toBeCloseTo(textLayer.geometry.yRatio, 5);
+    expect(nextGeometry.heightRatio).toBeUndefined();
   });
 
   it("keeps cover image pan values within the normalized crop range", () => {

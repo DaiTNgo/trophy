@@ -1,4 +1,4 @@
-import type { BackgroundAsset, LayerGeometry, ShapeType, VectorPath, VectorPoint } from "./types";
+import type { BackgroundAsset, CustomizationLayer, ImageShapeEditorLayer, LayerGeometry, ShapeType, TextEditorLayer, VectorPath, VectorPoint } from "./types";
 
 export const clamp = (value: number, min: number, max: number) =>
   Math.min(max, Math.max(min, Number.isFinite(value) ? value : min));
@@ -10,12 +10,14 @@ export const normalizeCropRotation = (value?: number) => Number.isFinite(value) 
 export const layerGeometryToPixels = ({
   geometry,
   background,
+  heightPx: explicitHeightPx,
 }: {
   geometry: LayerGeometry;
   background: Pick<BackgroundAsset, "widthPx" | "heightPx">;
+  heightPx?: number;
 }) => {
   const widthPx = (geometry.widthRatio ?? 1) * background.widthPx;
-  const heightPx = (geometry.heightRatio ?? 1) * background.heightPx;
+  const heightPx = explicitHeightPx ?? (geometry.heightRatio ?? 1) * background.heightPx;
   const centerXPx = (geometry.xRatio ?? 0) * background.widthPx;
   const centerYPx = (geometry.yRatio ?? 0) * background.heightPx;
   return {
@@ -28,6 +30,79 @@ export const layerGeometryToPixels = ({
     rotationDeg: geometry.rotationDeg,
   };
 };
+
+export const getLayerVisualHeightPx = (
+  layer: CustomizationLayer,
+  background: Pick<BackgroundAsset, "heightPx">,
+): number => {
+  if (layer.type === "text") {
+    if (layer.text.path.type === "closed_ellipse") {
+      return Math.max(18, (layer.geometry.heightRatio ?? 0.1) * background.heightPx);
+    }
+    return Math.max(18, layer.text.maxLines * layer.text.maxFontSizePt * 1.35);
+  }
+  return Math.max(18, (layer.geometry.heightRatio ?? 0.1) * background.heightPx);
+};
+
+export const getLayerPixelRect = ({
+  layer,
+  background,
+}: {
+  layer: CustomizationLayer;
+  background: Pick<BackgroundAsset, "widthPx" | "heightPx">;
+}) => {
+  const widthPx = Math.max(18, (layer.geometry.widthRatio ?? 0.1) * background.widthPx);
+  const heightPx = getLayerVisualHeightPx(layer, background);
+  const centerXPx = (layer.geometry.xRatio ?? 0) * background.widthPx;
+  const centerYPx = (layer.geometry.yRatio ?? 0) * background.heightPx;
+  return {
+    xPx: centerXPx - widthPx / 2,
+    yPx: centerYPx - heightPx / 2,
+    widthPx,
+    heightPx,
+    centerXPx,
+    centerYPx,
+    rotationDeg: layer.geometry.rotationDeg ?? 0,
+  };
+};
+
+export function layerPixelRectToGeometry(params: {
+  rect: { xPx: number; yPx: number; widthPx: number; heightPx: number; rotationDeg?: number };
+  layer: ImageShapeEditorLayer;
+  background: Pick<BackgroundAsset, "widthPx" | "heightPx">;
+}): Required<LayerGeometry>;
+export function layerPixelRectToGeometry(params: {
+  rect: { xPx: number; yPx: number; widthPx: number; heightPx: number; rotationDeg?: number };
+  layer: TextEditorLayer;
+  background: Pick<BackgroundAsset, "widthPx" | "heightPx">;
+}): LayerGeometry;
+export function layerPixelRectToGeometry(params: {
+  rect: { xPx: number; yPx: number; widthPx: number; heightPx: number; rotationDeg?: number };
+  layer: CustomizationLayer;
+  background: Pick<BackgroundAsset, "widthPx" | "heightPx">;
+}): LayerGeometry;
+export function layerPixelRectToGeometry({
+  rect,
+  layer,
+  background,
+}: {
+  rect: { xPx: number; yPx: number; widthPx: number; heightPx: number; rotationDeg?: number };
+  layer: CustomizationLayer;
+  background: Pick<BackgroundAsset, "widthPx" | "heightPx">;
+}): LayerGeometry {
+  const isClosedEllipseText = layer.type === "text" && layer.text.path.type === "closed_ellipse";
+  const keepHeightRatio = layer.type === "image_shape" || isClosedEllipseText;
+  const heightRatio = keepHeightRatio
+    ? (background.heightPx > 0 ? rect.heightPx / background.heightPx : 0.1)
+    : undefined;
+  return {
+    xRatio: background.widthPx > 0 ? (rect.xPx + rect.widthPx / 2) / background.widthPx : 0,
+    yRatio: background.heightPx > 0 ? (rect.yPx + rect.heightPx / 2) / background.heightPx : 0,
+    widthRatio: background.widthPx > 0 ? rect.widthPx / background.widthPx : 0,
+    heightRatio,
+    rotationDeg: rect.rotationDeg ?? layer.geometry.rotationDeg ?? 0,
+  } as LayerGeometry;
+}
 
 export const pixelRectToLayerGeometry = ({
   xPx,
