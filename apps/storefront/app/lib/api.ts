@@ -674,8 +674,8 @@ export type StorefrontArticleCategory = {
   articleCount: number;
 };
 
-export async function fetchStorefrontArticleCategories(backendFetch?: BackendFetch): Promise<StorefrontArticleCategory[]> {
-  const res = await fetchBackendWithLog("fetchStorefrontArticleCategories", backendUrl("/api/storefront/articles/categories"), undefined, backendFetch);
+export async function fetchStorefrontArticleCategories(locale: string = "vi", backendFetch?: BackendFetch): Promise<StorefrontArticleCategory[]> {
+  const res = await fetchBackendWithLog("fetchStorefrontArticleCategories", backendUrl(`/api/storefront/articles/categories?locale=${encodeURIComponent(locale)}`), undefined, backendFetch);
 
   if (!res.ok) {
     throw new Response("Failed to load article categories", { status: res.status });
@@ -690,12 +690,14 @@ export async function fetchStorefrontArticles(params: {
   limit?: number;
   category?: string;
   q?: string;
+  locale?: string;
 }, backendFetch?: BackendFetch): Promise<StorefrontArticleListResponse> {
   const searchParams = new URLSearchParams();
   if (params.page) searchParams.set("page", String(params.page));
   if (params.limit) searchParams.set("limit", String(params.limit));
   if (params.category) searchParams.set("category", params.category);
   if (params.q) searchParams.set("q", params.q);
+  if (params.locale) searchParams.set("locale", params.locale);
 
   const qs = searchParams.toString();
   const url = backendUrl(`/api/storefront/articles${qs ? `?${qs}` : ""}`);
@@ -719,9 +721,10 @@ export async function fetchStorefrontArticles(params: {
 
 export async function fetchStorefrontArticle(
   slug: string,
+  locale: string = "vi",
   backendFetch?: BackendFetch,
 ): Promise<StorefrontArticleDetail> {
-  const url = backendUrl(`/api/storefront/articles/${encodeURIComponent(slug)}`);
+  const url = backendUrl(`/api/storefront/articles/${encodeURIComponent(slug)}${locale ? `?locale=${locale}` : ""}`);
 
   const res = await fetchBackendWithLog("fetchStorefrontArticle", url, {
     headers: { "Cache-Control": "no-store" },

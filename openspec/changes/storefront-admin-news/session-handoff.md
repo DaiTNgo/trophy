@@ -2,15 +2,21 @@
 
 ## Summary
 
-The storefront-admin-news change is fully implemented and all Sections 1-6 of `tasks.md` are checked, plus follow-up hardening in Section 7 (2026-09-11): publish-date stamping, admin runtime fixes, featured/"Latest" rework, admin preview, **scheduled auto-publish**, and editor button/schedule cleanup. Baseline `./init.sh` passes (backend 317 tests).
+The storefront-admin-news change is fully implemented and all Sections 1-6 of `tasks.md` are checked, plus follow-up hardening in Section 7 (2026-09-11): publish-date stamping, admin runtime fixes, featured/"Latest" rework, admin preview, **scheduled auto-publish (read-time status flip)**, and editor button/schedule cleanup. Section 8 (2026-09-13) completed the multilang wiring: the admin editor is now bilingual (VI/EN per-field switch) and the storefront passes the user's locale to all article/category endpoints. Baseline `./init.sh` passes (backend 322 tests).
 
 ## What Changed Last
 
-Latest session (2026-09-11):
-- `lib/article-schedule-publish.ts` (new): cron job flips due `scheduled` articles to `published` (idempotent batch); wired into `src/index.ts` `scheduled` handler.
-- `admin/articles.ts` (backend): rejects `status: "scheduled"` without `publishedAt` on create AND PATCH (400 "A publish date is required...").
-- `article-editor.tsx` (admin): Preview button always visible; modal badge reflects current `form.status`; buttons reduced to single **Save** (persists selected status) + **Delete**; `datetime-local` picker shown when `Status = Scheduled`, bound to `publishedAt`.
-- Tests: `lib/article-schedule-publish.test.ts` (2), PATCH scheduled-without-date contract test (1) — suite now 317 / 47 files.
+Latest session (2026-09-13) — bilingual editor + storefront locale:
+- `article-editor.tsx`: new `TranslationsState` (7 `LocalizedTextValue`) + 5 per-field `AdminLocale` states; `setTranslation` keeps canonical VI in sync; title/excerpt/featuredImageAlt/metaTitle/metaDescription use `LocalizedTextField` (`requiredLocales={["vi"]}`); counters follow the selected locale; `persist()` sends all 7 `*Translations`; `ArticleTipTapEditor` gets `key={id}` so switching articles remounts the editor.
+- `article-tiptap-editor.tsx`: new props `valueByLocale` + `onChangeByLocale(locale, {html,json})`; header row with a `LanguageSwitch` (missing-locale underline); `useEditorLocaleSync` swaps content on locale change; `Placeholder` via `placeholderRef`. Parent uses functional `setTranslations` to avoid stale-closure content loss from the `onUpdate` callback captured at editor mount.
+- Storefront `api.ts`: `fetchStorefrontArticles`/`fetchStorefrontArticle`/`fetchStorefrontArticleCategories` accept `locale` and append `?locale=`; `news.tsx`/`news.$slug.tsx` pass `getLocale(context)` to all three fetches (categories route already supported locale — no backend change).
+- Task checkboxes 8.1–8.4 checked; progress.md and this file updated.
+
+Earlier session (2026-09-11):
+- `lib/article-publish.ts` (new): `flipDueScheduledArticles` + `markRowsPublished` — read-time auto-publish of due `scheduled` articles to `published`.
+- Wired into storefront list + detail and admin list + detail (flips before DTO build, so responses + admin status badge show `published`).
+- Kept `lib/article-schedule-publish.ts` cron as the deployed-prod batch flipper.
+- Tests: storefront list flip, storefront detail flip, future-still-scheduled no-op, admin list flip — suite now 322 / 47 files.
 
 ## Key Decisions
 
@@ -20,15 +26,16 @@ Latest session (2026-09-11):
 4. Published articles get no in-admin button (viewable on web); drafts get "Preview".
 5. Admin article client uses `backendFetch` (not Hono RPC) — manual `parseJson` bodies aren't RPC-inferable.
 6. `featured` schema push is left to the user (`db:generate` + `db:migrate:local`); no migrations authored in-repo.
-7. Auto-publish relies on the existing `*/15 * * * *` cron; an article is hidden on storefront until cron flips `scheduled` → `published`. Picking a `publishedAt` is required to schedule (backend enforced).
+7. A scheduled article becomes public the moment `publishedAt <= now` and its DB status self-flips to `published` on the next read (storefront/admin list + detail) — works everywhere, including local dev where cron never fires. The `*/15 * * * *` cron (`lib/article-schedule-publish.ts`) remains only as the deployed-prod batch flipper. Picking a `publishedAt` is required to schedule (backend enforced).
+8. **Bilingual localization model**: VI is the canonical/required locale; EN is optional and falls back to VI (`locValue[locale] || locValue.vi || locValue.en || ""`). Per-field `LanguageSwitch` (exactly like create-product/production-config). Counters count the currently-selected locale. Slug/status/dates/media URLs/SEO URLs/categories/products are NOT localized; category name/description are localized at the backend only (admin has no category CRUD UI).
 
 ## If You Resume
 
-- **Remaining known scope (from earlier multilang plan, NOT part of tasks 7.x)**: admin editor does not yet submit `*Translations` (vi/en) and storefront news routes do not yet pass `?locale=` — backend routes/DTOs and `articles-client.ts` types are already done. Resume there if the user asks to continue multilang.
-- Otherwise the change is complete; run `openspec-archive-change` to archive `openspec/changes/storefront-admin-news/`.
-- Reminder UX QA: after `db:generate` + `db:migrate:local`, boot backend (8787) + admin (5174), then storefront (5173) and check `/news`, `/news/<slug>`, the Preview modal, and the Scheduled datetime picker.
+- All planned scope is complete (Sections 1-6, 7.1–7.12, 8.1–8.4). Run `openspec-archive-change` to archive `openspec/changes/storefront-admin-news/` if the user is done with this change.
+- Reminder UX QA: after `db:generate` + `db:migrate:local`, boot backend (8787) + admin (5174), then storefront (5173) and check `/news`, `/news/<slug>`, the Preview modal, the Scheduled datetime picker, and the per-field VI/EN switches in the editor (VI required underline, EN optional).
+- If more bilingual work arrives (e.g. a better long-form editing UX vs per-field switches), consider a global VI/EN toggle (option previously deferred).
 
 ## Verification
 
-- `./init.sh` baseline passes (2026-09-11). Backend 317 tests, check, build clean; admin build clean; router-cf typecheck clean (storefront unchanged this session).
+- `./init.sh` baseline passes (2026-09-11). Backend 322 tests, check, build clean; admin build clean; router-cf typecheck clean (2026-09-13: admin build + `router-cf typecheck` re-verified clean after the bilingual changes; backend untouched this session but re-checked clean).
 - One-off flake observed previously (7 failures in `articles.test.ts`) in a single `./init.sh` run, not reproduced in later runs; suspected worker contention on the shared `getDb` mock.

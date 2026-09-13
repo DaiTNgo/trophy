@@ -236,6 +236,39 @@ describe("admin articles routes", () => {
       expect(body.items).toHaveLength(1);
       expect(body.items[0].slug).toBe("qua-tang-khanh-thanh-y-nghia");
     });
+
+    it("flips due scheduled articles to published in the admin list so the status badge stays accurate", async () => {
+      queueAdminSession(db);
+      // List query
+      db.selectQueue.push([
+        {
+          article: {
+            ...SAMPLE_ARTICLE,
+            status: "scheduled",
+            publishedAt: new Date(Date.now() - 60_000),
+          },
+          authorName: "Admin User",
+          authorUsername: "admin",
+        },
+      ]);
+      // Count query
+      db.getQueue.push({ count: 1 });
+      // Category links
+      db.selectQueue.push([]);
+
+      const res = await adminArticlesRoute.request(
+        "/",
+        { headers: AUTH_HEADER },
+        env,
+      );
+      expect(res.status).toBe(200);
+
+      const body = await res.json() as any;
+      expect(body.items[0].status).toBe("published");
+
+      const flip = db.mutations.find((m: MutationRecord) => m.kind === "update");
+      expect((flip?.set as { status: string }).status).toBe("published");
+    });
   });
 
   describe("POST / (create article)", () => {
@@ -737,6 +770,54 @@ describe("storefront articles routes", () => {
       expect(listPredicateValues).toContain("scheduled");
     });
 
+    it("flips a due scheduled article to published during the listing read", async () => {
+      db.selectQueue.push([
+        {
+          article: {
+            ...SAMPLE_ARTICLE,
+            status: "scheduled",
+            publishedAt: new Date(Date.now() - 60_000),
+          },
+          authorName: "Admin User",
+        },
+      ]);
+      db.getQueue.push({ count: 1 });
+      db.selectQueue.push([]);
+
+      const res = await storefrontArticlesRoute.request("/", {}, env);
+      expect(res.status).toBe(200);
+
+      const body = await res.json() as any;
+      expect(body.items[0].status).toBe("published");
+
+      const flip = db.mutations.find((m: MutationRecord) => m.kind === "update");
+      const set = flip?.set as { status: string; updatedAt: Date };
+      expect(set.status).toBe("published");
+      expect(set.updatedAt).toBeInstanceOf(Date);
+    });
+
+    it("leaves a scheduled article as scheduled while its publish time is still in the future", async () => {
+      db.selectQueue.push([
+        {
+          article: {
+            ...SAMPLE_ARTICLE,
+            status: "scheduled",
+            publishedAt: new Date(Date.now() + 60_000),
+          },
+          authorName: "Admin User",
+        },
+      ]);
+      db.getQueue.push({ count: 1 });
+      db.selectQueue.push([]);
+
+      const res = await storefrontArticlesRoute.request("/", {}, env);
+      expect(res.status).toBe(200);
+
+      const body = await res.json() as any;
+      expect(body.items[0].status).toBe("scheduled");
+      expect(db.mutations.some((m: MutationRecord) => m.kind === "update")).toBe(false);
+    });
+
     it("returns empty list when category slug does not exist", async () => {
       // Category lookup returns null → no articles
       db.getQueue.push(null);
@@ -837,6 +918,12 @@ describe("storefront articles routes", () => {
 
       const detailPredicateValues = sqlParamValues(db.wheres[0]);
       expect(detailPredicateValues).toContain("scheduled");
+
+      const body = await res.json() as any;
+      expect(body.status).toBe("published");
+
+      const flip = db.mutations.find((m: MutationRecord) => m.kind === "update");
+      expect((flip?.set as { status: string }).status).toBe("published");
     });
 
     it("returns full article detail with SEO fields and categories", async () => {

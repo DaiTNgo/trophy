@@ -9,13 +9,14 @@ import {
   Input,
   Label,
   Text,
-  Textarea,
   Select,
   StatusBadge,
 } from "@medusajs/ui";
 import { ArrowLeft, Eye, ImageIcon, Loader2, Trash2 } from "lucide-react";
 import { ArticleTipTapEditor } from "../components/articles/article-tiptap-editor";
 import { ProductLinkPicker } from "../components/articles/product-link-picker";
+import { LocalizedTextField, createLocalizedText } from "../components/ui/medusa/localized-field";
+import type { AdminLocale, LocalizedTextValue } from "../types";
 import {
   createArticle,
   deleteArticle,
@@ -74,6 +75,28 @@ function toFormState(article?: Article | null): FormState {
   };
 }
 
+type TranslationsState = {
+  title: LocalizedTextValue;
+  excerpt: LocalizedTextValue;
+  contentHtml: LocalizedTextValue;
+  contentJson: LocalizedTextValue;
+  featuredImageAlt: LocalizedTextValue;
+  metaTitle: LocalizedTextValue;
+  metaDescription: LocalizedTextValue;
+};
+
+function toTranslationsState(article?: Article | null): TranslationsState {
+  return {
+    title: article?.titleTranslations ?? createLocalizedText(article?.title ?? ""),
+    excerpt: article?.excerptTranslations ?? createLocalizedText(article?.excerpt ?? ""),
+    contentHtml: article?.contentHtmlTranslations ?? createLocalizedText(article?.contentHtml ?? ""),
+    contentJson: article?.contentJsonTranslations ?? createLocalizedText(article?.contentJson ?? ""),
+    featuredImageAlt: article?.featuredImageAltTranslations ?? createLocalizedText(article?.featuredImageAlt ?? ""),
+    metaTitle: article?.metaTitleTranslations ?? createLocalizedText(article?.metaTitle ?? ""),
+    metaDescription: article?.metaDescriptionTranslations ?? createLocalizedText(article?.metaDescription ?? ""),
+  };
+}
+
 function toDatetimeLocal(ms: number | null): string {
   if (!ms) return "";
   const d = new Date(ms);
@@ -85,6 +108,10 @@ function fromDatetimeLocal(value: string): number | null {
   if (!value) return null;
   const ms = new Date(value).getTime();
   return Number.isNaN(ms) ? null : ms;
+}
+
+function trimLocalizedValue(value: LocalizedTextValue): LocalizedTextValue {
+  return { vi: value.vi.trim(), en: value.en.trim() };
 }
 
 const slugifyClient = (value: string) =>
@@ -105,6 +132,12 @@ export function ArticleEditorPage() {
 
   const [categories, setCategories] = useState<ArticleCategory[]>([]);
   const [form, setForm] = useState<FormState>(() => toFormState(null));
+  const [translations, setTranslations] = useState<TranslationsState>(() => toTranslationsState(null));
+  const [titleLocale, setTitleLocale] = useState<AdminLocale>("vi");
+  const [excerptLocale, setExcerptLocale] = useState<AdminLocale>("vi");
+  const [featuredImageAltLocale, setFeaturedImageAltLocale] = useState<AdminLocale>("vi");
+  const [metaTitleLocale, setMetaTitleLocale] = useState<AdminLocale>("vi");
+  const [metaDescriptionLocale, setMetaDescriptionLocale] = useState<AdminLocale>("vi");
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -123,6 +156,7 @@ export function ArticleEditorPage() {
   useEffect(() => {
     if (isNew) {
       setForm(toFormState(null));
+      setTranslations(toTranslationsState(null));
       setLoading(false);
       return;
     }
@@ -131,12 +165,13 @@ export function ArticleEditorPage() {
       .then((a) => {
         setArticle(a);
         setForm(toFormState(a));
+        setTranslations(toTranslationsState(a));
       })
       .catch((err) => setError(err instanceof Error ? err.message : "Failed to load article"))
       .finally(() => setLoading(false));
   }, [id, isNew]);
 
-  // Auto-generate slug from title until the operator edits it manually
+  // Auto-generate slug from the Vietnamese title until the operator edits it manually
   useEffect(() => {
     if (slugTouched || loading || isNew === false) return;
     if (form.title.trim()) {
@@ -148,9 +183,25 @@ export function ArticleEditorPage() {
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setForm((current) => ({ ...current, [key]: value }));
 
-  const metaTitleCount = useMemo(() => form.metaTitle.length, [form.metaTitle.length]);
-  const metaDescriptionCount = useMemo(() => form.metaDescription.length, [form.metaDescription.length]);
-  const excerptCount = useMemo(() => form.excerpt.length, [form.excerpt.length]);
+  /**
+   * Updates a bilingual `*Translations` value and keeps the canonical (VI) form
+   * field in sync, so slug generation, SEO preview and the draft preview always
+   * reflect the Vietnamese draft.
+   */
+  const setTranslation = <K extends keyof TranslationsState>(key: K, value: LocalizedTextValue) => {
+    setTranslations((current) => ({ ...current, [key]: value }));
+    if (key === "title") setForm((current) => ({ ...current, title: value.vi }));
+    if (key === "excerpt") setForm((current) => ({ ...current, excerpt: value.vi }));
+    if (key === "contentHtml") setForm((current) => ({ ...current, contentHtml: value.vi }));
+    if (key === "contentJson") setForm((current) => ({ ...current, contentJson: value.vi }));
+    if (key === "featuredImageAlt") setForm((current) => ({ ...current, featuredImageAlt: value.vi }));
+    if (key === "metaTitle") setForm((current) => ({ ...current, metaTitle: value.vi }));
+    if (key === "metaDescription") setForm((current) => ({ ...current, metaDescription: value.vi }));
+  };
+
+  const metaTitleCount = useMemo(() => translations.metaTitle[metaTitleLocale].length, [translations.metaTitle, metaTitleLocale]);
+  const metaDescriptionCount = useMemo(() => translations.metaDescription[metaDescriptionLocale].length, [translations.metaDescription, metaDescriptionLocale]);
+  const excerptCount = useMemo(() => translations.excerpt[excerptLocale].length, [translations.excerpt, excerptLocale]);
 
   async function persist(status: FormState["status"]) {
     setSaving(true);
@@ -173,6 +224,13 @@ export function ArticleEditorPage() {
         metaDescription: form.metaDescription.trim() || undefined,
         ogImageUrl: form.ogImageUrl ?? undefined,
         canonicalUrl: form.canonicalUrl.trim() || undefined,
+        titleTranslations: trimLocalizedValue(translations.title),
+        excerptTranslations: trimLocalizedValue(translations.excerpt),
+        contentHtmlTranslations: translations.contentHtml,
+        contentJsonTranslations: translations.contentJson,
+        featuredImageAltTranslations: trimLocalizedValue(translations.featuredImageAlt),
+        metaTitleTranslations: trimLocalizedValue(translations.metaTitle),
+        metaDescriptionTranslations: trimLocalizedValue(translations.metaDescription),
       };
 
       const saved = isNew
@@ -181,6 +239,7 @@ export function ArticleEditorPage() {
 
       setArticle(saved);
       setForm(toFormState(saved));
+      setTranslations(toTranslationsState(saved));
       setSlugTouched(true);
       if (isNew) {
         navigate(`/articles/${saved.id}`, { replace: true });
@@ -286,13 +345,15 @@ export function ArticleEditorPage() {
             </div>
             <div className="flex flex-col gap-y-4 px-6 py-5">
               <div className="flex flex-col gap-2">
-                <Label htmlFor="article-title">Title</Label>
-                <Input
+                <LocalizedTextField
                   id="article-title"
-                  value={form.title}
-                  onChange={(e) => set("title", e.target.value)}
-                  placeholder="Tiêu đề bài viết"
-                  className="text-lg font-medium"
+                  label="Title"
+                  value={translations.title}
+                  locale={titleLocale}
+                  onLocaleChange={setTitleLocale}
+                  onChange={(v) => setTranslation("title", v)}
+                  placeholder={{ vi: "Tiêu đề bài viết", en: "Article title" }}
+                  requiredLocales={["vi"]}
                 />
               </div>
 
@@ -311,9 +372,21 @@ export function ArticleEditorPage() {
 
               <div className="flex flex-col gap-2">
                 <ArticleTipTapEditor
-                  valueHtml={form.contentHtml}
-                  valueJson={form.contentJson}
-                  onChange={(v) => { set("contentHtml", v.html); set("contentJson", v.json); }}
+                  key={id ?? "new"}
+                  valueByLocale={{
+                    vi: { html: translations.contentHtml.vi, json: translations.contentJson.vi || null },
+                    en: { html: translations.contentHtml.en, json: translations.contentJson.en || null },
+                  }}
+                  onChangeByLocale={(locale, v) => {
+                    setTranslations((current) => ({
+                      ...current,
+                      contentHtml: { ...current.contentHtml, [locale]: v.html },
+                      contentJson: { ...current.contentJson, [locale]: v.json ?? "" },
+                    }));
+                    if (locale === "vi") {
+                      setForm((current) => ({ ...current, contentHtml: v.html, contentJson: v.json ?? null }));
+                    }
+                  }}
                 />
               </div>
 
@@ -324,12 +397,16 @@ export function ArticleEditorPage() {
                     {excerptCount} / 1000
                   </Text>
                 </div>
-                <Textarea
+                <LocalizedTextField
                   id="article-excerpt"
-                  value={form.excerpt}
-                  onChange={(e) => set("excerpt", e.target.value)}
+                  value={translations.excerpt}
+                  locale={excerptLocale}
+                  onLocaleChange={setExcerptLocale}
+                  onChange={(v) => setTranslation("excerpt", v)}
+                  placeholder={{ vi: "Tóm tắt ngắn hiển thị trên thẻ bài viết.", en: "Short summary shown on the article card." }}
+                  requiredLocales={["vi"]}
+                  multiline
                   rows={3}
-                  placeholder="Tóm tắt ngắn hiển thị trên thẻ bài viết."
                 />
               </div>
             </div>
@@ -437,12 +514,15 @@ export function ArticleEditorPage() {
                 </label>
               )}
               <div className="flex flex-col gap-2">
-                <Label htmlFor="featured-alt">Alt text</Label>
-                <Input
+                <LocalizedTextField
                   id="featured-alt"
-                  value={form.featuredImageAlt}
-                  onChange={(e) => set("featuredImageAlt", e.target.value)}
-                  placeholder="Mô tả ngắn cho ảnh"
+                  label="Alt text"
+                  value={translations.featuredImageAlt}
+                  locale={featuredImageAltLocale}
+                  onLocaleChange={setFeaturedImageAltLocale}
+                  onChange={(v) => setTranslation("featuredImageAlt", v)}
+                  placeholder={{ vi: "Mô tả ngắn cho ảnh", en: "Short alt text for the image" }}
+                  requiredLocales={["vi"]}
                 />
               </div>
             </div>
@@ -535,11 +615,14 @@ export function ArticleEditorPage() {
                     {metaTitleCount} / 60
                   </Text>
                 </div>
-                <Input
+                <LocalizedTextField
                   id="meta-title"
-                  value={form.metaTitle}
-                  onChange={(e) => set("metaTitle", e.target.value)}
-                  placeholder={form.title || "Meta title"}
+                  value={translations.metaTitle}
+                  locale={metaTitleLocale}
+                  onLocaleChange={setMetaTitleLocale}
+                  onChange={(v) => setTranslation("metaTitle", v)}
+                  placeholder={{ vi: form.title || "Meta title", en: translations.title.en || "Meta title" }}
+                  requiredLocales={["vi"]}
                 />
               </div>
 
@@ -550,12 +633,16 @@ export function ArticleEditorPage() {
                     {metaDescriptionCount} / 140-160
                   </Text>
                 </div>
-                <Textarea
+                <LocalizedTextField
                   id="meta-desc"
-                  value={form.metaDescription}
-                  onChange={(e) => set("metaDescription", e.target.value)}
-                  rows={3}
-                  placeholder="Mô tả hiển thị trên kết quả tìm kiếm."
+                  value={translations.metaDescription}
+                  locale={metaDescriptionLocale}
+                  onLocaleChange={setMetaDescriptionLocale}
+                  onChange={(v) => setTranslation("metaDescription", v)}
+                  placeholder={{ vi: "Mô tả hiển thị trên kết quả tìm kiếm.", en: "Description shown on search results." }}
+                  requiredLocales={["vi"]}
+                  multiline
+                  rows={2}
                 />
               </div>
 

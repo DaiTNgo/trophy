@@ -12,6 +12,10 @@ import {
   productVariants,
   users,
 } from "../../db/schema";
+import {
+  flipDueScheduledArticles,
+  markRowsPublished,
+} from "../../lib/article-publish";
 import { hydrateAndResolveTranslations } from "../../lib/catalog-translation";
 import type { AppEnv } from "../../lib/env";
 import { DEFAULT_LOCALE, localeSchema, type Locale } from "../../lib/locale";
@@ -213,6 +217,18 @@ export const storefrontArticlesRoute = new Hono<AppEnv>()
 
     const total = countRow?.count ?? 0;
 
+    // Auto-publish scheduled articles whose time has arrived (cron only runs in prod)
+    const flippedIds = await flipDueScheduledArticles(
+      db,
+      rows.map((r) => ({
+        id: r.article.id,
+        status: r.article.status,
+        publishedAt: r.article.publishedAt,
+      })),
+      now,
+    );
+    markRowsPublished(rows, flippedIds);
+
     // Fetch category tags for the listed articles
     const articleIds = rows.map((r) => r.article.id);
     const catLinks = articleIds.length
@@ -311,6 +327,20 @@ export const storefrontArticlesRoute = new Hono<AppEnv>()
       .get();
 
     if (!row) return c.json({ error: "Not found" }, 404);
+
+    // Auto-publish a scheduled article whose time has arrived (cron only runs in prod)
+    const flippedIds = await flipDueScheduledArticles(
+      db,
+      [
+        {
+          id: row.article.id,
+          status: row.article.status,
+          publishedAt: row.article.publishedAt,
+        },
+      ],
+      now,
+    );
+    markRowsPublished([row], flippedIds);
 
     // Increment view count (fire-and-forget, non-blocking)
     try {

@@ -14,13 +14,13 @@ export async function loader({ params, context, request }: Route.LoaderArgs) {
   return withStorefrontLoaderLog("news.$slug", request, async () => {
     const locale = getLocale(context);
     const backendFetch = getBackendServiceFetch(context);
-    const article = await fetchStorefrontArticle(params.slug, backendFetch);
+    const article = await fetchStorefrontArticle(params.slug, locale, backendFetch);
 
     // Related articles: same first category when present, else latest published
     const relatedArticles = await fetchStorefrontArticles(
       article.categories[0]
-        ? { category: article.categories[0].slug, limit: 4 }
-        : { limit: 4 },
+        ? { category: article.categories[0].slug, limit: 4, locale }
+        : { limit: 4, locale },
       backendFetch,
     ).catch(() => ({ items: [] }));
 

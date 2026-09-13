@@ -28,16 +28,36 @@ import {
   Play,
   RemoveFormatting,
 } from "lucide-react";
-import { useCallback, useState, type ChangeEvent } from "react";
+import { useCallback, useState, useRef, useMemo, useEffect, type ChangeEvent } from "react";
 import { uploadProductVariantMedia } from "../../lib/product-assets-client";
+import { LanguageSwitch } from "../ui/medusa/localized-field";
+import type { AdminLocale } from "../../types";
 import { cn } from "../../lib/utils";
 
 type ArticleTipTapEditorProps = {
-  valueHtml?: string;
-  valueJson?: string | null;
-  onChange: (value: { html: string; json: string | null }) => void;
-  placeholder?: string;
+  valueByLocale: Record<AdminLocale, { html: string; json: string | null }>;
+  onChangeByLocale: (locale: AdminLocale, value: { html: string; json: string | null }) => void;
 };
+
+const EDITOR_PLACEHOLDERS: Record<AdminLocale, string> = {
+  vi: "Bắt đầu viết nội dung bài viết của bạn...",
+  en: "Start writing your article content...",
+};
+
+/** Swaps the editor content to the requested locale without clobbering the user's undo history while typing. */
+function useEditorLocaleSync(
+  editor: Editor | null,
+  locale: AdminLocale,
+  valueByLocale: Record<AdminLocale, { html: string; json: string | null }>,
+) {
+  useEffect(() => {
+    if (!editor) return;
+    const value = valueByLocale[locale];
+    editor.commands.setContent(value.json ? (JSON.parse(value.json) as object) : value.html || "");
+    // Only re-run when switching language; valueByLocale is read at that moment.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [locale]);
+}
 
 function ToolbarButton({
   onClick,
@@ -68,13 +88,24 @@ function ToolbarButton({
 }
 
 export function ArticleTipTapEditor({
-  valueHtml,
-  valueJson,
-  onChange,
-  placeholder = "Bắt đầu viết nội dung bài viết của bạn...",
+  valueByLocale,
+  onChangeByLocale,
 }: ArticleTipTapEditorProps) {
+  const [locale, setLocale] = useState<AdminLocale>("vi");
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+
+  const localeRef = useRef(locale);
+  const placeholderRef = useRef(EDITOR_PLACEHOLDERS.vi);
+  localeRef.current = locale;
+
+  const missingLocales = useMemo<AdminLocale[]>(() => {
+    const missing: AdminLocale[] = [];
+    const hasViContent = valueByLocale.vi.html.trim().length > 0;
+    if (!hasViContent) missing.push("vi");
+    if (hasViContent && !valueByLocale.en.html.trim()) missing.push("en");
+    return missing;
+  }, [valueByLocale]);
 
   const handleUploadImage = useCallback(
     async (file: File) => {
@@ -109,7 +140,7 @@ export function ArticleTipTapEditor({
         defaultProtocol: "https",
       }),
       Placeholder.configure({
-        placeholder,
+        placeholder: () => placeholderRef.current,
       }),
       Table.configure({
         resizable: true,
@@ -122,11 +153,11 @@ export function ArticleTipTapEditor({
         nocookie: true,
       }),
     ],
-    content: valueJson
-      ? (JSON.parse(valueJson) as object)
-      : valueHtml || "",
+    content: valueByLocale.vi.json
+      ? (JSON.parse(valueByLocale.vi.json) as object)
+      : valueByLocale.vi.html || "",
     onUpdate: ({ editor }) => {
-      onChange({
+      onChangeByLocale(localeRef.current, {
         html: editor.getHTML(),
         json: JSON.stringify(editor.getJSON()),
       });
@@ -161,6 +192,11 @@ export function ArticleTipTapEditor({
       },
     },
   });
+
+  placeholderRef.current = EDITOR_PLACEHOLDERS[locale];
+
+  // Swap the editor content when the operator switches language
+  useEditorLocaleSync(editor, locale, valueByLocale);
 
   const insertFile = async (file: File) => {
     const url = await handleUploadImage(file);
@@ -202,6 +238,16 @@ export function ArticleTipTapEditor({
 
   return (
     <div className="rounded-lg border border-ui-border-base bg-ui-bg-base overflow-hidden">
+      <div className="flex items-center justify-between border-b border-ui-border-base bg-ui-bg-subtle px-3 py-2">
+        <Text size="small" weight="plus">Body</Text>
+        <LanguageSwitch
+          value={locale}
+          onValueChange={setLocale}
+          missingLocales={missingLocales}
+          size="compact"
+        />
+      </div>
+
       <div className="flex items-center gap-x-1 border-b border-ui-border-base px-2 py-1.5 flex-wrap bg-ui-bg-subtle">
         <ToolbarButton title="Hoàn tác" onClick={() => exec((e) => e.chain().focus().undo().run())} disabled={!editor?.can().undo()}>
           <Undo2 className="h-4 w-4" />

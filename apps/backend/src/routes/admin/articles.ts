@@ -11,6 +11,7 @@ import {
   users,
 } from "../../db/schema";
 import { getAdminSession } from "../../lib/admin-session";
+import { flipDueScheduledArticles, markRowsPublished } from "../../lib/article-publish";
 import { hydrateTranslations, upsertTranslations } from "../../lib/catalog-translation";
 import type { AppEnv } from "../../lib/env";
 import { slugify, uniqueSlug } from "../../lib/slug";
@@ -260,6 +261,17 @@ export const adminArticlesRoute = new Hono<AppEnv>()
 
     const total = countRows?.count ?? 0;
 
+    // Auto-publish scheduled articles whose time has arrived (cron only runs in prod)
+    const flippedIds = await flipDueScheduledArticles(
+      db,
+      rows.map((r) => ({
+        id: r.article.id,
+        status: r.article.status,
+        publishedAt: r.article.publishedAt,
+      })),
+    );
+    markRowsPublished(rows, flippedIds);
+
     // Fetch categories for each article
     const articleIds = rows.map((r) => r.article.id);
     const catLinks = articleIds.length
@@ -419,6 +431,13 @@ export const adminArticlesRoute = new Hono<AppEnv>()
       .get();
 
     if (!row) return c.json({ error: "Not found" }, 404);
+
+    // Auto-publish a scheduled article whose time has arrived (cron only runs in prod)
+    const flippedIds = await flipDueScheduledArticles(
+      db,
+      [{ id: row.article.id, status: row.article.status, publishedAt: row.article.publishedAt }],
+    );
+    markRowsPublished([row], flippedIds);
 
     const [catLinks, prodLinks] = await Promise.all([
       db

@@ -21,10 +21,10 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     const q = url.searchParams.get("q") || undefined;
 
     const [articlesData, categories] = await Promise.all([
-      fetchStorefrontArticles({ page: currentPage, limit: 12, category, q }, backendFetch).catch(
+      fetchStorefrontArticles({ page: currentPage, limit: 12, category, q, locale }, backendFetch).catch(
         () => ({ items: [], page: 1, limit: 12, total: 0 }),
       ),
-      fetchStorefrontArticleCategories(backendFetch).catch(() => []),
+      fetchStorefrontArticleCategories(locale, backendFetch).catch(() => []),
     ]);
 
     const featuredArticle = currentPage === 1 ? articlesData.items[0] ?? null : null;
