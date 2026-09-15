@@ -1,7 +1,9 @@
-import { Outlet, useLoaderData, useLocation, type RouterContextProvider } from "react-router";
+import { useEffect } from "react";
+import { Outlet, useLoaderData, useLocation, useNavigation, type RouterContextProvider } from "react-router";
 import { Navbar } from "./Navbar";
 import { Footer } from "./Footer";
 import { ContactButtons } from "./contact-buttons";
+import { ProductDetailSkeleton } from "../product/ProductDetailSkeleton";
 import {
   fetchStorefrontCategories,
   fetchStorefrontCollections,
@@ -29,9 +31,28 @@ export async function loader({ request, context }: { request: Request; context: 
 export default function StorefrontLayout() {
   const { categories, collections, locale } = useLoaderData<typeof loader>();
   const location = useLocation();
+  const navigation = useNavigation();
+
+  const targetPathname = navigation.location?.pathname;
+  const isNavigatingToProduct =
+    navigation.state === "loading" &&
+    Boolean(
+      targetPathname &&
+        (targetPathname.startsWith("/product/") ||
+          /^\/categories\/[^/]+\/products\/[^/]+\/?$/.test(targetPathname)),
+    );
+
+  useEffect(() => {
+    if (isNavigatingToProduct && typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "instant" });
+    }
+  }, [isNavigatingToProduct]);
+
+  const effectivePathname =
+    isNavigatingToProduct && targetPathname ? targetPathname : location.pathname;
   const isProductDetailRoute =
-    location.pathname.startsWith("/product/") ||
-    /^\/categories\/[^/]+\/products\/[^/]+\/?$/.test(location.pathname);
+    effectivePathname.startsWith("/product/") ||
+    /^\/categories\/[^/]+\/products\/[^/]+\/?$/.test(effectivePathname);
   const hideCategoryStripOnMobile = isProductDetailRoute;
 
   return (
@@ -45,7 +66,7 @@ export default function StorefrontLayout() {
         disableStickyOnMobile={isProductDetailRoute}
       />
       <div className="flex-1">
-        <Outlet />
+        {isNavigatingToProduct ? <ProductDetailSkeleton /> : <Outlet />}
       </div>
       <Footer />
       <ContactButtons />
