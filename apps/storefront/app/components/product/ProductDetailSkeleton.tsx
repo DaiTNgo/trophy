@@ -6,19 +6,31 @@ export function ProductDetailSkeleton() {
     <div
       aria-busy="true"
       aria-label="Loading product details"
-      className="bg-surface-base py-4 pb-24 md:pb-12 text-text-base"
+      className="bg-white font-body-md text-on-surface"
       data-testid="product-detail-skeleton"
     >
-      <Container className="px-4 md:px-6">
-        {/* Breadcrumb Skeleton */}
-        <div className="mb-4 flex items-center gap-2">
-          <div className="h-3.5 w-16 rounded bg-surface-subtle animate-pulse" />
-          <span className="text-text-muted/40">/</span>
-          <div className="h-3.5 w-24 rounded bg-surface-subtle animate-pulse" />
-          <span className="text-text-muted/40">/</span>
-          <div className="h-3.5 w-36 rounded bg-surface-subtle animate-pulse" />
-        </div>
+      {/* Breadcrumb Skeleton matching ProductBreadcrumbs */}
+      <nav
+        aria-hidden="true"
+        className="border-y border-border-subtle bg-surface-subtle/80"
+      >
+        <Container className="flex min-h-13 items-center justify-center py-3">
+          <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
+            <div className="h-3.5 w-16 rounded bg-white animate-pulse" />
+            <span aria-hidden="true" className="text-text-muted/80">
+              ›
+            </span>
+            <div className="h-3.5 w-24 rounded bg-white animate-pulse" />
+            <span aria-hidden="true" className="text-text-muted/80">
+              ›
+            </span>
+            <div className="h-3.5 w-36 rounded bg-white animate-pulse" />
+          </div>
+        </Container>
+      </nav>
 
+      {/* Main Content Container */}
+      <Container className="py-8 pb-24 md:pb-12">
         {/* Main 2-Column Grid */}
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_480px] lg:items-start xl:grid-cols-[minmax(0,1fr)_520px]">
           {/* Left Column: Gallery */}
