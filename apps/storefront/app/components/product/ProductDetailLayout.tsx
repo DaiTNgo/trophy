@@ -85,8 +85,10 @@ export function ProductDetailLayout({
       onSelect={onOptionSelect}
     />
   );
-  const galleryMediaFrameClassName =
-    "h-[clamp(240px,42svh,380px)] lg:h-[min(72vh,740px)] lg:min-h-[520px]";
+  const hasThumbnails = galleryThumbnails.length > 1;
+  const galleryMediaFrameClassName = hasThumbnails
+    ? "h-[clamp(240px,42svh,380px)] lg:h-[min(calc(100dvh-18.5rem),580px)] lg:min-h-[340px]"
+    : "h-[clamp(240px,42svh,380px)] lg:h-[min(calc(100dvh-13rem),660px)] lg:min-h-[420px]";
 
   const previewNode = customizationTemplate ? (
     <ProductCustomizationPreview

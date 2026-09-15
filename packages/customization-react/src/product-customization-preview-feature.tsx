@@ -222,6 +222,17 @@ export function ProductCustomizationPreview({
 
   useEffect(() => {
     fitToView();
+    const el = viewportRef.current;
+    if (!el) return;
+    if (typeof ResizeObserver !== "undefined") {
+      const observer = new ResizeObserver(() => {
+        fitToView();
+      });
+      observer.observe(el);
+      return () => observer.disconnect();
+    }
+    window.addEventListener("resize", fitToView);
+    return () => window.removeEventListener("resize", fitToView);
   }, [fitToView, isFullscreen]);
 
   useEffect(() => {
