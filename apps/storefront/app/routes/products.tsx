@@ -1,4 +1,4 @@
-import { redirect, useSearchParams } from "react-router";
+import { redirect, useNavigation, useSearchParams } from "react-router";
 import { ProductListingShell } from "@/components/products/ProductListingShell";
 import { fetchStorefrontCategories, fetchStorefrontProducts } from "../lib/api";
 import { getLocale } from "../i18n.server";
@@ -71,6 +71,9 @@ export default function Products({ loaderData }: Route.ComponentProps) {
     locale,
   } = loaderData;
   const [, setSearchParams] = useSearchParams();
+  const navigation = useNavigation();
+  const isLoading = navigation.state === "loading";
+
   const listingTitle =
     getLocalized(selectedCategory?.name, locale) ||
     (locale === "en" ? "Product Catalog" : "Danh mục sản phẩm");
@@ -97,6 +100,9 @@ export default function Products({ loaderData }: Route.ComponentProps) {
       prev.set("page", page.toString());
       return prev;
     });
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
   };
 
   return (
@@ -132,6 +138,7 @@ export default function Products({ loaderData }: Route.ComponentProps) {
         ctaLabel: locale === "en" ? "View all products" : "Xem tất cả sản phẩm",
         ctaHref: "/products",
       }}
+      isLoading={isLoading}
     />
   );
 }

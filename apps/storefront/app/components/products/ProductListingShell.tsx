@@ -11,6 +11,7 @@ import { useTranslation } from "react-i18next";
 import { FilterChips, type CategoryOption } from "./FilterChips";
 import { ProductCard } from "../shared/ProductCard";
 import { Pagination } from "../shared/Pagination";
+import { ProductGridSkeleton } from "./ProductCardSkeleton";
 import type { StorefrontProductItem } from "@/lib/api";
 import { getLocalized } from "@/lib/translation";
 
@@ -50,6 +51,7 @@ type ProductListingShellProps = {
     ctaLabel: string;
     ctaHref: string;
   };
+  isLoading?: boolean;
 };
 
 type ListingFilterConfig = NonNullable<ProductListingShellProps["filters"]>;
@@ -284,6 +286,7 @@ function ListingResults({
   totalPages,
   onPageChange,
   emptyState,
+  isLoading = false,
 }: {
   products: StorefrontProductItem[];
   locale: string;
@@ -292,11 +295,14 @@ function ListingResults({
   totalPages: number;
   onPageChange: (page: number) => void;
   emptyState: EmptyStateConfig;
+  isLoading?: boolean;
 }) {
   return (
     <section className="bg-surface-base px-4 py-8 md:px-8 md:py-10">
       <div className="mx-auto w-full max-w-[1180px]">
-        {products.length === 0 ? (
+        {isLoading ? (
+          <ProductGridSkeleton count={12} />
+        ) : products.length === 0 ? (
           <EmptyListingState emptyState={emptyState} />
         ) : (
           <>
@@ -412,6 +418,7 @@ export function ProductListingShell({
   categoryHandle,
   filters,
   emptyState,
+  isLoading = false,
 }: ProductListingShellProps) {
   const heroImage = featuredImageSrc ?? products[0]?.thumbnail ?? null;
   const resultLabel =
@@ -444,6 +451,7 @@ export function ProductListingShell({
           totalPages={totalPages}
           onPageChange={onPageChange}
           emptyState={emptyState}
+          isLoading={isLoading}
         />
 
         <ListingEditorial

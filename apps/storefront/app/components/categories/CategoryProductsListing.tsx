@@ -20,6 +20,7 @@ type CategoryProductsListingProps = {
   locale: string;
   onCategorySelect: (categoryHandle: string) => void;
   onPageChange: (page: number) => void;
+  isLoading?: boolean;
 };
 
 export function CategoryProductsListing({
@@ -36,6 +37,7 @@ export function CategoryProductsListing({
   locale,
   onCategorySelect,
   onPageChange,
+  isLoading = false,
 }: CategoryProductsListingProps) {
   const isEnglish = locale === "en";
 
@@ -72,6 +74,7 @@ export function CategoryProductsListing({
         ctaLabel: isEnglish ? "View all products" : "Xem tất cả sản phẩm",
         ctaHref: "/products",
       }}
+      isLoading={isLoading}
     />
   );
 }

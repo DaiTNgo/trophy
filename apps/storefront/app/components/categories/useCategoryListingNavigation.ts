@@ -15,6 +15,9 @@ export function useCategoryListingNavigation(categoryHandle: string) {
     const nextSearchParams = new URLSearchParams(searchParams);
     nextSearchParams.set("page", page.toString());
     navigate(`${getCategoryPath(categoryHandle)}?${nextSearchParams}`);
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
   };
 
   return {

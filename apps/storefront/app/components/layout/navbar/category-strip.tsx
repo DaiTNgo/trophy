@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Link, useLocation } from "react-router";
+import { Link, useLocation, useNavigation } from "react-router";
 import { ChevronLeft, ChevronRight, Package } from "lucide-react";
 import { Container } from "@/components/container";
 import type { StorefrontCategory } from "@/lib/api";
@@ -18,7 +18,11 @@ export function NavbarCategoryStrip({
   hideOnMobile = false,
 }: NavbarCategoryStripProps) {
   const { pathname } = useLocation();
-  const activeCategoryHandle = getActiveCategoryHandle(pathname);
+  const navigation = useNavigation();
+  const targetPathname = navigation.location?.pathname;
+  const effectivePathname =
+    navigation.state === "loading" && targetPathname ? targetPathname : pathname;
+  const activeCategoryHandle = getActiveCategoryHandle(effectivePathname);
   const categoryStripRef = useRef<HTMLDivElement | null>(null);
   const [canScrollCategoriesLeft, setCanScrollCategoriesLeft] = useState(false);
   const [canScrollCategoriesRight, setCanScrollCategoriesRight] = useState(false);
