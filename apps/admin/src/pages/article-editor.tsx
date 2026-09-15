@@ -13,7 +13,7 @@ import {
   StatusBadge,
 } from "@medusajs/ui";
 import { ArrowLeft, Eye, ImageIcon, Loader2, Trash2 } from "lucide-react";
-import { ArticleTipTapEditor } from "../components/articles/article-tiptap-editor";
+import { RichTextEditor } from "../components/rich-text/rich-text-editor";
 import { ProductLinkPicker } from "../components/articles/product-link-picker";
 import { LocalizedTextField, createLocalizedText } from "../components/ui/medusa/localized-field";
 import type { AdminLocale, LocalizedTextValue } from "../types";
@@ -371,8 +371,13 @@ export function ArticleEditorPage() {
               </div>
 
               <div className="flex flex-col gap-2">
-                <ArticleTipTapEditor
+                <RichTextEditor
                   key={id ?? "new"}
+                  label="Body"
+                  placeholderByLocale={{
+                    vi: "Bắt đầu viết nội dung bài viết của bạn...",
+                    en: "Start writing your article content...",
+                  }}
                   valueByLocale={{
                     vi: { html: translations.contentHtml.vi, json: translations.contentJson.vi || null },
                     en: { html: translations.contentHtml.en, json: translations.contentJson.en || null },

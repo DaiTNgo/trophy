@@ -237,7 +237,7 @@ body {
     opacity: 1;
   }
 
-  .group:hover .product-card-base-image {
+  .group:hover .product-card-base-image--swap {
     opacity: 0;
   }
 }

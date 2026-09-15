@@ -15,6 +15,7 @@ import {
   createLocalizedText,
   getMissingLocalizedTextLocales,
 } from "../../components/ui/medusa";
+import { RichTextEditor, type RichTextValueByLocale } from "../../components/rich-text/rich-text-editor";
 import { buildVariantSignature } from "./use-create-product";
 import { hasEmbeddedCustomizationDraft } from "../create-product-helpers";
 import type {
@@ -28,6 +29,35 @@ type CreateProductDetailsProps = {
   state: ReturnType<typeof useCreateProduct>;
 };
 
+type RichTextSectionKey = "whyThisProductHtml" | "specificationsHtml" | "shippingHtml";
+
+const EMPTY_RICH_TEXT: RichTextValueByLocale = {
+  vi: { html: "", json: null },
+  en: { html: "", json: null },
+};
+
+const RICH_TEXT_SECTIONS: Array<{
+  key: RichTextSectionKey;
+  label: string;
+  description: string;
+}> = [
+  {
+    key: "whyThisProductHtml",
+    label: "Why This Product?",
+    description: "Persuasive copy shown in the first product detail accordion.",
+  },
+  {
+    key: "specificationsHtml",
+    label: "Specifications",
+    description: "Technical details. When empty, the storefront falls back to the product attributes grid.",
+  },
+  {
+    key: "shippingHtml",
+    label: "Shipping & fulfillment",
+    description: "Shipping policy copy. When empty, the storefront shows the default policy.",
+  },
+];
+
 export function CreateProductDetails({ state }: CreateProductDetailsProps) {
   const [optionTitleLocales, setOptionTitleLocales] = useState<
     Record<string, AdminLocale>
@@ -38,6 +68,13 @@ export function CreateProductDetails({ state }: CreateProductDetailsProps) {
   const [attributeLocales, setAttributeLocales] = useState<
     Record<number, { key: AdminLocale; value: AdminLocale }>
   >({});
+  const [sectionEditors, setSectionEditors] = useState<
+    Record<RichTextSectionKey, RichTextValueByLocale>
+  >({
+    whyThisProductHtml: EMPTY_RICH_TEXT,
+    specificationsHtml: EMPTY_RICH_TEXT,
+    shippingHtml: EMPTY_RICH_TEXT,
+  });
 
   const {
     values,
@@ -87,6 +124,21 @@ export function CreateProductDetails({ state }: CreateProductDetailsProps) {
         [field]: locale,
       },
     }));
+  }
+
+  function handleSectionChange(
+    key: RichTextSectionKey,
+    locale: AdminLocale,
+    value: RichTextValueByLocale[AdminLocale],
+  ) {
+    setSectionEditors((current) => ({
+      ...current,
+      [key]: { ...current[key], [locale]: value },
+    }));
+    setValue(key, {
+      vi: locale === "vi" ? value.html : sectionEditors[key].vi.html,
+      en: locale === "en" ? value.html : sectionEditors[key].en.html,
+    });
   }
 
   return (
@@ -253,6 +305,35 @@ export function CreateProductDetails({ state }: CreateProductDetailsProps) {
               >
                 Remove
               </Button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="space-y-6 border-t border-ui-border-base pt-4">
+        <div>
+          <Heading level="h2">Product sections</Heading>
+          <Text size="small" className="mt-1 text-ui-fg-subtle">
+            Rich-text content for the product detail page accordions. Optional.
+          </Text>
+        </div>
+        <div className="space-y-5">
+          {RICH_TEXT_SECTIONS.map((section) => (
+            <div key={section.key} className="space-y-2">
+              <div>
+                <Label size="small" weight="plus">{section.label}</Label>
+                {section.description ? (
+                  <Text size="xsmall" className="mt-0.5 text-ui-fg-muted">{section.description}</Text>
+                ) : null}
+              </div>
+              <RichTextEditor
+                key={section.key}
+                label={section.label}
+                valueByLocale={sectionEditors[section.key]}
+                onChangeByLocale={(locale, value) =>
+                  handleSectionChange(section.key, locale, value)
+                }
+              />
             </div>
           ))}
         </div>

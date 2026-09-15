@@ -324,6 +324,51 @@ describe("admin products operation-specific routes", () => {
     expect(backgroundTask).toBeDefined();
   });
 
+  it("persists admin-authored product section HTML when saving product overview", async () => {
+    db.getQueue.push({ id: 1, title: "Champion Cup", handle: "champion-cup", status: "draft", subtitle: null, description: null });
+    queueReadProduct(db, { id: 1, title: "Champion Cup", status: "draft" }, { variantRows: [] });
+
+    const response = await productsRoute.request("/1", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        whyThisProductHtml: { vi: "<p>Cốc in ấn hàng đầu</p>", en: "<p>Top printed cup</p>" },
+        specificationsHtml: { vi: "<p>Thông số kỹ thuật</p>" },
+        shippingHtml: { vi: "<p>Giao nhanh</p>" },
+      }),
+    }, { MISA_CLIENT_ID: "client", MISA_CLIENT_SECRET: "secret" } as never);
+
+    expect(response.status).toBe(200);
+    expect(db.mutations).toContainEqual({
+      kind: "update",
+      set: expect.objectContaining({
+        whyThisProductHtml: "<p>Cốc in ấn hàng đầu</p>",
+        specificationsHtml: "<p>Thông số kỹ thuật</p>",
+        shippingHtml: "<p>Giao nhanh</p>",
+      }),
+    });
+    expect(db.mutations).toContainEqual({
+      kind: "insert",
+      values: expect.objectContaining({
+        ownerType: "product",
+        fieldName: "whyThisProductHtml",
+        locale: "en",
+        value: "<p>Top printed cup</p>",
+      }),
+    });
+  });
+
+  it("rejects oversized product section rich-text content", async () => {
+    const oversized = "x".repeat(300_001);
+    const response = await productsRoute.request("/1", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ whyThisProductHtml: { vi: oversized } }),
+    }, { MISA_CLIENT_ID: "client", MISA_CLIENT_SECRET: "secret" } as never);
+
+    expect(response.status).toBe(400);
+  });
+
   it("manually synchronizes one published variant with MISA", async () => {
     const variant = {
       id: 20,

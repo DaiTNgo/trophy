@@ -37,6 +37,12 @@ export const primarySidebarItems: SidebarNavItem[] = [
       },
     ],
   },
+  {
+    label: "News",
+    to: "/articles",
+    icon: Newspaper,
+    prefixes: ["/articles"],
+  },
 ];
 
 export const operationsSidebarItems: SidebarNavItem[] = [
@@ -67,12 +73,6 @@ export const operationsSidebarItems: SidebarNavItem[] = [
     ],
   },
   {
-    label: "News",
-    to: "/articles",
-    icon: Newspaper,
-    prefixes: ["/articles"],
-  },
-  {
     label: "Team",
     to: "/team",
     icon: Users,
@@ -93,8 +93,8 @@ export const bottomSidebarItems: SidebarNavItem[] = [
 export const shellSections = [
   { label: "Orders", prefixes: ["/orders"] },
   { label: "Products", prefixes: ["/products", "/collections", "/categories"] },
-  { label: "Customization", prefixes: ["/customization"] },
   { label: "News", prefixes: ["/articles"] },
+  { label: "Customization", prefixes: ["/customization"] },
   { label: "Team", prefixes: ["/team"] },
   { label: "Settings", prefixes: ["/settings"] },
 ];

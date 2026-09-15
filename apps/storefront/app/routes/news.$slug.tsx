@@ -4,6 +4,7 @@ import { fetchStorefrontArticle, fetchStorefrontArticles } from "../lib/api";
 import { getLocale } from "../i18n.server";
 import { withStorefrontLoaderLog } from "../lib/observability";
 import { getBackendServiceFetch } from "../lib/backend-fetch.server";
+import { scanTocFromHtml, type TocEntry } from "../lib/article-toc";
 import Container from "../components/container";
 import { StickyTableOfContents } from "../components/news/sticky-table-of-contents";
 import { SocialShareButtons } from "../components/news/social-share-buttons";
@@ -27,6 +28,7 @@ export async function loader({ params, context, request }: Route.LoaderArgs) {
     return {
       article,
       locale,
+      tocEntries: scanTocFromHtml(article.contentHtml),
       relatedArticles: relatedArticles.items
         .filter((a) => a.slug !== article.slug)
         .slice(0, 3),
@@ -68,7 +70,7 @@ function formatPrice(amount: number): string {
 }
 
 export default function NewsDetailPage({ loaderData }: Route.ComponentProps) {
-  const { article, locale, relatedArticles } = loaderData;
+  const { article, locale, tocEntries, relatedArticles } = loaderData;
   const { t } = useTranslation("news");
 
   const publishedDate = article.publishedAt
@@ -119,10 +121,12 @@ export default function NewsDetailPage({ loaderData }: Route.ComponentProps) {
       <div className="bg-white">
         <Container className="py-10">
           <div className="flex gap-12">
-            {/* Sticky TOC (desktop) */}
-            <div className="hidden w-60 shrink-0 xl:block">
-              <StickyTableOfContents />
-            </div>
+            {/* Sticky TOC (desktop, only when article has ≥2 headings) */}
+            {tocEntries.length >= 2 && (
+              <div className="hidden w-60 shrink-0 xl:block">
+                <StickyTableOfContents entries={tocEntries} />
+              </div>
+            )}
 
             <div className="min-w-0 flex-1">
               <div className="mx-auto max-w-3xl">

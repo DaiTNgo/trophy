@@ -34,21 +34,30 @@ import { LanguageSwitch } from "../ui/medusa/localized-field";
 import type { AdminLocale } from "../../types";
 import { cn } from "../../lib/utils";
 
-type ArticleTipTapEditorProps = {
-  valueByLocale: Record<AdminLocale, { html: string; json: string | null }>;
-  onChangeByLocale: (locale: AdminLocale, value: { html: string; json: string | null }) => void;
+export type RichTextEditorValue = {
+  html: string;
+  json: string | null;
 };
 
-const EDITOR_PLACEHOLDERS: Record<AdminLocale, string> = {
-  vi: "Bắt đầu viết nội dung bài viết của bạn...",
-  en: "Start writing your article content...",
+export type RichTextValueByLocale = Record<AdminLocale, RichTextEditorValue>;
+
+type RichTextEditorProps = {
+  valueByLocale: RichTextValueByLocale;
+  onChangeByLocale: (locale: AdminLocale, value: RichTextEditorValue) => void;
+  label?: string;
+  placeholderByLocale?: Partial<Record<AdminLocale, string>>;
+};
+
+const DEFAULT_PLACEHOLDERS: Record<AdminLocale, string> = {
+  vi: "Bắt đầu viết nội dung của bạn...",
+  en: "Start writing your content...",
 };
 
 /** Swaps the editor content to the requested locale without clobbering the user's undo history while typing. */
 function useEditorLocaleSync(
   editor: Editor | null,
   locale: AdminLocale,
-  valueByLocale: Record<AdminLocale, { html: string; json: string | null }>,
+  valueByLocale: RichTextValueByLocale,
 ) {
   useEffect(() => {
     if (!editor) return;
@@ -87,16 +96,22 @@ function ToolbarButton({
   );
 }
 
-export function ArticleTipTapEditor({
+export function RichTextEditor({
   valueByLocale,
   onChangeByLocale,
-}: ArticleTipTapEditorProps) {
+  label = "Content",
+  placeholderByLocale,
+}: RichTextEditorProps) {
+  const placeholders: Record<AdminLocale, string> = {
+    vi: placeholderByLocale?.vi ?? DEFAULT_PLACEHOLDERS.vi,
+    en: placeholderByLocale?.en ?? DEFAULT_PLACEHOLDERS.en,
+  };
   const [locale, setLocale] = useState<AdminLocale>("vi");
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
   const localeRef = useRef(locale);
-  const placeholderRef = useRef(EDITOR_PLACEHOLDERS.vi);
+  const placeholderRef = useRef(placeholders.vi);
   localeRef.current = locale;
 
   const missingLocales = useMemo<AdminLocale[]>(() => {
@@ -193,7 +208,7 @@ export function ArticleTipTapEditor({
     },
   });
 
-  placeholderRef.current = EDITOR_PLACEHOLDERS[locale];
+  placeholderRef.current = placeholders[locale];
 
   // Swap the editor content when the operator switches language
   useEditorLocaleSync(editor, locale, valueByLocale);
@@ -239,7 +254,7 @@ export function ArticleTipTapEditor({
   return (
     <div className="rounded-lg border border-ui-border-base bg-ui-bg-base overflow-hidden">
       <div className="flex items-center justify-between border-b border-ui-border-base bg-ui-bg-subtle px-3 py-2">
-        <Text size="small" weight="plus">Body</Text>
+        <Text size="small" weight="plus">{label}</Text>
         <LanguageSwitch
           value={locale}
           onValueChange={setLocale}

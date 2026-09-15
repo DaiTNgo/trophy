@@ -557,7 +557,7 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
       return jsonError(c, 404, 'Product not found')
     }
 
-    [product] = await hydrateTranslations(db, 'product', [product], p => String(p.id), [{fieldName: 'title', objectKey: 'title'}, {fieldName: 'subtitle', objectKey: 'subtitle'}, {fieldName: 'description', objectKey: 'description'}], [{fieldName: 'title', objectKey: 'title'}, {fieldName: 'subtitle', objectKey: 'subtitle'}, {fieldName: 'description', objectKey: 'description'}
+    [product] = await hydrateTranslations(db, 'product', [product], p => String(p.id), [{fieldName: 'title', objectKey: 'title'}, {fieldName: 'subtitle', objectKey: 'subtitle'}, {fieldName: 'description', objectKey: 'description'}, {fieldName: 'whyThisProductHtml', objectKey: 'whyThisProductHtml'}, {fieldName: 'specificationsHtml', objectKey: 'specificationsHtml'}, {fieldName: 'shippingHtml', objectKey: 'shippingHtml'}], [{fieldName: 'title', objectKey: 'title'}, {fieldName: 'subtitle', objectKey: 'subtitle'}, {fieldName: 'description', objectKey: 'description'}, {fieldName: 'whyThisProductHtml', objectKey: 'whyThisProductHtml'}, {fieldName: 'specificationsHtml', objectKey: 'specificationsHtml'}, {fieldName: 'shippingHtml', objectKey: 'shippingHtml'}
       ]);
 
     const [
@@ -828,6 +828,9 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
       subtitle: product.subtitle,
       handle: product.handle,
       description: product.description,
+      whyThisProductHtml: product.whyThisProductHtml,
+      specificationsHtml: product.specificationsHtml,
+      shippingHtml: product.shippingHtml,
       thumbnail: product.thumbnailAssetId
         ? toAbsoluteAssetUrl(c, `/api/assets/products/${product.thumbnailAssetId}/content`) as string
         : null,

@@ -81,3 +81,9 @@
 - [x] 8.2 Locale-aware TipTap editor: `ArticleTipTapEditor` accepts `valueByLocale` + `onChangeByLocale(locale, {html,json})`; adds a header row with `LanguageSwitch` (VI/EN); swaps editor content on locale change via `useEditorLocaleSync`; `Placeholder` reads a `placeholderRef` updated on locale switch.
 - [x] 8.3 Storefront locale passing: `fetchStorefrontArticles` / `fetchStorefrontArticle` / `fetchStorefrontArticleCategories` accept `locale: string` and append `?locale=` to the backend URL. `news.tsx` and `news.$slug.tsx` pass `getLocale(context)` to all three fetches.
 - [x] 8.4 Verification: admin build passes, `router-cf typecheck` passes (no backend changes required; categories route already accepted locale).
+
+## 9. Storefront TOC SSR & admin nav placement follow-up
+
+- [x] 9.1 Article detail no longer reserves a blank 240px left column: TOC headings are extracted server-side (`app/lib/article-toc.ts` → `scanTocFromHtml`, same slugify/dedup rules as the old client pass) and the sticky TOC column renders on `news.$slug.tsx` only when the article has ≥2 headings. `StickyTableOfContents` now takes SSR-derived `entries`; heading ID assignment + IntersectionObserver highlight still hydrate client-side.
+- [x] 9.2 Admin sidebar: move "News" out of the Operations section into the top group (below Products) in `sidebar-config.ts`, with `shellSections` re-ordered to match (desktop + mobile share this config).
+- [x] 9.3 Verification: `router-cf typecheck` + `router-cf build` pass; `admin build` passes.

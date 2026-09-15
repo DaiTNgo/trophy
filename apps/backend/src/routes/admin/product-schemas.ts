@@ -36,12 +36,21 @@ export const searchProductsQuerySchema = v.object({
 const optionalLocalizedNullableText = (maxLength = 2000) => v.optional(v.nullable(localizedNullableText(maxLength)))
 export const nullableLocalizedPatch = (value: v.InferOutput<ReturnType<typeof optionalLocalizedNullableText>>) => value ?? { vi: null, en: null }
 
+const RICH_TEXT_MAX_LENGTH = 300_000
+const optionalLocalizedRichText = () => v.optional(v.nullable(localizedNullableText(RICH_TEXT_MAX_LENGTH)))
+export const productRichTextFields = {
+  whyThisProductHtml: optionalLocalizedRichText(),
+  specificationsHtml: optionalLocalizedRichText(),
+  shippingHtml: optionalLocalizedRichText(),
+} as const
+
 export const createProductSchema = v.object({
   title: localizedString(1, 200), subtitle: optionalLocalizedNullableText(255), handle: optionalHandle,
   description: optionalLocalizedNullableText(), defaultVariantTitle: nullableText(255),
-  priceAmount: v.optional(v.nullable(v.pipe(v.number(), v.integer(), v.minValue(0))))
+  priceAmount: v.optional(v.nullable(v.pipe(v.number(), v.integer(), v.minValue(0)))),
+  ...productRichTextFields
 })
-export const updateProductSchema = v.object({ title: v.optional(localizedString(1, 200)), subtitle: optionalLocalizedNullableText(255), handle: optionalHandle, description: optionalLocalizedNullableText() })
+export const updateProductSchema = v.object({ title: v.optional(localizedString(1, 200)), subtitle: optionalLocalizedNullableText(255), handle: optionalHandle, description: optionalLocalizedNullableText(), ...productRichTextFields })
 export const organizeSchema = v.object({ collectionId: optionalId, categoryIds: v.optional(v.array(v.pipe(v.number(), v.integer(), v.minValue(1)))) })
 export const attributesSchema = v.object({ items: v.array(v.object({ name: localizedString(1, 120), value: localizedString(1, 255), unit: nullableText(50) })) })
 const variantAttributesSchema = v.array(v.object({ name: localizedString(1, 120), value: localizedString(1, 255), unit: nullableText(50) }))
@@ -88,7 +97,7 @@ export const customizationRepairSchema = v.object({ variantIds: v.array(v.pipe(v
 const fullCreateOrganizationSchema = v.object({ collectionId: optionalId, categoryIds: v.optional(v.array(v.pipe(v.number(), v.integer(), v.minValue(1)))) })
 export const fullCreateProductSchema = v.object({
   mode: v.union([v.literal('draft'), v.literal('publish')]),
-  details: v.object({ title: localizedString(1, 200), subtitle: optionalLocalizedNullableText(255), handle: optionalHandle, description: optionalLocalizedNullableText() }),
+  details: v.object({ title: localizedString(1, 200), subtitle: optionalLocalizedNullableText(255), handle: optionalHandle, description: optionalLocalizedNullableText(), ...productRichTextFields }),
   organization: fullCreateOrganizationSchema,
   attributes: v.array(v.object({ name: localizedString(1, 120), value: localizedString(1, 255), unit: nullableText(50) })),
   options: v.array(v.object({ title: localizedString(1, 120), values: v.pipe(v.array(v.object({ value: localizedString(1, 120) })), v.check((values) => new Set(values.map((value) => (typeof value.value === 'string' ? value.value : value.value.vi).toLowerCase())).size === values.length, 'Option values must be unique within the same option')) })),

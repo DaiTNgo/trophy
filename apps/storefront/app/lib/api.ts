@@ -141,6 +141,9 @@ export type StorefrontDetailResponse = {
     subtitle: LocalizedTextValue;
     handle: string;
     description: LocalizedTextValue;
+    whyThisProductHtml: LocalizedTextValue;
+    specificationsHtml: LocalizedTextValue;
+    shippingHtml: LocalizedTextValue;
     thumbnail: string | null;
     hoverImage: string | null;
     media: Array<{

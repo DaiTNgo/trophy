@@ -55,6 +55,9 @@ export const defaultCreateProductValues: CreateProductFormValues = {
   handle: "",
   subtitle: { vi: "", en: "" },
   description: { vi: "", en: "" },
+  whyThisProductHtml: { vi: "", en: "" },
+  specificationsHtml: { vi: "", en: "" },
+  shippingHtml: { vi: "", en: "" },
   customizationEnabled: false,
   collection: "",
   categories: [],
@@ -549,6 +552,15 @@ export function useCreateProduct() {
           : {}),
         ...(hasLocalizedTextValue(values.description)
           ? { description: values.description }
+          : {}),
+        ...(hasLocalizedTextValue(values.whyThisProductHtml)
+          ? { whyThisProductHtml: values.whyThisProductHtml }
+          : {}),
+        ...(hasLocalizedTextValue(values.specificationsHtml)
+          ? { specificationsHtml: values.specificationsHtml }
+          : {}),
+        ...(hasLocalizedTextValue(values.shippingHtml)
+          ? { shippingHtml: values.shippingHtml }
           : {}),
       };
 
