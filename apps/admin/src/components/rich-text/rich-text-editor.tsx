@@ -1,8 +1,9 @@
 import { useEditor, EditorContent, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import Image from "@tiptap/extension-image";
 import Link from "@tiptap/extension-link";
+import TextAlign from "@tiptap/extension-text-align";
 import Placeholder from "@tiptap/extension-placeholder";
+import { AlignableImage } from "./alignable-image";
 import { Table } from "@tiptap/extension-table";
 import TableRow from "@tiptap/extension-table-row";
 import TableCell from "@tiptap/extension-table-cell";
@@ -27,6 +28,10 @@ import {
   Redo2,
   Play,
   RemoveFormatting,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  AlignJustify,
 } from "lucide-react";
 import { useCallback, useState, useRef, useMemo, useEffect, type ChangeEvent } from "react";
 import { uploadProductVariantMedia } from "../../lib/product-assets-client";
@@ -145,15 +150,22 @@ export function RichTextEditor({
       StarterKit.configure({
         heading: { levels: [1, 2, 3] },
       }),
-      Image.configure({
+      AlignableImage.configure({
         allowBase64: false,
         inline: false,
+        resize: {
+          enabled: true,
+          alwaysPreserveAspectRatio: true,
+          minWidth: 160,
+          minHeight: 96,
+        },
       }),
       Link.configure({
         openOnClick: false,
         autolink: true,
         defaultProtocol: "https",
       }),
+      TextAlign.configure({ types: ["heading", "paragraph"] }),
       Placeholder.configure({
         placeholder: () => placeholderRef.current,
       }),
@@ -247,8 +259,27 @@ export function RichTextEditor({
     editor?.chain().focus().setYoutubeVideo({ src: url }).run();
   };
 
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const exec = (fn: (e: Editor) => void) => {
     if (editor) fn(editor);
+  };
+
+  const applyAlign = (align: "left" | "center" | "right" | "justify") => {
+    if (!editor) return;
+    if (editor.isActive("image")) {
+      editor.chain().focus().setImageAlign(align).run();
+    } else {
+      editor.chain().focus().setTextAlign(align).run();
+    }
+  };
+
+  const isAlignActive = (align: "left" | "center" | "right" | "justify") => {
+    if (!editor) return false;
+    if (editor.isActive("image")) {
+      return editor.getAttributes("image").align === (align === "justify" ? "center" : align);
+    }
+    return editor.isActive({ textAlign: align });
   };
 
   return (
@@ -297,6 +328,19 @@ export function RichTextEditor({
         <ToolbarButton title="Danh sách đánh số" active={editor?.isActive("orderedList")} onClick={() => exec((e) => e.chain().focus().toggleOrderedList().run())}>
           <ListOrdered className="h-4 w-4" />
         </ToolbarButton>
+        <div className="w-px h-4 bg-ui-border-base mx-1" />
+        <ToolbarButton title="Căn trái" active={isAlignActive("left")} onClick={() => applyAlign("left")}>
+          <AlignLeft className="h-4 w-4" />
+        </ToolbarButton>
+        <ToolbarButton title="Căn giữa" active={isAlignActive("center")} onClick={() => applyAlign("center")}>
+          <AlignCenter className="h-4 w-4" />
+        </ToolbarButton>
+        <ToolbarButton title="Căn phải" active={isAlignActive("right")} onClick={() => applyAlign("right")}>
+          <AlignRight className="h-4 w-4" />
+        </ToolbarButton>
+        <ToolbarButton title="Căn đều" active={isAlignActive("justify")} onClick={() => applyAlign("justify")}>
+          <AlignJustify className="h-4 w-4" />
+        </ToolbarButton>
         <ToolbarButton title="Trích dẫn" active={editor?.isActive("blockquote")} onClick={() => exec((e) => e.chain().focus().toggleBlockquote().run())}>
           <Quote className="h-4 w-4" />
         </ToolbarButton>
@@ -316,14 +360,25 @@ export function RichTextEditor({
         <ToolbarButton title="Video YouTube" onClick={addYouTube}>
           <Play className="h-4 w-4" />
         </ToolbarButton>
-        <label className="cursor-pointer">
-          <Tooltip content={uploading ? "Đang tải lên..." : "Chèn ảnh"}>
-            <IconButton variant="transparent" size="small" type="button" disabled={uploading}>
-              <ImageIcon className="h-4 w-4" />
-            </IconButton>
-          </Tooltip>
-          <input type="file" accept="image/*" className="hidden" onChange={onFileInput} disabled={uploading} />
-        </label>
+        <Tooltip content={uploading ? "Đang tải lên..." : "Chèn ảnh"}>
+          <IconButton
+            variant="transparent"
+            size="small"
+            type="button"
+            disabled={uploading}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <ImageIcon className="h-4 w-4" />
+          </IconButton>
+        </Tooltip>
+        <input
+          type="file"
+          accept="image/*"
+          className="hidden"
+          ref={fileInputRef}
+          onChange={onFileInput}
+          disabled={uploading}
+        />
       </div>
 
       <div className={cn("px-4 py-3", uploading && "opacity-60 pointer-events-none")}>

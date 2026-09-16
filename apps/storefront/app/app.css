@@ -329,6 +329,21 @@ body {
   margin-top: 1em;
 }
 
+.prose-article img.align-center {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.prose-article img.align-right {
+  display: block;
+  margin-left: auto;
+}
+
+.prose-article img.align-left {
+  display: block;
+}
+
 .prose-article a {
   color: var(--brand-support);
   text-decoration: underline;

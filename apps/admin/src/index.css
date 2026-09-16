@@ -123,6 +123,55 @@ body {
   margin-top: 1em;
 }
 
+.prose-article [data-resize-wrapper] {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+}
+
+.prose-article [data-resize-wrapper] img {
+  display: block;
+  max-width: 100%;
+  margin-top: 0;
+}
+
+.prose-article img.align-center {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.prose-article img.align-right {
+  display: block;
+  margin-left: auto;
+}
+
+.prose-article img.align-left {
+  display: block;
+}
+
+/* Inside the editor, images are wrapped in [data-resize-container] (display: flex).
+   Margin auto on img doesn't work because the wrapper shrinks to content width.
+   Use :has() on the flex container to center/right-align the whole wrapper unit. */
+.prose-article [data-resize-container]:has(img.align-center) {
+  justify-content: center;
+}
+
+.prose-article [data-resize-container]:has(img.align-right) {
+  justify-content: flex-end;
+}
+
+.prose-article [data-resize-handle] {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: #3b82f6;
+  border: 1px solid #fff;
+  border-radius: 2px;
+  cursor: nwse-resize;
+  z-index: 10;
+}
+
 .prose-article a {
   color: var(--fg-interactive);
   text-decoration: underline;
