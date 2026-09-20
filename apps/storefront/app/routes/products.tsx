@@ -139,6 +139,8 @@ export default function Products({ loaderData }: Route.ComponentProps) {
         ctaHref: "/products",
       }}
       isLoading={isLoading}
+      hideHero={true}
+      showResultCount={false}
     />
   );
 }

@@ -204,14 +204,12 @@ function ListingFilterSummary({
         : "Bộ sưu tập";
 
   return (
-    <section className="border-b border-border-subtle bg-surface-base py-4">
-      <div className="mx-auto w-full max-w-[1180px] px-4">
-        <div className="mb-3 flex items-center justify-center gap-3">
-          <span className="h-px w-10 bg-border-subtle" />
-          <p className="font-heading text-[18px] uppercase leading-none text-brand-strong">
+    <section className="border-b border-border-subtle bg-surface-base py-5 sm:py-6">
+      <div className="mx-auto w-full max-w-[1280px] px-4">
+        <div className="mb-4 flex items-center justify-center text-center">
+          <h3 className="font-heading text-[20px] sm:text-[23px] font-extrabold uppercase tracking-[0.03em] text-brand-strong">
             {title}
-          </p>
-          <span className="h-px w-10 bg-border-subtle" />
+          </h3>
         </div>
 
         {filters ? (

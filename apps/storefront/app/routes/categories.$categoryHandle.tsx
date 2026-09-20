@@ -45,17 +45,23 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
         backendFetch,
       );
 
+      const categoryTitle =
+        getLocalized(selectedCategory.name, locale) || activeCategory;
+
       const availableCollections = data.availableCollections ?? [];
       const collectionFilters = [
-        { name: locale === "en" ? "All" : "Tất cả", handle: "" },
+        {
+          name:
+            locale === "en"
+              ? `All ${categoryTitle}`
+              : `Tất cả ${categoryTitle}`,
+          handle: "",
+        },
         ...availableCollections.map((col) => ({
           name: getLocalized(col.title, locale) || col.handle,
           handle: col.handle,
         })),
       ];
-
-      const categoryTitle =
-        getLocalized(selectedCategory.name, locale) || activeCategory;
 
       return {
         collectionFilters,

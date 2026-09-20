@@ -64,7 +64,7 @@ export function CategoryProductsListing({
       onPageChange={onPageChange}
       categoryHandle={activeCategory}
       filters={{
-        title: isEnglish ? "Filter by occasion" : "Lọc theo dịp / bộ sưu tập",
+        title: isEnglish ? "Filter By Interest" : "Lọc theo dịp / sở thích",
         categories: collectionFilters,
         activeCategory: activeCollection,
         onSelect: onCollectionSelect,

@@ -80,7 +80,13 @@ export default function CollectionPage({ loaderData }: Route.ComponentProps) {
   };
 
   const categoryOptions = [
-    { name: locale === "en" ? "All" : "Tất cả", handle: "" },
+    {
+      name:
+        locale === "en"
+          ? `All ${collectionTitle}`
+          : `Tất cả ${collectionTitle}`,
+      handle: "",
+    },
     ...availableCategories.map((c) => ({
       name: getLocalized(c.name, locale),
       handle: c.handle,

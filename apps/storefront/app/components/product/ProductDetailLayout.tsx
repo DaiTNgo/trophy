@@ -427,7 +427,6 @@ export function ProductDetailLayout({
           contactHref={selectedVariant?.priceAmount === null ? contactHref : undefined}
         />
           */}
-        <SuggestedProductsSection products={suggestedProducts} locale={locale} />
         <ProductDetailSections
           description={getLocalized(product.description, locale) || ""}
           specs={specs}
@@ -435,6 +434,7 @@ export function ProductDetailLayout({
           specificationsHtml={getLocalized(product.specificationsHtml, locale) || ""}
           shippingHtml={getLocalized(product.shippingHtml, locale) || ""}
         />
+        <SuggestedProductsSection products={suggestedProducts} locale={locale} />
       </Container>
     </div>
   );
