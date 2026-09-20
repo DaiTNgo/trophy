@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { FileImage } from "lucide-react";
+import { FileImage, Trash2 } from "lucide-react";
 import {
   getLayerPixelRect,
   getVisibleLayers,
@@ -42,6 +42,7 @@ export function EditorCanvas({
   onUndoVectorPoint,
   onCloseVectorShape,
   onCancelDraw,
+  onDeleteLayer,
 }: {
   template: CustomizationTemplate;
   selectedLayerId: string;
@@ -59,6 +60,7 @@ export function EditorCanvas({
   onUndoVectorPoint: () => void;
   onCloseVectorShape: () => void;
   onCancelDraw: () => void;
+  onDeleteLayer?: (layerId: string) => void;
 }) {
   const [zoom, setZoom] = useState(0.72);
   const [pan, setPan] = useState<PanState>({ x: 0, y: 0 });
@@ -352,6 +354,7 @@ export function EditorCanvas({
               onEditPath={() => onPathEditingLayerChange(layer.id)}
               onSelectVectorPoint={onSelectVectorPoint}
               onUpdate={(updater) => onUpdateLayer(layer.id, updater)}
+              onDelete={onDeleteLayer ? () => onDeleteLayer(layer.id) : undefined}
             />
           ))}
         </div>
@@ -394,6 +397,7 @@ function CanvasLayer({
   onEditPath,
   onSelectVectorPoint,
   onUpdate,
+  onDelete,
 }: {
   layer: CustomizationLayer;
   background: BackgroundAsset;
@@ -407,6 +411,7 @@ function CanvasLayer({
   onEditPath: () => void;
   onSelectVectorPoint: (pointId: string) => void;
   onUpdate: (updater: (layer: CustomizationLayer) => CustomizationLayer) => void;
+  onDelete?: () => void;
 }) {
   const rect = getLayerPixelRect({ layer, background });
   const closedTextPath = layer.type === "text" && layer.text.path.type === "closed_ellipse";
@@ -496,6 +501,31 @@ function CanvasLayer({
         <VectorPointOverlay layer={layer} selectedPointId={selectedVectorPointId} onSelectPoint={onSelectVectorPoint} onUpdate={onUpdate} />
       ) : null}
       {editing && selected && !layer.locked ? <ResizeHandles layer={layer} background={background} zoom={zoom} onUpdate={onUpdate} /> : null}
+      {editing && selected && !layer.locked && !pathEditing && onDelete ? (
+        <button
+          type="button"
+          aria-label={`Delete layer ${layer.name}`}
+          title="Delete layer"
+          className="absolute z-30 flex size-6 items-center justify-center rounded-full border border-ui-border-base bg-white text-rose-600 shadow-md transition-colors hover:bg-rose-50 hover:text-rose-700 cursor-pointer focus:outline-none focus:ring-2 focus:ring-rose-500"
+          style={{
+            right: 0,
+            bottom: "calc(100% + 8px)",
+            transform: `scale(${1 / zoom})`,
+            transformOrigin: "bottom right",
+          }}
+          onPointerDown={(event) => {
+            event.stopPropagation();
+            event.preventDefault();
+          }}
+          onClick={(event) => {
+            event.stopPropagation();
+            event.preventDefault();
+            onDelete();
+          }}
+        >
+          <Trash2 className="size-3.5" />
+        </button>
+      ) : null}
     </div>
   );
 }

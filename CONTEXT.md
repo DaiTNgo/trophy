@@ -181,6 +181,11 @@ _Avoid_: product type, category hierarchy, internal type
 A storefront browsing group based on the shopper's occasion, audience, sport, industry, or buying intent. It is modeled with product collections rather than categories.
 _Avoid_: product category, product type, tag group
 
+**Cross-Taxonomy Filtering**:
+The storefront browsing and search behavior that allows shoppers to filter products across both Product Category (Shop by Product) and Product Collection (Shop by Interest) simultaneously, maintaining two clean orthogonal axes instead of nesting sub-categories.
+_Avoid_: sub-category tree, nested collection, category hierarchy
+
+
 **Admin Route Surface**:
 The operator-facing backend route surface used by the admin app for management workflows. It owns admin-only catalog, customization, asset, account, draft, and publish interactions.
 _Avoid_: generic product API, internal product routes
@@ -224,6 +229,12 @@ _Avoid_: customization config, editor setup
 **Customization Shape Clipping**:
 The unified geometric masking applied to an Image Shape Layer across storefront preview, admin preview, and raster/PDF production export. Predefined shapes (`rectangle`, `circle`, `rounded_rectangle`, `star`, `heart`, `ellipse`) and custom `vector` shapes clip the user-uploaded or clipart asset to their exact geometric boundary, with `circle` producing an elliptical/circular clip and `rounded_rectangle` producing consistent rounded corners scaled to the layer frame (`radius = Math.min(w, h) * 0.12`). Uploaded media (including images and PDFs) is scaled to `contain` within the bounding box so the entire media is initially visible without being cropped, leaving any empty space transparent.
 _Avoid_: unclipped preview image, rectangular-only image frame, cover scaling, cropping to fill
+**Customization Layer Quick Delete**:
+An on-canvas operator action shown on a selected Customization Layer in the EditorCanvas, allowing instant one-click removal of the layer and its associated form field. It is rendered floating above the layer's top-right corner, maintains a consistent visual scale across canvas zoom levels, and is hidden when the layer is locked, during path editing, or during shape drawing.
+_Avoid_: block delete icon, canvas block remover, delete popup modal
+**Vector Point Deletion Constraint**:
+The geometric rule governing the removal of vertices from closed vector shapes and polygons. To preserve a valid planar area for clipping and rendering, a closed vector path requires a minimum of 3 vertices; the deletion action (via the inspector card or canvas shortcut) is disabled or suppressed when the path reaches 3 points.
+_Avoid_: unbounded point deletion, empty polygon, 2-point polygon
 
 
 **Embedded Product Customization**:

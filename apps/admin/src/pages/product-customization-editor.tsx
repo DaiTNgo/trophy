@@ -216,6 +216,7 @@ function EditorContent({ product, productId, mutate }: { product: CatalogProduct
               onPathEditingLayerChange={setPathEditingLayerId}
               onSelectVectorPoint={setSelectedVectorPointId}
               onUploadBackground={updateBackground}
+              onDeleteLayer={deleteSelectedLayer}
             />
             <Inspector
               template={template}
@@ -225,6 +226,7 @@ function EditorContent({ product, productId, mutate }: { product: CatalogProduct
               onUpdateLayer={updateLayer}
               onPathEditingLayerChange={setPathEditingLayerId}
               onUpdateTemplate={updateTemplate}
+              onSelectVectorPoint={setSelectedVectorPointId}
             />
           </div>
           {previewOpen && (
