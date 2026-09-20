@@ -5,6 +5,18 @@ export function useCategoryListingNavigation(categoryHandle: string) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
+  const selectCollection = (collectionHandle: string) => {
+    const nextSearchParams = new URLSearchParams(searchParams);
+    if (collectionHandle) {
+      nextSearchParams.set("collection", collectionHandle);
+    } else {
+      nextSearchParams.delete("collection");
+    }
+    nextSearchParams.delete("page");
+    const qs = nextSearchParams.toString();
+    navigate(`${getCategoryPath(categoryHandle)}${qs ? `?${qs}` : ""}`);
+  };
+
   const selectCategory = (nextCategoryHandle: string) => {
     navigate(
       nextCategoryHandle ? getCategoryPath(nextCategoryHandle) : "/products",
@@ -21,6 +33,7 @@ export function useCategoryListingNavigation(categoryHandle: string) {
   };
 
   return {
+    selectCollection,
     selectCategory,
     changePage,
   };

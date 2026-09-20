@@ -1,5 +1,8 @@
 import { CategoryProductsPage as CategoryProductsPageView } from "@/components/categories/CategoryProductsPage";
-import { fetchStorefrontCategories, fetchStorefrontProducts } from "../lib/api";
+import {
+  fetchStorefrontCategories,
+  fetchStorefrontCategoryProducts,
+} from "../lib/api";
 import { getLocale } from "../i18n.server";
 import { withStorefrontLoaderLog } from "../lib/observability";
 import { getBackendServiceFetch } from "../lib/backend-fetch.server";
@@ -15,25 +18,14 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
       const backendFetch = getBackendServiceFetch(context);
       const url = new URL(request.url);
       const currentPage = Number(url.searchParams.get("page")) || 1;
+      const activeCollection = url.searchParams.get("collection") || "";
       const activeCategory = params.categoryHandle;
 
-      const apiCategories = await fetchStorefrontCategories(locale, backendFetch).catch(
-        () => [],
-      );
-      const data = await fetchStorefrontProducts({
-        category: activeCategory,
-        page: currentPage,
-        limit: 24,
+      const apiCategories = await fetchStorefrontCategories(
         locale,
-      }, backendFetch);
+        backendFetch,
+      ).catch(() => []);
 
-      const allCategories = [
-        { name: locale === "en" ? "All" : "Tất cả", handle: "" },
-        ...apiCategories.map((category) => ({
-          name: getLocalized(category.name, locale),
-          handle: category.handle,
-        })),
-      ];
       const selectedCategory =
         apiCategories.find((category) => category.handle === activeCategory) ??
         null;
@@ -42,11 +34,32 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
         throw new Response("Not Found", { status: 404 });
       }
 
+      const data = await fetchStorefrontCategoryProducts(
+        activeCategory,
+        {
+          collection: activeCollection || undefined,
+          page: currentPage,
+          limit: 24,
+          locale,
+        },
+        backendFetch,
+      );
+
+      const availableCollections = data.availableCollections ?? [];
+      const collectionFilters = [
+        { name: locale === "en" ? "All" : "Tất cả", handle: "" },
+        ...availableCollections.map((col) => ({
+          name: getLocalized(col.title, locale) || col.handle,
+          handle: col.handle,
+        })),
+      ];
+
       const categoryTitle =
         getLocalized(selectedCategory.name, locale) || activeCategory;
 
       return {
-        categories: allCategories,
+        collectionFilters,
+        activeCollection,
         selectedCategory,
         categoryTitle,
         products: data.items,

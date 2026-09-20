@@ -139,7 +139,7 @@ export function useCreateProduct() {
   const [values, setValues] = useState<CreateProductFormValues>(
     defaultCreateProductValues,
   );
-  const [selectedCollectionId, setSelectedCollectionId] = useState<string>("");
+  const [selectedCollectionIds, setSelectedCollectionIds] = useState<string[]>([]);
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
   const [selectedPreviewAssetId, setSelectedPreviewAssetId] = useState<
     string | null
@@ -563,9 +563,7 @@ export function useCreateProduct() {
         mode,
         details: submittedDetails,
         organization: {
-          collectionId: selectedCollectionId
-            ? Number(selectedCollectionId)
-            : null,
+          collectionIds: selectedCollectionIds.map((id) => Number(id)),
           categoryIds: selectedCategoryIds.map((id) => Number(id)),
         },
         attributes: attributes
@@ -1051,7 +1049,7 @@ export function useCreateProduct() {
     metadata,
     isLoadingMetadata,
     values,
-    selectedCollectionId,
+    selectedCollectionIds,
     selectedCategoryIds,
     selectedPreviewAssetId,
     embeddedCustomization,
@@ -1083,7 +1081,7 @@ export function useCreateProduct() {
     // Actions
     setValues,
     setValue,
-    setSelectedCollectionId,
+    setSelectedCollectionIds,
     setSelectedCategoryIds,
     setSelectedPreviewAssetId,
     setEmbeddedCustomization,

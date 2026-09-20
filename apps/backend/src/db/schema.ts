@@ -167,7 +167,6 @@ export const products = sqliteTable(
     handle: text("handle").notNull(),
     description: text("description"),
     status: text("status").notNull().default("draft"),
-    collectionId: integer("collection_id"),
     thumbnailAssetId: text("thumbnail_asset_id"),
     hoverAssetId: text("hover_asset_id"),
     createdAt: text("created_at")
@@ -181,6 +180,15 @@ export const products = sqliteTable(
     deletedAt: text("deleted_at"),
   },
   (table) => [uniqueIndex("products_handle_idx").on(table.handle)],
+);
+
+export const productCollectionLinks = sqliteTable(
+  "product_collection_links",
+  {
+    productId: integer("product_id").notNull(),
+    collectionId: integer("collection_id").notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.productId, table.collectionId] })],
 );
 
 export const productCategoryLinks = sqliteTable(

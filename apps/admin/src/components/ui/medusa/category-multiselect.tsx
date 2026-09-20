@@ -15,10 +15,16 @@ export function CategoryMultiSelect({
   values,
   options,
   onChange,
+  placeholder = "Select categories",
+  searchPlaceholder = "Search categories...",
+  emptyText = "No categories found",
 }: {
   values: string[];
   options: Array<string | CategoryOption>;
   onChange: (categories: string[]) => void;
+  placeholder?: string;
+  searchPlaceholder?: string;
+  emptyText?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -47,7 +53,7 @@ export function CategoryMultiSelect({
               {values.length} selected
             </span>
           ) : (
-            <span className="text-ui-fg-muted">Select categories</span>
+            <span className="text-ui-fg-muted">{placeholder}</span>
           )}
           <ChevronDown className="size-4 text-ui-fg-muted" />
         </button>
@@ -62,7 +68,7 @@ export function CategoryMultiSelect({
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search categories..."
+            placeholder={searchPlaceholder}
             className="w-full bg-transparent text-sm text-ui-fg-base outline-none placeholder:text-ui-fg-muted"
           />
         </div>
@@ -74,7 +80,7 @@ export function CategoryMultiSelect({
           {filtered.length === 0 ? (
             <div className="px-3 py-6 text-center">
               <Text size="small" className="text-ui-fg-muted">
-                No categories found
+                {emptyText}
               </Text>
             </div>
           ) : (

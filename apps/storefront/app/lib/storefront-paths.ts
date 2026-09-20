@@ -2,6 +2,10 @@ export function getCategoryPath(categoryHandle: string) {
   return `/categories/${encodeURIComponent(categoryHandle)}`;
 }
 
+export function getCollectionPath(collectionHandle: string) {
+  return `/collections/${encodeURIComponent(collectionHandle)}`;
+}
+
 export function getGenericProductPath(productHandle: string) {
   return `/product/${encodeURIComponent(productHandle)}`;
 }

@@ -17,6 +17,19 @@ describe("storefront search normalization", () => {
   it("requires every search term to be present", () => {
     expect(matchesSearchQuery(["Áo khoác mùa đông"], "áo hè")).toBe(false);
   });
+
+  it("matches search query when product belongs to a collection with matching name", () => {
+    const productDataWithCollections = [
+      "Cúp vô địch",
+      "Hàng cao cấp",
+      "cup-vo-dich",
+      "Cúp", // category
+      "Bóng đá", // collection
+    ];
+    expect(matchesSearchQuery(productDataWithCollections, "bóng đá")).toBe(true);
+    expect(matchesSearchQuery(productDataWithCollections, "cúp bóng đá")).toBe(true);
+    expect(matchesSearchQuery(productDataWithCollections, "bóng rổ")).toBe(false);
+  });
 });
 
 const baseItem = {

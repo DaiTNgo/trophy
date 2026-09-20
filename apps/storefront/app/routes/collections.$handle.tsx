@@ -13,12 +13,14 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
     const backendFetch = getBackendServiceFetch(context);
     const url = new URL(request.url);
     const currentPage = Number(url.searchParams.get("page")) || 1;
+    const currentCategory = url.searchParams.get("category") || "";
 
     const [data, collections] = await Promise.all([
       fetchStorefrontCollectionProducts(params.handle, {
         page: currentPage,
         limit: 24,
         locale,
+        category: currentCategory || undefined,
       }, backendFetch),
       fetchStorefrontCollections(locale, backendFetch).catch(() => []),
     ]);
@@ -28,6 +30,8 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
       collectionHandle: params.handle,
       collection,
       products: data.items,
+      availableCategories: data.availableCategories ?? [],
+      activeCategory: currentCategory,
       currentPage: data.page,
       totalPages: Math.max(1, Math.ceil(data.total / data.limit)),
       totalItems: data.total,
@@ -37,7 +41,17 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
 }
 
 export default function CollectionPage({ loaderData }: Route.ComponentProps) {
-  const { collectionHandle, collection, products, currentPage, totalPages, totalItems, locale } = loaderData;
+  const {
+    collectionHandle,
+    collection,
+    products,
+    availableCategories,
+    activeCategory,
+    currentPage,
+    totalPages,
+    totalItems,
+    locale,
+  } = loaderData;
   const [, setSearchParams] = useSearchParams();
   const fallbackTitle = collectionHandle.replace(/-/g, " ");
   const collectionTitle = getLocalized(collection?.title, locale) || fallbackTitle;
@@ -48,20 +62,45 @@ export default function CollectionPage({ loaderData }: Route.ComponentProps) {
       prev.set("page", page.toString());
       return prev;
     });
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
   };
+
+  const handleCategorySelect = (categoryHandle: string) => {
+    setSearchParams((prev) => {
+      if (categoryHandle) {
+        prev.set("category", categoryHandle);
+      } else {
+        prev.delete("category");
+      }
+      prev.set("page", "1");
+      return prev;
+    });
+  };
+
+  const categoryOptions = [
+    { name: locale === "en" ? "All" : "Tất cả", handle: "" },
+    ...availableCategories.map((c) => ({
+      name: getLocalized(c.name, locale),
+      handle: c.handle,
+    })),
+  ];
 
   return (
     <ProductListingShell
       breadcrumbs={[
-        { label: "Trang chủ", href: "/" },
-        { label: "Sản phẩm", href: "/products" },
+        { label: locale === "en" ? "Home" : "Trang chủ", href: "/" },
+        { label: locale === "en" ? "Products" : "Sản phẩm", href: "/products" },
         { label: collectionTitle },
       ]}
-      eyebrow="Bộ sưu tập"
+      eyebrow={locale === "en" ? "Collection" : "Bộ sưu tập"}
       title={collectionTitle}
       description={
         collectionDescription ||
-        "Trang bộ sưu tập dùng cùng listing UI với danh mục sản phẩm, nhưng tập trung vào nhóm sản phẩm theo chủ đề hoặc chiến dịch merch cụ thể."
+        (locale === "en"
+          ? "Browse specialized products and awards in this collection."
+          : "Khám phá các mẫu cúp, bảng vinh danh và tặng phẩm vinh danh trong bộ sưu tập này.")
       }
       featuredImageSrc={collection?.imageUrl ?? products[0]?.thumbnail}
       featuredImageAlt={collectionTitle}
@@ -71,10 +110,22 @@ export default function CollectionPage({ loaderData }: Route.ComponentProps) {
       currentPage={currentPage}
       totalPages={totalPages}
       onPageChange={handlePageChange}
+      filters={
+        availableCategories.length > 0
+          ? {
+              categories: categoryOptions,
+              activeCategory,
+              onSelect: handleCategorySelect,
+            }
+          : undefined
+      }
       emptyState={{
-        title: "Bộ sưu tập đang trống",
-        description: "Chưa có sản phẩm khả dụng trong bộ sưu tập này. Hãy quay lại trang sản phẩm để xem toàn bộ catalog đang mở bán.",
-        ctaLabel: "Xem tất cả sản phẩm",
+        title: locale === "en" ? "Collection is empty" : "Bộ sưu tập đang trống",
+        description:
+          locale === "en"
+            ? "No products found for the selected category. Check out our other categories or view the full catalog."
+            : "Chưa có sản phẩm khả dụng cho mục đã chọn. Hãy chọn danh mục khác hoặc quay lại trang sản phẩm để xem toàn bộ catalog.",
+        ctaLabel: locale === "en" ? "View all products" : "Xem tất cả sản phẩm",
         ctaHref: "/products",
       }}
     />

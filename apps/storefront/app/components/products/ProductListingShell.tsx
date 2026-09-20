@@ -41,6 +41,7 @@ type ProductListingShellProps = {
   onPageChange: (page: number) => void;
   categoryHandle?: string | null;
   filters?: {
+    title?: string;
     categories: CategoryOption[];
     activeCategory?: string;
     onSelect: (categoryHandle: string) => void;
@@ -52,6 +53,8 @@ type ProductListingShellProps = {
     ctaHref: string;
   };
   isLoading?: boolean;
+  hideHero?: boolean;
+  showResultCount?: boolean;
 };
 
 type ListingFilterConfig = NonNullable<ProductListingShellProps["filters"]>;
@@ -183,18 +186,22 @@ function ListingFilterSummary({
   filters,
   resultLabel,
   locale,
+  showResultCount = false,
 }: {
   filters?: ListingFilterConfig;
   resultLabel: string;
   locale: string;
+  showResultCount?: boolean;
 }) {
-  const title = filters
-    ? locale === "en"
-      ? "Filter by product"
-      : "Lọc theo sản phẩm"
-    : locale === "en"
-      ? "Collection"
-      : "Bộ sưu tập";
+  const title = filters?.title
+    ? filters.title
+    : filters
+      ? locale === "en"
+        ? "Filter by product"
+        : "Lọc theo sản phẩm"
+      : locale === "en"
+        ? "Collection"
+        : "Bộ sưu tập";
 
   return (
     <section className="border-b border-border-subtle bg-surface-base py-4">
@@ -215,9 +222,11 @@ function ListingFilterSummary({
           />
         ) : null}
 
-        <p className="mt-3 text-center font-body-md text-[11px] font-semibold uppercase tracking-[0.08em] text-text-muted">
-          {resultLabel}
-        </p>
+        {showResultCount ? (
+          <p className="mt-3 text-center font-body-md text-[11px] font-semibold uppercase tracking-[0.08em] text-text-muted">
+            {resultLabel}
+          </p>
+        ) : null}
       </div>
     </section>
   );
@@ -419,6 +428,8 @@ export function ProductListingShell({
   filters,
   emptyState,
   isLoading = false,
+  hideHero = false,
+  showResultCount = false,
 }: ProductListingShellProps) {
   const heroImage = featuredImageSrc ?? products[0]?.thumbnail ?? null;
   const resultLabel =
@@ -429,20 +440,25 @@ export function ProductListingShell({
   return (
     <div className="min-h-screen bg-surface-base text-text-base">
       <main>
-        {/*<ListingHero
-          breadcrumbs={breadcrumbs}
-          eyebrow={eyebrow}
-          title={title}
-          description={description}
-          imageSrc={heroImage}
-          imageAlt={featuredImageAlt ?? title}
-        />
-        <ListingTrustBar />
+        {!hideHero ? (
+          <>
+            <ListingHero
+              breadcrumbs={breadcrumbs}
+              eyebrow={eyebrow}
+              title={title}
+              description={description}
+              imageSrc={heroImage}
+              imageAlt={featuredImageAlt ?? title}
+            />
+            <ListingTrustBar />
+          </>
+        ) : null}
         <ListingFilterSummary
           filters={filters}
           resultLabel={resultLabel}
           locale={locale}
-        />*/}
+          showResultCount={showResultCount}
+        />
         <ListingResults
           products={products}
           locale={locale}

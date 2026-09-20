@@ -29,6 +29,8 @@ type ApiProduct = {
   status: "draft" | "published" | "archived" | "proposed" | "rejected";
   categories: Array<{ id: number; name: LocalizedInput }>;
   collection: { id: number; title: LocalizedInput } | null;
+  collections?: Array<{ id: number; title: LocalizedInput }>;
+  collectionIds?: number[];
   attributes: Array<{ name: LocalizedInput; value: LocalizedInput }>;
   thumbnailAssetId?: string | null;
   hoverAssetId?: string | null;
@@ -133,6 +135,7 @@ export type CreateFullProductPayload = {
     description?: LocalizedInput | null;
   };
   organization: {
+    collectionIds?: number[];
     collectionId?: number | null;
     categoryIds?: number[];
   };
@@ -294,6 +297,7 @@ export async function updateProductOverview(id: string, payload: {
 }
 
 export async function updateProductOrganization(id: string, payload: {
+  collectionIds?: number[];
   collectionId?: number | null;
   categoryIds?: number[];
 }) {
@@ -951,6 +955,8 @@ export function mapApiProductToCatalogProduct(product: Partial<ApiProduct> & Pic
     category: toLocalized(product.categories?.[0]?.name).vi,
     collection: toLocalized(product.collection?.title).vi,
     collectionId: product.collection?.id ?? null,
+    collections: (product.collections || []).map((c) => toLocalized(c.title).vi),
+    collectionIds: product.collectionIds ?? (product.collections || []).map((c) => c.id),
     categories: (product.categories || []).map((c) => toLocalized(c.name).vi),
     categoryIds: (product.categories || []).map((c) => c.id),
     media: (product.media || []).map((media) => ({

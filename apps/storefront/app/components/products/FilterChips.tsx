@@ -105,29 +105,31 @@ export function FilterChips({
 
       <div
         ref={scrollerRef}
-        className="flex items-center gap-2 overflow-x-auto scroll-smooth"
+        className="flex items-center overflow-x-auto scroll-smooth"
         style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
       >
-        {categories.map((cat) => {
-          const isActive =
-            activeCategory === cat.handle ||
-            (!activeCategory && cat.handle === "");
+        <div className="mx-auto flex min-w-max items-center justify-center gap-2 px-2 py-1">
+          {categories.map((cat) => {
+            const isActive =
+              activeCategory === cat.handle ||
+              (!activeCategory && cat.handle === "");
 
-          return (
-            <button
-              key={cat.handle || "all"}
-              type="button"
-              onClick={() => onSelect?.(cat.handle)}
-              className={`shrink-0 rounded-full border px-4 py-1.5 font-label-md text-[10px] font-bold uppercase tracking-[0.08em] transition-colors ${
-                isActive
-                  ? "border-brand-strong bg-brand-strong text-white"
-                  : "border-border-subtle bg-surface-subtle text-brand-strong hover:border-brand-support hover:text-brand-support"
-              }`}
-            >
-              {cat.name}
-            </button>
-          );
-        })}
+            return (
+              <button
+                key={cat.handle || "all"}
+                type="button"
+                onClick={() => onSelect?.(cat.handle)}
+                className={`shrink-0 rounded-full border px-4 py-1.5 font-label-md text-[10px] font-bold uppercase tracking-[0.08em] transition-colors ${
+                  isActive
+                    ? "border-brand-strong bg-brand-strong text-white"
+                    : "border-border-subtle bg-surface-subtle text-brand-strong hover:border-brand-support hover:text-brand-support"
+                }`}
+              >
+                {cat.name}
+              </button>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

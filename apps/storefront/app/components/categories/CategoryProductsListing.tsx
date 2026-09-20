@@ -3,7 +3,8 @@ import type { StorefrontProductItem } from "@/lib/api";
 import type { CategoryOption } from "@/components/products/FilterChips";
 
 type CategoryProductsListingProps = {
-  categories: CategoryOption[];
+  collectionFilters: CategoryOption[];
+  activeCollection?: string;
   selectedCategory: {
     name: unknown;
     description: unknown;
@@ -18,13 +19,14 @@ type CategoryProductsListingProps = {
   totalPages: number;
   totalItems: number;
   locale: string;
-  onCategorySelect: (categoryHandle: string) => void;
+  onCollectionSelect: (collectionHandle: string) => void;
   onPageChange: (page: number) => void;
   isLoading?: boolean;
 };
 
 export function CategoryProductsListing({
-  categories,
+  collectionFilters,
+  activeCollection,
   selectedCategory,
   categoryTitle,
   listingDescription,
@@ -35,7 +37,7 @@ export function CategoryProductsListing({
   totalPages,
   totalItems,
   locale,
-  onCategorySelect,
+  onCollectionSelect,
   onPageChange,
   isLoading = false,
 }: CategoryProductsListingProps) {
@@ -62,19 +64,24 @@ export function CategoryProductsListing({
       onPageChange={onPageChange}
       categoryHandle={activeCategory}
       filters={{
-        categories,
-        activeCategory,
-        onSelect: onCategorySelect,
+        title: isEnglish ? "Filter by occasion" : "Lọc theo dịp / bộ sưu tập",
+        categories: collectionFilters,
+        activeCategory: activeCollection,
+        onSelect: onCollectionSelect,
       }}
       emptyState={{
         title: isEnglish ? "No products found" : "Chưa có sản phẩm phù hợp",
         description: isEnglish
-          ? "Try another category or return to the full catalog."
-          : "Hãy thử danh mục khác hoặc quay lại toàn bộ catalog sản phẩm.",
-        ctaLabel: isEnglish ? "View all products" : "Xem tất cả sản phẩm",
-        ctaHref: "/products",
+          ? "Try another collection or clear the filter to view all products in this category."
+          : "Hãy thử bộ sưu tập khác hoặc xóa bộ lọc để xem tất cả sản phẩm trong danh mục này.",
+        ctaLabel: isEnglish
+          ? "View all in this category"
+          : "Xem tất cả trong danh mục này",
+        ctaHref: `/categories/${activeCategory}`,
       }}
       isLoading={isLoading}
+      hideHero={true}
+      showResultCount={false}
     />
   );
 }

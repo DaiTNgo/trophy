@@ -8,6 +8,7 @@ import {
   productCategoryLinks,
   productAttributes,
   productCollections,
+  productCollectionLinks,
   productCustomizations,
   productOptionValues,
   productOptions,
@@ -109,14 +110,14 @@ const nowIso = () => new Date().toISOString()
 const validateOrganizeReferences = async (
   db: ReturnType<typeof getDb>,
   input: {
-    collectionId?: number | null
+    collectionIds?: number[]
     categoryIds?: number[]
   }
 ) => {
-  if (input.collectionId) {
-    const count = await getRelatedCount(db, productCollections, [input.collectionId])
-    if (count !== 1) {
-      return 'Collection not found'
+  if (input.collectionIds && input.collectionIds.length > 0) {
+    const count = await getRelatedCount(db, productCollections, input.collectionIds)
+    if (count !== input.collectionIds.length) {
+      return 'One or more collections were not found'
     }
   }
 
@@ -349,8 +350,7 @@ export const productCommandRoute = new Hono<AppEnv>()
           (typeof parsed.output.details.description === 'string'
             ? parsed.output.details.description
             : parsed.output.details.description?.vi) ?? null,
-        status: 'draft',
-        collectionId: parsed.output.organization.collectionId ?? null
+        status: 'draft'
       })
       .returning()
       .get()
@@ -363,6 +363,16 @@ export const productCommandRoute = new Hono<AppEnv>()
     }
     if (parsed.output.details.description) {
       queueFullCreateTranslations(translations, 'product', String(insertedProduct.id), 'description', parsed.output.details.description)
+    }
+
+    const collectionIds = [...new Set(parsed.output.organization.collectionIds ?? [])]
+    if (collectionIds.length > 0) {
+      await db.insert(productCollectionLinks).values(
+        collectionIds.map((collectionId) => ({
+          productId: insertedProduct.id,
+          collectionId
+        }))
+      )
     }
 
     let categoryIds = [...new Set(parsed.output.organization.categoryIds ?? [])]
@@ -641,13 +651,22 @@ export const productCommandRoute = new Hono<AppEnv>()
     await db
       .update(products)
       .set({
-        collectionId:
-          parsed.output.collectionId !== undefined
-            ? (parsed.output.collectionId ?? null)
-            : current.collectionId,
         updatedAt: nowIso()
       })
       .where(eq(products.id, current.id))
+
+    if (parsed.output.collectionIds !== undefined) {
+      const collectionIds = [...new Set(parsed.output.collectionIds)]
+      await db.delete(productCollectionLinks).where(eq(productCollectionLinks.productId, current.id))
+      if (collectionIds.length > 0) {
+        await db.insert(productCollectionLinks).values(
+          collectionIds.map((collectionId) => ({
+            productId: current.id,
+            collectionId
+          }))
+        )
+      }
+    }
 
     if (parsed.output.categoryIds !== undefined) {
       const currentCustomization = await db

@@ -8,7 +8,6 @@ const nullableText = (max = 65535) =>
   v.optional(v.nullable(v.pipe(v.string(), v.trim(), v.maxLength(max), v.transform((value) => value.length === 0 ? null : value))))
 
 const optionalHandle = v.optional(v.nullable(v.pipe(v.string(), v.trim(), v.maxLength(255), v.transform((value) => value.length === 0 ? null : value))))
-const optionalId = v.optional(v.nullable(v.pipe(v.number(), v.integer(), v.minValue(1))))
 const positiveIntParam = v.pipe(v.string(), v.transform(Number), v.number(), v.integer(), v.minValue(1))
 
 export const idParamsSchema = v.object({ id: positiveIntParam })
@@ -42,7 +41,10 @@ export const createProductSchema = v.object({
   priceAmount: v.optional(v.nullable(v.pipe(v.number(), v.integer(), v.minValue(0))))
 })
 export const updateProductSchema = v.object({ title: v.optional(localizedString(1, 200)), subtitle: optionalLocalizedNullableText(255), handle: optionalHandle, description: optionalLocalizedNullableText() })
-export const organizeSchema = v.object({ collectionId: optionalId, categoryIds: v.optional(v.array(v.pipe(v.number(), v.integer(), v.minValue(1)))) })
+export const organizeSchema = v.object({
+  collectionIds: v.optional(v.array(v.pipe(v.number(), v.integer(), v.minValue(1)))),
+  categoryIds: v.optional(v.array(v.pipe(v.number(), v.integer(), v.minValue(1))))
+})
 export const attributesSchema = v.object({ items: v.array(v.object({ name: localizedString(1, 120), value: localizedString(1, 255), unit: nullableText(50) })) })
 const variantAttributesSchema = v.array(v.object({ name: localizedString(1, 120), value: localizedString(1, 255), unit: nullableText(50) }))
 
@@ -85,7 +87,10 @@ export const productListingMediaSchema = v.pipe(
 export const fullCreateCustomizationSchema = v.object({ enabled: v.boolean(), canvasWidthPx: v.optional(v.nullable(v.pipe(v.number(), v.integer(), v.minValue(1)))), canvasHeightPx: v.optional(v.nullable(v.pipe(v.number(), v.integer(), v.minValue(1)))), layers: v.pipe(v.array(v.unknown()), v.maxLength(200)), formFields: v.pipe(v.array(v.unknown()), v.maxLength(200)) })
 export const customizationTemplateSchema = v.object({ layers: v.pipe(v.array(v.unknown()), v.maxLength(200)), formFields: v.pipe(v.array(v.unknown()), v.maxLength(200)) })
 export const customizationRepairSchema = v.object({ variantIds: v.array(v.pipe(v.number(), v.integer(), v.minValue(1))) })
-const fullCreateOrganizationSchema = v.object({ collectionId: optionalId, categoryIds: v.optional(v.array(v.pipe(v.number(), v.integer(), v.minValue(1)))) })
+const fullCreateOrganizationSchema = v.object({
+  collectionIds: v.optional(v.array(v.pipe(v.number(), v.integer(), v.minValue(1)))),
+  categoryIds: v.optional(v.array(v.pipe(v.number(), v.integer(), v.minValue(1))))
+})
 export const fullCreateProductSchema = v.object({
   mode: v.union([v.literal('draft'), v.literal('publish')]),
   details: v.object({ title: localizedString(1, 200), subtitle: optionalLocalizedNullableText(255), handle: optionalHandle, description: optionalLocalizedNullableText() }),

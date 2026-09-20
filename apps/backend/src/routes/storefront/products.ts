@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, isNull, sql } from 'drizzle-orm'
+import { and, asc, desc, eq, inArray, isNull, or, sql } from 'drizzle-orm'
 import { Hono, type Context } from 'hono'
 import { makeCustomizationUrlsAbsolute, toAbsoluteAssetUrl } from '../../lib/url'
 import * as v from 'valibot'
@@ -17,6 +17,8 @@ import {
   customizationClipartCategories,
   productCategories,
   productCategoryLinks,
+  productCollections,
+  productCollectionLinks,
   productMedia,
   productCustomizations,
   productOptions,
@@ -46,6 +48,7 @@ const storefrontListingQuerySchema = v.object({
   locale: v.optional(localeSchema, DEFAULT_LOCALE),
   q: optionalQueryText,
   category: optionalQueryText,
+  collection: optionalQueryText,
   page: v.optional(
     v.pipe(
       v.string(),
@@ -266,6 +269,20 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
       )
     }
 
+    if (parsedQuery.output.collection) {
+      conditions.push(
+        sql`exists (
+          select 1
+          from ${productCollectionLinks}
+          inner join ${productCollections}
+            on ${productCollections.id} = ${productCollectionLinks.collectionId}
+          where ${productCollectionLinks.productId} = ${products.id}
+            and ${productCollections.handle} = ${parsedQuery.output.collection}
+            and (${productCollections.visibility} = 'public' or ${productCollections.visibility} is null)
+        )`
+      )
+    }
+
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined
     type ListingQueryItem = {
       id: number
@@ -340,6 +357,36 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
         categoriesByProductId.set(category.productId, values)
       }
 
+      const collectionRows = candidates.length > 0
+        ? await db
+            .select({
+              productId: productCollectionLinks.productId,
+              collectionId: productCollections.id,
+              title: productCollections.title,
+              handle: productCollections.handle
+            })
+            .from(productCollectionLinks)
+            .innerJoin(productCollections, eq(productCollectionLinks.collectionId, productCollections.id))
+            .where(and(
+              inArray(productCollectionLinks.productId, candidates.map((item) => item.id)),
+              or(eq(productCollections.visibility, 'public'), isNull(productCollections.visibility))
+            ))
+        : []
+      const hydratedCollections = await hydrateTranslations(
+        db,
+        'product_collection',
+        collectionRows,
+        (item) => String(item.collectionId),
+        [{ fieldName: 'title', objectKey: 'title' }],
+        [{ fieldName: 'title', objectKey: 'title' }]
+      )
+      const collectionsByProductId = new Map<number, unknown[]>()
+      for (const col of hydratedCollections) {
+        const values = collectionsByProductId.get(col.productId) ?? []
+        values.push(col.title, col.handle)
+        collectionsByProductId.set(col.productId, values)
+      }
+
       const matchingCandidates = candidates.filter((candidate) => {
         const localized = hydratedById.get(candidate.id)
         return matchesSearchQuery(
@@ -347,7 +394,8 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
             localized?.title,
             localized?.subtitle,
             candidate.handle,
-            ...(categoriesByProductId.get(candidate.id) ?? [])
+            ...(categoriesByProductId.get(candidate.id) ?? []),
+            ...(collectionsByProductId.get(candidate.id) ?? [])
           ],
           parsedQuery.output.q as string
         )

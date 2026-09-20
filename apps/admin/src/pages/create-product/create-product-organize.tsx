@@ -1,5 +1,4 @@
-import { XMarkMini } from "@medusajs/icons";
-import { Heading, IconButton, Label, Select, Text } from "@medusajs/ui";
+import { Heading, Label, Text } from "@medusajs/ui";
 import type { ReactNode } from "react";
 import { CategoryMultiSelect } from "../../components/ui/medusa/category-multiselect";
 import type { useCreateProduct } from "./use-create-product";
@@ -22,9 +21,8 @@ function OptionalFormLabel({ children }: { children: ReactNode }) {
 export function CreateProductOrganize({ state }: CreateProductOrganizeProps) {
   const {
     metadata,
-    isLoadingMetadata,
-    selectedCollectionId,
-    setSelectedCollectionId,
+    selectedCollectionIds,
+    setSelectedCollectionIds,
     selectedCategoryIds,
     setSelectedCategoryIds,
   } = state;
@@ -41,45 +39,18 @@ export function CreateProductOrganize({ state }: CreateProductOrganizeProps) {
 
       <div className="grid gap-5 md:grid-cols-1">
         <div className="space-y-2">
-          <OptionalFormLabel>Collection (Shop by Interest)</OptionalFormLabel>
-          <div className="flex items-center gap-x-2">
-            <div className="min-w-0 flex-1">
-              <Select
-                value={selectedCollectionId}
-                onValueChange={setSelectedCollectionId}
-                disabled={isLoadingMetadata}
-              >
-                <Select.Trigger>
-                  <Select.Value
-                    placeholder={
-                      isLoadingMetadata
-                        ? "Loading collections..."
-                        : "Select collection"
-                    }
-                  />
-                </Select.Trigger>
-                <Select.Content>
-                  {metadata.collections.map((option) => (
-                    <Select.Item key={option.id} value={String(option.id)}>
-                      {option.label}
-                    </Select.Item>
-                  ))}
-                </Select.Content>
-              </Select>
-            </div>
-            {selectedCollectionId ? (
-              <IconButton
-                type="button"
-                variant="transparent"
-                size="small"
-                onClick={() => setSelectedCollectionId("")}
-                disabled={isLoadingMetadata}
-                aria-label="Clear collection"
-              >
-                <XMarkMini />
-              </IconButton>
-            ) : null}
-          </div>
+          <OptionalFormLabel>Collections (Shop by Interest)</OptionalFormLabel>
+          <CategoryMultiSelect
+            values={selectedCollectionIds}
+            options={metadata.collections.map((option) => ({
+              value: String(option.id),
+              label: option.label,
+            }))}
+            onChange={setSelectedCollectionIds}
+            placeholder="Select collections"
+            searchPlaceholder="Search collections..."
+            emptyText="No collections found"
+          />
           <Text size="small" className="text-ui-fg-subtle">
             Used for merchandising groupings like occasions or audiences.
           </Text>

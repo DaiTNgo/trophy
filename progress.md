@@ -2,6 +2,42 @@
 
 ## Current Session
 
+- 2026-09-20: **Implemented Many-to-Many Collections, Two-Way Cross-Taxonomy Filtering & Dynamic Facets.**
+  - Background & Architecture:
+    - Analyzed TrophySmack live model and domain requirements: instead of deep rigid hierarchical sub-categories, Trophy uses orthogonal 2-axis taxonomy: Category ("Shop by Product": Trophies, Belts, Plaques, Medals) and Collection ("Shop by Interest": Football, Corporate, Golf, etc.).
+    - Created ADR `docs/adr/0019-many-to-many-product-collections.md` and updated `CONTEXT.md` with `Cross-Taxonomy Filtering`.
+    - Symmetric Filtering:
+      - Collection page (`/collections/:handle` - Shop by Interest) filters by `availableCategories` (Loại sản phẩm: Cúp, Huy chương, Giấy khen...).
+      - Category page (`/categories/:handle` - Shop by Product) filters by `availableCollections` (Dịp/Chủ đề: Bóng đá, Golf, Doanh nghiệp...).
+  - Backend:
+    - Schema: Added `productCollectionLinks` table (`apps/backend/src/db/schema.ts`) and removed single `collectionId` from `products`.
+    - Admin Routes: Updated `product-schemas.ts`, `product-command-route.ts`, `product-reader.ts`, `product-query-route.ts`, and `product-metadata.ts` to manage many-to-many collection links via `collectionIds`.
+    - Storefront Routes:
+      - `apps/backend/src/routes/storefront/collections.ts`: Added `category` filter parameter to `GET /:handle/products`, returning filtered products and dynamic `availableCategories`. Exported `buildCustomizableCondition` and `loadListingPage`.
+      - `apps/backend/src/routes/storefront/categories.ts`: Added `GET /:handle/products` route returning filtered products, pagination, and dynamic `availableCollections` (collections that contain published products in that category), supporting `collection` and `customizable` query params.
+      - `apps/backend/src/routes/storefront/products.ts`: Added `collection` filter parameter and enhanced `q` search to match collection titles and handles from `productCollectionLinks`.
+    - Verification:
+      - Created `apps/backend/src/routes/storefront/categories.test.ts` (API contract tests for `GET /:handle/products` covering 404, customizable validation, item hydration, and `availableCollections`).
+      - `pnpm --filter backend check` clean; `pnpm --filter backend test` (46 test files, 291/291 tests passed).
+  - Storefront:
+    - `apps/storefront/app/lib/api.ts`: Added `availableCollections` to `StorefrontListingResponse`, added `fetchStorefrontCategoryProducts`.
+    - `apps/storefront/app/components/products/ProductListingShell.tsx`: Added optional `title` to `filters` so category pages display "Lọc theo dịp / bộ sưu tập" ("Filter by occasion") while collection pages display "Lọc theo sản phẩm" ("Filter by product").
+    - `apps/storefront/app/routes/categories.$categoryHandle.tsx`: Loader calls `fetchStorefrontCategoryProducts` with `collection: activeCollection` and passes `availableCollections` as filter options.
+    - `apps/storefront/app/components/categories/CategoryProductsListing.tsx` & `CategoryProductsPage.tsx`: Integrated collection filter chips with in-place query param navigation (`?collection=...`), resetting page on filter change without leaving the category view.
+    - `apps/storefront/app/routes/collections.$handle.tsx`: Integrated dynamic `FilterChips` on collection pages based on `availableCategories` returned by backend; supports filtering by category while preserving collection context.
+    - `apps/storefront/app/hooks/useSearch.ts` & `SearchResults.tsx`: Fetches collections in parallel during search queries and displays matched collections alongside categories and products in the search dropdown.
+    - Verification: `pnpm --filter router-cf typecheck` clean; `pnpm --filter router-cf build` clean.
+  - Admin:
+    - `apps/admin/src/components/ui/medusa/category-multiselect.tsx`: Extended `CategoryMultiSelect` with customizable `placeholder`, `searchPlaceholder`, and `emptyText`.
+    - `apps/admin/src/types.ts`: Added `collections?: string[]` and `collectionIds: number[]` to `CatalogProduct`.
+    - `apps/admin/src/lib/products-client.ts`: Updated `CreateFullProductPayload`, `updateProductOrganization`, and `mapToCatalogProduct` to handle multi-collection arrays.
+    - `apps/admin/src/pages/create-product/`: Updated `use-create-product.ts` and `create-product-organize.tsx` to multi-select collections.
+    - `apps/admin/src/pages/product-detail/product-detail-organize.tsx`: Updated Drawer to multi-select collections and display collection badges in the read-only overview.
+    - Verification: `pnpm --filter admin build` clean.
+  - Full Verification:
+    - `./init.sh` passed completely end-to-end (backend tests 291/291, backend build, admin build, storefront typecheck + build).
+    - Live curl testing confirmed dynamic `availableCollections` retrieval and filtered product query on `http://localhost:8787/api/storefront/categories/customization/products?collection=cup-2` and SSR on `http://localhost:5173/categories/customization?collection=cup-2`.
+
 - 2026-09-08: **Consolidated image folders & created infinite marquee carousel for real ceremony award moments.**
   - Merged `apps/storefront/public/df7093a5-50a7-4667-af1e-19321d3f855d` (13 images) and `apps/storefront/public/Downloads` (12 images) into unified folder `apps/storefront/public/images/gallery/` (25 images total) and removed the old folders.
   - Created `AwardMomentsSection.tsx` in `apps/storefront/app/components/home/`:

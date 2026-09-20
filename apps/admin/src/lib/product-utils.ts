@@ -406,6 +406,8 @@ export function createMockProduct(existingProducts: CatalogProduct[], input: Cre
     category: input.values.categories[0] ?? "Unassigned",
     collection: input.values.collection,
     collectionId: null,
+    collections: input.values.collection ? [input.values.collection] : [],
+    collectionIds: [],
     categories: input.values.categories,
     categoryIds: [],
     media: [],

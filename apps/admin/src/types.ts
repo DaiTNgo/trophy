@@ -57,6 +57,8 @@ export type CatalogProduct = {
   category: string;
   collection: string;
   collectionId: number | null;
+  collections?: string[];
+  collectionIds: number[];
   categories: string[];
   categoryIds: number[];
   media: ProductVariantMedia[];

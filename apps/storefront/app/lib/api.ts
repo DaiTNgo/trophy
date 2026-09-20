@@ -132,6 +132,16 @@ export type StorefrontListingResponse = {
   page: number;
   limit: number;
   total: number;
+  availableCategories?: Array<{
+    id: number;
+    name: LocalizedTextValue;
+    handle: string;
+  }>;
+  availableCollections?: Array<{
+    id: number;
+    title: LocalizedTextValue;
+    handle: string;
+  }>;
 };
 
 export type StorefrontDetailResponse = {
@@ -333,7 +343,13 @@ export async function fetchStorefrontCollections(locale?: string, backendFetch?:
 
 export async function fetchStorefrontCollectionProducts(
   handle: string,
-  params?: { page?: number; limit?: number; locale?: string; customizable?: "all" | "true" | "false" },
+  params?: {
+    page?: number;
+    limit?: number;
+    locale?: string;
+    customizable?: "all" | "true" | "false";
+    category?: string;
+  },
   backendFetch?: BackendFetch,
 ): Promise<StorefrontListingResponse> {
   const searchParams = new URLSearchParams();
@@ -341,6 +357,7 @@ export async function fetchStorefrontCollectionProducts(
   if (params?.limit) searchParams.set("limit", String(params.limit));
   if (params?.locale) searchParams.set("locale", params.locale);
   if (params?.customizable) searchParams.set("customizable", params.customizable);
+  if (params?.category) searchParams.set("category", params.category);
 
   const qs = searchParams.toString();
   const url = backendUrl(`/api/storefront/collections/${encodeURIComponent(handle)}/products${qs ? `?${qs}` : ""}`);
@@ -355,6 +372,47 @@ export async function fetchStorefrontCollectionProducts(
 
   return {
     ...data,
+    availableCategories: data.availableCategories ?? [],
+    items: data.items.map((item) => ({
+      ...item,
+      thumbnail: backendAssetUrl(item.thumbnail) || null,
+      hoverImage: backendAssetUrl(item.hoverImage) || null,
+    })),
+  };
+}
+
+export async function fetchStorefrontCategoryProducts(
+  handle: string,
+  params?: {
+    page?: number;
+    limit?: number;
+    locale?: string;
+    customizable?: "all" | "true" | "false";
+    collection?: string;
+  },
+  backendFetch?: BackendFetch,
+): Promise<StorefrontListingResponse> {
+  const searchParams = new URLSearchParams();
+  if (params?.page) searchParams.set("page", String(params.page));
+  if (params?.limit) searchParams.set("limit", String(params.limit));
+  if (params?.locale) searchParams.set("locale", params.locale);
+  if (params?.customizable) searchParams.set("customizable", params.customizable);
+  if (params?.collection) searchParams.set("collection", params.collection);
+
+  const qs = searchParams.toString();
+  const url = backendUrl(`/api/storefront/categories/${encodeURIComponent(handle)}/products${qs ? `?${qs}` : ""}`);
+
+  const res = await fetchBackendWithLog("fetchStorefrontCategoryProducts", url, undefined, backendFetch);
+
+  if (!res.ok) {
+    throw new Response("Failed to load category products", { status: res.status });
+  }
+
+  const data: StorefrontListingResponse = await res.json();
+
+  return {
+    ...data,
+    availableCollections: data.availableCollections ?? [],
     items: data.items.map((item) => ({
       ...item,
       thumbnail: backendAssetUrl(item.thumbnail) || null,

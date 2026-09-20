@@ -7,6 +7,7 @@ import {
   productCategories,
   productCategoryLinks,
   productCollections,
+  productCollectionLinks,
   productCustomizations,
   productMedia,
   productOptionValues,
@@ -44,7 +45,7 @@ export async function readProduct(
   }
 
   const [
-    collection,
+    collectionRows,
     categoryRows,
     attributeRows,
     mediaRows,
@@ -55,13 +56,15 @@ export async function readProduct(
     variantCustomizationMediaRows,
     customizationRow
   ] = await Promise.all([
-    product.collectionId
-      ? db
-          .select()
-          .from(productCollections)
-          .where(eq(productCollections.id, product.collectionId))
-          .get()
-      : Promise.resolve(null),
+    db
+      .select({
+        id: productCollections.id,
+        title: productCollections.title,
+        handle: productCollections.handle
+      })
+      .from(productCollectionLinks)
+      .innerJoin(productCollections, eq(productCollectionLinks.collectionId, productCollections.id))
+      .where(eq(productCollectionLinks.productId, productId)),
     db
       .select({
         id: productCategories.id,
@@ -326,9 +329,34 @@ export async function readProduct(
     await hydrateCustomization(db, customization)
   }
 
+  if (collectionRows.length > 0) {
+    await hydrateTranslations(
+      db,
+      'product_collection',
+      collectionRows,
+      (col) => String(col.id),
+      [{ fieldName: 'title', objectKey: 'title' }],
+      [{ fieldName: 'title', objectKey: 'title' }]
+    )
+  }
+
+  if (categoryRows.length > 0) {
+    await hydrateTranslations(
+      db,
+      'product_category',
+      categoryRows,
+      (cat) => String(cat.id),
+      [{ fieldName: 'name', objectKey: 'name' }],
+      [{ fieldName: 'name', objectKey: 'name' }]
+    )
+  }
+
   const baseProduct = {
     ...product,
-    collection,
+    collection: collectionRows[0] ?? null,
+    collections: collectionRows,
+    collectionIds: collectionRows.map((col) => col.id),
+    categoryIds: categoryRows.map((cat) => cat.id),
     categories: categoryRows,
     attributes: attributeRows,
     media: mediaRows.map((media) => ({

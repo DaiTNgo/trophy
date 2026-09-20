@@ -102,6 +102,7 @@ function queueReadProduct(
     updatedAt?: string;
   },
   input?: {
+    collectionRows?: Array<{ id: number; title: string; handle: string }>;
     optionRows?: Array<{ id: number; productId: number; title: string; position: number }>;
     optionValueRows?: Array<{ id: number; optionId: number; value: string; position: number }>;
     optionTranslationRows?: Array<Record<string, unknown>>;
@@ -170,6 +171,7 @@ function queueReadProduct(
   };
 
   db.getQueue.push(baseProduct);
+  db.selectQueue.push(input?.collectionRows ?? []); // collection rows
   db.selectQueue.push([]); // category rows
   db.selectQueue.push([]); // attribute rows
   db.selectQueue.push([]); // product media
@@ -528,7 +530,7 @@ describe("admin products operation-specific routes", () => {
     const response = await productsRoute.request("/1/organize", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ collectionId: null, categoryIds: [] }),
+      body: JSON.stringify({ collectionIds: [], categoryIds: [] }),
     });
 
     expect(response.status).toBe(200);
