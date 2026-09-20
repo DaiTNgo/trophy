@@ -891,23 +891,31 @@ export const exportVectorPdfClientSide = async (
       const frameTopY = frameCy + frameH / 2; // top edge in PDF (bottom-up) = center + half height
 
       const rotDeg = layer.geometry.rotationDeg;
-      if (rotDeg !== 0) {
+      const flipH = layer.flipHorizontal;
+      const flipV = layer.flipVertical;
+      const hasTransform = rotDeg !== 0 || Boolean(flipH || flipV);
+
+      if (hasTransform) {
         page.pushOperators(pushGraphicsState());
         const rad = (-rotDeg * Math.PI) / 180;
         const cosR = Math.cos(rad);
         const sinR = Math.sin(rad);
-        page.pushOperators(concatTransformationMatrix(
-          cosR, sinR, -sinR, cosR,
-          frameCx * (1 - cosR) + frameCy * sinR,
-          frameCy * (1 - cosR) - frameCx * sinR
-        ));
+        const sx = flipH ? -1 : 1;
+        const sy = flipV ? -1 : 1;
+        const a = sx * cosR;
+        const b = sx * sinR;
+        const c = -sy * sinR;
+        const d = sy * cosR;
+        const e = frameCx - (a * frameCx + c * frameCy);
+        const f = frameCy - (b * frameCx + d * frameCy);
+        page.pushOperators(concatTransformationMatrix(a, b, c, d, e, f));
       }
 
       if (layer.path.type === "straight") {
         // ── straight text: pdf-lib native (true vector) ──────────────────────
         const embeddedFont = await getEmbeddedFont(layer.fontId);
         if (!embeddedFont) {
-          if (rotDeg !== 0) page.pushOperators(popGraphicsState());
+          if (hasTransform) page.pushOperators(popGraphicsState());
           continue;
         }
         drawStraightText({
@@ -1002,7 +1010,7 @@ export const exportVectorPdfClientSide = async (
         }
       }
 
-      if (rotDeg !== 0) page.pushOperators(popGraphicsState());
+      if (hasTransform) page.pushOperators(popGraphicsState());
     }
   }
 

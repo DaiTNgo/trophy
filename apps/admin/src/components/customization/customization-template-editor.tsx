@@ -18,6 +18,7 @@ import {
   EditorTextLayer,
   PathPointOverlay,
   ResizeHandles,
+  TextRotationHandle,
 } from "./customization-template-editor-text";
 const MIN_ZOOM = 0.05;
 const MAX_ZOOM = 2;
@@ -501,6 +502,9 @@ function CanvasLayer({
         <VectorPointOverlay layer={layer} selectedPointId={selectedVectorPointId} onSelectPoint={onSelectVectorPoint} onUpdate={onUpdate} />
       ) : null}
       {editing && selected && !layer.locked ? <ResizeHandles layer={layer} background={background} zoom={zoom} onUpdate={onUpdate} /> : null}
+      {editing && selected && !layer.locked && !pathEditing && layer.type === "text" ? (
+        <TextRotationHandle zoom={zoom} onUpdate={onUpdate} />
+      ) : null}
       {editing && selected && !layer.locked && !pathEditing && onDelete ? (
         <button
           type="button"

@@ -46,6 +46,8 @@ export const buildDesignFromForm = ({
         geometry: layer.geometry,
         zIndex: layer.zIndex,
         path: normalizeTextPath(layer.text.path),
+        flipHorizontal: layer.text.flipHorizontal,
+        flipVertical: layer.text.flipVertical,
         ...fitted,
       });
       continue;

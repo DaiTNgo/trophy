@@ -386,6 +386,14 @@ _Avoid_: manual font size, free resize, layout suggestion
 The admin-defined input rule for shopper text, such as required state, line-count capacity, whitespace behavior, or allowed character set. It limits what the shopper can submit before rendering and production export, while text size is handled by fit rules instead of character-count limits.
 _Avoid_: validation error copy, typography setting
 
+**Text Layer Flip**:
+The admin-defined visual mirror transformation applied specifically to a Text Layer, supporting independent horizontal flip (`flipHorizontal`) and vertical flip (`flipVertical`). It inverts the rendered text glyphs along the horizontal or vertical axis (e.g., for reverse engraving on transparent crystal or specialized back-surface trophy printing), without modifying non-text layer geometry.
+_Avoid_: block flip, image flip, inverted text, layer mirror
+
+**Text Layer Rotation**:
+The operator-defined angular orientation (`rotationDeg`) applied specifically to a Text Layer, centered on the text layer bounding box. It allows free-angle or stepped rotation in the canvas editor, storefront preview, and production exports, scoped to text customization without exposing rotation controls to non-text layers.
+_Avoid_: block rotation, shape rotation, global canvas rotation
+
 **Order**:
 A shopper's checkout submission containing customer details and one or more purchased items. Each item is captured with its own immutable order item snapshot.
 _Avoid_: single-product purchase, transaction, cart

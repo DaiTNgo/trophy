@@ -16,4 +16,32 @@ describe("raster preview export", () => {
     expect(svg).toContain("rotate(12");
     expect(svg).toContain("scale(400 240)");
   });
+
+  it("serializes rotated and flipped text layers", () => {
+    const template: any = { background: { widthPx: 1000, heightPx: 800, previewUrl: "" } };
+    const design: any = {
+      layers: [
+        {
+          id: "txt_1",
+          type: "text",
+          zIndex: 0,
+          text: "CHAMPION",
+          fontId: "Inter",
+          fontSizePt: 24,
+          color: "#000000",
+          isBold: true,
+          isItalic: false,
+          align: "center",
+          path: { type: "straight" },
+          geometry: { xRatio: 0.5, yRatio: 0.5, widthRatio: 0.4, rotationDeg: 45 },
+          flipHorizontal: true,
+          flipVertical: false,
+        },
+      ],
+    };
+    const svg = buildRasterExportSvg(template, design);
+    expect(svg).toContain("rotate(45 500 400)");
+    expect(svg).toContain("scale(-1 1)");
+    expect(svg).toContain("CHAMPION");
+  });
 });

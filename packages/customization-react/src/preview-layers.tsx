@@ -119,6 +119,12 @@ export function PreviewText({
       heightPx: layerHeightPx,
     });
 
+    const flipH = layer.flipHorizontal;
+    const flipV = layer.flipVertical;
+    const hasFlip = Boolean(flipH || flipV);
+    const scaleX = flipH ? -1 : 1;
+    const scaleY = flipV ? -1 : 1;
+
     return (
       <svg
         className="absolute overflow-visible"
@@ -127,7 +133,7 @@ export function PreviewText({
           top,
           width: layerWidthPx * scale,
           height: layerHeightPx * scale,
-          transform: `rotate(${layer.geometry.rotationDeg}deg)`,
+          transform: `rotate(${layer.geometry.rotationDeg}deg)${hasFlip ? ` scale(${scaleX}, ${scaleY})` : ""}`,
           transformOrigin: "center",
         }}
         viewBox={`0 0 ${layerWidthPx} ${layerHeightPx}`}
@@ -159,6 +165,12 @@ export function PreviewText({
     );
   }
 
+  const flipH = layer.flipHorizontal;
+  const flipV = layer.flipVertical;
+  const hasFlip = Boolean(flipH || flipV);
+  const scaleX = flipH ? -1 : 1;
+  const scaleY = flipV ? -1 : 1;
+
   return (
     <div
       style={{
@@ -175,7 +187,8 @@ export function PreviewText({
         fontWeight: layer.isBold ? 700 : 400,
         fontStyle: layer.isItalic ? "italic" : "normal",
         textAlign: layer.align === "justified" ? "justify" : layer.align,
-        transform: `translate(-50%, -50%) rotate(${layer.geometry.rotationDeg}deg)`,
+        transform: `translate(-50%, -50%) rotate(${layer.geometry.rotationDeg}deg)${hasFlip ? ` scale(${scaleX}, ${scaleY})` : ""}`,
+        transformOrigin: "center",
       }}
     >
       {layer.text}

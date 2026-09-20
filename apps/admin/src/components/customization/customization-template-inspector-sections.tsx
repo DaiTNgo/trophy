@@ -429,6 +429,126 @@ export function PositionFields({ template, layer, onUpdate, textOnly }: { templa
         <Label size="small" weight="plus" className="text-ui-fg-subtle">H</Label>
         <Input type="number" value={String(Math.round(rect.heightPx))} disabled={isTextLocked} onChange={(e) => handleHeightChange(Number(e.target.value))} />
       </div>
+      {layer.type === "text" ? (
+        <>
+          <div className="space-y-1">
+            <Label size="small" weight="plus" className="text-ui-fg-subtle">Rotation (°)</Label>
+            <div className="flex items-center gap-1">
+              <Input
+                type="number"
+                min="0"
+                max="359"
+                value={String(Math.round(layer.geometry.rotationDeg || 0))}
+                onChange={(e) => {
+                  const val = Number(e.target.value);
+                  const deg = Number.isFinite(val) ? ((Math.round(val) % 360) + 360) % 360 : 0;
+                  onUpdate((current) =>
+                    current.type === "text"
+                      ? {
+                          ...current,
+                          geometry: { ...current.geometry, rotationDeg: deg },
+                        }
+                      : current,
+                  );
+                }}
+              />
+              <button
+                type="button"
+                title="Rotate -90°"
+                onClick={() => {
+                  const currentDeg = Math.round(layer.geometry.rotationDeg || 0);
+                  const deg = ((currentDeg - 90) % 360 + 360) % 360;
+                  onUpdate((current) =>
+                    current.type === "text"
+                      ? {
+                          ...current,
+                          geometry: { ...current.geometry, rotationDeg: deg },
+                        }
+                      : current,
+                  );
+                }}
+                className="flex size-8 shrink-0 items-center justify-center rounded border border-ui-border-base bg-ui-bg-base text-ui-fg-subtle hover:bg-ui-bg-subtle hover:text-ui-fg-base"
+              >
+                <RotateCcw className="size-3.5" />
+              </button>
+              <button
+                type="button"
+                title="Rotate +90°"
+                onClick={() => {
+                  const currentDeg = Math.round(layer.geometry.rotationDeg || 0);
+                  const deg = (currentDeg + 90) % 360;
+                  onUpdate((current) =>
+                    current.type === "text"
+                      ? {
+                          ...current,
+                          geometry: { ...current.geometry, rotationDeg: deg },
+                        }
+                      : current,
+                  );
+                }}
+                className="flex size-8 shrink-0 items-center justify-center rounded border border-ui-border-base bg-ui-bg-base text-ui-fg-subtle hover:bg-ui-bg-subtle hover:text-ui-fg-base"
+              >
+                <RotateCw className="size-3.5" />
+              </button>
+            </div>
+          </div>
+          <div className="space-y-1">
+            <Label size="small" weight="plus" className="text-ui-fg-subtle">Flip</Label>
+            <div className="flex items-center gap-1 h-8">
+              <button
+                type="button"
+                title="Flip Horizontal (Reverse engraving)"
+                onClick={() => {
+                  onUpdate((current) =>
+                    current.type === "text"
+                      ? {
+                          ...current,
+                          text: {
+                            ...current.text,
+                            flipHorizontal: !current.text.flipHorizontal,
+                          },
+                        }
+                      : current,
+                  );
+                }}
+                className={`flex size-8 flex-1 items-center justify-center gap-1 rounded border text-xs font-medium transition-colors ${
+                  layer.text.flipHorizontal
+                    ? "border-ui-border-interactive bg-ui-fg-interactive text-ui-fg-on-color"
+                    : "border-ui-border-base bg-ui-bg-base text-ui-fg-subtle hover:bg-ui-bg-subtle hover:text-ui-fg-base"
+                }`}
+              >
+                <FlipHorizontal className="size-3.5" />
+                <span>H</span>
+              </button>
+              <button
+                type="button"
+                title="Flip Vertical"
+                onClick={() => {
+                  onUpdate((current) =>
+                    current.type === "text"
+                      ? {
+                          ...current,
+                          text: {
+                            ...current.text,
+                            flipVertical: !current.text.flipVertical,
+                          },
+                        }
+                      : current,
+                  );
+                }}
+                className={`flex size-8 flex-1 items-center justify-center gap-1 rounded border text-xs font-medium transition-colors ${
+                  layer.text.flipVertical
+                    ? "border-ui-border-interactive bg-ui-fg-interactive text-ui-fg-on-color"
+                    : "border-ui-border-base bg-ui-bg-base text-ui-fg-subtle hover:bg-ui-bg-subtle hover:text-ui-fg-base"
+                }`}
+              >
+                <FlipVertical className="size-3.5" />
+                <span>V</span>
+              </button>
+            </div>
+          </div>
+        </>
+      ) : null}
     </div>
   );
 }
@@ -874,6 +994,6 @@ import {
   type VectorPoint,
 } from "@trophy/customization";
 import { Heading, Input, Label, Select, Text, Textarea } from "@medusajs/ui";
-import { Trash2 } from "lucide-react";
+import { FlipHorizontal, FlipVertical, RotateCcw, RotateCw, Trash2 } from "lucide-react";
 import { useBrandAssets } from "../../hooks/use-brand-assets";
 import { createId, shapeLabel } from "./customization-template-ui";
