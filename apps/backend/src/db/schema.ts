@@ -166,6 +166,9 @@ export const products = sqliteTable(
     subtitle: text("subtitle"),
     handle: text("handle").notNull(),
     description: text("description"),
+    whyThisProductHtml: text("why_this_product_html"),
+    specificationsHtml: text("specifications_html"),
+    shippingHtml: text("shipping_html"),
     status: text("status").notNull().default("draft"),
     thumbnailAssetId: text("thumbnail_asset_id"),
     hoverAssetId: text("hover_asset_id"),
@@ -722,3 +725,92 @@ export const catalogTranslations = sqliteTable(
     ),
   ],
 );
+
+// ─── News / Articles ───────────────────────────────────────────────────────────
+
+export const articleCategories = sqliteTable(
+  "article_categories",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    slug: text("slug").notNull(),
+    description: text("description"),
+    displayOrder: integer("display_order").notNull().default(0),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+      .notNull(),
+  },
+  (table) => [uniqueIndex("article_categories_slug_idx").on(table.slug)],
+);
+
+export const articles = sqliteTable(
+  "articles",
+  {
+    id: text("id").primaryKey(),
+    title: text("title").notNull(),
+    slug: text("slug").notNull(),
+    excerpt: text("excerpt"),
+    contentHtml: text("content_html").notNull().default(""),
+    contentJson: text("content_json"),
+    featuredImageUrl: text("featured_image_url"),
+    featuredImageAlt: text("featured_image_alt"),
+    /** 'draft' | 'published' | 'scheduled' */
+    status: text("status").notNull().default("draft"),
+    /** Admin-pinned: shown first on the storefront listing with a badge */
+    featured: integer("featured", { mode: "boolean" }).notNull().default(false),
+    authorId: text("author_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    publishedAt: integer("published_at", { mode: "timestamp_ms" }),
+    metaTitle: text("meta_title"),
+    metaDescription: text("meta_description"),
+    ogImageUrl: text("og_image_url"),
+    canonicalUrl: text("canonical_url"),
+    viewCount: integer("view_count").notNull().default(0),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+      .notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+      .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("articles_slug_idx").on(table.slug),
+    index("articles_status_published_at_idx").on(table.status, table.publishedAt),
+    index("articles_author_id_idx").on(table.authorId),
+  ],
+);
+
+export const articleCategoryLinks = sqliteTable(
+  "article_category_links",
+  {
+    articleId: text("article_id")
+      .notNull()
+      .references(() => articles.id, { onDelete: "cascade" }),
+    categoryId: text("category_id")
+      .notNull()
+      .references(() => articleCategories.id, { onDelete: "cascade" }),
+  },
+  (table) => [
+    primaryKey({ columns: [table.articleId, table.categoryId] }),
+  ],
+);
+
+export const articleProductLinks = sqliteTable(
+  "article_product_links",
+  {
+    articleId: text("article_id")
+      .notNull()
+      .references(() => articles.id, { onDelete: "cascade" }),
+    productId: integer("product_id")
+      .notNull()
+      .references(() => products.id, { onDelete: "cascade" }),
+    displayOrder: integer("display_order").notNull().default(0),
+  },
+  (table) => [
+    primaryKey({ columns: [table.articleId, table.productId] }),
+    index("article_product_links_article_id_idx").on(table.articleId),
+  ],
+);
+

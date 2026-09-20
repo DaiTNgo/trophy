@@ -558,3 +558,94 @@ describe("GET /:handle customization locale resolution", () => {
     expect(imageLayer.clipartAssets[0]).toMatchObject({ id: "clip_star", name: "Ngôi sao" });
   });
 });
+
+describe("GET /:handle admin-authored product section content", () => {
+  function createMockDb() {
+    const getQueue: unknown[] = [];
+    const selectQueue: unknown[] = [];
+    const db: any = {
+      getQueue,
+      selectQueue,
+      select: vi.fn(() => {
+        const chain: any = {
+          from: vi.fn(() => chain),
+          where: vi.fn(() => chain),
+          orderBy: vi.fn(() => chain),
+          limit: vi.fn(() => chain),
+          offset: vi.fn(() => chain),
+          innerJoin: vi.fn(() => chain),
+          leftJoin: vi.fn(() => chain),
+          returning: vi.fn(() => chain),
+          values: vi.fn(() => chain),
+          get: vi.fn(async () => getQueue.shift() ?? null),
+          then: (resolve: (value: unknown) => unknown, reject?: (reason: unknown) => unknown) =>
+            Promise.resolve(selectQueue.shift() ?? []).then(resolve, reject),
+        };
+        return chain;
+      }),
+      insert: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn(),
+    };
+    return db;
+  }
+
+  function queueSectionProductDetail(db: ReturnType<typeof createMockDb>) {
+    db.getQueue.push({
+      id: 1,
+      title: "Cúp Champion",
+      subtitle: null,
+      handle: "champion-cup",
+      description: null,
+      whyThisProductHtml: null,
+      specificationsHtml: null,
+      shippingHtml: null,
+      thumbnailAssetId: null,
+      hoverAssetId: null,
+      status: "published",
+      deletedAt: null,
+    });
+    // product title/subtitle/description/sections hydration
+    db.selectQueue.push([
+      { ownerType: "product", ownerKey: "1", fieldName: "whyThisProductHtml", locale: "vi", value: "<p>Cốc in ấn hàng đầu</p>" },
+      { ownerType: "product", ownerKey: "1", fieldName: "whyThisProductHtml", locale: "en", value: "<p>Top printed cup</p>" },
+      { ownerType: "product", ownerKey: "1", fieldName: "specificationsHtml", locale: "en", value: "<p>Specs</p>" },
+      { ownerType: "product", ownerKey: "1", fieldName: "shippingHtml", locale: "vi", value: "<p>Giao nhanh</p>" },
+    ]);
+    // Promise.all: categories, attributes, options, variants, media, variant media, variant customization media
+    for (let i = 0; i < 7; i += 1) {
+      db.selectQueue.push([]);
+    }
+    // customizationRow (get) — no customization configured
+    db.getQueue.push(null);
+  }
+
+  it("returns the admin-authored section HTML localized per locale when translation rows exist", async () => {
+    const db = createMockDb();
+    vi.mocked(getDb).mockReturnValue(db as never);
+    queueSectionProductDetail(db);
+
+    const res = await storefrontProductsRoute.request("/champion-cup?locale=en");
+
+    expect(res.status).toBe(200);
+    const item = (await res.json() as any).item;
+    expect(item.whyThisProductHtml).toEqual({ vi: "<p>Cốc in ấn hàng đầu</p>", en: "<p>Top printed cup</p>" });
+    expect(item.specificationsHtml).toEqual({ vi: "", en: "<p>Specs</p>" });
+    expect(item.shippingHtml).toEqual({ vi: "<p>Giao nhanh</p>", en: "" });
+  });
+
+  it("defaults to empty objects when no section HTML is set", async () => {
+    const db = createMockDb();
+    vi.mocked(getDb).mockReturnValue(db as never);
+    queueSectionProductDetail(db);
+    db.selectQueue[0] = [];
+
+    const res = await storefrontProductsRoute.request("/champion-cup");
+
+    expect(res.status).toBe(200);
+    const item = (await res.json() as any).item;
+    expect(item.whyThisProductHtml).toEqual({ vi: "", en: "" });
+    expect(item.specificationsHtml).toEqual({ vi: "", en: "" });
+    expect(item.shippingHtml).toEqual({ vi: "", en: "" });
+  });
+});

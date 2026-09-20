@@ -205,7 +205,7 @@ export function ProductCard({
 
 function CardImages({ src, hoverImage, alt, className, sizes }: { src: string; hoverImage?: string | null; alt: string; className: string; sizes?: string }) {
   return <>
-    <img className="product-card-base-image absolute inset-0 h-full w-full object-contain" data-alt={alt} src={src} alt={alt} loading="lazy" sizes={sizes} />
+    <img className={`product-card-base-image absolute inset-0 h-full w-full object-contain ${hoverImage ? "product-card-base-image--swap" : ""}`} data-alt={alt} src={src} alt={alt} loading="lazy" sizes={sizes} />
     {hoverImage ? <img className={`product-card-hover-image absolute inset-0 h-full w-full object-contain opacity-0 transition-[opacity,scale] duration-300 motion-reduce:transition-none ${className}`} src={hoverImage} alt="" aria-hidden="true" loading="lazy" sizes={sizes} /> : null}
   </>;
 }

@@ -430,12 +430,18 @@ export async function readProduct(
     [
       { fieldName: 'title', objectKey: 'title' },
       { fieldName: 'subtitle', objectKey: 'subtitle' },
-      { fieldName: 'description', objectKey: 'description' }
+      { fieldName: 'description', objectKey: 'description' },
+      { fieldName: 'whyThisProductHtml', objectKey: 'whyThisProductHtml' },
+      { fieldName: 'specificationsHtml', objectKey: 'specificationsHtml' },
+      { fieldName: 'shippingHtml', objectKey: 'shippingHtml' }
     ],
     [
       { fieldName: 'title', objectKey: 'title' },
       { fieldName: 'subtitle', objectKey: 'subtitle' },
-      { fieldName: 'description', objectKey: 'description' }
+      { fieldName: 'description', objectKey: 'description' },
+      { fieldName: 'whyThisProductHtml', objectKey: 'whyThisProductHtml' },
+      { fieldName: 'specificationsHtml', objectKey: 'specificationsHtml' },
+      { fieldName: 'shippingHtml', objectKey: 'shippingHtml' }
     ]
   )
 

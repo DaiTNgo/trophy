@@ -51,6 +51,9 @@ export type CatalogProduct = {
   handle: string;
   subtitle: LocalizedTextValue;
   description: LocalizedTextValue;
+  whyThisProductHtml: LocalizedTextValue;
+  specificationsHtml: LocalizedTextValue;
+  shippingHtml: LocalizedTextValue;
   status: ProductStatus;
   inventory: number;
   price: number;
@@ -150,6 +153,9 @@ export type CreateProductFormValues = {
   handle: string;
   subtitle: LocalizedTextValue;
   description: LocalizedTextValue;
+  whyThisProductHtml: LocalizedTextValue;
+  specificationsHtml: LocalizedTextValue;
+  shippingHtml: LocalizedTextValue;
   customizationEnabled: boolean;
   collection: string;
   categories: string[];

@@ -12,6 +12,7 @@ import { ProductDetailOptions } from "./product-detail/product-detail-options";
 import { ProductDetailVariants } from "./product-detail/product-detail-variants";
 import { ProductDetailCustomization } from "./product-detail/product-detail-customization";
 import { ProductDetailThumbnail } from "./product-detail/product-detail-thumbnail";
+import { ProductDetailSections } from "./product-detail/product-detail-sections";
 
 export function ProductDetailPage() {
   const { product, isLoading, error, mutate, updateProduct } = useProductDetail();
@@ -75,6 +76,7 @@ export function ProductDetailPage() {
         <div className="flex min-w-0 flex-col gap-y-6">
           <ProductDetailOverview product={product} mutate={mutate} />
           <ProductDetailThumbnail product={product} mutate={mutate} />
+          <ProductDetailSections product={product} mutate={mutate} />
           <ProductDetailOptions product={product} mutate={mutate} />
           <ProductDetailVariants product={product} mutate={mutate} updateProduct={updateProduct} />
           <ProductDetailCustomization product={product} mutate={mutate} updateProduct={updateProduct} />

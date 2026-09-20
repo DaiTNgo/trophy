@@ -26,6 +26,9 @@ type ApiProduct = {
   handle: string;
   subtitle: LocalizedInput | null;
   description: LocalizedInput | null;
+  whyThisProductHtml: LocalizedInput | null;
+  specificationsHtml: LocalizedInput | null;
+  shippingHtml: LocalizedInput | null;
   status: "draft" | "published" | "archived" | "proposed" | "rejected";
   categories: Array<{ id: number; name: LocalizedInput }>;
   collection: { id: number; title: LocalizedInput } | null;
@@ -133,6 +136,9 @@ export type CreateFullProductPayload = {
     subtitle?: LocalizedInput | null;
     handle: string | null;
     description?: LocalizedInput | null;
+    whyThisProductHtml?: LocalizedInput | null;
+    specificationsHtml?: LocalizedInput | null;
+    shippingHtml?: LocalizedInput | null;
   };
   organization: {
     collectionIds?: number[];
@@ -292,6 +298,24 @@ export async function updateProductOverview(id: string, payload: {
     body: JSON.stringify(payload),
   });
   if (!response.ok) throw new Error("Failed to update product overview.");
+  const body = await response.json();
+  return body.item as ApiProduct;
+}
+
+export type ProductSectionsPayload = {
+  whyThisProductHtml?: { vi?: string; en?: string } | null;
+  specificationsHtml?: { vi?: string; en?: string } | null;
+  shippingHtml?: { vi?: string; en?: string } | null;
+};
+
+export async function updateProductSections(id: string, payload: ProductSectionsPayload) {
+  const response = await backendFetch(`/api/admin/products/${id}`, {
+    method: "PATCH",
+
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) throw new Error("Failed to update product sections.");
   const body = await response.json();
   return body.item as ApiProduct;
 }
@@ -949,6 +973,9 @@ export function mapApiProductToCatalogProduct(product: Partial<ApiProduct> & Pic
     handle: product.handle,
     subtitle: toLocalized(product.subtitle),
     description: toLocalized(product.description),
+    whyThisProductHtml: toLocalized(product.whyThisProductHtml),
+    specificationsHtml: toLocalized(product.specificationsHtml),
+    shippingHtml: toLocalized(product.shippingHtml),
     status: mapApiProductStatus(product.status),
     inventory: 0,
     price: leadPrice,

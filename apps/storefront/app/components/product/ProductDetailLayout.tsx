@@ -431,6 +431,9 @@ export function ProductDetailLayout({
         <ProductDetailSections
           description={getLocalized(product.description, locale) || ""}
           specs={specs}
+          whyThisProductHtml={getLocalized(product.whyThisProductHtml, locale) || ""}
+          specificationsHtml={getLocalized(product.specificationsHtml, locale) || ""}
+          shippingHtml={getLocalized(product.shippingHtml, locale) || ""}
         />
       </Container>
     </div>

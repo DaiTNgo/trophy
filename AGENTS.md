@@ -86,6 +86,14 @@ This repository is currently in **dev mode** for agent work:
 - Update the active state files at end of session. For OpenSpec work, update the change-local `tasks.md`, `progress.md`, and `session-handoff.md` inside the change folder. For non-OpenSpec work, update `feature_list.json`, `progress.md`, and `session-handoff.md` at the repo root.
 - Leave the repo restartable: next session must be able to run `./init.sh` cleanly.
 
+## Dependency licensing
+
+- Only add dependencies with permissive/OSI licenses: MIT, Apache-2.0, BSD-2/3-Clause, ISC, Unlicense.
+- Never add libraries that require a paid/commercial license for production use, including source-available-with-use-restrictions licenses (BUSL 1.1, FSL, SSPL).
+- Known trap in this repo: Tiptap OSS core (`@tiptap/*`, MIT — already installed, fine) is separate from Tiptap's paid Cloud extension packs (Collaboration, Comments, AI Toolkit, DOCX/MD Conversion). Do not add `@tiptap/extension-collaboration`, `@tiptap/extension-comments`, AI toolkit, or `@tiptap/extension-conversion`-style add-ons without user approval.
+- Before adding a new dependency, verify its license: `npm view <pkg> license` (or check the installed package's `license` field / `LICENSE` file). Do not guess from the name or README.
+- If a license is unclear, dual/commercial, or the package is a paid add-on of a free base library, stop and ask the user before installing. Never add a questionable dependency silently.
+
 ## Editing guidance
 
 - New API work → `apps/backend/src/routes/`.

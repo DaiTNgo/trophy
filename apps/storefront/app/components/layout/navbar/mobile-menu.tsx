@@ -182,6 +182,14 @@ export function NavbarMobileMenu({
           <div className="flex flex-col gap-5 pt-2">
             <DrawerClose asChild>
               <Link
+                to="/news"
+                className="text-[18px] font-medium uppercase tracking-wide text-brand-strong"
+              >
+                {t("mobile_menu_news")}
+              </Link>
+            </DrawerClose>
+            <DrawerClose asChild>
+              <Link
                 to="/contact"
                 className="text-[18px] font-medium uppercase tracking-wide text-brand-strong"
               >

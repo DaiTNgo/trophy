@@ -35,6 +35,13 @@ export function NavbarMoreDropdown() {
           >
             {t("navbar_more_about")}
           </Link>
+          <Link
+            onClick={() => setIsOpen(false)}
+            to="/news"
+            className="relative py-3 pl-5 text-sm font-medium text-gray-700 transition-[padding,background-color,color] before:absolute before:left-2 before:top-1/2 before:h-0 before:w-1 before:-translate-y-1/2 before:rounded-full before:bg-brand-support before:transition-all hover:pl-6 hover:bg-gray-50 hover:text-brand-support hover:before:h-4"
+          >
+            {t("navbar_more_news")}
+          </Link>
           {/*<Link
             onClick={() => setIsOpen(false)}
             to="/order-lookup"

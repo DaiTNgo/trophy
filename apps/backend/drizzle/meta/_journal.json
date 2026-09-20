@@ -271,8 +271,29 @@
     {
       "idx": 38,
       "version": "6",
-      "when": 1789876181568,
-      "tag": "0038_flippant_talos",
+      "when": 1788887007585,
+      "tag": "0038_mysterious_james_howlett",
+      "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "6",
+      "when": 1789058605687,
+      "tag": "0039_sticky_ben_grimm",
+      "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "6",
+      "when": 1789396191196,
+      "tag": "0040_silent_loa",
+      "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "6",
+      "when": 1789908517394,
+      "tag": "0041_superb_wind_dancer",
       "breakpoints": true
     }
   ]
