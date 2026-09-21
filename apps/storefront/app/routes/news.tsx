@@ -1,6 +1,5 @@
 import { Link, useSearchParams } from "react-router";
-import { Clock, ChevronLeft, ChevronRight, Search, X } from "lucide-react";
-import { useState } from "react";
+import { Clock, ChevronLeft, ChevronRight } from "lucide-react";
 import {
   fetchStorefrontArticles,
   fetchStorefrontArticleCategories,
@@ -147,12 +146,10 @@ export default function NewsPage({ loaderData }: Route.ComponentProps) {
     currentPage,
     totalPages,
     activeCategory,
-    searchQuery,
     locale,
   } = loaderData;
 
   const [, setSearchParams] = useSearchParams();
-  const [query, setQuery] = useState(searchQuery ?? "");
 
   const handlePageChange = (page: number) => {
     setSearchParams((prev) => {
@@ -173,69 +170,9 @@ export default function NewsPage({ loaderData }: Route.ComponentProps) {
     });
   };
 
-  const handleSearch = (q: string) => {
-    setSearchParams((prev) => {
-      if (q.trim()) {
-        prev.set("q", q.trim());
-      } else {
-        prev.delete("q");
-      }
-      prev.set("page", "1");
-      return prev;
-    });
-  };
-
-  const pageTitle = activeCategory
-    ? categories.find((c) => c.slug === activeCategory)?.name ?? (locale === "en" ? "News" : "Tin tức")
-    : locale === "en" ? "All News" : "Tất cả tin tức";
-
   return (
     <div className="bg-gray-50/50">
       <Container className="py-10">
-        {/* Hero banner */}
-        <section className="mb-10 overflow-hidden rounded-2xl bg-surface-dark px-8 py-10 text-white lg:px-12 lg:py-14">
-          <p className="mb-3 text-sm font-semibold uppercase tracking-widest text-brand-accent">
-            {locale === "en" ? "News & Articles" : "Tin tức & Bài viết"}
-          </p>
-          <h1 className="max-w-2xl font-heading text-4xl uppercase leading-[1.1] tracking-wide lg:text-5xl">
-            {pageTitle}
-          </h1>
-          <p className="mt-4 max-w-2xl text-white/70">
-            {locale === "en"
-              ? "Catching up on the craft, the collections, and the celebrations behind every Trophy Prestige award."
-              : "Cập nhật những câu chuyện, bộ sưu tập và thành quả đằng sau mỗi chiếc cúp Trophy Prestige."}
-          </p>
-
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleSearch(query);
-            }}
-            className="mt-6 flex max-w-md items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-0.5"
-          >
-            <Search className="h-4 w-4 shrink-0 text-white/60" />
-            <input
-              name="q"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder={locale === "en" ? "Search articles..." : "Tìm kiếm bài viết..."}
-              className="w-full bg-transparent py-2.5 text-sm text-white placeholder:text-white/50 focus:outline-none"
-            />
-            {query.trim() && (
-              <button
-                type="button"
-                onClick={() => {
-                  setQuery("");
-                  handleSearch("");
-                }}
-                aria-label={locale === "en" ? "Clear search" : "Xoá tìm kiếm"}
-                className="rounded-full p-1.5 text-white/70 transition-colors hover:text-white"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            )}
-          </form>
-        </section>
 
         {/* Category filters */}
         {categories.length > 0 && (

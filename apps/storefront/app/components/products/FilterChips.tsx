@@ -72,6 +72,10 @@ export function FilterChips({
     });
   }, []);
 
+  if (!categories || categories.length <= 1) {
+    return null;
+  }
+
   const hasControls = canScrollLeft || canScrollRight;
 
   return (

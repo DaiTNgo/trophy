@@ -40,6 +40,8 @@ type ProductListingShellProps = {
   totalPages: number;
   onPageChange: (page: number) => void;
   categoryHandle?: string | null;
+  collectionHandle?: string | null;
+  sourceContext?: "category" | "collection";
   filters?: {
     title?: string;
     categories: CategoryOption[];
@@ -193,6 +195,12 @@ function ListingFilterSummary({
   locale: string;
   showResultCount?: boolean;
 }) {
+  const hasMultipleFilters = Boolean(filters?.categories && filters.categories.length > 1);
+
+  if (!hasMultipleFilters && !showResultCount) {
+    return null;
+  }
+
   const title = filters?.title
     ? filters.title
     : filters
@@ -206,18 +214,20 @@ function ListingFilterSummary({
   return (
     <section className="border-b border-border-subtle bg-surface-base py-5 sm:py-6">
       <div className="mx-auto w-full max-w-[1280px] px-4">
-        <div className="mb-4 flex items-center justify-center text-center">
-          <h3 className="font-heading text-[20px] sm:text-[23px] font-extrabold uppercase tracking-[0.03em] text-brand-strong">
-            {title}
-          </h3>
-        </div>
+        {hasMultipleFilters && filters ? (
+          <>
+            <div className="mb-4 flex items-center justify-center text-center">
+              <h3 className="font-heading text-[20px] sm:text-[23px] font-extrabold uppercase tracking-[0.03em] text-brand-strong">
+                {title}
+              </h3>
+            </div>
 
-        {filters ? (
-          <FilterChips
-            categories={filters.categories}
-            activeCategory={filters.activeCategory}
-            onSelect={filters.onSelect}
-          />
+            <FilterChips
+              categories={filters.categories}
+              activeCategory={filters.activeCategory}
+              onSelect={filters.onSelect}
+            />
+          </>
         ) : null}
 
         {showResultCount ? (
@@ -256,10 +266,14 @@ function ProductGrid({
   products,
   locale,
   categoryHandle,
+  collectionHandle,
+  sourceContext,
 }: {
   products: StorefrontProductItem[];
   locale: string;
   categoryHandle?: string | null;
+  collectionHandle?: string | null;
+  sourceContext?: "category" | "collection";
 }) {
   return (
     <div className="grid grid-cols-2 gap-x-5 gap-y-11 sm:grid-cols-3 lg:grid-cols-4 md:gap-x-8 lg:gap-x-10 md:gap-y-12">
@@ -271,6 +285,8 @@ function ProductGrid({
             key={product.id}
             {...product}
             categoryHandle={categoryHandle}
+            collectionHandle={collectionHandle}
+            sourceContext={sourceContext}
             title={title}
             subtitle={getLocalized(product.subtitle, locale) || null}
             categorySummary={getLocalized(product.categorySummary, locale) || null}
@@ -289,6 +305,8 @@ function ListingResults({
   products,
   locale,
   categoryHandle,
+  collectionHandle,
+  sourceContext,
   currentPage,
   totalPages,
   onPageChange,
@@ -298,6 +316,8 @@ function ListingResults({
   products: StorefrontProductItem[];
   locale: string;
   categoryHandle?: string | null;
+  collectionHandle?: string | null;
+  sourceContext?: "category" | "collection";
   currentPage: number;
   totalPages: number;
   onPageChange: (page: number) => void;
@@ -313,7 +333,13 @@ function ListingResults({
           <EmptyListingState emptyState={emptyState} />
         ) : (
           <>
-            <ProductGrid products={products} locale={locale} categoryHandle={categoryHandle} />
+            <ProductGrid
+              products={products}
+              locale={locale}
+              categoryHandle={categoryHandle}
+              collectionHandle={collectionHandle}
+              sourceContext={sourceContext}
+            />
 
             {totalPages > 1 ? (
               <Pagination
@@ -423,6 +449,8 @@ export function ProductListingShell({
   totalPages,
   onPageChange,
   categoryHandle,
+  collectionHandle,
+  sourceContext,
   filters,
   emptyState,
   isLoading = false,
@@ -461,6 +489,8 @@ export function ProductListingShell({
           products={products}
           locale={locale}
           categoryHandle={categoryHandle}
+          collectionHandle={collectionHandle}
+          sourceContext={sourceContext}
           currentPage={currentPage}
           totalPages={totalPages}
           onPageChange={onPageChange}

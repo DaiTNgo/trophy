@@ -2,15 +2,18 @@ import { useLoaderData, useSearchParams } from "react-router";
 import { ProductDetailLayout } from "../components/product/ProductDetailLayout";
 import { useProductDetailState } from "../hooks/use-product-detail-state";
 import {
+  fetchStorefrontCollections,
   fetchStorefrontDynamicFonts,
   fetchStorefrontProduct,
   fetchStorefrontProducts,
+  type StorefrontCollection,
   type StorefrontDynamicFont,
 } from "../lib/api";
 import { getLocalized } from "../lib/translation";
 import { withStorefrontLoaderLog } from "../lib/observability";
 import { getLocale } from "../i18n.server";
 import { getBackendServiceFetch } from "../lib/backend-fetch.server";
+import { getCategoryPath, getCollectionPath } from "../lib/storefront-paths";
 import { CART_LINE_REVISION_PARAM } from "../lib/cart-revision";
 import type { Route } from "./+types/product.$handle";
 
@@ -20,16 +23,46 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
     const backendFetch = getBackendServiceFetch(context);
     const product = await fetchStorefrontProduct(params.handle, locale, backendFetch);
 
-    const [dynamicFonts, suggestionsData] = await Promise.all([
+    const url = new URL(request.url);
+    const categoryParam = url.searchParams.get("category");
+    const collectionParam = url.searchParams.get("collection");
+
+    const activeCategory =
+      (categoryParam ? product.categories.find((c) => c.handle === categoryParam) : null) ??
+      product.categories[0] ??
+      null;
+
+    const [dynamicFonts, collectionsData, suggestionsData] = await Promise.all([
       product.customization
         ? fetchStorefrontDynamicFonts(backendFetch)
         : Promise.resolve<StorefrontDynamicFont[]>([]),
+      collectionParam
+        ? fetchStorefrontCollections(locale, backendFetch).catch(() => [] as StorefrontCollection[])
+        : Promise.resolve<StorefrontCollection[]>([]),
       fetchStorefrontProducts({
-        category: product.categories[0]?.handle,
+        category: activeCategory?.handle,
         limit: 8,
         locale,
       }, backendFetch).catch(() => ({ items: [], page: 1, limit: 8, total: 0 })),
     ]);
+
+    let parentCrumb: { title: string; path: string } | null = null;
+    if (collectionParam) {
+      const matchedCollection = collectionsData.find((col) => col.handle === collectionParam);
+      if (matchedCollection) {
+        parentCrumb = {
+          title: getLocalized(matchedCollection.title, locale),
+          path: getCollectionPath(matchedCollection.handle),
+        };
+      }
+    }
+
+    if (!parentCrumb && activeCategory) {
+      parentCrumb = {
+        title: getLocalized(activeCategory.name, locale),
+        path: getCategoryPath(activeCategory.handle),
+      };
+    }
 
     let suggestedProducts = suggestionsData.items
       .filter((item) => item.handle !== product.handle)
@@ -51,7 +84,8 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
       dynamicFonts,
       suggestedProducts,
       locale,
-      activeCategory: product.categories[0] ?? null,
+      activeCategory,
+      parentCrumb,
     };
   }, { productHandle: params.handle });
 }
@@ -62,7 +96,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
 }
 
 export default function ProductDetail() {
-  const { product, dynamicFonts, suggestedProducts, locale, activeCategory } =
+  const { product, dynamicFonts, suggestedProducts, locale, activeCategory, parentCrumb } =
     useLoaderData<typeof loader>();
   const [searchParams] = useSearchParams();
   const state = useProductDetailState({
@@ -72,5 +106,11 @@ export default function ProductDetail() {
     activeCategory,
     cartLineRevisionId: searchParams.get(CART_LINE_REVISION_PARAM),
   });
-  return <ProductDetailLayout state={state} suggestedProducts={suggestedProducts} />;
+  return (
+    <ProductDetailLayout
+      state={state}
+      suggestedProducts={suggestedProducts}
+      parentCrumb={parentCrumb}
+    />
+  );
 }

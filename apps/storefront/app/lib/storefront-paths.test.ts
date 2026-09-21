@@ -7,9 +7,17 @@ import {
 } from "./storefront-paths";
 
 describe("storefront product paths", () => {
-  it("uses the product-only route as the canonical product path", () => {
-    expect(getProductPath({ productHandle: "champion-cup", categoryHandle: "cups" }))
+  it("generates contextual product paths with query params", () => {
+    expect(getProductPath({ productHandle: "champion-cup" }))
       .toBe("/product/champion-cup");
+    expect(getProductPath({ productHandle: "champion-cup", categoryHandle: "cups" }))
+      .toBe("/product/champion-cup?category=cups");
+    expect(getProductPath({ productHandle: "champion-cup", collectionHandle: "golf" }))
+      .toBe("/product/champion-cup?collection=golf");
+    expect(getProductPath({ productHandle: "champion-cup", categoryHandle: "cups", collectionHandle: "golf", sourceContext: "category" }))
+      .toBe("/product/champion-cup?category=cups&collection=golf");
+    expect(getProductPath({ productHandle: "champion-cup", categoryHandle: "cups", collectionHandle: "golf", sourceContext: "collection" }))
+      .toBe("/product/champion-cup?collection=golf&category=cups");
     expect(getGenericProductPath("champion-cup")).toBe("/product/champion-cup");
   });
 

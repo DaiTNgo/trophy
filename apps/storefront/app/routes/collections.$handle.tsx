@@ -1,4 +1,4 @@
-import { useSearchParams } from "react-router";
+import { useNavigation, useSearchParams } from "react-router";
 import { ProductListingShell } from "../components/products/ProductListingShell";
 import { fetchStorefrontCollectionProducts, fetchStorefrontCollections } from "../lib/api";
 import { getLocale } from "../i18n.server";
@@ -53,6 +53,8 @@ export default function CollectionPage({ loaderData }: Route.ComponentProps) {
     locale,
   } = loaderData;
   const [, setSearchParams] = useSearchParams();
+  const navigation = useNavigation();
+  const isLoading = navigation.state === "loading";
   const fallbackTitle = collectionHandle.replace(/-/g, " ");
   const collectionTitle = getLocalized(collection?.title, locale) || fallbackTitle;
   const collectionDescription = getLocalized(collection?.description, locale);
@@ -116,6 +118,9 @@ export default function CollectionPage({ loaderData }: Route.ComponentProps) {
       currentPage={currentPage}
       totalPages={totalPages}
       onPageChange={handlePageChange}
+      collectionHandle={collection?.handle}
+      categoryHandle={activeCategory}
+      sourceContext="collection"
       filters={
         availableCategories.length > 0
           ? {
@@ -134,6 +139,9 @@ export default function CollectionPage({ loaderData }: Route.ComponentProps) {
         ctaLabel: locale === "en" ? "View all products" : "Xem tất cả sản phẩm",
         ctaHref: "/products",
       }}
+      isLoading={isLoading}
+      hideHero={true}
+      showResultCount={false}
     />
   );
 }

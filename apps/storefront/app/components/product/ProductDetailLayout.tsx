@@ -13,7 +13,7 @@ import { backendFontUrl, backendStaticFontUrl } from "../../lib/api";
 import { getLocalized } from "../../lib/translation";
 import Container from "../container";
 import { QuantityInput } from "../ui/quantity-input";
-import { ProductBreadcrumbs } from "./ProductBreadcrumbs";
+import { ProductBreadcrumbs, type ProductBreadcrumbItem, type ProductBreadcrumbParent } from "./ProductBreadcrumbs";
 import { ProductCustomizationPurchase } from "./ProductCustomizationPurchase";
 import { ProductGallery, ProductGalleryThumbnails } from "./ProductGallery";
 import { ProductDetailSections, ProductInfo } from "./ProductInfo";
@@ -23,9 +23,13 @@ import { SuggestedProductsSection } from "./SuggestedProductsSection";
 export function ProductDetailLayout({
   state,
   suggestedProducts = [],
+  breadcrumbItems,
+  parentCrumb,
 }: {
   state: ReturnType<typeof useProductDetailState>;
   suggestedProducts?: StorefrontProductItem[];
+  breadcrumbItems?: ProductBreadcrumbItem[];
+  parentCrumb?: ProductBreadcrumbParent | null;
 }) {
   const { t } = useTranslation("products");
   const {
@@ -169,8 +173,10 @@ export function ProductDetailLayout({
     <div className="bg-white font-body-md text-on-surface">
       <ProductBreadcrumbs
         title={getLocalized(product.title, locale)}
+        items={breadcrumbItems}
         categoryTitle={activeCategory ? getLocalized(activeCategory.name, locale) : null}
         categoryHandle={activeCategory?.handle}
+        parentCrumb={parentCrumb}
       />
       <Container className="py-8">
         {revisionNotice ? (

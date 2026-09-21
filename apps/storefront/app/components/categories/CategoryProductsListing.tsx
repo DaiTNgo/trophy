@@ -63,6 +63,8 @@ export function CategoryProductsListing({
       totalPages={totalPages}
       onPageChange={onPageChange}
       categoryHandle={activeCategory}
+      collectionHandle={activeCollection}
+      sourceContext="category"
       filters={{
         title: isEnglish ? "Filter By Interest" : "Lọc theo dịp / sở thích",
         categories: collectionFilters,
