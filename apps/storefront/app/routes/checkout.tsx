@@ -299,9 +299,14 @@ export default function Checkout() {
     }
     const formData = new FormData(event.currentTarget);
     const vat = getVatDetails(formData);
-    const line1 = getFormString(formData, "shipping.primaryAddress.line1");
-    const city = getFormString(formData, "shipping.primaryAddress.city");
+    const detail =
+      getFormString(formData, "shipping.primaryAddress.line1") ||
+      getFormString(formData, "shipping.primaryAddress.detail");
+    const ward =
+      getFormString(formData, "shipping.primaryAddress.ward") ||
+      getFormString(formData, "shipping.primaryAddress.city");
     const province = getFormString(formData, "shipping.primaryAddress.province");
+    const line1 = [detail, ward, province].filter(Boolean).join(", ");
 
     setVatErrors({});
     setSubmitting(true);
@@ -317,8 +322,6 @@ export default function Checkout() {
         shipping: {
           primaryAddress: {
             line1,
-            city: city || undefined,
-            province: province || undefined,
           },
           shipToDifferentAddress: false,
         },

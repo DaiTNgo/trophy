@@ -158,7 +158,7 @@ function CustomerInformationSection() {
             Xã / Phường
           </Label>
           <select
-            name="shipping.primaryAddress.city"
+            name="shipping.primaryAddress.ward"
             required
             value={selectedWardName}
             onChange={(e) => setSelectedWardName(e.target.value)}
