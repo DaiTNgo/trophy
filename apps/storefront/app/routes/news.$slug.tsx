@@ -203,7 +203,7 @@ export default function NewsDetailPage({ loaderData }: Route.ComponentProps) {
                       {article.linkedProducts.map((product) => (
                         <Link
                           key={product.id}
-                          to={`/product/${product.handle}`}
+                          to={`/product/${encodeURIComponent(product.handle)}?newsSlug=${encodeURIComponent(article.slug)}`}
                           className="group flex items-center justify-between gap-4 rounded-xl border border-gray-100 bg-gray-50/50 p-4 transition-colors hover:bg-gray-50"
                         >
                           <div className="flex min-w-0 items-center gap-4">

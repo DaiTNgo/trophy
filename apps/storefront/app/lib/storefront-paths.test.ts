@@ -18,6 +18,8 @@ describe("storefront product paths", () => {
       .toBe("/product/champion-cup?category=cups&collection=golf");
     expect(getProductPath({ productHandle: "champion-cup", categoryHandle: "cups", collectionHandle: "golf", sourceContext: "collection" }))
       .toBe("/product/champion-cup?collection=golf&category=cups");
+    expect(getProductPath({ productHandle: "champion-cup", from: "home" }))
+      .toBe("/product/champion-cup?from=home");
     expect(getGenericProductPath("champion-cup")).toBe("/product/champion-cup");
   });
 

@@ -109,6 +109,7 @@ export function RecentlyViewedProducts({ items }: RecentlyViewedProductsProps) {
                   imageAlt={item.title}
                   priceAmount={item.priceAmount}
                   variant="listing"
+                  from="home"
                 />
               </CarouselItem>
             ))}

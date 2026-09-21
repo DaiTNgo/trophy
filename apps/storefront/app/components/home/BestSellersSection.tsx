@@ -121,6 +121,7 @@ export function BestSellersSection({
                       reviewsCount={mockReviews[index % mockReviews.length]}
                       priceFrom={true}
                       variant="featured"
+                      from="home"
                     />
                   </CarouselItem>
                 );

@@ -11,7 +11,7 @@ import type {
 import {
   getCategoryPath,
   getCollectionPath,
-  getGenericProductPath,
+  getProductPath,
 } from "@/lib/storefront-paths";
 import { formatCurrency } from "@/lib/utils";
 
@@ -27,7 +27,7 @@ function ProductResult({ product }: { product: SearchProduct }) {
 
   return (
     <Link
-      to={getGenericProductPath(product.handle)}
+      to={getProductPath({ productHandle: product.handle, from: "home" })}
       className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors rounded-md"
     >
       <div className="w-10 h-10 rounded-md bg-gray-100 flex items-center justify-center shrink-0 overflow-hidden">

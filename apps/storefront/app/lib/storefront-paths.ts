@@ -30,11 +30,13 @@ export function getProductPath({
   categoryHandle,
   collectionHandle,
   sourceContext,
+  from,
 }: {
   productHandle: string;
   categoryHandle?: string | null;
   collectionHandle?: string | null;
   sourceContext?: "category" | "collection";
+  from?: string | null;
 }) {
   const params = new URLSearchParams();
   if (sourceContext === "collection") {
@@ -43,6 +45,9 @@ export function getProductPath({
   } else {
     if (categoryHandle) params.set("category", categoryHandle);
     if (collectionHandle) params.set("collection", collectionHandle);
+  }
+  if (from) {
+    params.set("from", from);
   }
   const qs = params.toString();
   return `${getGenericProductPath(productHandle)}${qs ? `?${qs}` : ""}`;

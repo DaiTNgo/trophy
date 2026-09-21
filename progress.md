@@ -26,22 +26,31 @@
     - `pnpm --filter router-cf build`: passed.
     - `./init.sh`: passed completely across all monorepo apps.
 
-- 2026-09-21: **Implemented Storefront Contextual Product Breadcrumbs on PDP.**
+- 2026-09-21: **Implemented Storefront Multi-Level Contextual Product Breadcrumbs on PDP across all touchpoints.**
   - Background & Architecture:
-    - Addressed breadcrumb behavior when products belong to multiple Categories or Collections. Instead of static canonical crumbs, storefront breadcrumbs reflect the shopper's active browsing journey (`?category=<handle>` or `?collection=<handle>`), with fallback to Primary Category (`product.categories[0]`).
+    - Addressed breadcrumb behavior when products belong to multiple Categories or Collections, or are navigated to from various store touchpoints.
+    - Requirements:
+      1. Category/Collection listing with filters: shows exact contextual chain without Home in front (e.g. `Customization › Cup 2 › Product`).
+      2. News articles (`/news/:slug`): links carry `?newsSlug=...`, displaying breadcrumbs `Tin tức › [Tên bài viết] › [Product]`.
+      3. Home, Search, Suggested Products, Recently Viewed, and Cart: pass `?from=home`, displaying breadcrumbs `Trang chủ › [Product]`.
+      4. Direct URL / SEO / clean link: falls back to `Trang chủ › [Category chính] › [Product]`.
     - Added `Storefront Contextual Breadcrumb` to `CONTEXT.md` and created `docs/adr/0021-storefront-contextual-product-breadcrumbs.md`.
   - Storefront Implementation:
-    - `apps/storefront/app/lib/storefront-paths.ts`: Updated `getProductPath` to support `categoryHandle` and `collectionHandle` query params, with priority given to collections when both exist. Added unit tests in `storefront-paths.test.ts`.
-    - `apps/storefront/app/components/shared/ProductCard.tsx`: Added `collectionHandle` prop and generated contextual product URLs with `getProductPath`.
-    - `apps/storefront/app/components/products/ProductListingShell.tsx`: Passed `categoryHandle` and `collectionHandle` down to `ProductGrid` and `ProductCard`.
-    - `apps/storefront/app/routes/collections.$handle.tsx`: Passed `collectionHandle={collection?.handle}` and `categoryHandle={activeCategory}` into `ProductListingShell`.
-    - `apps/storefront/app/components/categories/CategoryProductsListing.tsx`: Passed `collectionHandle={activeCollection}` into `ProductListingShell`.
-    - `apps/storefront/app/components/product/ProductBreadcrumbs.tsx`: Added support for dynamic `parentCrumb?: { title: string; path: string } | null`.
-    - `apps/storefront/app/routes/product.$handle.tsx`: Extracted `?collection=` and `?category=` params in SSR loader, resolved localized crumb titles from available collection/category data, passed `parentCrumb` to `ProductDetailLayout`, and tailored `suggestedProducts` to the active category.
-    - `apps/storefront/app/components/product/ProductDetailLayout.tsx`: Connected `parentCrumb` to `ProductBreadcrumbs`.
+    - `apps/storefront/app/lib/storefront-paths.ts`: Updated `getProductPath` to preserve `categoryHandle`, `collectionHandle`, and `from` parameter.
+    - `apps/storefront/app/components/shared/ProductCard.tsx`: Supported `from?: string | null` prop and passed to `getProductPath`.
+    - `apps/storefront/app/components/home/BestSellersSection.tsx`: Added `from="home"` to `<ProductCard>`.
+    - `apps/storefront/app/components/product/SuggestedProductsSection.tsx`: Added `from="home"` to `<ProductCard>`.
+    - `apps/storefront/app/components/cart/RecentlyViewedProducts.tsx`: Added `from="home"` to `<ProductCard>`.
+    - `apps/storefront/app/components/layout/navbar/SearchResults.tsx`: Used `getProductPath({ productHandle: product.handle, from: "home" })` for search product results.
+    - `apps/storefront/app/routes/cart.tsx`: Used `getProductPath({ productHandle: ..., from: "home" })` for cart item links.
+    - `apps/storefront/app/routes/news.$slug.tsx`: Appended `?newsSlug=${encodeURIComponent(article.slug)}` to linked product cards.
+    - `apps/storefront/app/routes/product.$handle.tsx`:
+      - Handled `newsSlug`, `from`, `category`, and `collection` in SSR loader.
+      - Fetched referenced article via `fetchStorefrontArticle(newsSlugParam, locale, backendFetch)`.
+      - Built contextual `breadcrumbItems` matching exact entry point conditions.
   - Verification:
     - `pnpm --filter router-cf test` passed (8 test files, 29 tests).
-    - `pnpm --filter router-cf typecheck` passed (wrangler types, react-router typegen, tsc -b).
+    - `pnpm --filter router-cf typecheck` passed.
     - `pnpm --filter router-cf build` passed.
     - `./init.sh` passed cleanly across all monorepo apps.
 

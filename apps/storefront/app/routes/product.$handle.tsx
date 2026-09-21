@@ -2,6 +2,7 @@ import { useLoaderData, useSearchParams } from "react-router";
 import { ProductDetailLayout } from "../components/product/ProductDetailLayout";
 import { useProductDetailState } from "../hooks/use-product-detail-state";
 import {
+  fetchStorefrontArticle,
   fetchStorefrontCategories,
   fetchStorefrontCollections,
   fetchStorefrontDynamicFonts,
@@ -28,13 +29,15 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
     const url = new URL(request.url);
     const categoryParam = url.searchParams.get("category");
     const collectionParam = url.searchParams.get("collection");
+    const newsSlugParam = url.searchParams.get("newsSlug");
+    const fromParam = url.searchParams.get("from");
 
     const activeCategory =
       (categoryParam ? product.categories.find((c) => c.handle === categoryParam) : null) ??
       product.categories[0] ??
       null;
 
-    const [dynamicFonts, collectionsData, categoriesData, suggestionsData] = await Promise.all([
+    const [dynamicFonts, collectionsData, categoriesData, suggestionsData, articleData] = await Promise.all([
       product.customization
         ? fetchStorefrontDynamicFonts(backendFetch)
         : Promise.resolve<StorefrontDynamicFont[]>([]),
@@ -49,6 +52,9 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
         limit: 8,
         locale,
       }, backendFetch).catch(() => ({ items: [], page: 1, limit: 8, total: 0 })),
+      newsSlugParam
+        ? fetchStorefrontArticle(newsSlugParam, locale, backendFetch).catch(() => null)
+        : Promise.resolve(null),
     ]);
 
     const matchedCategory =
@@ -60,45 +66,69 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
       : null;
 
     const breadcrumbItems: Array<{ title: string; path: string }> = [];
+    const homeTitle = locale === "en" ? "Home" : "Trang chủ";
+    const newsTitle = locale === "en" ? "News" : "Tin tức";
 
-    const keys = Array.from(url.searchParams.keys());
-    const isCollectionFirst =
-      keys.indexOf("collection") !== -1 &&
-      (keys.indexOf("category") === -1 || keys.indexOf("collection") < keys.indexOf("category"));
+    if (newsSlugParam) {
+      breadcrumbItems.push({
+        title: newsTitle,
+        path: "/news",
+      });
+      if (articleData) {
+        breadcrumbItems.push({
+          title: articleData.title,
+          path: `/news/${articleData.slug}`,
+        });
+      }
+    } else if (categoryParam || collectionParam) {
+      const keys = Array.from(url.searchParams.keys());
+      const isCollectionFirst =
+        keys.indexOf("collection") !== -1 &&
+        (keys.indexOf("category") === -1 || keys.indexOf("collection") < keys.indexOf("category"));
 
-    if (isCollectionFirst) {
-      if (matchedCollection) {
-        breadcrumbItems.push({
-          title: getLocalized(matchedCollection.title, locale),
-          path: getCollectionPath(matchedCollection.handle),
-        });
+      if (isCollectionFirst) {
+        if (matchedCollection) {
+          breadcrumbItems.push({
+            title: getLocalized(matchedCollection.title, locale),
+            path: getCollectionPath(matchedCollection.handle),
+          });
+        }
+        if (matchedCategory) {
+          breadcrumbItems.push({
+            title: getLocalized(matchedCategory.name, locale),
+            path: matchedCollection
+              ? `${getCollectionPath(matchedCollection.handle)}?category=${encodeURIComponent(matchedCategory.handle)}`
+              : getCategoryPath(matchedCategory.handle),
+          });
+        }
+      } else {
+        if (matchedCategory) {
+          breadcrumbItems.push({
+            title: getLocalized(matchedCategory.name, locale),
+            path: getCategoryPath(matchedCategory.handle),
+          });
+        }
+        if (matchedCollection) {
+          breadcrumbItems.push({
+            title: getLocalized(matchedCollection.title, locale),
+            path: matchedCategory
+              ? `${getCategoryPath(matchedCategory.handle)}?collection=${encodeURIComponent(matchedCollection.handle)}`
+              : getCollectionPath(matchedCollection.handle),
+          });
+        }
       }
-      if (matchedCategory) {
-        breadcrumbItems.push({
-          title: getLocalized(matchedCategory.name, locale),
-          path: matchedCollection
-            ? `${getCollectionPath(matchedCollection.handle)}?category=${encodeURIComponent(matchedCategory.handle)}`
-            : getCategoryPath(matchedCategory.handle),
-        });
-      }
-    } else {
-      if (matchedCategory) {
-        breadcrumbItems.push({
-          title: getLocalized(matchedCategory.name, locale),
-          path: getCategoryPath(matchedCategory.handle),
-        });
-      }
-      if (matchedCollection) {
-        breadcrumbItems.push({
-          title: getLocalized(matchedCollection.title, locale),
-          path: matchedCategory
-            ? `${getCategoryPath(matchedCategory.handle)}?collection=${encodeURIComponent(matchedCollection.handle)}`
-            : getCollectionPath(matchedCollection.handle),
-        });
-      }
+    } else if (fromParam === "home") {
+      breadcrumbItems.push({
+        title: homeTitle,
+        path: "/",
+      });
     }
 
     if (breadcrumbItems.length === 0) {
+      breadcrumbItems.push({
+        title: homeTitle,
+        path: "/",
+      });
       if (product.categories[0]) {
         breadcrumbItems.push({
           title: getLocalized(product.categories[0].name, locale),

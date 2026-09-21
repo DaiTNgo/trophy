@@ -9,6 +9,7 @@ interface ProductCardProps {
   categoryHandle?: string | null;
   collectionHandle?: string | null;
   sourceContext?: "category" | "collection";
+  from?: string | null;
   series?: string;
   category?: string;
   categorySummary?: string | null;
@@ -31,6 +32,7 @@ export function ProductCard({
   categoryHandle,
   collectionHandle,
   sourceContext,
+  from,
   category,
   categorySummary,
   subtitle,
@@ -64,6 +66,7 @@ export function ProductCard({
     categoryHandle,
     collectionHandle,
     sourceContext,
+    from,
   });
 
   if (variant === "listing") {
