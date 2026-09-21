@@ -2,6 +2,49 @@
 
 ## Current Session
 
+- 2026-09-21: **Implemented Storefront Checkout Enhancements (2-level Address, 100% Bank Transfer, VAT Note, Purchase Notice Modal).**
+  - Session & Interview:
+    - Executed `/grill-with-docs` session, clarifying requirements, dependencies, and domain modeling for all 4 checkout annotations.
+    - Updated `CONTEXT.md` with: `Two-Level Administrative Address`, `Bank Transfer Only Policy`, `Purchase Notice Acknowledgment`, and sharpened `VAT Invoice Request`.
+    - Documented architectural decision in `docs/adr/0022-two-level-administrative-address-and-bank-transfer-policy.md`.
+  - Storefront Implementation:
+    - Installed `vietnam-divisions-js` (MIT license, Resolution 202/2025/QH15 compliant: 34 provinces & 3,321 wards/communes).
+    - `CheckoutForm.tsx`:
+      - Replaced single text address with two-level dynamic selects (Tỉnh/Thành phố & Xã/Phường via `vietnam-divisions-js/v3`) + text input for detailed address (`line1`).
+      - Removed COD option and replaced payment selection with a dedicated 100% Bank Transfer informational card.
+      - Updated VAT section label to "Thông tin nhận hóa đơn VAT" with subtitle "Nếu không chọn, hóa đơn mặc định xuất theo thông tin người mua", revealing corporate fields when checked.
+      - Added mandatory "Tôi đã đọc hiểu và đồng ý nội dung trong lưu ý mua hàng" agreement checkbox.
+      - Integrated `PurchaseNoticeModal` via Radix Dialog explaining 100% upfront payment, custom proofing, fabrication lead time, and inspection/replacement policies.
+    - `checkout.tsx`:
+      - Passed `province` and `city` (ward) alongside `line1` into `createStorefrontOrder`.
+      - Enforced `agreementChecked` before order creation.
+      - Fixed `paymentMethod: "bank_transfer"`.
+  - Backend & Verification:
+    - Added test case in `apps/backend/src/routes/storefront/orders.test.ts` verifying order creation with two-level administrative address.
+    - `pnpm --filter backend test`: 49 test files, 341 tests passed.
+    - `pnpm --filter router-cf typecheck`: passed.
+    - `pnpm --filter router-cf build`: passed.
+    - `./init.sh`: passed completely across all monorepo apps.
+
+- 2026-09-21: **Implemented Storefront Contextual Product Breadcrumbs on PDP.**
+  - Background & Architecture:
+    - Addressed breadcrumb behavior when products belong to multiple Categories or Collections. Instead of static canonical crumbs, storefront breadcrumbs reflect the shopper's active browsing journey (`?category=<handle>` or `?collection=<handle>`), with fallback to Primary Category (`product.categories[0]`).
+    - Added `Storefront Contextual Breadcrumb` to `CONTEXT.md` and created `docs/adr/0021-storefront-contextual-product-breadcrumbs.md`.
+  - Storefront Implementation:
+    - `apps/storefront/app/lib/storefront-paths.ts`: Updated `getProductPath` to support `categoryHandle` and `collectionHandle` query params, with priority given to collections when both exist. Added unit tests in `storefront-paths.test.ts`.
+    - `apps/storefront/app/components/shared/ProductCard.tsx`: Added `collectionHandle` prop and generated contextual product URLs with `getProductPath`.
+    - `apps/storefront/app/components/products/ProductListingShell.tsx`: Passed `categoryHandle` and `collectionHandle` down to `ProductGrid` and `ProductCard`.
+    - `apps/storefront/app/routes/collections.$handle.tsx`: Passed `collectionHandle={collection?.handle}` and `categoryHandle={activeCategory}` into `ProductListingShell`.
+    - `apps/storefront/app/components/categories/CategoryProductsListing.tsx`: Passed `collectionHandle={activeCollection}` into `ProductListingShell`.
+    - `apps/storefront/app/components/product/ProductBreadcrumbs.tsx`: Added support for dynamic `parentCrumb?: { title: string; path: string } | null`.
+    - `apps/storefront/app/routes/product.$handle.tsx`: Extracted `?collection=` and `?category=` params in SSR loader, resolved localized crumb titles from available collection/category data, passed `parentCrumb` to `ProductDetailLayout`, and tailored `suggestedProducts` to the active category.
+    - `apps/storefront/app/components/product/ProductDetailLayout.tsx`: Connected `parentCrumb` to `ProductBreadcrumbs`.
+  - Verification:
+    - `pnpm --filter router-cf test` passed (8 test files, 29 tests).
+    - `pnpm --filter router-cf typecheck` passed (wrangler types, react-router typegen, tsc -b).
+    - `pnpm --filter router-cf build` passed.
+    - `./init.sh` passed cleanly across all monorepo apps.
+
 - 2026-09-20: **Implemented Many-to-Many Collections, Two-Way Cross-Taxonomy Filtering & Dynamic Facets.**
   - Background & Architecture:
     - Analyzed TrophySmack live model and domain requirements: instead of deep rigid hierarchical sub-categories, Trophy uses orthogonal 2-axis taxonomy: Category ("Shop by Product": Trophies, Belts, Plaques, Medals) and Collection ("Shop by Interest": Football, Corporate, Golf, etc.).

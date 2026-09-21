@@ -169,6 +169,46 @@ describe("storefront orders route", () => {
     expect(body.order.checkoutAccessExpiresAt).toBeTruthy();
   });
 
+  it("creates an order with a two-level administrative address preserving province and ward/city in primaryAddressJson", async () => {
+    db.getQueue.push(
+      {
+        id: 1,
+        title: "Champion Cup",
+        handle: "champion-cup",
+        status: "published",
+      },
+      { id: 10, productId: 1, title: "Gold", sku: "SKU-1", priceAmount: 5000 },
+      { assetId: "asset-1", position: 0 },
+      null,
+    );
+    db.returningQueue.push([
+      { id: 124, createdAt: new Date("2026-07-05T00:00:00.000Z") },
+    ]);
+
+    const res = await storefrontOrdersRoute.request("/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ...validPayload,
+        shipping: {
+          primaryAddress: {
+            line1: "123 Kim Mã",
+            city: "Phường Ba Đình",
+            province: "Thành phố Hà Nội",
+          },
+          shipToDifferentAddress: false,
+        },
+      }),
+    });
+
+    expect(res.status).toBe(201);
+    expect(JSON.parse(db.valuesCalls[0].primaryAddressJson)).toMatchObject({
+      line1: "123 Kim Mã",
+      city: "Phường Ba Đình",
+      province: "Thành phố Hà Nội",
+    });
+  });
+
   it("returns payment instructions only with a valid signed checkout token", async () => {
     const orderNumber = "ORD-ABC-1234";
     const bindings = { BETTER_AUTH_SECRET: "test-secret" } as never;

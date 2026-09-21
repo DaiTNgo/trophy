@@ -280,6 +280,9 @@ importers:
       tailwind-merge:
         specifier: ^3.6.0
         version: 3.6.0
+      vietnam-divisions-js:
+        specifier: ^3.0.0
+        version: 3.0.0
     devDependencies:
       '@cloudflare/vite-plugin':
         specifier: ^1.51.1
@@ -3718,6 +3721,10 @@ packages:
     resolution: {integrity: sha512-s6WVJyEZrbm6jhBpiKHsGHyePMrVQKJ85wZCFCr9W4QHv6WTjWIrdvTmO9hDEA3bNK0xkrE2DqrHsXMLWuZpQg==}
     engines: {node: '>=22.0.0'}
 
+  levenshtein-edit-distance@2.0.5:
+    resolution: {integrity: sha512-Yuraz7QnMX/JENJU1HA6UtdsbhRzoSFnGpVGVryjQgHtl2s/YmVgmNYkVs5yzVZ9aAvQR9wPBUH3lG755ylxGA==}
+    hasBin: true
+
   libsql@0.5.29:
     resolution: {integrity: sha512-8lMP8iMgiBzzoNbAPQ59qdVcj6UaE/Vnm+fiwX4doX4Narook0a4GPKWBEv+CR8a1OwbfkgL18uBfBjWdF0Fzg==}
     cpu: [x64, arm64, wasm32, arm]
@@ -3929,6 +3936,9 @@ packages:
   nanostores@1.3.0:
     resolution: {integrity: sha512-XPUa/jz+P1oJvN9VBxw4L9MtdFfaH3DAryqPssqhb2kXjmb9npz0dly6rCsgFWOPr4Yg9mTfM3MDZgZZ+7A3lA==}
     engines: {node: ^20.0.0 || >=22.0.0}
+
+  natural-compare@1.4.0:
+    resolution: {integrity: sha512-OWND8ei3VtNC9h7V60qff3SVobHr996CTwgxubgyQYEpg290h9J0buyECNNJexkFm5sOajh5G116RYA1c8ZMSw==}
 
   node-releases@2.0.51:
     resolution: {integrity: sha512-wRNIrw4DmVLKQlbgOMdkMx27Wrpzes2hh5Jtbi2bjPd+4wJstWIqP5A+lscnqbm0xxmT5Bpg8Lec5ItEBwx6BQ==}
@@ -4240,6 +4250,9 @@ packages:
       i18next: ^24.0.0 || ^25.0.0 || ^26.0.0
       react-router: ^8.0.0
 
+  remove-accents@0.5.0:
+    resolution: {integrity: sha512-8g3/Otx1eJaVD12e31UbJj1YzdtVvzH85HV7t+9MJYk/u3XmkOUJ5Ys9wQrf9PCPK8+xn4ymzqYCiZl6QWKn+A==}
+
   resolve-pkg-maps@1.0.0:
     resolution: {integrity: sha512-seS2Tj26TBVOC2NIc2rOe2y2ZO7efxITtLZcGSOnHHNOQ7CkiUBfw0Iw2ck6xkIhPwLhKNLS8BO+hEpngQlqzw==}
 
@@ -4304,6 +4317,10 @@ packages:
 
   siginfo@2.0.0:
     resolution: {integrity: sha512-ybx0WO1/8bSBLEWXZvEd7gMW3Sn3JFlW3TvX1nREbDLRNQNaeNN8WK0meBwPdAaOI7TtRRRJn/Es1zhrrCHu7g==}
+
+  similarity@1.2.1:
+    resolution: {integrity: sha512-lMOpWVaWrTnyL+tkvDs8oGV/KAUBQ3wfbZtdiwDcC+KYGlwO8kgtiyag1B6akAjALDMwn5rN5YHHei1hr4X7nw==}
+    hasBin: true
 
   sonner@1.7.4:
     resolution: {integrity: sha512-DIS8z4PfJRbIyfVFDVnK9rO3eYDtse4Omcm6bt0oEr5/jtLgysmjuBl1frJ9E/EQZrFmKx2A8m/s5s9CRXIzhw==}
@@ -4484,6 +4501,9 @@ packages:
     peerDependenciesMeta:
       typescript:
         optional: true
+
+  vietnam-divisions-js@3.0.0:
+    resolution: {integrity: sha512-Pue9PYdLlJXWpo1UefiChk5p3SbFqfFSvq5+2LqBcgmuvx04KLCrJeqkmfqYQF9PeWJPIDuzwPlbeuMulipcZw==}
 
   vite@8.2.1:
     resolution: {integrity: sha512-EU/eS7BH3XROHh2YnBefjM6DBKA6ZeMZEYQbj7NLWg5wHYlhB8B/Mayd5XsgWq+NFYccDOTemRpdETWR6Ka/lw==}
@@ -7551,6 +7571,8 @@ snapshots:
 
   kysely@0.29.2: {}
 
+  levenshtein-edit-distance@2.0.5: {}
+
   libsql@0.5.29:
     dependencies:
       '@neon-rs/load': 0.0.4
@@ -7719,6 +7741,8 @@ snapshots:
   nanoid@3.3.18: {}
 
   nanostores@1.3.0: {}
+
+  natural-compare@1.4.0: {}
 
   node-releases@2.0.51: {}
 
@@ -8068,6 +8092,8 @@ snapshots:
       i18next: 26.3.6(typescript@7.0.2)
       react-router: 8.3.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
 
+  remove-accents@0.5.0: {}
+
   resolve-pkg-maps@1.0.0: {}
 
   resolve@1.22.12:
@@ -8159,6 +8185,10 @@ snapshots:
       '@img/sharp-win32-x64': 0.35.2
 
   siginfo@2.0.0: {}
+
+  similarity@1.2.1:
+    dependencies:
+      levenshtein-edit-distance: 2.0.5
 
   sonner@1.7.4(react-dom@19.2.8(react@19.2.8))(react@19.2.8):
     dependencies:
@@ -8357,6 +8387,12 @@ snapshots:
   valibot@1.4.2(typescript@7.0.2):
     optionalDependencies:
       typescript: 7.0.2
+
+  vietnam-divisions-js@3.0.0:
+    dependencies:
+      natural-compare: 1.4.0
+      remove-accents: 0.5.0
+      similarity: 1.2.1
 
   vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.1)(jiti@1.21.7)(tsx@4.22.4):
     dependencies:

@@ -185,6 +185,11 @@ _Avoid_: product category, product type, tag group
 The storefront browsing and search behavior that allows shoppers to filter products across both Product Category (Shop by Product) and Product Collection (Shop by Interest) simultaneously, maintaining two clean orthogonal axes instead of nesting sub-categories.
 _Avoid_: sub-category tree, nested collection, category hierarchy
 
+**Storefront Contextual Breadcrumb**:
+The shopper-facing breadcrumb trail on a Product Detail page that dynamically reflects the shopper's active browsing journey. When navigated from a category or collection listing, it captures context via URL query parameters (`?collection=<handle>` or `?category=<handle>`) and displays that category or collection as the intermediate parent crumb pointing back to the listing. When both parameters are present, collection takes precedence to reflect specific occasion-based intent. When accessed directly without browsing parameters, it falls back to the product's primary category (the first category in the product record) or general collections. The resolution is performed client/SSR-side on the storefront using layout taxonomy data without round-trip backend verification.
+_Avoid_: static breadcrumb, canonical-only trail, nested URL crumbs, backend-verified breadcrumb query
+
+
 
 **Admin Route Surface**:
 The operator-facing backend route surface used by the admin app for management workflows. It owns admin-only catalog, customization, asset, account, draft, and publish interactions.
@@ -434,7 +439,7 @@ The individual represented by the basic checkout information and linked to the M
 _Avoid_: VAT customer, shipping-contact field
 
 **VAT Invoice Request**:
-A shopper's explicit request for a VAT invoice. It requires an invoice entity name, tax ID, invoice email, and invoice address before checkout can proceed. Tax-ID validity is authoritative in MISA; Trophy does not apply an inferred browser checksum.
+A shopper's explicit request to supply separate VAT invoice recipient details ("Thông tin nhận hóa đơn VAT"). When unchecked, the VAT invoice defaults to the individual purchaser's basic checkout information. When checked, it requires an invoice entity name, tax ID, invoice email, and invoice address. Tax-ID validity is authoritative in MISA; Trophy does not apply an inferred browser checksum.
 _Avoid_: issued invoice, optional VAT details
 _Avoid_: incomplete cart item, draft order item, partially customized cart line
 
@@ -458,6 +463,10 @@ _Avoid_: alternate customer, second billing profile, address note
 The immutable checkout address record captured with an order, including the shopper's primary address and any different shipping address supplied for fulfillment.
 _Avoid_: resolved address only, mutable customer address
 
+**Two-Level Administrative Address**:
+The storefront shipping address format following Vietnam's administrative structure (Resolution 202/2025/QH15). It captures Province/City (`province`), Ward/Commune (`ward`/`city`), and Detailed Street Address (`line1`), omitting the former intermediate district level.
+_Avoid_: three-level address, district-required address, freeform single-line address
+
 **Order Number**:
 The shopper-facing identifier returned after order creation and shown on confirmation pages and admin order lists. It is distinct from the internal database ID.
 _Avoid_: order ID, database ID, confirmation token
@@ -469,6 +478,14 @@ _Avoid_: public order detail by number, admin order lookup, unauthenticated orde
 **Manual Payment Order**:
 An order created without an online payment gateway or shopper-selected payment step. The storefront submits customer and delivery information, then operators handle payment and order follow-up manually after creation.
 _Avoid_: online checkout payment, gateway transaction, shopper payment method
+
+**Bank Transfer Only Policy**:
+The storefront checkout policy where bank transfer is the sole accepted payment method, requiring 100% upfront bank transfer after order placement. Cash on delivery (COD) is not offered for storefront checkout.
+_Avoid_: cash on delivery, multiple payment selection, deferred cash payment
+
+**Purchase Notice Acknowledgment**:
+The mandatory shopper agreement required before placing a storefront order ("Tôi đã đọc hiểu và đồng ý nội dung trong lưu ý mua hàng"). It confirms the shopper has acknowledged custom fabrication, proofing, delivery, and upfront payment rules before the order is created.
+_Avoid_: optional terms checkbox, implicit terms agreement, unacknowledged checkout
 
 **Order Item Production Status**:
 The production readiness state tracked per order item. Non-customized items are `not_required`; customized items start as `pending_review`; after an operator confirms the submitted customization snapshot is production-ready, the item becomes `ready`.
