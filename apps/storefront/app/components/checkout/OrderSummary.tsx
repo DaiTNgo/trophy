@@ -2,9 +2,6 @@ import { ChevronDown, ChevronUp, ShoppingCart } from "lucide-react";
 import type { CartLine } from "../../lib/cart";
 import { getLocalized } from "../../lib/translation";
 import { formatCurrency } from "../../lib/utils";
-import { Button } from "../ui/button";
-import { Input } from "../ui/input";
-
 export type CheckoutLocale = "vi" | "en";
 
 export type CheckoutItem = {
@@ -107,24 +104,6 @@ function OrderTotals({
   );
 }
 
-function DiscountCodeForm({ className = "" }: { className?: string }) {
-  return (
-    <div className={`flex gap-3 ${className}`}>
-      <Input
-        placeholder="Discount code or gift card"
-        className="h-11 bg-white text-base"
-      />
-      <Button
-        type="button"
-        variant="secondary"
-        className="h-11 border border-outline-variant bg-surface-subtle px-6 font-medium text-text-base hover:bg-surface-container-high"
-      >
-        Apply
-      </Button>
-    </div>
-  );
-}
-
 function SummaryItems({
   items,
   locale,
@@ -176,8 +155,7 @@ export function MobileOrderSummary({
       </button>
       <div className={`mt-6 space-y-6 ${isOpen ? "block" : "hidden"}`}>
         <SummaryItems items={items} locale={locale} />
-        <DiscountCodeForm className="border-y border-[#DEDEDE] py-4" />
-        <div className="pt-2">
+        <div className="border-t border-[#DEDEDE] pt-4">
           <OrderTotals itemCount={items.length} subtotal={subtotal} />
         </div>
       </div>
@@ -201,7 +179,6 @@ export function DesktopOrderSummary({
           <SummaryItems items={items} locale={locale} />
         </div>
         <div className="mt-6 flex-none border-t border-[#DEDEDE] pt-6">
-          <DiscountCodeForm className="mb-6" />
           <OrderTotals itemCount={items.length} subtotal={subtotal} />
         </div>
       </div>
