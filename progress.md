@@ -16,12 +16,14 @@
       - Added mandatory "Tôi đã đọc hiểu và đồng ý nội dung trong lưu ý mua hàng" agreement checkbox.
       - Integrated `PurchaseNoticeModal` via Radix Dialog explaining 100% upfront payment, custom proofing, fabrication lead time, and inspection/replacement policies.
     - `checkout.tsx`:
-      - Passed `province` and `city` (ward) alongside `line1` into `createStorefrontOrder`.
+      - Concatenates detailed address, ward, and province into a single string `line1` and sends only `shipping.primaryAddress: { line1 }` without separate `city`/`province` (maintaining previous API contract while keeping 2-level administrative UI).
       - Enforced `agreementChecked` before order creation.
       - Fixed `paymentMethod: "bank_transfer"`.
+    - Removed `DiscountCodeForm` in checkout order summary.
   - Backend & Verification:
     - Added test case in `apps/backend/src/routes/storefront/orders.test.ts` verifying order creation with two-level administrative address.
     - `pnpm --filter backend test`: 49 test files, 341 tests passed.
+    - `pnpm --filter router-cf test`: 8 test files, 29 tests passed.
     - `pnpm --filter router-cf typecheck`: passed.
     - `pnpm --filter router-cf build`: passed.
     - `./init.sh`: passed completely across all monorepo apps.
