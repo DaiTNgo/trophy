@@ -371,21 +371,80 @@ export function useProductDetailState({
     );
   }
 
+  function getOptionValueStatus(
+    optionId: number,
+    valueId: number,
+  ): "available" | "pivotable" | "disabled" {
+    const nextSelection = new Map(selectedOptionValueIds);
+    nextSelection.set(optionId, valueId);
+
+    const hasExactVariant = product.variants.some((variant) =>
+      variantMatchesSelection(variant, nextSelection),
+    );
+    if (hasExactVariant) {
+      return "available";
+    }
+
+    const hasAnyVariantWithValue = product.variants.some((variant) =>
+      variant.optionValues.some(
+        (optionValue) =>
+          optionValue.optionId === optionId && optionValue.id === valueId,
+      ),
+    );
+    if (hasAnyVariantWithValue) {
+      return "pivotable";
+    }
+
+    return "disabled";
+  }
+
   function findVariantForOptionValue(optionId: number, valueId: number) {
     const nextSelection = new Map(selectedOptionValueIds);
     nextSelection.set(optionId, valueId);
-    return (
-      product.variants.find((variant) =>
-        variantMatchesSelection(variant, nextSelection),
-      ) ??
-      product.variants.find((variant) =>
-        variant.optionValues.some(
-          (optionValue) =>
-            optionValue.optionId === optionId && optionValue.id === valueId,
-        ),
-      ) ??
-      null
+
+    const exactMatch = product.variants.find((variant) =>
+      variantMatchesSelection(variant, nextSelection),
     );
+    if (exactMatch) {
+      return exactMatch;
+    }
+
+    // Auto-pivot candidate selection with Max Overlap Heuristic
+    const candidates = product.variants.filter((variant) =>
+      variant.optionValues.some(
+        (optionValue) =>
+          optionValue.optionId === optionId && optionValue.id === valueId,
+      ),
+    );
+    if (candidates.length === 0) {
+      return null;
+    }
+
+    const calculateOverlap = (variant: ProductDetail["variants"][number]) => {
+      let overlap = 0;
+      for (const [selectedOptId, selectedValId] of selectedOptionValueIds.entries()) {
+        if (selectedOptId === optionId) continue;
+        if (
+          variant.optionValues.some(
+            (optionValue) =>
+              optionValue.optionId === selectedOptId &&
+              optionValue.id === selectedValId,
+          )
+        ) {
+          overlap += 1;
+        }
+      }
+      return overlap;
+    };
+
+    candidates.sort((a, b) => {
+      const overlapDiff = calculateOverlap(b) - calculateOverlap(a);
+      if (overlapDiff !== 0) return overlapDiff;
+      if (a.isDefault !== b.isDefault) return a.isDefault ? -1 : 1;
+      return a.position - b.position;
+    });
+
+    return candidates[0] ?? null;
   }
 
   const mainMedia = selectedMedia;
@@ -619,6 +678,7 @@ export function useProductDetailState({
     dynamicFonts,
     displayPrice,
     galleryThumbnails,
+    getOptionValueStatus,
     handleAddToCart,
     hasInvalidRevisionVariant,
     isAtPageTop,

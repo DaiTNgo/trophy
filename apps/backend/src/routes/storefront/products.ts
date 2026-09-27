@@ -896,7 +896,12 @@ export const storefrontProductsRoute = new Hono<AppEnv>()
       attributes: resolvedAttributes,
       options: resolvedOptions.map((option) => ({
         ...option,
-        values: optionValuesByOptionId.get(option.id) ?? []
+        values: (optionValuesByOptionId.get(option.id) ?? []).map((val) => ({
+          ...val,
+          swatchAssetUrl: val.swatchAssetId
+            ? (toAbsoluteAssetUrl(c, `/api/assets/products/${val.swatchAssetId}/content`) as string)
+            : null,
+        }))
       })),
       variants: variantRows.map((variant) => {
         const ovIds = (variantOptionIdsMap.get(variant.id) ?? []).sort(

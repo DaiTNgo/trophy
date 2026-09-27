@@ -476,6 +476,7 @@ export function useCreateProduct() {
             vi: option.title.trim(),
             en: "",
           },
+          displayType: option.displayType ?? "text",
           values: option.values
             .filter((v) => v.value.trim() !== "")
             .map((value) => ({
@@ -483,6 +484,8 @@ export function useCreateProduct() {
                 vi: value.value.trim(),
                 en: "",
               },
+              colorHex: value.colorHex ?? null,
+              swatchAssetId: value.swatchAssetId ?? null,
             })),
         }))
         .filter(
@@ -770,6 +773,87 @@ export function useCreateProduct() {
             }
           : option,
       ),
+    );
+  }
+
+  function updateOptionDisplayType(
+    optionId: string,
+    displayType: "text" | "color" | "image",
+  ) {
+    setOptionDefinitions((current) =>
+      current.map((option) =>
+        option.id === optionId
+          ? {
+              ...option,
+              displayType,
+            }
+          : option,
+      ),
+    );
+  }
+
+  function updateOptionValueSwatch(
+    optionId: string,
+    valueId: string,
+    swatch: {
+      colorHex?: string | null;
+      swatchAssetId?: string | null;
+      swatchAssetUrl?: string | null;
+    },
+  ) {
+    setOptionDefinitions((current) =>
+      current.map((option) =>
+        option.id === optionId
+          ? {
+              ...option,
+              values: option.values.map((value) =>
+                value.id === valueId
+                  ? {
+                      ...value,
+                      ...(swatch.colorHex !== undefined ? { colorHex: swatch.colorHex } : {}),
+                      ...(swatch.swatchAssetId !== undefined ? { swatchAssetId: swatch.swatchAssetId } : {}),
+                      ...(swatch.swatchAssetUrl !== undefined ? { swatchAssetUrl: swatch.swatchAssetUrl } : {}),
+                    }
+                  : value,
+              ),
+            }
+          : option,
+      ),
+    );
+  }
+
+  function addOptionValueDirect(
+    optionId: string,
+    initial?: {
+      vi?: string;
+      en?: string;
+      colorHex?: string | null;
+      swatchAssetId?: string | null;
+      swatchAssetUrl?: string | null;
+    },
+  ) {
+    const nextValue = createOptionValueDefinition(initial?.vi ?? "");
+    setOptionDefinitions((current) =>
+      current.map((option) => {
+        if (option.id !== optionId) return option;
+        return {
+          ...option,
+          values: [
+            ...option.values,
+            {
+              ...nextValue,
+              value: initial?.vi ?? "",
+              valueTranslations: {
+                vi: initial?.vi ?? "",
+                en: initial?.en ?? "",
+              },
+              colorHex: initial?.colorHex ?? null,
+              swatchAssetId: initial?.swatchAssetId ?? null,
+              swatchAssetUrl: initial?.swatchAssetUrl ?? null,
+            },
+          ],
+        };
+      }),
     );
   }
 
@@ -1105,12 +1189,15 @@ export function useCreateProduct() {
     addOptionDefinition,
     removeOptionDefinition,
     updateOptionDefinition,
+    updateOptionDisplayType,
     updateOptionTitleTranslation,
     setOptionValueDrafts,
     setOptionDraftValue,
     appendOptionValue,
+    addOptionValueDirect,
     removeOptionValue,
     updateOptionValueTranslation,
+    updateOptionValueSwatch,
     setActiveStep,
     goToStep,
     continueToNextStep,

@@ -366,7 +366,12 @@ export async function readProduct(
     })),
     options: optionRows.map((option) => ({
       ...option,
-      values: optionValuesByOptionId.get(option.id) ?? []
+      values: (optionValuesByOptionId.get(option.id) ?? []).map((val) => ({
+        ...val,
+        swatchAssetUrl: val.swatchAssetId
+          ? (toAbsoluteAssetUrl(c, `/api/assets/products/${val.swatchAssetId}/content`) as string)
+          : null,
+      }))
     })),
     customization,
     variants: hydratedVariantRows.map((variant) => {

@@ -79,12 +79,14 @@ export function ProductDetailLayout({
     visibleOptions,
     selectedCustomizationFieldId,
     setSelectedCustomizationFieldId,
+    getOptionValueStatus,
   } = state;
   const optionGroups = (
     <ProductOptionGroups
       options={visibleOptions}
       selectedOptionValueIds={selectedOptionValueIds}
       locale={locale}
+      getOptionValueStatus={getOptionValueStatus}
       isAvailable={isOptionValueAvailable}
       onSelect={onOptionSelect}
     />

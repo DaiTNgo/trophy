@@ -166,7 +166,22 @@ export type StorefrontDetailResponse = {
     type: { id: number; value: LocalizedTextValue } | null;
     categories: Array<{ id: number; name: LocalizedTextValue; handle: string; parentId: number | null }>;
     attributes: Array<{ id: number; productId: number; name: LocalizedTextValue; value: LocalizedTextValue; unit: string | null; position: number }>;
-    options: Array<{ id: number; productId: number; title: LocalizedTextValue; position: number; values: Array<{ id: number; optionId: number; value: LocalizedTextValue; position: number }> }>;
+    options: Array<{
+      id: number;
+      productId: number;
+      title: LocalizedTextValue;
+      position: number;
+      displayType?: "text" | "color" | "image" | null;
+      values: Array<{
+        id: number;
+        optionId: number;
+        value: LocalizedTextValue;
+        position: number;
+        colorHex?: string | null;
+        swatchAssetId?: string | null;
+        swatchAssetUrl?: string | null;
+      }>;
+    }>;
     variants: Array<{
       id: number;
       title: LocalizedTextValue;

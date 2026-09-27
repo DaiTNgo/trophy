@@ -133,6 +133,7 @@ export type VariantOptionValue = {
 export type ProductOptionDefinition = {
   id: string;
   title: string;
+  displayType?: "text" | "color" | "image";
   titleTranslations?: LocalizedTextValue;
   values: ProductOptionValueDefinition[];
 };
@@ -141,6 +142,9 @@ export type ProductOptionValueDefinition = {
   id: string;
   value: string;
   valueTranslations?: LocalizedTextValue;
+  colorHex?: string | null;
+  swatchAssetId?: string | null;
+  swatchAssetUrl?: string | null;
 };
 
 export type ProductAttribute = {

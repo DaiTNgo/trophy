@@ -2,6 +2,38 @@
 
 ## Current Session
 
+- 2026-09-26: **Implemented Product Option Display Types & Swatches (Backend, Admin & Storefront).**
+  - Session & Design Alignment:
+    - Executed `/grilling` interview session with the user to structure Option vs Variant visual responsibilities.
+    - Decided: Option Value holds the Swatch (Color HEX or small image texture) while keeping the Variant table text-based as requested by the user.
+  - Backend:
+    - Added `displayType: text("display_type").notNull().default("text")` to `productOptions` in `apps/backend/src/db/schema.ts`.
+    - Added `colorHex: text("color_hex")` and `swatchAssetId: text("swatch_asset_id")` to `productOptionValues` in `apps/backend/src/db/schema.ts`.
+    - Updated `product-schemas.ts` for `optionsSchema`, `optionCreateSchema`, `optionUpdateSchema`, `optionValueCreateSchema`, `optionValueUpdateSchema`, and `fullCreateProductSchema`.
+    - Updated `product-option-definition-route.ts`, `product-option-value-route.ts`, `product-full-create-persistence.ts`, and `product-reader.ts` to persist and hydrate `displayType`, `colorHex`, `swatchAssetId`, and `swatchAssetUrl`.
+    - Updated `apps/backend/src/routes/storefront/products.ts` to include `swatchAssetUrl` on option values.
+    - Updated persistence test in `product-full-create-persistence.test.ts`.
+  - Admin:
+    - Created `apps/admin/src/components/ui/option-swatch-picker.tsx` providing `ColorSwatchPicker` (with color presets and hex picker popover) and `ImageSwatchPicker` (with instant upload via `/api/admin/products/assets` and thumbnail preview).
+    - Updated `use-create-product.ts` and `create-product-details.tsx` to support selecting `displayType` (`text` | `color` | `image`), rendering text badges for `text` and row lists with swatch pickers for `color` and `image`.
+    - Updated `product-detail-options.tsx` to support `displayType` selection and swatch pickers in the Drawer modal, and render swatch badges in the product options overview list.
+  - Storefront:
+    - Updated `StorefrontDetailResponse["item"]["options"]` in `apps/storefront/app/lib/api.ts` to type `displayType`, `colorHex`, `swatchAssetId`, and `swatchAssetUrl`.
+    - Updated `apps/storefront/app/components/product/ProductOptionGroups.tsx`:
+      - All options render in the structured 2-column grid (`grid gap-1.5 sm:grid-cols-2`) with text labels accompanying the swatches:
+        - `displayType === "color"`: Each button includes a 20px circular color swatch dot (`size-5 rounded-full border border-black/15 shadow-inner`) alongside the localized text label, with focus ring when selected and diagonal slash when unavailable.
+        - `displayType === "image"`: Each button includes a 24px thumbnail image preview (`size-6 rounded border border-black/10`) alongside the localized text label (with fallback monogram if no image uploaded).
+        - `displayType === "text"`: Standard clean text button.
+    - Updated unit tests in `apps/storefront/app/lib/product-option-groups.test.ts` covering text labels alongside color dots and image swatches.
+  - Verification:
+    - `pnpm --filter backend check`: passed.
+    - `pnpm --filter backend test`: 49 test files, 341 tests passed.
+    - `pnpm --filter admin build`: passed (`tsc -b && vp build`).
+    - `pnpm --filter router-cf test`: 9 test files, 32 tests passed.
+    - `pnpm --filter router-cf typecheck`: passed (`wrangler types && react-router typegen && tsc -b`).
+    - `pnpm --filter router-cf build`: passed.
+    - `./init.sh`: passed cleanly across all monorepo apps.
+
 - 2026-09-21: **Implemented Storefront Checkout Enhancements (2-level Address, 100% Bank Transfer, VAT Note, Purchase Notice Modal).**
   - Session & Interview:
     - Executed `/grill-with-docs` session, clarifying requirements, dependencies, and domain modeling for all 4 checkout annotations.

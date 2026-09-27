@@ -57,20 +57,47 @@ export const organizeSchema = v.object({
 export const attributesSchema = v.object({ items: v.array(v.object({ name: localizedString(1, 120), value: localizedString(1, 255), unit: nullableText(50) })) })
 const variantAttributesSchema = v.array(v.object({ name: localizedString(1, 120), value: localizedString(1, 255), unit: nullableText(50) }))
 
+export const optionDisplayTypeSchema = v.optional(v.union([v.literal('text'), v.literal('color'), v.literal('image')]))
+export const optionColorHexSchema = v.optional(v.nullable(v.pipe(v.string(), v.trim(), v.maxLength(50))))
+export const optionSwatchAssetIdSchema = v.optional(v.nullable(v.pipe(v.string(), v.trim(), v.maxLength(120))))
+
 const uniqueLocalizedValues = <T extends { value: { vi: string } }>(values: T[]) => new Set(values.map((value) => value.value.vi.toLowerCase())).size === values.length
 export const optionsSchema = v.object({
   items: v.array(v.object({
-    id: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1))), title: localizedString(1, 120),
-    values: v.pipe(v.array(v.object({ id: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1))), value: localizedString(1, 120) })), v.check(uniqueLocalizedValues, 'Option values must be unique within the same option'))
+    id: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1))),
+    title: localizedString(1, 120),
+    displayType: optionDisplayTypeSchema,
+    values: v.pipe(v.array(v.object({
+      id: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1))),
+      value: localizedString(1, 120),
+      colorHex: optionColorHexSchema,
+      swatchAssetId: optionSwatchAssetIdSchema,
+    })), v.check(uniqueLocalizedValues, 'Option values must be unique within the same option'))
   }))
 })
 export const optionCreateSchema = v.object({
   title: localizedString(1, 120),
-  values: v.optional(v.pipe(v.array(v.object({ value: localizedString(1, 120) })), v.check(uniqueLocalizedValues, 'Option values must be unique within the same option')))
+  displayType: optionDisplayTypeSchema,
+  values: v.optional(v.pipe(v.array(v.object({
+    value: localizedString(1, 120),
+    colorHex: optionColorHexSchema,
+    swatchAssetId: optionSwatchAssetIdSchema,
+  })), v.check(uniqueLocalizedValues, 'Option values must be unique within the same option')))
 })
-export const optionUpdateSchema = v.object({ title: localizedString(1, 120) })
-export const optionValueCreateSchema = v.object({ value: localizedString(1, 120) })
-export const optionValueUpdateSchema = v.object({ value: localizedString(1, 120) })
+export const optionUpdateSchema = v.object({
+  title: localizedString(1, 120),
+  displayType: optionDisplayTypeSchema,
+})
+export const optionValueCreateSchema = v.object({
+  value: localizedString(1, 120),
+  colorHex: optionColorHexSchema,
+  swatchAssetId: optionSwatchAssetIdSchema,
+})
+export const optionValueUpdateSchema = v.object({
+  value: localizedString(1, 120),
+  colorHex: optionColorHexSchema,
+  swatchAssetId: optionSwatchAssetIdSchema,
+})
 
 const assetIdSchema = v.pipe(v.string(), v.uuid())
 // Multipart field names are client-local correlation tokens, not persisted asset IDs.
@@ -105,7 +132,15 @@ export const fullCreateProductSchema = v.object({
   details: v.object({ title: localizedString(1, 200), subtitle: optionalLocalizedNullableText(255), handle: optionalHandle, description: optionalLocalizedNullableText(), ...productRichTextFields }),
   organization: fullCreateOrganizationSchema,
   attributes: v.array(v.object({ name: localizedString(1, 120), value: localizedString(1, 255), unit: nullableText(50) })),
-  options: v.array(v.object({ title: localizedString(1, 120), values: v.pipe(v.array(v.object({ value: localizedString(1, 120) })), v.check((values) => new Set(values.map((value) => (typeof value.value === 'string' ? value.value : value.value.vi).toLowerCase())).size === values.length, 'Option values must be unique within the same option')) })),
+  options: v.array(v.object({
+    title: localizedString(1, 120),
+    displayType: optionDisplayTypeSchema,
+    values: v.pipe(v.array(v.object({
+      value: localizedString(1, 120),
+      colorHex: optionColorHexSchema,
+      swatchAssetId: optionSwatchAssetIdSchema,
+    })), v.check((values) => new Set(values.map((value) => (typeof value.value === 'string' ? value.value : value.value.vi).toLowerCase())).size === values.length, 'Option values must be unique within the same option'))
+  })),
   variants: v.array(v.object({ title: localizedVariantTitleSchema, sku: nullableText(120), priceAmount: v.optional(v.nullable(v.pipe(v.number(), v.integer(), v.minValue(0)))), inventoryQuantity: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0))), allowBackorder: v.optional(v.boolean()), isDefault: v.optional(v.boolean()), attributes: v.optional(variantAttributesSchema), optionValues: v.optional(v.array(v.object({ optionTitle: trimmedString(1, 120), value: trimmedString(1, 120) }))), media: v.array(v.object({ mediaId: mediaIdSchema, widthPx: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1))), heightPx: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1))) })), customizationMedia: v.optional(v.nullable(v.object({ mediaId: mediaIdSchema, widthPx: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1))), heightPx: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1))) }))) })),
   customization: v.optional(v.nullable(fullCreateCustomizationSchema))
 })

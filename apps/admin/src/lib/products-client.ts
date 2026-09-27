@@ -50,7 +50,14 @@ type ApiProduct = {
   options: Array<{
     id: number;
     title: LocalizedInput;
-    values: Array<{ id: number; value: LocalizedInput }>;
+    displayType?: "text" | "color" | "image";
+    values: Array<{
+      id: number;
+      value: LocalizedInput;
+      colorHex?: string | null;
+      swatchAssetId?: string | null;
+      swatchAssetUrl?: string | null;
+    }>;
   }>;
   variants: Array<{
     id: number;
@@ -367,7 +374,15 @@ export async function updateProductOptions(id: string, items: Array<{ title: { v
 
 export async function createProductOption(
   id: string,
-  payload: { title: { vi: string; en?: string }; values?: Array<{ value: { vi: string; en?: string } }> },
+  payload: {
+    title: { vi: string; en?: string };
+    displayType?: "text" | "color" | "image";
+    values?: Array<{
+      value: { vi: string; en?: string };
+      colorHex?: string | null;
+      swatchAssetId?: string | null;
+    }>;
+  },
 ) {
   const response = await backendFetch(`/api/admin/products/${id}/options`, {
     method: "POST",
@@ -386,7 +401,7 @@ export async function createProductOption(
 export async function updateProductOption(
   id: string,
   optionId: number,
-  payload: { title: { vi: string; en?: string } },
+  payload: { title: { vi: string; en?: string }; displayType?: "text" | "color" | "image" },
 ) {
   const response = await backendFetch(`/api/admin/products/${id}/options/${optionId}`, {
     method: "PATCH",
@@ -418,7 +433,11 @@ export async function deleteProductOption(id: string, optionId: number) {
 export async function createProductOptionValue(
   id: string,
   optionId: number,
-  payload: { value: { vi: string; en?: string } },
+  payload: {
+    value: { vi: string; en?: string };
+    colorHex?: string | null;
+    swatchAssetId?: string | null;
+  },
 ) {
   const response = await backendFetch(`/api/admin/products/${id}/options/${optionId}/values`, {
     method: "POST",
@@ -437,7 +456,11 @@ export async function createProductOptionValue(
 export async function updateProductOptionValue(
   id: string,
   valueId: number,
-  payload: { value: { vi: string; en?: string } },
+  payload: {
+    value: { vi: string; en?: string };
+    colorHex?: string | null;
+    swatchAssetId?: string | null;
+  },
 ) {
   const response = await backendFetch(`/api/admin/products/${id}/option-values/${valueId}`, {
     method: "PATCH",
@@ -1005,11 +1028,15 @@ export function mapApiProductToCatalogProduct(product: Partial<ApiProduct> & Pic
     optionDefinitions: (product.options || []).map((option) => ({
       id: String(option.id),
       title: toLocalized(option.title).vi,
+      displayType: (option.displayType as "text" | "color" | "image") ?? "text",
       titleTranslations: toLocalized(option.title),
       values: (option.values || []).map((value) => ({
         id: String(value.id),
         value: toLocalized(value.value).vi,
         valueTranslations: toLocalized(value.value),
+        colorHex: value.colorHex ?? null,
+        swatchAssetId: value.swatchAssetId ?? null,
+        swatchAssetUrl: value.swatchAssetUrl ?? null,
       })),
     })),
     variants,

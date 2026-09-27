@@ -207,6 +207,7 @@ export const productOptions = sqliteTable("product_options", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   productId: integer("product_id").notNull(),
   title: text("title").notNull(),
+  displayType: text("display_type").notNull().default("text"),
   position: integer("position").notNull(),
 });
 
@@ -214,6 +215,8 @@ export const productOptionValues = sqliteTable("product_option_values", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   optionId: integer("option_id").notNull(),
   value: text("value").notNull(),
+  colorHex: text("color_hex"),
+  swatchAssetId: text("swatch_asset_id"),
   position: integer("position").notNull(),
 });
 

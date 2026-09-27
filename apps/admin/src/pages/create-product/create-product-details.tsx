@@ -4,12 +4,15 @@ import {
   Button,
   Checkbox,
   Heading,
+  IconButton,
   Input,
   Label,
+  Select,
   Switch,
   Text,
 } from "@medusajs/ui";
-import { X } from "lucide-react";
+import { Plus, Trash2, X } from "lucide-react";
+import { ColorSwatchPicker, ImageSwatchPicker } from "../../components/ui/option-swatch-picker";
 import {
   LocalizedTextField,
   createLocalizedText,
@@ -86,6 +89,9 @@ export function CreateProductDetails({ state }: CreateProductDetailsProps) {
     removeAttributeRow,
     optionDefinitions,
     addOptionDefinition,
+    updateOptionDisplayType,
+    updateOptionValueSwatch,
+    addOptionValueDirect,
     effectiveVariantRows,
     toggleAllVariants,
     toggleVariantCreation,
@@ -397,11 +403,12 @@ export function CreateProductDetails({ state }: CreateProductDetailsProps) {
               const optionTitleLocale = getOptionTitleLocale(option.id);
               const optionTitleTranslations =
                 option.titleTranslations ?? createLocalizedText(option.title);
+              const displayType = option.displayType ?? "text";
 
               return (
                 <div
                   key={option.id}
-                  className="rounded-xl border border-ui-border-base p-4"
+                  className="rounded-xl border border-ui-border-base p-4 space-y-4"
                 >
                   <div className="grid gap-4 lg:grid-cols-[84px_minmax(0,1fr)_32px]">
                     <div className="space-y-6 pt-2">
@@ -409,7 +416,7 @@ export function CreateProductDetails({ state }: CreateProductDetailsProps) {
                         Title
                       </Text>
                       <Text weight="plus" size="small">
-                        Values
+                        Display
                       </Text>
                     </div>
                     <div className="space-y-3">
@@ -428,99 +435,44 @@ export function CreateProductDetails({ state }: CreateProductDetailsProps) {
                           )
                         }
                         placeholder={{
-                          vi: "Mau sac",
+                          vi: "Màu sắc",
                           en: "Color",
                         }}
                       />
-                      <div className="rounded-md border border-ui-border-base bg-ui-bg-field px-3 py-2 shadow-buttons-neutral">
-                        <div className="flex flex-wrap gap-2">
-                          {option.values.map((value) => {
-                            const valueTranslations =
-                              getOptionValueTranslations(value);
-                            const missingLocales =
-                              getMissingLocalizedTextLocales(valueTranslations);
 
-                            return (
-                              <Badge
-                                key={value.id}
-                                size="xsmall"
-                                color={
-                                  missingLocales.length > 0 ? "orange" : "blue"
-                                }
-                                className="gap-x-1.5 py-1"
-                              >
-                                <input
-                                  value={valueTranslations.vi}
-                                  onChange={(event) =>
-                                    updateOptionValueTranslation(
-                                      option.id,
-                                      value.id,
-                                      {
-                                        ...valueTranslations,
-                                        vi: event.target.value,
-                                      },
-                                    )
-                                  }
-                                  className="min-w-[2ch] max-w-[16ch] bg-transparent text-xs outline-none placeholder:text-ui-fg-muted"
-                                  style={{
-                                    width: `${Math.max(valueTranslations.vi.length, 2)}ch`,
-                                  }}
-                                  placeholder="__"
-                                  aria-label="Vietnamese option value"
-                                />
-                                <span className="text-ui-fg-muted">/</span>
-                                <input
-                                  value={valueTranslations.en}
-                                  onChange={(event) =>
-                                    updateOptionValueTranslation(
-                                      option.id,
-                                      value.id,
-                                      {
-                                        ...valueTranslations,
-                                        en: event.target.value,
-                                      },
-                                    )
-                                  }
-                                  className="min-w-[2ch] max-w-[16ch] bg-transparent text-xs outline-none placeholder:text-ui-fg-muted"
-                                  style={{
-                                    width: `${Math.max(valueTranslations.en.length, 2)}ch`,
-                                  }}
-                                  placeholder="__"
-                                  aria-label="English option value"
-                                />
-                                <button
-                                  type="button"
-                                  className="inline-flex"
-                                  onClick={() =>
-                                    removeOptionValue(option.id, value.id)
-                                  }
-                                  aria-label="Remove option value"
-                                >
-                                  <X className="size-3" />
-                                </button>
-                              </Badge>
-                            );
-                          })}
-                          <input
-                            value={optionValueDrafts[option.id] ?? ""}
-                            onChange={(event) =>
-                              setOptionDraftValue(option.id, event.target.value)
-                            }
-                            onBlur={() => appendOptionValue(option.id)}
-                            onKeyDown={(event) => {
-                              if (event.key === "Enter" || event.key === ",") {
-                                event.preventDefault();
-                                appendOptionValue(option.id, "vi");
-                              }
-                            }}
-                            className="min-w-[180px] flex-1 border-0 bg-transparent text-sm outline-none placeholder:text-ui-fg-muted"
-                            placeholder={
-                              option.values.length > 0
-                                ? "Add another value"
-                                : "Red, Blue, Green"
-                            }
-                          />
-                        </div>
+                      <div className="flex items-center gap-3">
+                        <Select
+                          size="small"
+                          value={displayType}
+                          onValueChange={(val) =>
+                            updateOptionDisplayType(
+                              option.id,
+                              val as "text" | "color" | "image",
+                            )
+                          }
+                        >
+                          <Select.Trigger className="w-56">
+                            <Select.Value />
+                          </Select.Trigger>
+                          <Select.Content>
+                            <Select.Item value="text">
+                              Text button (Default)
+                            </Select.Item>
+                            <Select.Item value="color">
+                              Color swatch (Màu sắc)
+                            </Select.Item>
+                            <Select.Item value="image">
+                              Image swatch (Mẫu vân / Icon)
+                            </Select.Item>
+                          </Select.Content>
+                        </Select>
+                        <Text size="xsmall" className="text-ui-fg-muted">
+                          {displayType === "color"
+                            ? "Each value has a color picker (HEX swatch)"
+                            : displayType === "image"
+                            ? "Each value has a small texture / icon upload"
+                            : "Standard text badge"}
+                        </Text>
                       </div>
                     </div>
                     <div className="flex justify-end pt-1">
@@ -533,6 +485,189 @@ export function CreateProductDetails({ state }: CreateProductDetailsProps) {
                         <X className="size-5" />
                       </button>
                     </div>
+                  </div>
+
+                  <div className="grid gap-4 lg:grid-cols-[84px_minmax(0,1fr)_32px] pt-1 border-t border-ui-border-base/50">
+                    <div className="pt-2">
+                      <Text weight="plus" size="small">
+                        Values
+                      </Text>
+                    </div>
+                    <div className="space-y-2.5">
+                      {displayType === "text" ? (
+                        <div className="rounded-md border border-ui-border-base bg-ui-bg-field px-3 py-2 shadow-buttons-neutral">
+                          <div className="flex flex-wrap gap-2">
+                            {option.values.map((value) => {
+                              const valueTranslations =
+                                getOptionValueTranslations(value);
+                              const missingLocales =
+                                getMissingLocalizedTextLocales(valueTranslations);
+
+                              return (
+                                <Badge
+                                  key={value.id}
+                                  size="xsmall"
+                                  color={
+                                    missingLocales.length > 0 ? "orange" : "blue"
+                                  }
+                                  className="gap-x-1.5 py-1"
+                                >
+                                  <input
+                                    value={valueTranslations.vi}
+                                    onChange={(event) =>
+                                      updateOptionValueTranslation(
+                                        option.id,
+                                        value.id,
+                                        {
+                                          ...valueTranslations,
+                                          vi: event.target.value,
+                                        },
+                                      )
+                                    }
+                                    className="min-w-[2ch] max-w-[16ch] bg-transparent text-xs outline-none placeholder:text-ui-fg-muted"
+                                    style={{
+                                      width: `${Math.max(valueTranslations.vi.length, 2)}ch`,
+                                    }}
+                                    placeholder="__"
+                                    aria-label="Vietnamese option value"
+                                  />
+                                  <span className="text-ui-fg-muted">/</span>
+                                  <input
+                                    value={valueTranslations.en}
+                                    onChange={(event) =>
+                                      updateOptionValueTranslation(
+                                        option.id,
+                                        value.id,
+                                        {
+                                          ...valueTranslations,
+                                          en: event.target.value,
+                                        },
+                                      )
+                                    }
+                                    className="min-w-[2ch] max-w-[16ch] bg-transparent text-xs outline-none placeholder:text-ui-fg-muted"
+                                    style={{
+                                      width: `${Math.max(valueTranslations.en.length, 2)}ch`,
+                                    }}
+                                    placeholder="__"
+                                    aria-label="English option value"
+                                  />
+                                  <button
+                                    type="button"
+                                    className="inline-flex"
+                                    onClick={() =>
+                                      removeOptionValue(option.id, value.id)
+                                    }
+                                    aria-label="Remove option value"
+                                  >
+                                    <X className="size-3" />
+                                  </button>
+                                </Badge>
+                              );
+                            })}
+                            <input
+                              value={optionValueDrafts[option.id] ?? ""}
+                              onChange={(event) =>
+                                setOptionDraftValue(option.id, event.target.value)
+                              }
+                              onBlur={() => appendOptionValue(option.id)}
+                              onKeyDown={(event) => {
+                                if (event.key === "Enter" || event.key === ",") {
+                                  event.preventDefault();
+                                  appendOptionValue(option.id, "vi");
+                                }
+                              }}
+                              className="min-w-[180px] flex-1 border-0 bg-transparent text-sm outline-none placeholder:text-ui-fg-muted"
+                              placeholder={
+                                option.values.length > 0
+                                  ? "Add another value"
+                                  : "Red, Blue, Green"
+                              }
+                            />
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {option.values.length === 0 ? (
+                            <Text size="small" className="text-ui-fg-muted italic py-1">
+                              No values added yet. Click &quot;Add value&quot; below.
+                            </Text>
+                          ) : (
+                            <div className="space-y-1.5">
+                              {option.values.map((value) => {
+                                const valueTranslations = getOptionValueTranslations(value);
+                                return (
+                                  <div
+                                    key={value.id}
+                                    className="flex items-center gap-3 rounded-lg border border-ui-border-base bg-ui-bg-subtle p-2"
+                                  >
+                                    {displayType === "color" ? (
+                                      <ColorSwatchPicker
+                                        colorHex={value.colorHex}
+                                        onChange={(hex) =>
+                                          updateOptionValueSwatch(option.id, value.id, {
+                                            colorHex: hex,
+                                          })
+                                        }
+                                      />
+                                    ) : (
+                                      <ImageSwatchPicker
+                                        swatchAssetUrl={value.swatchAssetUrl}
+                                        onChange={(swatch) =>
+                                          updateOptionValueSwatch(option.id, value.id, swatch)
+                                        }
+                                      />
+                                    )}
+                                    <div className="grid grid-cols-2 flex-1 gap-2">
+                                      <Input
+                                        size="small"
+                                        value={valueTranslations.vi}
+                                        onChange={(e) =>
+                                          updateOptionValueTranslation(option.id, value.id, {
+                                            ...valueTranslations,
+                                            vi: e.target.value,
+                                          })
+                                        }
+                                        placeholder="Tên giá trị (VI)"
+                                      />
+                                      <Input
+                                        size="small"
+                                        value={valueTranslations.en}
+                                        onChange={(e) =>
+                                          updateOptionValueTranslation(option.id, value.id, {
+                                            ...valueTranslations,
+                                            en: e.target.value,
+                                          })
+                                        }
+                                        placeholder="Value name (EN)"
+                                      />
+                                    </div>
+                                    <IconButton
+                                      type="button"
+                                      variant="transparent"
+                                      size="small"
+                                      onClick={() => removeOptionValue(option.id, value.id)}
+                                      aria-label="Remove value"
+                                    >
+                                      <Trash2 className="size-4 text-ui-fg-muted hover:text-ui-fg-error" />
+                                    </IconButton>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="small"
+                            onClick={() => addOptionValueDirect(option.id)}
+                          >
+                            <Plus className="size-3.5 mr-1" />
+                            Add value
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                    <div />
                   </div>
                 </div>
               );

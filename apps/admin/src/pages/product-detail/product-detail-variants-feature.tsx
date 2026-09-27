@@ -9,7 +9,6 @@ import {
   Label,
   Heading,
   Select,
-  Switch,
   Table,
   Text,
 } from "@medusajs/ui";
@@ -62,9 +61,9 @@ export function ProductDetailVariants({ product, mutate, updateProduct }: Produc
   const {
     priceOpen, setPriceOpen, stockOpen, setStockOpen, variantOpen, setVariantOpen,
     priceRows, setPriceRows, stockRows, setStockRows, variantForm, setVariantForm,
-    variantTitleLocale, setVariantTitleLocale, variantAttributeLocale, setVariantAttributeLocale,
+    variantTitleLocale, setVariantTitleLocale,
     isSavingPrices, isSavingStock, isSavingVariant, openPrices, openStock,
-    openVariantEditor, updateVariantAttribute, savePrices, saveStock, saveVariant,
+    openVariantEditor, savePrices, saveStock, saveVariant,
     handleDeleteVariant,
     handleSyncVariantToMisa, handleDisconnectVariantFromMisa, syncingMisaVariantId,
   } = state;
@@ -410,90 +409,6 @@ export function ProductDetailVariants({ product, mutate, updateProduct }: Produc
                     className="border-0 bg-transparent shadow-none"
                     placeholder="0"
                   />
-                </div>
-              </section>
-
-              <section className="space-y-4">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div>
-                    <Heading level="h3" className="text-base font-medium">
-                      Attributes
-                    </Heading>
-                    <Text size="small" className="text-ui-fg-subtle">
-                      Product detail attributes stay shared. Change values here only when this variant needs different values.
-                    </Text>
-                  </div>
-                </div>
-
-                {product.attributes.length === 0 ? (
-                  <div className="rounded-lg border border-dashed border-ui-border-base bg-ui-bg-subtle px-4 py-4">
-                    <Text size="small" className="text-ui-fg-subtle">
-                      This product has no attributes to override.
-                    </Text>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {variantForm.attributes.map((attribute, index) => (
-                      <div key={`variant-attribute-${index}`} className="grid gap-3 rounded-lg border border-ui-border-base p-4 md:grid-cols-[1fr_1fr]">
-                        <div className="flex items-center">
-                          <Text size="small" weight="plus">{attribute.key.vi}</Text>
-                        </div>
-                        <LocalizedTextField
-                          id={`variant-attribute-value-${index}`}
-                          value={attribute.value}
-                          locale={variantAttributeLocale}
-                          onLocaleChange={setVariantAttributeLocale}
-                          onChange={(value) => updateVariantAttribute(index, "value", value)}
-                          placeholder={{ vi: "18k gold", en: "18k gold" }}
-                          requiredLocales={["vi"]}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </section>
-
-              <section className="space-y-4">
-                <div>
-                  <Heading level="h3" className="text-base font-medium">
-                    Inventory
-                  </Heading>
-                  <Text size="small" className="text-ui-fg-subtle">
-                    Set stock quantity and selling behavior when quantity reaches zero.
-                  </Text>
-                </div>
-                <div className="grid gap-4 md:grid-cols-[220px_1fr]">
-                  <div className="space-y-1.5">
-                    <Label size="small">Inventory quantity</Label>
-                    <Input
-                      value={variantForm.inventoryQuantity}
-                      onChange={(event) =>
-                        setVariantForm((current) => ({
-                          ...current,
-                          inventoryQuantity: event.target.value,
-                        }))
-                      }
-                      type="number"
-                      min="0"
-                      placeholder="0"
-                    />
-                  </div>
-                  <div className="flex items-start justify-between gap-4 rounded-lg border border-ui-border-base px-4 py-3">
-                    <div className="space-y-1">
-                      <Text size="small" weight="plus">
-                        Allow backorder
-                      </Text>
-                      <Text size="small" className="text-ui-fg-subtle">
-                        Keep this variant sellable even when stock reaches zero.
-                      </Text>
-                    </div>
-                    <Switch
-                      checked={variantForm.allowBackorder}
-                      onCheckedChange={(checked) =>
-                        setVariantForm((current) => ({ ...current, allowBackorder: checked }))
-                      }
-                    />
-                  </div>
                 </div>
               </section>
               </> : (

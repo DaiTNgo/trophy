@@ -127,6 +127,8 @@ export const productOptionValueRoute = new Hono<AppEnv>()
       .values({
         optionId: option.id,
         value: parsed.output.value.vi,
+        colorHex: parsed.output.colorHex ?? null,
+        swatchAssetId: parsed.output.swatchAssetId ?? null,
         position: existingValues.length
       })
       .returning()
@@ -164,9 +166,19 @@ export const productOptionValueRoute = new Hono<AppEnv>()
       return jsonError(c, uniqueValueError.status, uniqueValueError.error)
     }
 
+    const updateData: { value: string; colorHex?: string | null; swatchAssetId?: string | null } = {
+      value: parsed.output.value.vi
+    }
+    if (parsed.output.colorHex !== undefined) {
+      updateData.colorHex = parsed.output.colorHex
+    }
+    if (parsed.output.swatchAssetId !== undefined) {
+      updateData.swatchAssetId = parsed.output.swatchAssetId
+    }
+
     await db
       .update(productOptionValues)
-      .set({ value: parsed.output.value.vi })
+      .set(updateData)
       .where(eq(productOptionValues.id, optionValue.id))
     await upsertTranslations(
       db,
