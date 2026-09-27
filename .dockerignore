@@ -1,0 +1,14 @@
+node_modules
+.git
+.gitignore
+.npmrc
+.pnpm-store
+.turbo
+.vscode
+.idea
+dist
+build
+.react-router
+storage
+*.log
+.DS_Store

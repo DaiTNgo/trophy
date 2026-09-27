@@ -343,17 +343,19 @@ export const storefrontArticlesRoute = new Hono<AppEnv>()
     markRowsPublished([row], flippedIds);
 
     // Increment view count (fire-and-forget, non-blocking)
+    const updateViewPromise = db
+      .update(articles)
+      .set({ viewCount: sql`${articles.viewCount} + 1` })
+      .where(eq(articles.id, row.article.id))
+      .run()
+      .catch(() => {});
+
     try {
-      c.executionCtx.waitUntil(
-        db
-          .update(articles)
-          .set({ viewCount: sql`${articles.viewCount} + 1` })
-          .where(eq(articles.id, row.article.id))
-          .run()
-          .catch(() => {}),
-      );
+      if (c.executionCtx?.waitUntil) {
+        c.executionCtx.waitUntil(updateViewPromise);
+      }
     } catch {
-      // No ExecutionContext in test or non-Worker environments — ignore
+      // Ignore execution context errors
     }
 
     // Fetch categories and linked products in parallel

@@ -1,68 +1,69 @@
 import { sql } from "drizzle-orm";
 import {
+  boolean,
   index,
   integer,
+  pgTable,
   primaryKey,
   real,
-  sqliteTable,
+  serial,
   text,
+  timestamp,
   uniqueIndex,
-} from "drizzle-orm/sqlite-core";
+} from "drizzle-orm/pg-core";
 
-export const brandColors = sqliteTable("brand_color", {
+export const brandColors = pgTable("brand_color", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   hexCode: text("hex_code").notNull(),
-  createdAt: integer("created_at", { mode: "timestamp_ms" })
-    .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+  createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
+    .defaultNow()
     .notNull(),
 });
 
-export const fontFamilies = sqliteTable("font_family", {
+export const fontFamilies = pgTable("font_family", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   regularAssetId: text("regular_asset_id"),
   boldAssetId: text("bold_asset_id"),
   italicAssetId: text("italic_asset_id"),
   boldItalicAssetId: text("bold_italic_asset_id"),
-  createdAt: integer("created_at", { mode: "timestamp_ms" })
-    .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+  createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
+    .defaultNow()
     .notNull(),
 });
 
-export const users = sqliteTable("user", {
+export const users = pgTable("user", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   username: text("username").unique(),
   displayUsername: text("display_username"),
   email: text("email").notNull().unique(),
-  emailVerified: integer("email_verified", { mode: "boolean" })
-    .default(false)
-    .notNull(),
+  emailVerified: boolean("email_verified").default(false).notNull(),
   image: text("image"),
-  createdAt: integer("created_at", { mode: "timestamp_ms" })
-    .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+  createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
+    .defaultNow()
     .notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp_ms" })
-    .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+  updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" })
+    .defaultNow()
     .$onUpdate(() => new Date())
     .notNull(),
   role: text("role"),
-  banned: integer("banned", { mode: "boolean" }).default(false),
+  banned: boolean("banned").default(false),
   banReason: text("ban_reason"),
-  banExpires: integer("ban_expires", { mode: "timestamp_ms" }),
+  banExpires: timestamp("ban_expires", { withTimezone: true, mode: "date" }),
 });
 
-export const sessions = sqliteTable(
+export const sessions = pgTable(
   "session",
   {
     id: text("id").primaryKey(),
-    expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true, mode: "date" }).notNull(),
     token: text("token").notNull().unique(),
-    createdAt: integer("created_at", { mode: "timestamp_ms" })
-      .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
+      .defaultNow()
       .notNull(),
-    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" })
       .$onUpdate(() => new Date())
       .notNull(),
     ipAddress: text("ip_address"),
@@ -75,7 +76,7 @@ export const sessions = sqliteTable(
   (table) => [index("session_user_id_idx").on(table.userId)],
 );
 
-export const accounts = sqliteTable(
+export const accounts = pgTable(
   "account",
   {
     id: text("id").primaryKey(),
@@ -87,54 +88,56 @@ export const accounts = sqliteTable(
     accessToken: text("access_token"),
     refreshToken: text("refresh_token"),
     idToken: text("id_token"),
-    accessTokenExpiresAt: integer("access_token_expires_at", {
-      mode: "timestamp_ms",
+    accessTokenExpiresAt: timestamp("access_token_expires_at", {
+      withTimezone: true,
+      mode: "date",
     }),
-    refreshTokenExpiresAt: integer("refresh_token_expires_at", {
-      mode: "timestamp_ms",
+    refreshTokenExpiresAt: timestamp("refresh_token_expires_at", {
+      withTimezone: true,
+      mode: "date",
     }),
     scope: text("scope"),
     password: text("password"),
-    createdAt: integer("created_at", { mode: "timestamp_ms" })
-      .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
+      .defaultNow()
       .notNull(),
-    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" })
       .$onUpdate(() => new Date())
       .notNull(),
   },
   (table) => [index("account_user_id_idx").on(table.userId)],
 );
 
-export const verifications = sqliteTable(
+export const verifications = pgTable(
   "verification",
   {
     id: text("id").primaryKey(),
     identifier: text("identifier").notNull(),
     value: text("value").notNull(),
-    expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
-    createdAt: integer("created_at", { mode: "timestamp_ms" })
-      .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+    expiresAt: timestamp("expires_at", { withTimezone: true, mode: "date" }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
+      .defaultNow()
       .notNull(),
-    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
-      .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" })
+      .defaultNow()
       .$onUpdate(() => new Date())
       .notNull(),
   },
   (table) => [index("verification_identifier_idx").on(table.identifier)],
 );
 
-export const samples = sqliteTable("samples", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
+export const samples = pgTable("samples", {
+  id: serial("id").primaryKey(),
   name: text("name").notNull(),
   createdAt: text("created_at")
     .notNull()
     .default(sql`CURRENT_TIMESTAMP`),
 });
 
-export const productCollections = sqliteTable(
+export const productCollections = pgTable(
   "product_collections",
   {
-    id: integer("id").primaryKey({ autoIncrement: true }),
+    id: serial("id").primaryKey(),
     title: text("title").notNull(),
     handle: text("handle").notNull(),
     imageUrl: text("image_url"),
@@ -144,10 +147,10 @@ export const productCollections = sqliteTable(
   (table) => [uniqueIndex("product_collections_handle_idx").on(table.handle)],
 );
 
-export const productCategories = sqliteTable(
+export const productCategories = pgTable(
   "product_categories",
   {
-    id: integer("id").primaryKey({ autoIncrement: true }),
+    id: serial("id").primaryKey(),
     name: text("name").notNull(),
     handle: text("handle").notNull(),
     description: text("description"),
@@ -158,10 +161,10 @@ export const productCategories = sqliteTable(
   (table) => [uniqueIndex("product_categories_handle_idx").on(table.handle)],
 );
 
-export const products = sqliteTable(
+export const products = pgTable(
   "products",
   {
-    id: integer("id").primaryKey({ autoIncrement: true }),
+    id: serial("id").primaryKey(),
     title: text("title").notNull(),
     subtitle: text("subtitle"),
     handle: text("handle").notNull(),
@@ -185,7 +188,7 @@ export const products = sqliteTable(
   (table) => [uniqueIndex("products_handle_idx").on(table.handle)],
 );
 
-export const productCollectionLinks = sqliteTable(
+export const productCollectionLinks = pgTable(
   "product_collection_links",
   {
     productId: integer("product_id").notNull(),
@@ -194,7 +197,7 @@ export const productCollectionLinks = sqliteTable(
   (table) => [primaryKey({ columns: [table.productId, table.collectionId] })],
 );
 
-export const productCategoryLinks = sqliteTable(
+export const productCategoryLinks = pgTable(
   "product_category_links",
   {
     productId: integer("product_id").notNull(),
@@ -203,16 +206,16 @@ export const productCategoryLinks = sqliteTable(
   (table) => [primaryKey({ columns: [table.productId, table.categoryId] })],
 );
 
-export const productOptions = sqliteTable("product_options", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
+export const productOptions = pgTable("product_options", {
+  id: serial("id").primaryKey(),
   productId: integer("product_id").notNull(),
   title: text("title").notNull(),
   displayType: text("display_type").notNull().default("text"),
   position: integer("position").notNull(),
 });
 
-export const productOptionValues = sqliteTable("product_option_values", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
+export const productOptionValues = pgTable("product_option_values", {
+  id: serial("id").primaryKey(),
   optionId: integer("option_id").notNull(),
   value: text("value").notNull(),
   colorHex: text("color_hex"),
@@ -220,35 +223,39 @@ export const productOptionValues = sqliteTable("product_option_values", {
   position: integer("position").notNull(),
 });
 
-export const productVariants = sqliteTable("product_variants", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  writeToken: text("write_token"),
-  productId: integer("product_id").notNull(),
-  title: text("title").notNull(),
-  sku: text("sku"),
-  misaProductId: integer("misa_product_id"),
-  misaProductCode: text("misa_product_code"),
-  misaSyncStatus: text("misa_sync_status").notNull().default("pending"),
-  misaLastError: text("misa_last_error"),
-  misaSyncedAt: integer("misa_synced_at", { mode: "timestamp_ms" }),
-  priceAmount: integer("price_amount"),
-  inventoryQuantity: integer("inventory_quantity").notNull().default(0),
-  allowBackorder: integer("allow_backorder", { mode: "boolean" })
-    .notNull()
-    .default(false),
-  isDefault: integer("is_default", { mode: "boolean" })
-    .notNull()
-    .default(false),
-  position: integer("position").notNull(),
-  createdAt: text("created_at")
-    .notNull()
-    .default(sql`CURRENT_TIMESTAMP`),
-  updatedAt: text("updated_at")
-    .notNull()
-    .default(sql`CURRENT_TIMESTAMP`),
-}, (table) => [uniqueIndex("product_variants_write_token_idx").on(table.writeToken)]);
+export const productVariants = pgTable(
+  "product_variants",
+  {
+    id: serial("id").primaryKey(),
+    writeToken: text("write_token"),
+    productId: integer("product_id").notNull(),
+    title: text("title").notNull(),
+    sku: text("sku"),
+    misaProductId: integer("misa_product_id"),
+    misaProductCode: text("misa_product_code"),
+    misaSyncStatus: text("misa_sync_status").notNull().default("pending"),
+    misaLastError: text("misa_last_error"),
+    misaSyncedAt: timestamp("misa_synced_at", { withTimezone: true, mode: "date" }),
+    priceAmount: integer("price_amount"),
+    inventoryQuantity: integer("inventory_quantity").notNull().default(0),
+    allowBackorder: boolean("allow_backorder")
+      .notNull()
+      .default(false),
+    isDefault: boolean("is_default")
+      .notNull()
+      .default(false),
+    position: integer("position").notNull(),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+    updatedAt: text("updated_at")
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [uniqueIndex("product_variants_write_token_idx").on(table.writeToken)],
+);
 
-export const productVariantMedia = sqliteTable(
+export const productVariantMedia = pgTable(
   "product_variant_media",
   {
     variantId: integer("variant_id").notNull(),
@@ -267,7 +274,7 @@ export const productVariantMedia = sqliteTable(
   ],
 );
 
-export const productVariantCustomizationMedia = sqliteTable(
+export const productVariantCustomizationMedia = pgTable(
   "product_variant_customization_media",
   {
     variantId: integer("variant_id").notNull(),
@@ -282,11 +289,11 @@ export const productVariantCustomizationMedia = sqliteTable(
   (table) => [primaryKey({ columns: [table.variantId] })],
 );
 
-export const productCustomizations = sqliteTable(
+export const productCustomizations = pgTable(
   "product_customizations",
   {
     productId: integer("product_id").notNull(),
-    enabled: integer("enabled", { mode: "boolean" }).notNull().default(false),
+    enabled: boolean("enabled").notNull().default(false),
     canvasWidthPx: integer("canvas_width_px"),
     canvasHeightPx: integer("canvas_height_px"),
     layersJson: text("layers_json").notNull().default("[]"),
@@ -304,7 +311,7 @@ export const productCustomizations = sqliteTable(
   ],
 );
 
-export const productVariantOptionValues = sqliteTable(
+export const productVariantOptionValues = pgTable(
   "product_variant_option_values",
   {
     variantId: integer("variant_id").notNull(),
@@ -313,10 +320,10 @@ export const productVariantOptionValues = sqliteTable(
   (table) => [primaryKey({ columns: [table.variantId, table.optionValueId] })],
 );
 
-export const productVariantAttributes = sqliteTable(
+export const productVariantAttributes = pgTable(
   "product_variant_attributes",
   {
-    id: integer("id").primaryKey({ autoIncrement: true }),
+    id: serial("id").primaryKey(),
     writeToken: text("write_token"),
     variantId: integer("variant_id").notNull(),
     name: text("name").notNull(),
@@ -327,8 +334,8 @@ export const productVariantAttributes = sqliteTable(
   (table) => [uniqueIndex("product_variant_attributes_write_token_idx").on(table.writeToken)],
 );
 
-export const productAttributes = sqliteTable("product_attributes", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
+export const productAttributes = pgTable("product_attributes", {
+  id: serial("id").primaryKey(),
   productId: integer("product_id").notNull(),
   name: text("name").notNull(),
   value: text("value").notNull(),
@@ -336,8 +343,8 @@ export const productAttributes = sqliteTable("product_attributes", {
   position: integer("position").notNull(),
 });
 
-export const productMedia = sqliteTable("product_media", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
+export const productMedia = pgTable("product_media", {
+  id: serial("id").primaryKey(),
   productId: integer("product_id").notNull(),
   assetId: text("asset_id").notNull(),
   position: integer("position").notNull(),
@@ -345,7 +352,7 @@ export const productMedia = sqliteTable("product_media", {
   uniqueIndex("product_media_product_asset_idx").on(table.productId, table.assetId),
 ]);
 
-export const productAssets = sqliteTable(
+export const productAssets = pgTable(
   "product_assets",
   {
     id: text("id").primaryKey(),
@@ -364,7 +371,7 @@ export const productAssets = sqliteTable(
   (table) => [index("product_assets_owner_key_idx").on(table.ownerKey)],
 );
 
-export const r2CleanupJobs = sqliteTable(
+export const r2CleanupJobs = pgTable(
   "r2_cleanup_jobs",
   {
     id: text("id").primaryKey(),
@@ -385,7 +392,7 @@ export const r2CleanupJobs = sqliteTable(
   ],
 );
 
-export const misaDeletionJobs = sqliteTable(
+export const misaDeletionJobs = pgTable(
   "misa_deletion_jobs",
   {
     id: text("id").primaryKey(),
@@ -406,7 +413,7 @@ export const misaDeletionJobs = sqliteTable(
   ],
 );
 
-export const customizationTemplates = sqliteTable(
+export const customizationTemplates = pgTable(
   "customization_templates",
   {
     id: text("id").primaryKey(),
@@ -426,7 +433,7 @@ export const customizationTemplates = sqliteTable(
   ],
 );
 
-export const customizationTemplateRevisions = sqliteTable(
+export const customizationTemplateRevisions = pgTable(
   "customization_template_revisions",
   {
     id: text("id").primaryKey(),
@@ -451,7 +458,7 @@ export const customizationTemplateRevisions = sqliteTable(
   ],
 );
 
-export const customizationDesigns = sqliteTable("customization_designs", {
+export const customizationDesigns = pgTable("customization_designs", {
   id: text("id").primaryKey(),
   productId: integer("product_id").notNull(),
   templateRevisionId: text("template_revision_id").notNull(),
@@ -465,7 +472,7 @@ export const customizationDesigns = sqliteTable("customization_designs", {
     .default(sql`CURRENT_TIMESTAMP`),
 });
 
-export const customizationDesignRevisions = sqliteTable(
+export const customizationDesignRevisions = pgTable(
   "customization_design_revisions",
   {
     id: text("id").primaryKey(),
@@ -487,52 +494,60 @@ export const customizationDesignRevisions = sqliteTable(
   ],
 );
 
-export const customizationAssets = sqliteTable("customization_assets", {
-  id: text("id").primaryKey(),
-  ownerKey: text("owner_key").notNull(),
-  // Null on legacy rows. New shopper uploads use `shopper_draft` and expiry.
-  ownershipType: text("ownership_type"),
-  shopperDraftId: text("shopper_draft_id"),
-  shopperFieldId: text("shopper_field_id"),
-  expiresAt: integer("expires_at", { mode: "timestamp_ms" }),
-  expiryProtected: integer("expiry_protected", { mode: "boolean" })
-    .notNull()
-    .default(false),
-  cleanupLastError: text("cleanup_last_error"),
-  objectKey: text("object_key").notNull(),
-  previewObjectKey: text("preview_object_key"),
-  mimeType: text("mime_type").notNull(),
-  widthPx: integer("width_px"),
-  heightPx: integer("height_px"),
-  byteSize: integer("byte_size").notNull(),
-  pageCount: integer("page_count"),
-  widthPt: real("width_pt"),
-  heightPt: real("height_pt"),
-  createdAt: text("created_at")
-    .notNull()
-    .default(sql`CURRENT_TIMESTAMP`),
-}, (table) => [
-  index("customization_assets_expiry_idx").on(table.ownershipType, table.expiresAt, table.expiryProtected),
-]);
+export const customizationAssets = pgTable(
+  "customization_assets",
+  {
+    id: text("id").primaryKey(),
+    ownerKey: text("owner_key").notNull(),
+    // Null on legacy rows. New shopper uploads use `shopper_draft` and expiry.
+    ownershipType: text("ownership_type"),
+    shopperDraftId: text("shopper_draft_id"),
+    shopperFieldId: text("shopper_field_id"),
+    expiresAt: timestamp("expires_at", { withTimezone: true, mode: "date" }),
+    expiryProtected: boolean("expiry_protected")
+      .notNull()
+      .default(false),
+    cleanupLastError: text("cleanup_last_error"),
+    objectKey: text("object_key").notNull(),
+    previewObjectKey: text("preview_object_key"),
+    mimeType: text("mime_type").notNull(),
+    widthPx: integer("width_px"),
+    heightPx: integer("height_px"),
+    byteSize: integer("byte_size").notNull(),
+    pageCount: integer("page_count"),
+    widthPt: real("width_pt"),
+    heightPt: real("height_pt"),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    index("customization_assets_expiry_idx").on(
+      table.ownershipType,
+      table.expiresAt,
+      table.expiryProtected,
+    ),
+  ],
+);
 
-export const customizationClipartCategories = sqliteTable(
+export const customizationClipartCategories = pgTable(
   "customization_clipart_categories",
   {
     id: text("id").primaryKey(),
     name: text("name").notNull(),
-    active: integer("active", { mode: "boolean" }).notNull().default(true),
+    active: boolean("active").notNull().default(true),
     sortOrder: integer("sort_order").notNull().default(0),
-    createdAt: integer("created_at", { mode: "timestamp_ms" })
-      .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
+      .defaultNow()
       .notNull(),
-    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
-      .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" })
+      .defaultNow()
       .$onUpdate(() => new Date())
       .notNull(),
   },
 );
 
-export const customizationClipartAssets = sqliteTable(
+export const customizationClipartAssets = pgTable(
   "customization_clipart_assets",
   {
     id: text("id").primaryKey(),
@@ -544,12 +559,12 @@ export const customizationClipartAssets = sqliteTable(
     mimeType: text("mime_type").notNull(),
     sourceWidthPx: integer("source_width_px"),
     sourceHeightPx: integer("source_height_px"),
-    active: integer("active", { mode: "boolean" }).notNull().default(true),
-    createdAt: integer("created_at", { mode: "timestamp_ms" })
-      .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+    active: boolean("active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
+      .defaultNow()
       .notNull(),
-    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
-      .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" })
+      .defaultNow()
       .$onUpdate(() => new Date())
       .notNull(),
   },
@@ -557,8 +572,8 @@ export const customizationClipartAssets = sqliteTable(
 
 // ─── Orders ────────────────────────────────────────────────────────────────────
 
-export const orders = sqliteTable("orders", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
+export const orders = pgTable("orders", {
+  id: serial("id").primaryKey(),
   orderNumber: text("order_number").notNull(),
   // statuses: narrow string unions enforced at application layer
   status: text("status").notNull().default("pending"), // 'pending' | 'confirmed' | 'cancelled'
@@ -578,9 +593,7 @@ export const orders = sqliteTable("orders", {
   primaryAddressJson: text("primary_address_json").notNull(),
   // optional different shipping address snapshot (JSON)
   shippingAddressJson: text("shipping_address_json"),
-  shipToDifferentAddress: integer("ship_to_different_address", {
-    mode: "boolean",
-  })
+  shipToDifferentAddress: boolean("ship_to_different_address")
     .notNull()
     .default(false),
   // order totals (stored in smallest currency unit, e.g. VND đồng)
@@ -593,18 +606,18 @@ export const orders = sqliteTable("orders", {
   misaSaleOrderNo: text("misa_sale_order_no"),
   misaLastError: text("misa_last_error"),
   misaAttemptCount: integer("misa_attempt_count").notNull().default(0),
-  misaSyncedAt: integer("misa_synced_at", { mode: "timestamp_ms" }),
-  createdAt: integer("created_at", { mode: "timestamp_ms" })
-    .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+  misaSyncedAt: timestamp("misa_synced_at", { withTimezone: true, mode: "date" }),
+  createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
+    .defaultNow()
     .notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp_ms" })
-    .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+  updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" })
+    .defaultNow()
     .$onUpdate(() => new Date())
     .notNull(),
 });
 
-export const orderItems = sqliteTable("order_items", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
+export const orderItems = pgTable("order_items", {
+  id: serial("id").primaryKey(),
   orderId: integer("order_id").notNull(),
   // shopper selection
   productId: integer("product_id").notNull(),
@@ -623,12 +636,12 @@ export const orderItems = sqliteTable("order_items", {
   customizationSnapshotJson: text("customization_snapshot_json"),
   // production status: 'not_required' for plain items, 'pending_review' for customized, 'ready' after operator review
   productionStatus: text("production_status").notNull().default("not_required"),
-  createdAt: integer("created_at", { mode: "timestamp_ms" })
-    .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+  createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
+    .defaultNow()
     .notNull(),
 });
 
-export const orderItemMediaTransfers = sqliteTable(
+export const orderItemMediaTransfers = pgTable(
   "order_item_media_transfers",
   {
     id: text("id").primaryKey(),
@@ -636,18 +649,18 @@ export const orderItemMediaTransfers = sqliteTable(
     status: text("status").notNull().default("pending"),
     lastError: text("last_error"),
     attemptCount: integer("attempt_count").notNull().default(0),
-    createdAt: integer("created_at", { mode: "timestamp_ms" })
-      .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
+      .defaultNow()
       .notNull(),
-    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
-      .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" })
+      .defaultNow()
       .$onUpdate(() => new Date())
       .notNull(),
   },
   (table) => [uniqueIndex("order_item_media_transfers_item_idx").on(table.orderItemId)],
 );
 
-export const orderItemMediaTransferAssets = sqliteTable(
+export const orderItemMediaTransferAssets = pgTable(
   "order_item_media_transfer_assets",
   {
     id: text("id").primaryKey(),
@@ -661,11 +674,11 @@ export const orderItemMediaTransferAssets = sqliteTable(
     targetPreviewObjectKey: text("target_preview_object_key"),
     status: text("status").notNull().default("pending"),
     lastError: text("last_error"),
-    createdAt: integer("created_at", { mode: "timestamp_ms" })
-      .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
+      .defaultNow()
       .notNull(),
-    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
-      .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" })
+      .defaultNow()
       .$onUpdate(() => new Date())
       .notNull(),
   },
@@ -677,7 +690,7 @@ export const orderItemMediaTransferAssets = sqliteTable(
 
 // ─── Customization Exports ─────────────────────────────────────────────────────
 
-export const customizationExports = sqliteTable(
+export const customizationExports = pgTable(
   "customization_exports",
   {
     id: text("id").primaryKey(),
@@ -703,10 +716,10 @@ export const customizationExports = sqliteTable(
 
 // ─── Translations ──────────────────────────────────────────────────────────────
 
-export const catalogTranslations = sqliteTable(
+export const catalogTranslations = pgTable(
   "catalog_translations",
   {
-    id: integer("id").primaryKey({ autoIncrement: true }),
+    id: serial("id").primaryKey(),
     ownerType: text("owner_type").notNull(),
     ownerKey: text("owner_key").notNull(),
     fieldName: text("field_name").notNull(),
@@ -731,7 +744,7 @@ export const catalogTranslations = sqliteTable(
 
 // ─── News / Articles ───────────────────────────────────────────────────────────
 
-export const articleCategories = sqliteTable(
+export const articleCategories = pgTable(
   "article_categories",
   {
     id: text("id").primaryKey(),
@@ -739,14 +752,14 @@ export const articleCategories = sqliteTable(
     slug: text("slug").notNull(),
     description: text("description"),
     displayOrder: integer("display_order").notNull().default(0),
-    createdAt: integer("created_at", { mode: "timestamp_ms" })
-      .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
+      .defaultNow()
       .notNull(),
   },
   (table) => [uniqueIndex("article_categories_slug_idx").on(table.slug)],
 );
 
-export const articles = sqliteTable(
+export const articles = pgTable(
   "articles",
   {
     id: text("id").primaryKey(),
@@ -760,21 +773,21 @@ export const articles = sqliteTable(
     /** 'draft' | 'published' | 'scheduled' */
     status: text("status").notNull().default("draft"),
     /** Admin-pinned: shown first on the storefront listing with a badge */
-    featured: integer("featured", { mode: "boolean" }).notNull().default(false),
+    featured: boolean("featured").notNull().default(false),
     authorId: text("author_id").references(() => users.id, {
       onDelete: "set null",
     }),
-    publishedAt: integer("published_at", { mode: "timestamp_ms" }),
+    publishedAt: timestamp("published_at", { withTimezone: true, mode: "date" }),
     metaTitle: text("meta_title"),
     metaDescription: text("meta_description"),
     ogImageUrl: text("og_image_url"),
     canonicalUrl: text("canonical_url"),
     viewCount: integer("view_count").notNull().default(0),
-    createdAt: integer("created_at", { mode: "timestamp_ms" })
-      .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
+      .defaultNow()
       .notNull(),
-    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
-      .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" })
+      .defaultNow()
       .$onUpdate(() => new Date())
       .notNull(),
   },
@@ -785,7 +798,7 @@ export const articles = sqliteTable(
   ],
 );
 
-export const articleCategoryLinks = sqliteTable(
+export const articleCategoryLinks = pgTable(
   "article_category_links",
   {
     articleId: text("article_id")
@@ -800,7 +813,7 @@ export const articleCategoryLinks = sqliteTable(
   ],
 );
 
-export const articleProductLinks = sqliteTable(
+export const articleProductLinks = pgTable(
   "article_product_links",
   {
     articleId: text("article_id")
@@ -816,4 +829,3 @@ export const articleProductLinks = sqliteTable(
     index("article_product_links_article_id_idx").on(table.articleId),
   ],
 );
-

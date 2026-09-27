@@ -1,5 +1,4 @@
 import { reactRouter } from "@react-router/dev/vite";
-import { cloudflare } from "@cloudflare/vite-plugin";
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig, searchForWorkspaceRoot } from "vite";
 
@@ -18,7 +17,7 @@ export default defineConfig({
     port: 4173,
     strictPort: true,
   },
-  plugins: [cloudflare({ viteEnvironment: { name: "ssr" } }), tailwindcss(), reactRouter()],
+  plugins: [tailwindcss(), reactRouter()],
   resolve: {
     tsconfigPaths: true,
   },

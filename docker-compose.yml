@@ -1,0 +1,223 @@
+services:
+  # ============================================================================
+  # 1. Database Service (PostgreSQL 16 Alpine)
+  # ============================================================================
+  db:
+    image: postgres:16-alpine
+    container_name: trophy_db
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    shm_size: 256m
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-trophy}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-trophy_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-trophy}
+    # Security: Bind ONLY to loopback 127.0.0.1 to avoid public internet exposure
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-trophy} -d ${POSTGRES_DB:-trophy}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 1024M
+          cpus: "1.0"
+        reservations:
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
+    networks:
+      - trophy_net
+
+  # ============================================================================
+  # 2. Backend API Service (Hono + Node.js 22)
+  # ============================================================================
+  backend:
+    build:
+      context: .
+      dockerfile: apps/backend/Dockerfile
+    container_name: trophy_backend
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PORT: 8787
+      DATABASE_URL: postgres://${POSTGRES_USER:-trophy}:${POSTGRES_PASSWORD:-trophy_secret}@db:5432/${POSTGRES_DB:-trophy}
+      STORAGE_DIR: /app/apps/backend/storage
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-trophy-secret-key-change-in-production}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost}
+      ADMIN_APP_ORIGIN: ${ADMIN_APP_ORIGIN:-http://localhost}
+      STOREFRONT_APP_ORIGIN: ${STOREFRONT_APP_ORIGIN:-http://localhost}
+      MISA_CLIENT_ID: ${MISA_CLIENT_ID:-}
+      MISA_CLIENT_SECRET: ${MISA_CLIENT_SECRET:-}
+      MISA_API_BASE_URL: ${MISA_API_BASE_URL:-https://crmconnect.misa.vn/api/v2}
+    volumes:
+      - storage_data:/app/apps/backend/storage
+    expose:
+      - "8787"
+    ulimits:
+      nofile:
+        soft: 65535
+        hard: 65535
+    deploy:
+      resources:
+        limits:
+          memory: 1024M
+          cpus: "1.5"
+        reservations:
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
+    networks:
+      - trophy_net
+
+  # ============================================================================
+  # 3. Storefront SSR Service (React Router v7)
+  # ============================================================================
+  storefront:
+    build:
+      context: .
+      dockerfile: apps/storefront/Dockerfile
+    container_name: trophy_storefront
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      PORT: 3000
+      BACKEND_INTERNAL_URL: http://backend:8787
+      BACKEND_URL: ${BACKEND_PUBLIC_URL:-http://localhost/api}
+    expose:
+      - "3000"
+    ulimits:
+      nofile:
+        soft: 65535
+        hard: 65535
+    deploy:
+      resources:
+        limits:
+          memory: 1024M
+          cpus: "1.5"
+        reservations:
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
+    networks:
+      - trophy_net
+
+  # ============================================================================
+  # 4. Admin Portal Service (SPA Static Nginx)
+  # ============================================================================
+  admin:
+    build:
+      context: .
+      dockerfile: apps/admin/Dockerfile
+    container_name: trophy_admin
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid
+      - /var/run:rw,noexec,nosuid
+    expose:
+      - "80"
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
+        reservations:
+          memory: 64M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - trophy_net
+
+  # ============================================================================
+  # 5. Gateway Reverse Proxy Service (Nginx Alpine)
+  # ============================================================================
+  gateway:
+    image: nginx:alpine
+    container_name: trophy_gateway
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      - "${HTTP_PORT:-80}:80"
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    tmpfs:
+      - /tmp:rw,noexec,nosuid
+      - /var/run:rw,noexec,nosuid
+    depends_on:
+      backend:
+        condition: service_healthy
+      storefront:
+        condition: service_healthy
+      admin:
+        condition: service_healthy
+    ulimits:
+      nofile:
+        soft: 65535
+        hard: 65535
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
+        reservations:
+          memory: 64M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
+    networks:
+      - trophy_net
+
+# ==============================================================================
+# Persistent Volumes
+# ==============================================================================
+volumes:
+  postgres_data:
+    driver: local
+  storage_data:
+    driver: local
+
+# ==============================================================================
+# Dedicated Bridge Network
+# ==============================================================================
+networks:
+  trophy_net:
+    driver: bridge

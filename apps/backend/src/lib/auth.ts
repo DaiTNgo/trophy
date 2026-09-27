@@ -54,7 +54,7 @@ export function getAuth(bindings: AppBindings) {
     secret: settings.secret,
     trustedOrigins: settings.trustedOrigins,
     database: drizzleAdapter(getDb(bindings), {
-      provider: 'sqlite',
+      provider: 'pg',
       usePlural: true,
       schema
     }),

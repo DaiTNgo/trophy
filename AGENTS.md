@@ -1,17 +1,26 @@
 # Trophy monorepo
 
-pnpm workspace monorepo with three apps and one shared package.
+pnpm workspace monorepo with three apps, one shared package, and Docker containerization.
 
 ## Apps & package name mapping
 
 Use `pnpm --filter <name>` — the filter name is the `package.json` `name`, not the directory.
 
-| Directory | Filter name | Type | Dev port | Preview port |
+| Directory | Filter name | Type | Dev port | Production / Docker |
 |---|---|---|---|---|
-| `apps/backend` | `backend` | Hono + Cloudflare Worker | 8787 | 8788 |
-| `apps/admin` | `admin` | React SPA (React Router + `@medusajs/ui`) | 5174 | 4174 |
-| `apps/storefront` | `router-cf` | React Router framework SSR + Cloudflare Worker | 5173 | 4173 |
-| `packages/customization` | `customization` | Shared types/validation (`@trophy/customization`) | — | — |
+| `apps/backend` | `backend` | Hono + Node.js server (`@hono/node-server`) | 8787 | Container (`backend:8787`) |
+| `apps/admin` | `admin` | React SPA (React Router + `@medusajs/ui`) | 5174 | Nginx container (`admin:80`) |
+| `apps/storefront` | `router-cf` | React Router framework SSR + Node.js (`@react-router/serve`) | 5173 | Container (`storefront:3000`) |
+| `packages/customization` | `customization` | Shared types/validation (`@trophy/customization`) | — | Shared workspace package |
+
+## Architecture & Docker
+
+The repository has migrated from Cloudflare serverless (Workers, D1 SQLite, R2) to self-hosted Docker + PostgreSQL:
+
+- **Database**: PostgreSQL 16 Alpine managed via Drizzle ORM (`drizzle-orm/pg-core` + `postgres-js`).
+- **Object Storage**: Local filesystem disk volume with an R2-compatible interface (`LocalStorageAdapter` in `apps/backend/src/lib/storage.ts`).
+- **Reverse Proxy Gateway**: Nginx on ports 80/443 (`docker/nginx/nginx.conf`) routing subdomains (`admin.*`, `api.*`) and subpaths (`/admin`, `/api`, `/fonts`, `/`).
+- **Security & Hardening**: Non-root container users (`node:1000`), loopback-only 127.0.0.1 DB port, `dumb-init` PID 1, Nginx rate limits on auth and API, anti-slowloris timeouts, anti-path-traversal.
 
 ## Quick start
 
@@ -19,40 +28,53 @@ Use `pnpm --filter <name>` — the filter name is the `package.json` `name`, not
 ./init.sh   # pnpm install + build/typecheck all apps
 ```
 
-Individual checks:
+### Development Workflows
+
+**1. Hybrid Dev (Recommended for coding):**
+Run PostgreSQL in Docker while running apps on host for fast HMR:
+```bash
+docker compose up -d db
+pnpm dev
+```
+
+**2. Full Stack in Docker (Production mirror):**
+```bash
+cp .env.example .env
+docker compose up -d --build
+```
+
+### Individual checks:
 
 ```bash
-pnpm --filter backend build       # vite build
+pnpm --filter backend build       # vite build (Node SSR bundle)
 pnpm --filter backend check       # tsc --noEmit
 pnpm --filter backend test        # vitest API/service tests
 pnpm --filter admin build         # tsc -b && vp build (uses Vite+ CLI)
 pnpm --filter router-cf build     # react-router build
-pnpm --filter router-cf typecheck # wrangler types + react-router typegen + tsc -b
+pnpm --filter router-cf typecheck # react-router typegen + tsc -b
 pnpm --filter customization test  # vitest run
 ```
 
-`apps/storefront` runs `wrangler types` on `postinstall` — do not remove it.
-
 ## CORS
 
-Backend uses custom CORS middleware (not `@hono/cors`). Local origins `localhost:5173`, `127.0.0.1:5173`, `localhost:5174`, `127.0.0.1:5174` and their preview ports are always allowed. The `ADMIN_APP_ORIGIN` and `STOREFRONT_APP_ORIGIN` env vars add additional origins.
+Backend uses custom CORS middleware (not `@hono/cors`). Local origins `localhost:5173`, `127.0.0.1:5173`, `localhost:5174`, `127.0.0.1:5174`, port 80/443, and preview ports are supported. The `ADMIN_APP_ORIGIN` and `STOREFRONT_APP_ORIGIN` env vars configure additional production domains/origins.
 
-To test admin login against the local backend, run the backend dev server first. Admin must be served by Vite on its fixed port (`5174`) and backend on `8787` for credentialed requests to work.
+To test admin login against the local backend, run the backend dev server first. Admin is served by Vite on its fixed port (`5174`) and backend on `8787` for credentialed requests to work.
 
 ## Auth
 
-Better Auth with D1. Two roles: `super-admin` (can manage accounts) and `admin` (day-to-day). Username + password login. First admin created via seed script.
+Better Auth with PostgreSQL. Two roles: `super-admin` (can manage accounts) and `admin` (day-to-day). Username + password login. First admin created via seed script or onboarding endpoint.
 
 ```bash
-pnpm --filter backend seed:admin -- --username=admin
+pnpm --filter backend seed:admin -- --username=admin --password=YourSecurePassword123!
 ```
 
-The script POSTs to `POST /api/admin/bootstrap` on the local backend. On loopback URLs the default bootstrap secret `trophy-local-bootstrap` is used automatically. Use `--url` for a different target or `--secret` / `ADMIN_SEED_SECRET` for a custom secret in production. The admin app's onboarding UI also uses this endpoint for the first-time setup when no users exist.
-The CLI seed flow writes directly to D1 via `wrangler d1 execute`. Use `--username` and `--password`, with optional `--target=local|remote`. Keep the HTTP bootstrap endpoint only for the admin app onboarding flow.
+The script connects to PostgreSQL via `DATABASE_URL` (or POSTs to `POST /api/admin/bootstrap` on the local backend with `ADMIN_SEED_SECRET`). The admin app's onboarding UI also uses the bootstrap endpoint for first-time setup when no users exist.
 
 ## Data
 
-Drizzle ORM + Cloudflare D1 (SQLite). Schema lives in `apps/backend/src/db/schema.ts`.
+Drizzle ORM + PostgreSQL. Schema lives in `apps/backend/src/db/schema.ts`.
+Database client and compatibility layer live in `apps/backend/src/db/client.ts`.
 
 This repository is currently in **dev mode** for agent work:
 
@@ -80,9 +102,9 @@ This repository is currently in **dev mode** for agent work:
 - Stay in scope: do not refactor unrelated apps while working on one feature or change.
 - Dev mode cleanup is allowed inside the active feature: remove dead code, deprecated paths, and unused compatibility shims when replacing a flow.
 - Preserve app boundaries:
-  - `backend` owns API routes, business logic, and Cloudflare bindings.
+  - `backend` owns API routes, business logic, storage adapter, and PostgreSQL database operations.
   - `admin` owns operator flows; must not depend on storefront route code.
-  - `storefront` owns shopper routes, loaders, actions, and SSR.
+  - `storefront` owns shopper routes, loaders, actions, and SSR (`BACKEND_INTERNAL_URL` for internal Docker requests).
 - Update the active state files at end of session. For OpenSpec work, update the change-local `tasks.md`, `progress.md`, and `session-handoff.md` inside the change folder. For non-OpenSpec work, update `feature_list.json`, `progress.md`, and `session-handoff.md` at the repo root.
 - Leave the repo restartable: next session must be able to run `./init.sh` cleanly.
 
@@ -100,10 +122,10 @@ This repository is currently in **dev mode** for agent work:
 - New backend route contracts consumed by admin or storefront must use Hono RPC as the default integration path: export the relevant route/app type from backend, create typed clients with `hc<AppType>()`, and avoid new hand-written fetch wrappers unless there is a documented blocker.
 - Hono RPC routes must return explicit typed JSON responses with `c.json(payload, status)` for success and error cases; do not use untyped `c.notFound()` for client-consumed not-found responses.
 - New admin screens → add React Router route in `App.tsx`.
-- Storefront changes → prefer route loaders/actions over client-only fetching.
-- Cloudflare config → `apps/*/wrangler.jsonc`.
+- Storefront changes → prefer route loaders/actions over client-only fetching. Internal SSR fetches use `BACKEND_INTERNAL_URL` via `apps/storefront/app/lib/backend-fetch.server.ts`.
+- Deployment & container configs → `docker-compose.yml`, `docker/nginx/nginx.conf`, `apps/*/Dockerfile`.
 
-Ask the user before: inventing business rules not in code, changing contracts across multiple apps, or when Cloudflare bindings/secrets/D1 environments are ambiguous.
+Ask the user before: inventing business rules not in code, changing contracts across multiple apps, or when database environments / secrets are ambiguous.
 
 ## Definition of Done
 
@@ -152,6 +174,5 @@ Do not treat migration authoring, deprecated-path compatibility, or dual-model s
 
 - `apps/backend`'s `studio` script has a typo in package.json (`dizzle-kit studio` instead of `drizzle-kit studio`) — use `db:generate` instead for schema pushes.
 - No CI/CD workflows exist yet (no `.github/workflows/`).
-- The repo's `README.md` is the default Turborepo starter template and does not reflect actual project structure. Ignore it. Use `apps/*/README.md` per-app docs instead.
 - Placeholder-only admin routes (Inventory, Customers, Promotions, Price Lists, Collections, Categories) exist as routes but are not shown in the sidebar. Only real features (Orders, Products, Customization, Team, Settings) are exposed.
 - Admin product catalog and order data are currently mock-first (browser-local state), not backend-backed.
