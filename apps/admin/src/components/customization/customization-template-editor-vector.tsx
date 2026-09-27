@@ -225,6 +225,8 @@ export function VectorPointOverlay({
             );
           }}
           onDelete={() => {
+            if (points.length <= 3) return;
+            onSelectPoint("");
             onUpdate((current) =>
               current.type === "image_shape" && current.shape.vectorPath
                 ? {

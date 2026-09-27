@@ -28,11 +28,11 @@ export function ProductGallery({
   return (
     <section className="lg:sticky lg:top-36 lg:self-start">
       <div
-        className={`overflow-hidden rounded-lg bg-white ${
+        className={`flex flex-col overflow-hidden rounded-lg bg-white ${
           customizable ? "shadow-[inset_0_0_0_1px_rgba(36,65,89,0.16)]" : ""
         }`}
       >
-        <div className="relative bg-white">
+        <div className="relative min-h-0 flex-1 bg-white">
           {onPrevious && thumbnails.length > 1 ? (
             <button
               type="button"
@@ -87,7 +87,7 @@ export function ProductGalleryThumbnails({
   if (thumbnails.length <= 1) return null;
 
   return (
-    <div className={`relative bg-white px-4 py-3 ${className}`}>
+    <div className={`relative shrink-0 bg-white px-4 py-3 ${className}`}>
       {canScrollLeft ? (
         <button
           type="button"

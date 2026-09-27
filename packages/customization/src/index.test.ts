@@ -17,7 +17,10 @@ import {
   getUsableFontOptions,
   hasAvailableFontFormat,
   isUsableFontFamily,
+  getLayerPixelRect,
+  getLayerVisualHeightPx,
   layerGeometryToPixels,
+  layerPixelRectToGeometry,
   normalizeFontStyle,
   normalizeTextPath,
   pixelRectToLayerGeometry,
@@ -655,6 +658,26 @@ describe("geometry helpers", () => {
     expect(rect.heightPx).toBeCloseTo(180);
   });
 
+  it("calculates visual bounding box and converts back without drift for text layers", () => {
+    const background = DEFAULT_TEMPLATE.background;
+    if (!background) throw new Error("Missing background fixture");
+
+    const textLayer = DEFAULT_TEMPLATE.layers.find((l) => l.type === "text")!;
+    const rect = getLayerPixelRect({ layer: textLayer, background });
+
+    // Visual height must equal lines * fontSize * 1.35
+    const expectedHeight = getLayerVisualHeightPx(textLayer, background);
+    expect(rect.heightPx).toBe(expectedHeight);
+    expect(rect.yPx).toBeCloseTo(textLayer.geometry.yRatio * background.heightPx - expectedHeight / 2);
+
+    // Editing X should not shift Y
+    const updatedRect = { ...rect, xPx: rect.xPx + 50 };
+    const nextGeometry = layerPixelRectToGeometry({ rect: updatedRect, layer: textLayer, background });
+
+    expect(nextGeometry.yRatio).toBeCloseTo(textLayer.geometry.yRatio, 5);
+    expect(nextGeometry.heightRatio).toBeUndefined();
+  });
+
   it("keeps cover image pan values within the normalized crop range", () => {
     const cropPan = getCropPanFromImagePosition({
       imageXPx: -130,
@@ -846,4 +869,70 @@ describe("text fitting and paths", () => {
     expect(resolveLocalizedInput(undefined)).toBe("");
     expect(resolveLocalizedInput({} as any)).toBe("");
   });
+
+  it("preserves flipHorizontal and flipVertical in runtime text layers", () => {
+    const template: CustomizationTemplate = {
+      id: "tpl_flip",
+      productId: "prod_1",
+      name: "Trophy Flip Test",
+      revision: 1,
+      status: "published",
+      background: {
+        assetId: "bg_1",
+        previewUrl: "https://example.test/bg.png",
+        widthPx: 1000,
+        heightPx: 1000,
+      },
+      layers: [
+        {
+          id: "txt_flipped",
+          name: "Reverse Inscription",
+          type: "text",
+          hidden: false,
+          locked: false,
+          zIndex: 1,
+          geometry: { xRatio: 0.5, yRatio: 0.5, widthRatio: 0.5, rotationDeg: 45 },
+          text: {
+            sampleText: "Champion 2026",
+            minFontSizePt: 12,
+            maxFontSizePt: 36,
+            maxLines: 1,
+            path: { type: "straight" },
+            alignPolicy: { mode: "fixed", align: "center" },
+            colorPolicy: { mode: "fixed", color: "#000000" },
+            fontPolicy: { mode: "fixed", fontId: "inter" },
+            formatPolicy: { mode: "fixed", isBold: false, isItalic: false },
+            flipHorizontal: true,
+            flipVertical: false,
+          },
+        },
+      ],
+      formFields: [
+        {
+          id: "field_txt",
+          layerId: "txt_flipped",
+          label: "Inscription",
+          required: true,
+          order: 0,
+        },
+      ],
+    };
+
+    const design = buildDesignFromForm({
+      template,
+      values: {
+        field_txt: { text: "Champion 2026" },
+      },
+    });
+
+    expect(design.layers).toHaveLength(1);
+    const runtimeLayer = design.layers[0];
+    expect(runtimeLayer.type).toBe("text");
+    if (runtimeLayer.type === "text") {
+      expect(runtimeLayer.flipHorizontal).toBe(true);
+      expect(runtimeLayer.flipVertical).toBe(false);
+      expect(runtimeLayer.geometry.rotationDeg).toBe(45);
+    }
+  });
 });
+

@@ -132,6 +132,16 @@ export type StorefrontListingResponse = {
   page: number;
   limit: number;
   total: number;
+  availableCategories?: Array<{
+    id: number;
+    name: LocalizedTextValue;
+    handle: string;
+  }>;
+  availableCollections?: Array<{
+    id: number;
+    title: LocalizedTextValue;
+    handle: string;
+  }>;
 };
 
 export type StorefrontDetailResponse = {
@@ -141,6 +151,9 @@ export type StorefrontDetailResponse = {
     subtitle: LocalizedTextValue;
     handle: string;
     description: LocalizedTextValue;
+    whyThisProductHtml: LocalizedTextValue;
+    specificationsHtml: LocalizedTextValue;
+    shippingHtml: LocalizedTextValue;
     thumbnail: string | null;
     hoverImage: string | null;
     media: Array<{
@@ -153,7 +166,22 @@ export type StorefrontDetailResponse = {
     type: { id: number; value: LocalizedTextValue } | null;
     categories: Array<{ id: number; name: LocalizedTextValue; handle: string; parentId: number | null }>;
     attributes: Array<{ id: number; productId: number; name: LocalizedTextValue; value: LocalizedTextValue; unit: string | null; position: number }>;
-    options: Array<{ id: number; productId: number; title: LocalizedTextValue; position: number; values: Array<{ id: number; optionId: number; value: LocalizedTextValue; position: number }> }>;
+    options: Array<{
+      id: number;
+      productId: number;
+      title: LocalizedTextValue;
+      position: number;
+      displayType?: "text" | "color" | "image" | null;
+      values: Array<{
+        id: number;
+        optionId: number;
+        value: LocalizedTextValue;
+        position: number;
+        colorHex?: string | null;
+        swatchAssetId?: string | null;
+        swatchAssetUrl?: string | null;
+      }>;
+    }>;
     variants: Array<{
       id: number;
       title: LocalizedTextValue;
@@ -333,7 +361,13 @@ export async function fetchStorefrontCollections(locale?: string, backendFetch?:
 
 export async function fetchStorefrontCollectionProducts(
   handle: string,
-  params?: { page?: number; limit?: number; locale?: string; customizable?: "all" | "true" | "false" },
+  params?: {
+    page?: number;
+    limit?: number;
+    locale?: string;
+    customizable?: "all" | "true" | "false";
+    category?: string;
+  },
   backendFetch?: BackendFetch,
 ): Promise<StorefrontListingResponse> {
   const searchParams = new URLSearchParams();
@@ -341,6 +375,7 @@ export async function fetchStorefrontCollectionProducts(
   if (params?.limit) searchParams.set("limit", String(params.limit));
   if (params?.locale) searchParams.set("locale", params.locale);
   if (params?.customizable) searchParams.set("customizable", params.customizable);
+  if (params?.category) searchParams.set("category", params.category);
 
   const qs = searchParams.toString();
   const url = backendUrl(`/api/storefront/collections/${encodeURIComponent(handle)}/products${qs ? `?${qs}` : ""}`);
@@ -355,6 +390,47 @@ export async function fetchStorefrontCollectionProducts(
 
   return {
     ...data,
+    availableCategories: data.availableCategories ?? [],
+    items: data.items.map((item) => ({
+      ...item,
+      thumbnail: backendAssetUrl(item.thumbnail) || null,
+      hoverImage: backendAssetUrl(item.hoverImage) || null,
+    })),
+  };
+}
+
+export async function fetchStorefrontCategoryProducts(
+  handle: string,
+  params?: {
+    page?: number;
+    limit?: number;
+    locale?: string;
+    customizable?: "all" | "true" | "false";
+    collection?: string;
+  },
+  backendFetch?: BackendFetch,
+): Promise<StorefrontListingResponse> {
+  const searchParams = new URLSearchParams();
+  if (params?.page) searchParams.set("page", String(params.page));
+  if (params?.limit) searchParams.set("limit", String(params.limit));
+  if (params?.locale) searchParams.set("locale", params.locale);
+  if (params?.customizable) searchParams.set("customizable", params.customizable);
+  if (params?.collection) searchParams.set("collection", params.collection);
+
+  const qs = searchParams.toString();
+  const url = backendUrl(`/api/storefront/categories/${encodeURIComponent(handle)}/products${qs ? `?${qs}` : ""}`);
+
+  const res = await fetchBackendWithLog("fetchStorefrontCategoryProducts", url, undefined, backendFetch);
+
+  if (!res.ok) {
+    throw new Response("Failed to load category products", { status: res.status });
+  }
+
+  const data: StorefrontListingResponse = await res.json();
+
+  return {
+    ...data,
+    availableCollections: data.availableCollections ?? [],
     items: data.items.map((item) => ({
       ...item,
       thumbnail: backendAssetUrl(item.thumbnail) || null,
@@ -607,6 +683,145 @@ export async function resolveStorefrontCartLines(
             thumbnail: backendAssetUrl(item.product.thumbnail) || null,
           }
         : undefined,
+    })),
+  };
+}
+
+// ─── Articles (Storefront) ─────────────────────────────────────────────────────
+
+export type StorefrontArticleListItem = {
+  id: string;
+  title: string;
+  slug: string;
+  excerpt: string | null;
+  featuredImageUrl: string | null;
+  featuredImageAlt: string | null;
+  status: string;
+  featured: boolean;
+  publishedAt: number | null;
+  categories: Array<{ id: string; name: string; slug: string }>;
+  authorName: string | null;
+  readingTimeMinutes: number;
+};
+
+export type StorefrontArticleListResponse = {
+  items: StorefrontArticleListItem[];
+  page: number;
+  limit: number;
+  total: number;
+};
+
+export type StorefrontArticleDetail = {
+  id: string;
+  title: string;
+  slug: string;
+  excerpt: string | null;
+  contentHtml: string;
+  featuredImageUrl: string | null;
+  featuredImageAlt: string | null;
+  status: string;
+  featured: boolean;
+  publishedAt: number | null;
+  metaTitle: string | null;
+  metaDescription: string | null;
+  ogImageUrl: string | null;
+  canonicalUrl: string | null;
+  viewCount: number;
+  authorName: string | null;
+  categories: Array<{ id: string; name: string; slug: string }>;
+  linkedProducts: Array<{
+    id: number;
+    title: string;
+    handle: string;
+    thumbnailUrl: string | null;
+    minPrice: number | null;
+  }>;
+  readingTimeMinutes: number;
+  createdAt: number;
+  updatedAt: number;
+};
+
+export type StorefrontArticleCategory = {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  displayOrder: number;
+  articleCount: number;
+};
+
+export async function fetchStorefrontArticleCategories(locale: string = "vi", backendFetch?: BackendFetch): Promise<StorefrontArticleCategory[]> {
+  const res = await fetchBackendWithLog("fetchStorefrontArticleCategories", backendUrl(`/api/storefront/articles/categories?locale=${encodeURIComponent(locale)}`), undefined, backendFetch);
+
+  if (!res.ok) {
+    throw new Response("Failed to load article categories", { status: res.status });
+  }
+
+  const data = (await res.json()) as { items: StorefrontArticleCategory[] };
+  return data.items;
+}
+
+export async function fetchStorefrontArticles(params: {
+  page?: number;
+  limit?: number;
+  category?: string;
+  q?: string;
+  locale?: string;
+}, backendFetch?: BackendFetch): Promise<StorefrontArticleListResponse> {
+  const searchParams = new URLSearchParams();
+  if (params.page) searchParams.set("page", String(params.page));
+  if (params.limit) searchParams.set("limit", String(params.limit));
+  if (params.category) searchParams.set("category", params.category);
+  if (params.q) searchParams.set("q", params.q);
+  if (params.locale) searchParams.set("locale", params.locale);
+
+  const qs = searchParams.toString();
+  const url = backendUrl(`/api/storefront/articles${qs ? `?${qs}` : ""}`);
+
+  const res = await fetchBackendWithLog("fetchStorefrontArticles", url, undefined, backendFetch);
+
+  if (!res.ok) {
+    throw new Response("Failed to load articles", { status: res.status });
+  }
+
+  const data: StorefrontArticleListResponse = await res.json();
+
+  return {
+    ...data,
+    items: data.items.map((item) => ({
+      ...item,
+      featuredImageUrl: backendAssetUrl(item.featuredImageUrl) || null,
+    })),
+  };
+}
+
+export async function fetchStorefrontArticle(
+  slug: string,
+  locale: string = "vi",
+  backendFetch?: BackendFetch,
+): Promise<StorefrontArticleDetail> {
+  const url = backendUrl(`/api/storefront/articles/${encodeURIComponent(slug)}${locale ? `?locale=${locale}` : ""}`);
+
+  const res = await fetchBackendWithLog("fetchStorefrontArticle", url, {
+    headers: { "Cache-Control": "no-store" },
+  }, backendFetch);
+
+  if (!res.ok) {
+    if (res.status === 404) {
+      throw new Response("Not Found", { status: 404 });
+    }
+    throw new Response("Failed to load article", { status: res.status });
+  }
+
+  const data: StorefrontArticleDetail = await res.json();
+
+  return {
+    ...data,
+    featuredImageUrl: backendAssetUrl(data.featuredImageUrl) || null,
+    ogImageUrl: backendAssetUrl(data.ogImageUrl) || null,
+    linkedProducts: data.linkedProducts.map((p) => ({
+      ...p,
+      thumbnailUrl: backendAssetUrl(p.thumbnailUrl) || null,
     })),
   };
 }

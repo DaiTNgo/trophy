@@ -104,6 +104,7 @@ export function SuggestedProductsSection({
                   priceFrom={item.priceFrom}
                   categorySummary={getLocalized(item.categorySummary, locale)}
                   variant="listing"
+                  from="home"
                 />
               </CarouselItem>
             ))}

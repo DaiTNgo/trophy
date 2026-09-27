@@ -11,6 +11,7 @@ import { useTranslation } from "react-i18next";
 import { FilterChips, type CategoryOption } from "./FilterChips";
 import { ProductCard } from "../shared/ProductCard";
 import { Pagination } from "../shared/Pagination";
+import { ProductGridSkeleton } from "./ProductCardSkeleton";
 import type { StorefrontProductItem } from "@/lib/api";
 import { getLocalized } from "@/lib/translation";
 
@@ -39,7 +40,10 @@ type ProductListingShellProps = {
   totalPages: number;
   onPageChange: (page: number) => void;
   categoryHandle?: string | null;
+  collectionHandle?: string | null;
+  sourceContext?: "category" | "collection";
   filters?: {
+    title?: string;
     categories: CategoryOption[];
     activeCategory?: string;
     onSelect: (categoryHandle: string) => void;
@@ -50,6 +54,9 @@ type ProductListingShellProps = {
     ctaLabel: string;
     ctaHref: string;
   };
+  isLoading?: boolean;
+  hideHero?: boolean;
+  showResultCount?: boolean;
 };
 
 type ListingFilterConfig = NonNullable<ProductListingShellProps["filters"]>;
@@ -181,41 +188,53 @@ function ListingFilterSummary({
   filters,
   resultLabel,
   locale,
+  showResultCount = false,
 }: {
   filters?: ListingFilterConfig;
   resultLabel: string;
   locale: string;
+  showResultCount?: boolean;
 }) {
-  const title = filters
-    ? locale === "en"
-      ? "Filter by product"
-      : "Lọc theo sản phẩm"
-    : locale === "en"
-      ? "Collection"
-      : "Bộ sưu tập";
+  const hasMultipleFilters = Boolean(filters?.categories && filters.categories.length > 1);
+
+  if (!hasMultipleFilters && !showResultCount) {
+    return null;
+  }
+
+  const title = filters?.title
+    ? filters.title
+    : filters
+      ? locale === "en"
+        ? "Filter by product"
+        : "Lọc theo sản phẩm"
+      : locale === "en"
+        ? "Collection"
+        : "Bộ sưu tập";
 
   return (
-    <section className="border-b border-border-subtle bg-surface-base py-4">
-      <div className="mx-auto w-full max-w-[1180px] px-4">
-        <div className="mb-3 flex items-center justify-center gap-3">
-          <span className="h-px w-10 bg-border-subtle" />
-          <p className="font-heading text-[18px] uppercase leading-none text-brand-strong">
-            {title}
-          </p>
-          <span className="h-px w-10 bg-border-subtle" />
-        </div>
+    <section className="border-b border-border-subtle bg-surface-base py-5 sm:py-6">
+      <div className="mx-auto w-full max-w-[1280px] px-4">
+        {hasMultipleFilters && filters ? (
+          <>
+            <div className="mb-4 flex items-center justify-center text-center">
+              <h3 className="font-heading text-[20px] sm:text-[23px] font-extrabold uppercase tracking-[0.03em] text-brand-strong">
+                {title}
+              </h3>
+            </div>
 
-        {filters ? (
-          <FilterChips
-            categories={filters.categories}
-            activeCategory={filters.activeCategory}
-            onSelect={filters.onSelect}
-          />
+            <FilterChips
+              categories={filters.categories}
+              activeCategory={filters.activeCategory}
+              onSelect={filters.onSelect}
+            />
+          </>
         ) : null}
 
-        <p className="mt-3 text-center font-body-md text-[11px] font-semibold uppercase tracking-[0.08em] text-text-muted">
-          {resultLabel}
-        </p>
+        {showResultCount ? (
+          <p className="mt-3 text-center font-body-md text-[11px] font-semibold uppercase tracking-[0.08em] text-text-muted">
+            {resultLabel}
+          </p>
+        ) : null}
       </div>
     </section>
   );
@@ -247,10 +266,14 @@ function ProductGrid({
   products,
   locale,
   categoryHandle,
+  collectionHandle,
+  sourceContext,
 }: {
   products: StorefrontProductItem[];
   locale: string;
   categoryHandle?: string | null;
+  collectionHandle?: string | null;
+  sourceContext?: "category" | "collection";
 }) {
   return (
     <div className="grid grid-cols-2 gap-x-5 gap-y-11 sm:grid-cols-3 lg:grid-cols-4 md:gap-x-8 lg:gap-x-10 md:gap-y-12">
@@ -262,6 +285,8 @@ function ProductGrid({
             key={product.id}
             {...product}
             categoryHandle={categoryHandle}
+            collectionHandle={collectionHandle}
+            sourceContext={sourceContext}
             title={title}
             subtitle={getLocalized(product.subtitle, locale) || null}
             categorySummary={getLocalized(product.categorySummary, locale) || null}
@@ -280,27 +305,41 @@ function ListingResults({
   products,
   locale,
   categoryHandle,
+  collectionHandle,
+  sourceContext,
   currentPage,
   totalPages,
   onPageChange,
   emptyState,
+  isLoading = false,
 }: {
   products: StorefrontProductItem[];
   locale: string;
   categoryHandle?: string | null;
+  collectionHandle?: string | null;
+  sourceContext?: "category" | "collection";
   currentPage: number;
   totalPages: number;
   onPageChange: (page: number) => void;
   emptyState: EmptyStateConfig;
+  isLoading?: boolean;
 }) {
   return (
     <section className="bg-surface-base px-4 py-8 md:px-8 md:py-10">
       <div className="mx-auto w-full max-w-[1180px]">
-        {products.length === 0 ? (
+        {isLoading ? (
+          <ProductGridSkeleton count={12} />
+        ) : products.length === 0 ? (
           <EmptyListingState emptyState={emptyState} />
         ) : (
           <>
-            <ProductGrid products={products} locale={locale} categoryHandle={categoryHandle} />
+            <ProductGrid
+              products={products}
+              locale={locale}
+              categoryHandle={categoryHandle}
+              collectionHandle={collectionHandle}
+              sourceContext={sourceContext}
+            />
 
             {totalPages > 1 ? (
               <Pagination
@@ -410,8 +449,13 @@ export function ProductListingShell({
   totalPages,
   onPageChange,
   categoryHandle,
+  collectionHandle,
+  sourceContext,
   filters,
   emptyState,
+  isLoading = false,
+  hideHero = false,
+  showResultCount = false,
 }: ProductListingShellProps) {
   const heroImage = featuredImageSrc ?? products[0]?.thumbnail ?? null;
   const resultLabel =
@@ -422,28 +466,36 @@ export function ProductListingShell({
   return (
     <div className="min-h-screen bg-surface-base text-text-base">
       <main>
-        {/*<ListingHero
-          breadcrumbs={breadcrumbs}
-          eyebrow={eyebrow}
-          title={title}
-          description={description}
-          imageSrc={heroImage}
-          imageAlt={featuredImageAlt ?? title}
-        />
-        <ListingTrustBar />
+        {!hideHero ? (
+          <>
+            <ListingHero
+              breadcrumbs={breadcrumbs}
+              eyebrow={eyebrow}
+              title={title}
+              description={description}
+              imageSrc={heroImage}
+              imageAlt={featuredImageAlt ?? title}
+            />
+            <ListingTrustBar />
+          </>
+        ) : null}
         <ListingFilterSummary
           filters={filters}
           resultLabel={resultLabel}
           locale={locale}
-        />*/}
+          showResultCount={showResultCount}
+        />
         <ListingResults
           products={products}
           locale={locale}
           categoryHandle={categoryHandle}
+          collectionHandle={collectionHandle}
+          sourceContext={sourceContext}
           currentPage={currentPage}
           totalPages={totalPages}
           onPageChange={onPageChange}
           emptyState={emptyState}
+          isLoading={isLoading}
         />
 
         <ListingEditorial

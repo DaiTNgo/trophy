@@ -227,6 +227,7 @@ export default function Checkout() {
   const [paymentMethod, setPaymentMethod] = useState("bank_transfer");
   const [paymentInstructions, setPaymentInstructions] = useState<StorefrontPaymentInstructionsResponse["order"] | null>(null);
   const [paymentInstructionsError, setPaymentInstructionsError] = useState("");
+  const [agreementChecked, setAgreementChecked] = useState(false);
 
   useEffect(() => {
     if (!paymentOrderNumber || !paymentAccessToken) return;
@@ -292,8 +293,21 @@ export default function Checkout() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (hasInvalidLines || lines.length === 0 || submitting) return;
+    if (!agreementChecked) {
+      setError("Vui lòng đọc hiểu và đồng ý với nội dung trong lưu ý mua hàng.");
+      return;
+    }
     const formData = new FormData(event.currentTarget);
     const vat = getVatDetails(formData);
+    const detail =
+      getFormString(formData, "shipping.primaryAddress.line1") ||
+      getFormString(formData, "shipping.primaryAddress.detail");
+    const ward =
+      getFormString(formData, "shipping.primaryAddress.ward") ||
+      getFormString(formData, "shipping.primaryAddress.city");
+    const province = getFormString(formData, "shipping.primaryAddress.province");
+    const line1 = [detail, ward, province].filter(Boolean).join(", ");
+
     setVatErrors({});
     setSubmitting(true);
     setError("");
@@ -307,12 +321,12 @@ export default function Checkout() {
         },
         shipping: {
           primaryAddress: {
-            line1: getFormString(formData, "shipping.primaryAddress.line1"),
+            line1,
           },
           shipToDifferentAddress: false,
         },
         payment: {
-          method: paymentMethod === "cod" ? "cash_on_delivery" : "bank_transfer",
+          method: "bank_transfer",
         },
         notes: getFormString(formData, "notes") || undefined,
         vatRequested: vatChecked,
@@ -374,8 +388,8 @@ export default function Checkout() {
           onToggleMobileSummary={() =>
             setShowMobileSummary((current) => !current)
           }
-          paymentMethod={paymentMethod}
-          onPaymentMethodChange={setPaymentMethod}
+          paymentMethod="bank_transfer"
+          onPaymentMethodChange={() => {}}
           vatChecked={vatChecked}
           onVatCheckedChange={(checked) => {
             setVatChecked(checked);
@@ -383,6 +397,8 @@ export default function Checkout() {
           }}
           vatErrors={vatErrors}
           onVatFieldChange={(field) => setVatErrors((current) => ({ ...current, [field]: "" }))}
+          agreementChecked={agreementChecked}
+          onAgreementCheckedChange={setAgreementChecked}
           submitting={submitting}
           hasInvalidLines={hasInvalidLines}
         />

@@ -72,63 +72,74 @@ export function FilterChips({
     });
   }, []);
 
+  if (!categories || categories.length <= 1) {
+    return null;
+  }
+
   const hasControls = canScrollLeft || canScrollRight;
 
   return (
-    <div className="relative mx-auto w-full max-w-[1060px]">
+    <div className="relative mx-auto w-full max-w-[1200px] px-8 sm:px-11">
       {hasControls ? (
-        <div className="pointer-events-none absolute inset-y-0 -left-4 -right-4 z-10 flex items-center justify-between md:-left-5 md:-right-5">
-          <button
-            type="button"
-            aria-label="Scroll filters left"
-            className={`pointer-events-auto flex h-8 w-8 items-center justify-center rounded-full border border-border-subtle bg-surface-base text-brand-strong shadow-sm transition-opacity ${
-              canScrollLeft ? "opacity-100" : "opacity-0"
-            }`}
-            disabled={!canScrollLeft}
-            onClick={() => scrollByDirection("left")}
-          >
-            <ChevronLeft className="h-4 w-4 stroke-[1.8]" />
-          </button>
-          <button
-            type="button"
-            aria-label="Scroll filters right"
-            className={`pointer-events-auto flex h-8 w-8 items-center justify-center rounded-full border border-border-subtle bg-surface-base text-brand-strong shadow-sm transition-opacity ${
-              canScrollRight ? "opacity-100" : "opacity-0"
-            }`}
-            disabled={!canScrollRight}
-            onClick={() => scrollByDirection("right")}
-          >
-            <ChevronRight className="h-4 w-4 stroke-[1.8]" />
-          </button>
-        </div>
+        <button
+          type="button"
+          aria-label="Previous"
+          className={`absolute left-0 top-1/2 -translate-y-1/2 z-10 flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full bg-white text-brand-strong shadow-[0_2px_8px_rgba(0,0,0,0.12)] border border-slate-100 transition-all duration-150 ${
+            canScrollLeft
+              ? "opacity-100 hover:scale-105 cursor-pointer"
+              : "opacity-25 cursor-not-allowed pointer-events-none"
+          }`}
+          disabled={!canScrollLeft}
+          onClick={() => scrollByDirection("left")}
+        >
+          <ChevronLeft className="h-4 w-4 stroke-[2.2]" />
+        </button>
       ) : null}
 
       <div
         ref={scrollerRef}
-        className="flex items-center gap-2 overflow-x-auto scroll-smooth"
+        className="flex items-center overflow-x-auto scroll-smooth"
         style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
       >
-        {categories.map((cat) => {
-          const isActive =
-            activeCategory === cat.handle ||
-            (!activeCategory && cat.handle === "");
+        <div className="mx-auto flex min-w-max items-center justify-center gap-2.5 sm:gap-3 py-1">
+          {categories.map((cat) => {
+            const isActive =
+              activeCategory === cat.handle ||
+              (!activeCategory && cat.handle === "");
 
-          return (
-            <button
-              key={cat.handle || "all"}
-              type="button"
-              onClick={() => onSelect?.(cat.handle)}
-              className={`shrink-0 rounded-full border px-4 py-1.5 font-label-md text-[10px] font-bold uppercase tracking-[0.08em] transition-colors ${
-                isActive
-                  ? "border-brand-strong bg-brand-strong text-white"
-                  : "border-border-subtle bg-surface-subtle text-brand-strong hover:border-brand-support hover:text-brand-support"
-              }`}
-            >
-              {cat.name}
-            </button>
-          );
-        })}
+            return (
+              <button
+                key={cat.handle || "all"}
+                type="button"
+                onClick={() => onSelect?.(cat.handle)}
+                className={`shrink-0 rounded-full px-5 py-2 font-heading text-[13px] sm:text-[14px] font-bold uppercase tracking-[0.04em] transition-colors duration-150 cursor-pointer ${
+                  isActive
+                    ? "bg-brand-strong text-white"
+                    : "bg-[#edf0f4] text-brand-strong hover:bg-[#dfe4ea]"
+                }`}
+              >
+                {cat.name}
+              </button>
+            );
+          })}
+        </div>
       </div>
+
+      {hasControls ? (
+        <button
+          type="button"
+          aria-label="Next"
+          className={`absolute right-0 top-1/2 -translate-y-1/2 z-10 flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full bg-white text-brand-strong shadow-[0_2px_8px_rgba(0,0,0,0.12)] border border-slate-100 transition-all duration-150 ${
+            canScrollRight
+              ? "opacity-100 hover:scale-105 cursor-pointer"
+              : "opacity-25 cursor-not-allowed pointer-events-none"
+          }`}
+          disabled={!canScrollRight}
+          onClick={() => scrollByDirection("right")}
+        >
+          <ChevronRight className="h-4 w-4 stroke-[2.2]" />
+        </button>
+      ) : null}
     </div>
   );
 }

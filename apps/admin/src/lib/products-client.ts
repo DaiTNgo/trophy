@@ -26,9 +26,14 @@ type ApiProduct = {
   handle: string;
   subtitle: LocalizedInput | null;
   description: LocalizedInput | null;
+  whyThisProductHtml: LocalizedInput | null;
+  specificationsHtml: LocalizedInput | null;
+  shippingHtml: LocalizedInput | null;
   status: "draft" | "published" | "archived" | "proposed" | "rejected";
   categories: Array<{ id: number; name: LocalizedInput }>;
   collection: { id: number; title: LocalizedInput } | null;
+  collections?: Array<{ id: number; title: LocalizedInput }>;
+  collectionIds?: number[];
   attributes: Array<{ name: LocalizedInput; value: LocalizedInput }>;
   thumbnailAssetId?: string | null;
   hoverAssetId?: string | null;
@@ -45,7 +50,14 @@ type ApiProduct = {
   options: Array<{
     id: number;
     title: LocalizedInput;
-    values: Array<{ id: number; value: LocalizedInput }>;
+    displayType?: "text" | "color" | "image";
+    values: Array<{
+      id: number;
+      value: LocalizedInput;
+      colorHex?: string | null;
+      swatchAssetId?: string | null;
+      swatchAssetUrl?: string | null;
+    }>;
   }>;
   variants: Array<{
     id: number;
@@ -131,8 +143,12 @@ export type CreateFullProductPayload = {
     subtitle?: LocalizedInput | null;
     handle: string | null;
     description?: LocalizedInput | null;
+    whyThisProductHtml?: LocalizedInput | null;
+    specificationsHtml?: LocalizedInput | null;
+    shippingHtml?: LocalizedInput | null;
   };
   organization: {
+    collectionIds?: number[];
     collectionId?: number | null;
     categoryIds?: number[];
   };
@@ -147,8 +163,8 @@ export type CreateFullProductPayload = {
     isDefault?: boolean;
     optionValues: Array<{ optionTitle: string; value: string }>;
     attributes?: Array<{ name: LocalizedInput; value: LocalizedInput; unit?: string | null }>;
-    media: Array<{ mediaId: string; file: File }>;
-    customizationMedia?: { mediaId: string; file: File; previewFile?: File } | null;
+    media: Array<{ mediaId: string; file: File; widthPx?: number; heightPx?: number }>;
+    customizationMedia?: { mediaId: string; file: File; previewFile?: File; widthPx?: number; heightPx?: number } | null;
   }>;
   customization?: {
     enabled: boolean;
@@ -165,9 +181,21 @@ export async function createFullProduct(payload: CreateFullProductPayload) {
     ...payload,
     variants: payload.variants.map((variant) => ({
       ...variant,
-      media: variant.media.map(({ mediaId }) => ({ mediaId })),
+      media: variant.media.map(({ mediaId, widthPx, heightPx }) => ({
+        mediaId,
+        ...(typeof widthPx === "number" ? { widthPx } : {}),
+        ...(typeof heightPx === "number" ? { heightPx } : {}),
+      })),
       customizationMedia: variant.customizationMedia
-        ? { mediaId: variant.customizationMedia.mediaId }
+        ? {
+            mediaId: variant.customizationMedia.mediaId,
+            ...(typeof variant.customizationMedia.widthPx === "number"
+              ? { widthPx: variant.customizationMedia.widthPx }
+              : {}),
+            ...(typeof variant.customizationMedia.heightPx === "number"
+              ? { heightPx: variant.customizationMedia.heightPx }
+              : {}),
+          }
         : null,
     })),
   };
@@ -281,7 +309,26 @@ export async function updateProductOverview(id: string, payload: {
   return body.item as ApiProduct;
 }
 
+export type ProductSectionsPayload = {
+  whyThisProductHtml?: { vi?: string; en?: string } | null;
+  specificationsHtml?: { vi?: string; en?: string } | null;
+  shippingHtml?: { vi?: string; en?: string } | null;
+};
+
+export async function updateProductSections(id: string, payload: ProductSectionsPayload) {
+  const response = await backendFetch(`/api/admin/products/${id}`, {
+    method: "PATCH",
+
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) throw new Error("Failed to update product sections.");
+  const body = await response.json();
+  return body.item as ApiProduct;
+}
+
 export async function updateProductOrganization(id: string, payload: {
+  collectionIds?: number[];
   collectionId?: number | null;
   categoryIds?: number[];
 }) {
@@ -327,7 +374,15 @@ export async function updateProductOptions(id: string, items: Array<{ title: { v
 
 export async function createProductOption(
   id: string,
-  payload: { title: { vi: string; en?: string }; values?: Array<{ value: { vi: string; en?: string } }> },
+  payload: {
+    title: { vi: string; en?: string };
+    displayType?: "text" | "color" | "image";
+    values?: Array<{
+      value: { vi: string; en?: string };
+      colorHex?: string | null;
+      swatchAssetId?: string | null;
+    }>;
+  },
 ) {
   const response = await backendFetch(`/api/admin/products/${id}/options`, {
     method: "POST",
@@ -346,7 +401,7 @@ export async function createProductOption(
 export async function updateProductOption(
   id: string,
   optionId: number,
-  payload: { title: { vi: string; en?: string } },
+  payload: { title: { vi: string; en?: string }; displayType?: "text" | "color" | "image" },
 ) {
   const response = await backendFetch(`/api/admin/products/${id}/options/${optionId}`, {
     method: "PATCH",
@@ -378,7 +433,11 @@ export async function deleteProductOption(id: string, optionId: number) {
 export async function createProductOptionValue(
   id: string,
   optionId: number,
-  payload: { value: { vi: string; en?: string } },
+  payload: {
+    value: { vi: string; en?: string };
+    colorHex?: string | null;
+    swatchAssetId?: string | null;
+  },
 ) {
   const response = await backendFetch(`/api/admin/products/${id}/options/${optionId}/values`, {
     method: "POST",
@@ -397,7 +456,11 @@ export async function createProductOptionValue(
 export async function updateProductOptionValue(
   id: string,
   valueId: number,
-  payload: { value: { vi: string; en?: string } },
+  payload: {
+    value: { vi: string; en?: string };
+    colorHex?: string | null;
+    swatchAssetId?: string | null;
+  },
 ) {
   const response = await backendFetch(`/api/admin/products/${id}/option-values/${valueId}`, {
     method: "PATCH",
@@ -648,11 +711,21 @@ export async function removeManagedVariantMedia(id: string, variantId: number, a
   return readManagedVariantMediaResponse(response, "Failed to remove Variant Media.");
 }
 
-export async function replaceVariantCustomizationBackground(id: string, variantId: number, file: File, previewFile?: File) {
+export async function replaceVariantCustomizationBackground(
+  id: string,
+  variantId: number,
+  file: File,
+  previewFile?: File,
+  dimensions?: { width: number; height: number }
+) {
   const formData = new FormData();
   formData.append("files", file);
   if (previewFile) {
     formData.append("preview", previewFile);
+  }
+  if (dimensions?.width && dimensions?.height) {
+    formData.append("widthPx", String(dimensions.width));
+    formData.append("heightPx", String(dimensions.height));
   }
   const response = await backendFetch(`/api/admin/products/${id}/variants/${variantId}/customization-media/replace`, { method: "POST", body: formData });
   return readManagedVariantMediaResponse(response, "Failed to replace Customization Background.");
@@ -923,12 +996,17 @@ export function mapApiProductToCatalogProduct(product: Partial<ApiProduct> & Pic
     handle: product.handle,
     subtitle: toLocalized(product.subtitle),
     description: toLocalized(product.description),
+    whyThisProductHtml: toLocalized(product.whyThisProductHtml),
+    specificationsHtml: toLocalized(product.specificationsHtml),
+    shippingHtml: toLocalized(product.shippingHtml),
     status: mapApiProductStatus(product.status),
     inventory: 0,
     price: leadPrice,
     category: toLocalized(product.categories?.[0]?.name).vi,
     collection: toLocalized(product.collection?.title).vi,
     collectionId: product.collection?.id ?? null,
+    collections: (product.collections || []).map((c) => toLocalized(c.title).vi),
+    collectionIds: product.collectionIds ?? (product.collections || []).map((c) => c.id),
     categories: (product.categories || []).map((c) => toLocalized(c.name).vi),
     categoryIds: (product.categories || []).map((c) => c.id),
     media: (product.media || []).map((media) => ({
@@ -950,11 +1028,15 @@ export function mapApiProductToCatalogProduct(product: Partial<ApiProduct> & Pic
     optionDefinitions: (product.options || []).map((option) => ({
       id: String(option.id),
       title: toLocalized(option.title).vi,
+      displayType: (option.displayType as "text" | "color" | "image") ?? "text",
       titleTranslations: toLocalized(option.title),
       values: (option.values || []).map((value) => ({
         id: String(value.id),
         value: toLocalized(value.value).vi,
         valueTranslations: toLocalized(value.value),
+        colorHex: value.colorHex ?? null,
+        swatchAssetId: value.swatchAssetId ?? null,
+        swatchAssetUrl: value.swatchAssetUrl ?? null,
       })),
     })),
     variants,

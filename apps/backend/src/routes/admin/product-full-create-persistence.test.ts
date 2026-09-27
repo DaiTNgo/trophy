@@ -38,14 +38,24 @@ describe('full-create persistence', () => {
     const translations: Parameters<typeof queueFullCreateTranslations>[0] = []
 
     const lookup = await insertFullCreateOptions(db as never, 7, [
-      { title: { vi: 'Size', en: 'Size' }, values: [{ value: { vi: 'L', en: 'Large' } }] },
+      {
+        title: { vi: 'Màu sắc', en: 'Color' },
+        displayType: 'color',
+        values: [{ value: { vi: 'Đỏ', en: 'Red' }, colorHex: '#FF0000' }]
+      },
     ], translations)
     const variants = await insertFullCreateVariants(db as never, 7, [
-      { title: { vi: 'Large', en: 'Large' }, optionValueIds: [lookup.get('size::l')!] },
+      { title: { vi: 'Đỏ', en: 'Red' }, optionValueIds: [lookup.get('màu sắc::đỏ')!] },
     ], translations)
 
     expect(variants).toEqual([{ id: 20 }])
     expect(values).toHaveLength(4)
+    expect(values[0]).toEqual([
+      { productId: 7, title: 'Màu sắc', displayType: 'color', position: 0 }
+    ])
+    expect(values[1]).toEqual([
+      { optionId: 10, value: 'Đỏ', colorHex: '#FF0000', swatchAssetId: null, position: 0 }
+    ])
     expect(db.select).not.toHaveBeenCalled()
     expect(db.update).not.toHaveBeenCalled()
     expect(db.delete).not.toHaveBeenCalled()

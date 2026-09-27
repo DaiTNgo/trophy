@@ -55,14 +55,22 @@ function textMarkup(layer: RuntimeTextLayer, canvasWidth: number, canvasHeight: 
   const x = layer.geometry.xRatio * canvasWidth - width / 2;
   const y = layer.geometry.yRatio * canvasHeight - height / 2;
   const style = `fill="${escapeXml(layer.color)}" font-family="${escapeXml(layer.fontId)}" font-size="${layer.fontSizePt}" font-weight="${layer.isBold ? 700 : 400}" font-style="${layer.isItalic ? "italic" : "normal"}"`;
-  const rotation = `rotate(${layer.geometry.rotationDeg} ${x + width / 2} ${y + height / 2})`;
+  const cx = x + width / 2;
+  const cy = y + height / 2;
+  const rotation = `rotate(${layer.geometry.rotationDeg} ${cx} ${cy})`;
+  const flipH = layer.flipHorizontal;
+  const flipV = layer.flipVertical;
+  const scaleX = flipH ? -1 : 1;
+  const scaleY = flipV ? -1 : 1;
+  const flipTransform = flipH || flipV ? `translate(${cx} ${cy}) scale(${scaleX} ${scaleY}) translate(${-cx} ${-cy})` : "";
+  const fullTransform = [rotation, flipTransform].filter(Boolean).join(" ");
 
   if (layer.path.type === "straight") {
     const anchor = layer.align === "left" ? "start" : layer.align === "right" ? "end" : "middle";
     const textX = layer.align === "left" ? x : layer.align === "right" ? x + width : x + width / 2;
     const lines = layer.text.split("\n");
     const firstY = y + layer.fontSizePt;
-    return `<text ${style} text-anchor="${anchor}" transform="${rotation}">${lines.map((line, index) => `<tspan x="${textX}" y="${firstY + index * layer.fontSizePt * 1.35}">${escapeXml(line)}</tspan>`).join("")}</text>`;
+    return `<text ${style} text-anchor="${anchor}" transform="${fullTransform}">${lines.map((line, index) => `<tspan x="${textX}" y="${firstY + index * layer.fontSizePt * 1.35}">${escapeXml(line)}</tspan>`).join("")}</text>`;
   }
 
   const textWidth = layer.text.length * layer.fontSizePt * 0.55;
@@ -75,7 +83,7 @@ function textMarkup(layer: RuntimeTextLayer, canvasWidth: number, canvasHeight: 
   const wordSpacing = attributes.wordSpacingPx ? ` word-spacing="${attributes.wordSpacingPx}"` : "";
   // getTextPathSvgD produces path data in local space (0,0 → width,height).
   // Wrap in translate(x,y) so the path is placed at the correct canvas position.
-  return `<g transform="${rotation}"><g transform="translate(${x} ${y})"><defs><path id="${pathId}" d="${getTextPathSvgD({ path, widthPx: width, heightPx: height })}" /></defs><text ${style} text-anchor="${attributes.textAnchor}" dominant-baseline="middle"${textLength}${wordSpacing}><textPath href="#${pathId}" startOffset="${attributes.startOffset}"${dy}>${escapeXml(layer.text)}</textPath></text></g></g>`;
+  return `<g transform="${fullTransform}"><g transform="translate(${x} ${y})"><defs><path id="${pathId}" d="${getTextPathSvgD({ path, widthPx: width, heightPx: height })}" /></defs><text ${style} text-anchor="${attributes.textAnchor}" dominant-baseline="middle"${textLength}${wordSpacing}><textPath href="#${pathId}" startOffset="${attributes.startOffset}"${dy}>${escapeXml(layer.text)}</textPath></text></g></g>`;
 }
 
 function imageMarkup(layer: RuntimeImageShapeLayer, canvasWidth: number, canvasHeight: number) {

@@ -17,6 +17,7 @@ import {
   productCategories,
   productCategoryLinks,
   productCollections,
+  productCollectionLinks,
   productCustomizations,
   productMedia,
   orderItems,
@@ -34,15 +35,23 @@ import { buildListingItem } from "./products";
 const querySchema = v.object({
   locale: v.optional(localeSchema, DEFAULT_LOCALE),
   customizable: v.optional(v.picklist(["all", "true", "false"]), "all"),
+  category: v.optional(
+    v.pipe(
+      v.string(),
+      v.trim(),
+      v.maxLength(255),
+      v.transform((value) => (value.length === 0 ? undefined : value))
+    )
+  ),
 });
 
 const handleParamsSchema = v.object({
   handle: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(255)),
 });
 
-type CustomizableFilter = "all" | "true" | "false";
+export type CustomizableFilter = "all" | "true" | "false";
 
-function buildCustomizableCondition(filter: CustomizableFilter) {
+export function buildCustomizableCondition(filter: CustomizableFilter) {
   if (filter === "true") {
     return sql`exists (
       select 1
@@ -64,7 +73,7 @@ function buildCustomizableCondition(filter: CustomizableFilter) {
   return undefined;
 }
 
-async function loadListingPage(
+export async function loadListingPage(
   c: Context<AppEnv>,
   db: ReturnType<typeof getDb>,
   whereClause: SQL | undefined,
@@ -301,6 +310,7 @@ async function loadBestSellersPage(
   db: ReturnType<typeof getDb>,
   collection: { id: number } | undefined,
   customizable: CustomizableFilter,
+  categoryHandle: string | undefined,
   limit: number,
   offset: number,
 ) {
@@ -308,6 +318,19 @@ async function loadBestSellersPage(
   const customizableCondition = buildCustomizableCondition(customizable);
   if (customizableCondition) {
     conditions.push(customizableCondition);
+  }
+  if (categoryHandle) {
+    conditions.push(
+      sql`exists (
+        select 1
+        from ${productCategoryLinks}
+        inner join ${productCategories}
+          on ${productCategories.id} = ${productCategoryLinks.categoryId}
+        where ${productCategoryLinks.productId} = ${products.id}
+          and ${productCategories.handle} = ${categoryHandle}
+          and ${productCategories.visibility} = 'public'
+      )`
+    );
   }
   const whereClause = and(...conditions);
   const salesQuantity = sql<number>`coalesce((
@@ -317,7 +340,7 @@ async function loadBestSellersPage(
   ), 0)`;
   const sourceTier = collection
     ? sql<number>`case
-      when ${products.collectionId} = ${collection.id} then 0
+      when exists (select 1 from ${productCollectionLinks} where ${productCollectionLinks.productId} = ${products.id} and ${productCollectionLinks.collectionId} = ${collection.id}) then 0
       when ${salesQuantity} > 0 then 1
       else 2
     end`
@@ -447,6 +470,7 @@ export const storefrontCollectionsRoute = new Hono<AppEnv>()
         db,
         collection,
         customizable,
+        parsedQuery.output.category,
         limit,
         offset,
       );
@@ -456,6 +480,7 @@ export const storefrontCollectionsRoute = new Hono<AppEnv>()
           page,
           limit,
           total: listing.total,
+          availableCategories: [],
         },
         200,
       );
@@ -465,11 +490,71 @@ export const storefrontCollectionsRoute = new Hono<AppEnv>()
       return c.json({ error: "Collection not found" }, 404);
     }
 
+    const availableCategoryRows = await db
+      .select({
+        id: productCategories.id,
+        name: productCategories.name,
+        handle: productCategories.handle,
+        position: productCategories.position,
+      })
+      .from(productCategories)
+      .where(
+        and(
+          eq(productCategories.visibility, "public"),
+          sql`exists (
+            select 1
+            from ${productCategoryLinks}
+            inner join ${products}
+              on ${products.id} = ${productCategoryLinks.productId}
+            inner join ${productCollectionLinks}
+              on ${productCollectionLinks.productId} = ${products.id}
+            where ${productCategoryLinks.categoryId} = ${productCategories.id}
+              and ${productCollectionLinks.collectionId} = ${collection.id}
+              and ${products.status} = 'published'
+              and ${products.deletedAt} is null
+          )`
+        )
+      )
+      .orderBy(asc(productCategories.position), asc(productCategories.id));
+
+    const hydratedCategories = await hydrateTranslations(
+      db,
+      "product_category",
+      availableCategoryRows,
+      (item) => String(item.id),
+      [{ fieldName: "name", objectKey: "name" }],
+      [{ fieldName: "name", objectKey: "name" }],
+    );
+
+    const availableCategories = hydratedCategories.map((cat) => ({
+      id: cat.id,
+      name: cat.name,
+      handle: cat.handle,
+    }));
+
     const conditions = [
       eq(products.status, "published"),
       isNull(products.deletedAt),
-      eq(products.collectionId, collection.id),
+      sql`exists (
+        select 1
+        from ${productCollectionLinks}
+        where ${productCollectionLinks.productId} = ${products.id}
+          and ${productCollectionLinks.collectionId} = ${collection.id}
+      )`,
     ];
+    if (parsedQuery.output.category) {
+      conditions.push(
+        sql`exists (
+          select 1
+          from ${productCategoryLinks}
+          inner join ${productCategories}
+            on ${productCategories.id} = ${productCategoryLinks.categoryId}
+          where ${productCategoryLinks.productId} = ${products.id}
+            and ${productCategories.handle} = ${parsedQuery.output.category}
+            and ${productCategories.visibility} = 'public'
+        )`
+      );
+    }
     const customizableCondition = buildCustomizableCondition(customizable);
     if (customizableCondition) {
       conditions.push(customizableCondition);
@@ -486,6 +571,7 @@ export const storefrontCollectionsRoute = new Hono<AppEnv>()
         page,
         limit,
         total,
+        availableCategories,
       },
       200,
     );

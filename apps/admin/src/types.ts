@@ -51,12 +51,17 @@ export type CatalogProduct = {
   handle: string;
   subtitle: LocalizedTextValue;
   description: LocalizedTextValue;
+  whyThisProductHtml: LocalizedTextValue;
+  specificationsHtml: LocalizedTextValue;
+  shippingHtml: LocalizedTextValue;
   status: ProductStatus;
   inventory: number;
   price: number;
   category: string;
   collection: string;
   collectionId: number | null;
+  collections?: string[];
+  collectionIds: number[];
   categories: string[];
   categoryIds: number[];
   media: ProductVariantMedia[];
@@ -128,6 +133,7 @@ export type VariantOptionValue = {
 export type ProductOptionDefinition = {
   id: string;
   title: string;
+  displayType?: "text" | "color" | "image";
   titleTranslations?: LocalizedTextValue;
   values: ProductOptionValueDefinition[];
 };
@@ -136,6 +142,9 @@ export type ProductOptionValueDefinition = {
   id: string;
   value: string;
   valueTranslations?: LocalizedTextValue;
+  colorHex?: string | null;
+  swatchAssetId?: string | null;
+  swatchAssetUrl?: string | null;
 };
 
 export type ProductAttribute = {
@@ -148,6 +157,9 @@ export type CreateProductFormValues = {
   handle: string;
   subtitle: LocalizedTextValue;
   description: LocalizedTextValue;
+  whyThisProductHtml: LocalizedTextValue;
+  specificationsHtml: LocalizedTextValue;
+  shippingHtml: LocalizedTextValue;
   customizationEnabled: boolean;
   collection: string;
   categories: string[];

@@ -140,6 +140,32 @@ describe("mapApiProductToCatalogProduct", () => {
     expect(JSON.parse(form.get("payload") as string).variants[0].media).toEqual([{ mediaId: "11111111-1111-4111-8111-111111111111" }]);
   });
 
+  it("maps customizationMedia widthPx and heightPx into multipart full-create request payload", async () => {
+    backendFetchMock.mockResolvedValue({ ok: true, json: async () => ({ item: apiProduct }) });
+    const pdfFile = new File(["pdf"], "doc.pdf", { type: "application/pdf" });
+    const previewFile = new File(["webp"], "doc.webp", { type: "image/webp" });
+    await createFullProduct({
+      mode: "publish", details: { title: { vi: "Cup", en: "" }, handle: null }, organization: {}, attributes: [], options: [],
+      variants: [{
+        title: "Default", sku: null, priceAmount: null, inventoryQuantity: 0, allowBackorder: false, optionValues: [], media: [],
+        customizationMedia: { mediaId: "custom_media_1", file: pdfFile, previewFile, widthPx: 1190, heightPx: 1683 }
+      }],
+      customization: { enabled: true, canvasWidthPx: 1190, canvasHeightPx: 1683, layers: [], formFields: [] }
+    });
+    const options = backendFetchMock.mock.calls[0][1];
+    const form = options.body as FormData;
+    expect(form.get("custom_media_1")).toBe(pdfFile);
+    expect(form.get("custom_media_1_preview")).toBe(previewFile);
+    const payloadObj = JSON.parse(form.get("payload") as string);
+    expect(payloadObj.variants[0].customizationMedia).toEqual({
+      mediaId: "custom_media_1",
+      widthPx: 1190,
+      heightPx: 1683
+    });
+    expect(payloadObj.customization.canvasWidthPx).toBe(1190);
+    expect(payloadObj.customization.canvasHeightPx).toBe(1683);
+  });
+
   it("keeps customization setup files local until the activation command is submitted", async () => {
     backendFetchMock.mockResolvedValue({ ok: true, json: async () => ({ item: apiProduct }) });
     const first = new File(["image"], "first.png", { type: "image/png" });

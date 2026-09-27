@@ -8,6 +8,7 @@ import {
   productCategoryLinks,
   productAttributes,
   productCollections,
+  productCollectionLinks,
   productCustomizations,
   productOptionValues,
   productOptions,
@@ -109,14 +110,14 @@ const nowIso = () => new Date().toISOString()
 const validateOrganizeReferences = async (
   db: ReturnType<typeof getDb>,
   input: {
-    collectionId?: number | null
+    collectionIds?: number[]
     categoryIds?: number[]
   }
 ) => {
-  if (input.collectionId) {
-    const count = await getRelatedCount(db, productCollections, [input.collectionId])
-    if (count !== 1) {
-      return 'Collection not found'
+  if (input.collectionIds && input.collectionIds.length > 0) {
+    const count = await getRelatedCount(db, productCollections, input.collectionIds)
+    if (count !== input.collectionIds.length) {
+      return 'One or more collections were not found'
     }
   }
 
@@ -180,6 +181,9 @@ export const productCommandRoute = new Hono<AppEnv>()
         subtitle: parsed.output.subtitle?.vi ?? null,
         handle,
         description: parsed.output.description?.vi ?? null,
+        whyThisProductHtml: parsed.output.whyThisProductHtml?.vi ?? null,
+        specificationsHtml: parsed.output.specificationsHtml?.vi ?? null,
+        shippingHtml: parsed.output.shippingHtml?.vi ?? null,
         status: 'draft'
       })
       .returning()
@@ -208,6 +212,33 @@ export const productCommandRoute = new Hono<AppEnv>()
         String(insertedProduct.id),
         'description',
         parsed.output.description
+      )
+    }
+    if (parsed.output.whyThisProductHtml) {
+      await upsertTranslations(
+        db,
+        'product',
+        String(insertedProduct.id),
+        'whyThisProductHtml',
+        parsed.output.whyThisProductHtml
+      )
+    }
+    if (parsed.output.specificationsHtml) {
+      await upsertTranslations(
+        db,
+        'product',
+        String(insertedProduct.id),
+        'specificationsHtml',
+        parsed.output.specificationsHtml
+      )
+    }
+    if (parsed.output.shippingHtml) {
+      await upsertTranslations(
+        db,
+        'product',
+        String(insertedProduct.id),
+        'shippingHtml',
+        parsed.output.shippingHtml
       )
     }
 
@@ -349,8 +380,19 @@ export const productCommandRoute = new Hono<AppEnv>()
           (typeof parsed.output.details.description === 'string'
             ? parsed.output.details.description
             : parsed.output.details.description?.vi) ?? null,
-        status: 'draft',
-        collectionId: parsed.output.organization.collectionId ?? null
+        whyThisProductHtml:
+          (typeof parsed.output.details.whyThisProductHtml === 'string'
+            ? parsed.output.details.whyThisProductHtml
+            : parsed.output.details.whyThisProductHtml?.vi) ?? null,
+        specificationsHtml:
+          (typeof parsed.output.details.specificationsHtml === 'string'
+            ? parsed.output.details.specificationsHtml
+            : parsed.output.details.specificationsHtml?.vi) ?? null,
+        shippingHtml:
+          (typeof parsed.output.details.shippingHtml === 'string'
+            ? parsed.output.details.shippingHtml
+            : parsed.output.details.shippingHtml?.vi) ?? null,
+        status: 'draft'
       })
       .returning()
       .get()
@@ -363,6 +405,25 @@ export const productCommandRoute = new Hono<AppEnv>()
     }
     if (parsed.output.details.description) {
       queueFullCreateTranslations(translations, 'product', String(insertedProduct.id), 'description', parsed.output.details.description)
+    }
+    if (parsed.output.details.whyThisProductHtml) {
+      queueFullCreateTranslations(translations, 'product', String(insertedProduct.id), 'whyThisProductHtml', parsed.output.details.whyThisProductHtml)
+    }
+    if (parsed.output.details.specificationsHtml) {
+      queueFullCreateTranslations(translations, 'product', String(insertedProduct.id), 'specificationsHtml', parsed.output.details.specificationsHtml)
+    }
+    if (parsed.output.details.shippingHtml) {
+      queueFullCreateTranslations(translations, 'product', String(insertedProduct.id), 'shippingHtml', parsed.output.details.shippingHtml)
+    }
+
+    const collectionIds = [...new Set(parsed.output.organization.collectionIds ?? [])]
+    if (collectionIds.length > 0) {
+      await db.insert(productCollectionLinks).values(
+        collectionIds.map((collectionId) => ({
+          productId: insertedProduct.id,
+          collectionId
+        }))
+      )
     }
 
     let categoryIds = [...new Set(parsed.output.organization.categoryIds ?? [])]
@@ -581,6 +642,18 @@ export const productCommandRoute = new Hono<AppEnv>()
           parsed.output.description !== undefined
             ? (parsed.output.description?.vi ?? null)
             : current.description,
+        whyThisProductHtml:
+          parsed.output.whyThisProductHtml !== undefined
+            ? (parsed.output.whyThisProductHtml?.vi ?? null)
+            : current.whyThisProductHtml,
+        specificationsHtml:
+          parsed.output.specificationsHtml !== undefined
+            ? (parsed.output.specificationsHtml?.vi ?? null)
+            : current.specificationsHtml,
+        shippingHtml:
+          parsed.output.shippingHtml !== undefined
+            ? (parsed.output.shippingHtml?.vi ?? null)
+            : current.shippingHtml,
         updatedAt: nowIso()
       })
       .where(eq(products.id, current.id))
@@ -604,6 +677,33 @@ export const productCommandRoute = new Hono<AppEnv>()
         String(current.id),
         'description',
         nullableLocalizedPatch(parsed.output.description)
+      )
+    }
+    if (parsed.output.whyThisProductHtml !== undefined) {
+      await upsertTranslations(
+        db,
+        'product',
+        String(current.id),
+        'whyThisProductHtml',
+        nullableLocalizedPatch(parsed.output.whyThisProductHtml)
+      )
+    }
+    if (parsed.output.specificationsHtml !== undefined) {
+      await upsertTranslations(
+        db,
+        'product',
+        String(current.id),
+        'specificationsHtml',
+        nullableLocalizedPatch(parsed.output.specificationsHtml)
+      )
+    }
+    if (parsed.output.shippingHtml !== undefined) {
+      await upsertTranslations(
+        db,
+        'product',
+        String(current.id),
+        'shippingHtml',
+        nullableLocalizedPatch(parsed.output.shippingHtml)
       )
     }
 
@@ -641,13 +741,22 @@ export const productCommandRoute = new Hono<AppEnv>()
     await db
       .update(products)
       .set({
-        collectionId:
-          parsed.output.collectionId !== undefined
-            ? (parsed.output.collectionId ?? null)
-            : current.collectionId,
         updatedAt: nowIso()
       })
       .where(eq(products.id, current.id))
+
+    if (parsed.output.collectionIds !== undefined) {
+      const collectionIds = [...new Set(parsed.output.collectionIds)]
+      await db.delete(productCollectionLinks).where(eq(productCollectionLinks.productId, current.id))
+      if (collectionIds.length > 0) {
+        await db.insert(productCollectionLinks).values(
+          collectionIds.map((collectionId) => ({
+            productId: current.id,
+            collectionId
+          }))
+        )
+      }
+    }
 
     if (parsed.output.categoryIds !== undefined) {
       const currentCustomization = await db

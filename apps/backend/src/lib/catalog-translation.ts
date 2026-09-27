@@ -15,7 +15,9 @@ export type OwnerType =
   | "customization_form_field"
   | "customization_layer"
   | "clipart_category"
-  | "clipart_asset";
+  | "clipart_asset"
+  | "article"
+  | "article_category";
 
 export type LocalizedField = Record<Locale, string>;
 

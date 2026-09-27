@@ -92,7 +92,19 @@ export function TextInspector({
   );
 }
 
-export function ImageShapeInspector({ template, layer, selectedVectorPointId, onUpdate }: { template: CustomizationTemplate; layer: ImageShapeEditorLayer; selectedVectorPointId: string | null; onUpdate: (updater: (layer: CustomizationLayer) => CustomizationLayer) => void }) {
+export function ImageShapeInspector({
+  template,
+  layer,
+  selectedVectorPointId,
+  onUpdate,
+  onSelectVectorPoint,
+}: {
+  template: CustomizationTemplate;
+  layer: ImageShapeEditorLayer;
+  selectedVectorPointId: string | null;
+  onUpdate: (updater: (layer: CustomizationLayer) => CustomizationLayer) => void;
+  onSelectVectorPoint?: (pointId: string) => void;
+}) {
   const { clipartCategories } = useBrandAssets();
   const activeClipartCategories = clipartCategories.filter((category) => category.active);
   const sourcePolicy = layer.sourcePolicy ?? "upload_only";
@@ -237,6 +249,7 @@ export function ImageShapeInspector({ template, layer, selectedVectorPointId, on
           vectorPath={layer.shape.vectorPath}
           selectedPointId={selectedVectorPointId}
           onChange={(vectorPath) => onUpdate((current) => ({ ...current, shape: { ...(current as ImageShapeEditorLayer).shape, vectorPath } }) as CustomizationLayer)}
+          onSelectPoint={onSelectVectorPoint}
         />
       ) : (
         <>
@@ -255,10 +268,12 @@ function VectorPointsTable({
   vectorPath,
   selectedPointId,
   onChange,
+  onSelectPoint,
 }: {
   vectorPath: import("@trophy/customization").VectorPath;
   selectedPointId: string | null;
   onChange: (path: import("@trophy/customization").VectorPath) => void;
+  onSelectPoint?: (pointId: string) => void;
 }) {
   const pointRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
@@ -273,6 +288,17 @@ function VectorPointsTable({
     onChange({ ...vectorPath, points: next });
   }
 
+  const canDelete = vectorPath.points.length > 3;
+
+  function deletePoint(pointId: string) {
+    if (!canDelete) return;
+    const nextPoints = vectorPath.points.filter((p) => p.id !== pointId);
+    onChange({ ...vectorPath, points: nextPoints });
+    if (selectedPointId === pointId) {
+      onSelectPoint?.("");
+    }
+  }
+
   return (
     <div className="space-y-2">
       <p className="text-xs font-medium uppercase text-ui-fg-muted">Vector Points</p>
@@ -283,20 +309,36 @@ function VectorPointsTable({
             ref={(element) => {
               pointRefs.current[point.id] = element;
             }}
-            className={`rounded border p-2 transition-colors ${selectedPointId === point.id ? "border-ui-fg-interactive bg-ui-bg-subtle ring-1 ring-ui-fg-interactive" : "border-ui-border-base"}`}
+            onClick={() => onSelectPoint?.(point.id)}
+            className={`cursor-pointer rounded border p-2 transition-colors ${selectedPointId === point.id ? "border-ui-fg-interactive bg-ui-bg-subtle ring-1 ring-ui-fg-interactive" : "border-ui-border-base hover:border-ui-border-strong"}`}
           >
             <div className="mb-1 flex items-center justify-between">
               <span className="text-xs font-medium">Point {index + 1}</span>
-              <select
-                value={point.type}
-                onChange={(e) => updatePoint(index, (p) => ({ ...p, type: e.target.value as "corner" | "smooth", ...(e.target.value === "corner" ? { inHandle: undefined, outHandle: undefined } : { inHandle: { xRatio: -0.08, yRatio: 0 }, outHandle: { xRatio: 0.08, yRatio: 0 } }) }))}
-                className="rounded border border-ui-border-base px-1 py-0.5 text-xs"
-              >
-                <option value="corner">Corner</option>
-                <option value="smooth">Smooth</option>
-              </select>
+              <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                <select
+                  value={point.type}
+                  onChange={(e) => updatePoint(index, (p) => ({ ...p, type: e.target.value as "corner" | "smooth", ...(e.target.value === "corner" ? { inHandle: undefined, outHandle: undefined } : { inHandle: { xRatio: -0.08, yRatio: 0 }, outHandle: { xRatio: 0.08, yRatio: 0 } }) }))}
+                  className="rounded border border-ui-border-base px-1 py-0.5 text-xs"
+                >
+                  <option value="corner">Corner</option>
+                  <option value="smooth">Smooth</option>
+                </select>
+                <button
+                  type="button"
+                  aria-label={`Delete point ${index + 1}`}
+                  title={canDelete ? "Delete point" : "A closed polygon must have at least 3 points"}
+                  disabled={!canDelete}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    deletePoint(point.id);
+                  }}
+                  className="flex size-6 items-center justify-center rounded border border-ui-border-base p-1 text-ui-fg-muted transition-colors hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-ui-border-base disabled:hover:bg-transparent disabled:hover:text-ui-fg-muted"
+                >
+                  <Trash2 className="size-3.5" />
+                </button>
+              </div>
             </div>
-            <div className="grid grid-cols-2 gap-1">
+            <div className="grid grid-cols-2 gap-1" onClick={(e) => e.stopPropagation()}>
               <div className="space-y-1">
                 <Label size="small" weight="plus" className="text-ui-fg-subtle">X</Label>
                 <Input type="number" value={String(Math.round(point.xRatio * 1000) / 1000)} onChange={(e) => updatePoint(index, (p) => ({ ...p, xRatio: Number(e.target.value) }))} />
@@ -307,7 +349,7 @@ function VectorPointsTable({
               </div>
             </div>
             {point.type === "corner" && (
-              <div className="mt-1 grid grid-cols-1 gap-1">
+              <div className="mt-1 grid grid-cols-1 gap-1" onClick={(e) => e.stopPropagation()}>
                 <div className="space-y-1">
                   <Label size="small" weight="plus" className="text-ui-fg-subtle">Corner Radius</Label>
                   <Input type="number" value={String(point.cornerRadius ?? 0)} onChange={(e) => updatePoint(index, (p) => ({ ...p, cornerRadius: Math.max(0, Number(e.target.value)) }))} />
@@ -315,7 +357,7 @@ function VectorPointsTable({
               </div>
             )}
             {point.type === "smooth" && (
-              <div className="mt-1 grid grid-cols-2 gap-1">
+              <div className="mt-1 grid grid-cols-2 gap-1" onClick={(e) => e.stopPropagation()}>
                 <div className="space-y-1">
                   <Label size="small" weight="plus" className="text-ui-fg-subtle">In X</Label>
                   <Input type="number" value={String(Math.round((point.inHandle?.xRatio ?? 0) * 1000) / 1000)} onChange={(e) => updatePoint(index, (p) => ({ ...p, inHandle: { xRatio: Number(e.target.value), yRatio: p.inHandle?.yRatio ?? 0 } }))} />
@@ -333,16 +375,42 @@ function VectorPointsTable({
   );
 }
 
-function PositionFields({ template, layer, onUpdate, textOnly }: { template: CustomizationTemplate; layer: CustomizationLayer; onUpdate: (updater: (layer: CustomizationLayer) => CustomizationLayer) => void; textOnly?: boolean }) {
+export function PositionFields({ template, layer, onUpdate, textOnly }: { template: CustomizationTemplate; layer: CustomizationLayer; onUpdate: (updater: (layer: CustomizationLayer) => CustomizationLayer) => void; textOnly?: boolean }) {
   const background = template.background;
   if (!background) return null;
-  const rect = layerGeometryToPixels({ geometry: layer.geometry, background });
+  const rect = getLayerPixelRect({ layer, background });
   const closedTextPath = layer.type === "text" && layer.text.path.type === "closed_ellipse";
+  const isTextLocked = textOnly && !closedTextPath;
+  const lockAspectRatio = layer.type === "image_shape" && layer.shape.lockAspectRatio;
+
   const updateRect = (next: Partial<typeof rect>) => {
     const merged = { ...rect, ...next };
-    const geometry = pixelRectToLayerGeometry({ ...merged, heightPx: textOnly && !closedTextPath ? undefined : merged.heightPx, background });
-    onUpdate((current) => ({ ...current, geometry: current.type === "text" ? { ...geometry, heightRatio: closedTextPath ? geometry.heightRatio ?? 0.1 : undefined } : { ...geometry, heightRatio: geometry.heightRatio ?? 0.1 } }) as CustomizationLayer);
+    const geometry = layerPixelRectToGeometry({ rect: merged, layer, background });
+    onUpdate((current) => ({ ...current, geometry } as CustomizationLayer));
   };
+
+  const handleWidthChange = (val: number) => {
+    const widthPx = Math.max(18, val);
+    if (lockAspectRatio && rect.widthPx > 0 && rect.heightPx > 0) {
+      const ratio = rect.heightPx / rect.widthPx;
+      const heightPx = Math.max(18, Math.round(widthPx * ratio));
+      updateRect({ widthPx, heightPx });
+    } else {
+      updateRect({ widthPx });
+    }
+  };
+
+  const handleHeightChange = (val: number) => {
+    const heightPx = Math.max(18, val);
+    if (lockAspectRatio && rect.widthPx > 0 && rect.heightPx > 0) {
+      const ratio = rect.widthPx / rect.heightPx;
+      const widthPx = Math.max(18, Math.round(heightPx * ratio));
+      updateRect({ widthPx, heightPx });
+    } else {
+      updateRect({ heightPx });
+    }
+  };
+
   return (
     <div className="grid grid-cols-2 gap-2">
       <div className="space-y-1">
@@ -355,12 +423,132 @@ function PositionFields({ template, layer, onUpdate, textOnly }: { template: Cus
       </div>
       <div className="space-y-1">
         <Label size="small" weight="plus" className="text-ui-fg-subtle">W</Label>
-        <Input type="number" value={String(Math.round(rect.widthPx))} onChange={(e) => updateRect({ widthPx: Number(e.target.value) })} />
+        <Input type="number" value={String(Math.round(rect.widthPx))} onChange={(e) => handleWidthChange(Number(e.target.value))} />
       </div>
       <div className="space-y-1">
         <Label size="small" weight="plus" className="text-ui-fg-subtle">H</Label>
-        <Input type="number" value={String(Math.round(textOnly && layer.type === "text" && !closedTextPath ? layer.text.maxLines * layer.text.maxFontSizePt * 1.35 : rect.heightPx))} disabled={textOnly && !closedTextPath} onChange={(e) => updateRect({ heightPx: Number(e.target.value) })} />
+        <Input type="number" value={String(Math.round(rect.heightPx))} disabled={isTextLocked} onChange={(e) => handleHeightChange(Number(e.target.value))} />
       </div>
+      {layer.type === "text" ? (
+        <>
+          <div className="space-y-1">
+            <Label size="small" weight="plus" className="text-ui-fg-subtle">Rotation (°)</Label>
+            <div className="flex items-center gap-1">
+              <Input
+                type="number"
+                min="0"
+                max="359"
+                value={String(Math.round(layer.geometry.rotationDeg || 0))}
+                onChange={(e) => {
+                  const val = Number(e.target.value);
+                  const deg = Number.isFinite(val) ? ((Math.round(val) % 360) + 360) % 360 : 0;
+                  onUpdate((current) =>
+                    current.type === "text"
+                      ? {
+                          ...current,
+                          geometry: { ...current.geometry, rotationDeg: deg },
+                        }
+                      : current,
+                  );
+                }}
+              />
+              <button
+                type="button"
+                title="Rotate -90°"
+                onClick={() => {
+                  const currentDeg = Math.round(layer.geometry.rotationDeg || 0);
+                  const deg = ((currentDeg - 90) % 360 + 360) % 360;
+                  onUpdate((current) =>
+                    current.type === "text"
+                      ? {
+                          ...current,
+                          geometry: { ...current.geometry, rotationDeg: deg },
+                        }
+                      : current,
+                  );
+                }}
+                className="flex size-8 shrink-0 items-center justify-center rounded border border-ui-border-base bg-ui-bg-base text-ui-fg-subtle hover:bg-ui-bg-subtle hover:text-ui-fg-base"
+              >
+                <RotateCcw className="size-3.5" />
+              </button>
+              <button
+                type="button"
+                title="Rotate +90°"
+                onClick={() => {
+                  const currentDeg = Math.round(layer.geometry.rotationDeg || 0);
+                  const deg = (currentDeg + 90) % 360;
+                  onUpdate((current) =>
+                    current.type === "text"
+                      ? {
+                          ...current,
+                          geometry: { ...current.geometry, rotationDeg: deg },
+                        }
+                      : current,
+                  );
+                }}
+                className="flex size-8 shrink-0 items-center justify-center rounded border border-ui-border-base bg-ui-bg-base text-ui-fg-subtle hover:bg-ui-bg-subtle hover:text-ui-fg-base"
+              >
+                <RotateCw className="size-3.5" />
+              </button>
+            </div>
+          </div>
+          <div className="space-y-1">
+            <Label size="small" weight="plus" className="text-ui-fg-subtle">Flip</Label>
+            <div className="flex items-center gap-1 h-8">
+              <button
+                type="button"
+                title="Flip Horizontal (Reverse engraving)"
+                onClick={() => {
+                  onUpdate((current) =>
+                    current.type === "text"
+                      ? {
+                          ...current,
+                          text: {
+                            ...current.text,
+                            flipHorizontal: !current.text.flipHorizontal,
+                          },
+                        }
+                      : current,
+                  );
+                }}
+                className={`flex size-8 flex-1 items-center justify-center gap-1 rounded border text-xs font-medium transition-colors ${
+                  layer.text.flipHorizontal
+                    ? "border-ui-border-interactive bg-ui-fg-interactive text-ui-fg-on-color"
+                    : "border-ui-border-base bg-ui-bg-base text-ui-fg-subtle hover:bg-ui-bg-subtle hover:text-ui-fg-base"
+                }`}
+              >
+                <FlipHorizontal className="size-3.5" />
+                <span>H</span>
+              </button>
+              <button
+                type="button"
+                title="Flip Vertical"
+                onClick={() => {
+                  onUpdate((current) =>
+                    current.type === "text"
+                      ? {
+                          ...current,
+                          text: {
+                            ...current.text,
+                            flipVertical: !current.text.flipVertical,
+                          },
+                        }
+                      : current,
+                  );
+                }}
+                className={`flex size-8 flex-1 items-center justify-center gap-1 rounded border text-xs font-medium transition-colors ${
+                  layer.text.flipVertical
+                    ? "border-ui-border-interactive bg-ui-fg-interactive text-ui-fg-on-color"
+                    : "border-ui-border-base bg-ui-bg-base text-ui-fg-subtle hover:bg-ui-bg-subtle hover:text-ui-fg-base"
+                }`}
+              >
+                <FlipVertical className="size-3.5" />
+                <span>V</span>
+              </button>
+            </div>
+          </div>
+        </>
+      ) : null}
     </div>
   );
 }
@@ -797,8 +985,8 @@ import {
   DEFAULT_FONT_FAMILY_OPTIONS,
   DEFAULT_TEXT_COLOR_OPTIONS,
   hasAvailableFontFormat,
-  layerGeometryToPixels,
-  pixelRectToLayerGeometry,
+  getLayerPixelRect,
+  layerPixelRectToGeometry,
   resolveLocalizedInput,
   type ChoiceOption,
   type CustomizationLayer,
@@ -808,5 +996,6 @@ import {
   type VectorPoint,
 } from "@trophy/customization";
 import { Heading, Input, Label, Select, Text, Textarea } from "@medusajs/ui";
+import { FlipHorizontal, FlipVertical, RotateCcw, RotateCw, Trash2 } from "lucide-react";
 import { useBrandAssets } from "../../hooks/use-brand-assets";
 import { createId, shapeLabel } from "./customization-template-ui";

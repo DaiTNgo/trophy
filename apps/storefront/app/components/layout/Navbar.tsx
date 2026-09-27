@@ -196,8 +196,9 @@ export function Navbar({
                       />
                       {t("navbar_themes")}
                     </button>
-                  </div>
-                )}
+                </div>
+              )}
+
               </div>
 
               <DesktopSearch />

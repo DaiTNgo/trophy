@@ -1,6 +1,6 @@
 import * as v from 'valibot'
 import { allowedMimeTypes, extensionForMimeType, MAX_ASSET_BYTES } from '../../lib/asset-utils'
-import { readImageDimensions } from '../../lib/image-dimensions'
+import { resolveAssetDimensions } from '../../lib/image-dimensions'
 import { fullCreateProductSchema } from './product-schemas'
 
 export type FullCreateInput = v.InferOutput<typeof fullCreateProductSchema>
@@ -39,6 +39,23 @@ export async function parseFullCreateMultipart(request: Request) {
   ])
   if (new Set(declaredIds).size !== declaredIds.length) return invalid('Each declared media ID must be unique')
 
+  const declaredDimensions = new Map<string, { widthPx: number; heightPx: number }>()
+  for (const variant of parsed.output.variants) {
+    for (const m of variant.media) {
+      if (m.widthPx && m.heightPx) {
+        declaredDimensions.set(m.mediaId, { widthPx: m.widthPx, heightPx: m.heightPx })
+      }
+    }
+    if (variant.customizationMedia) {
+      const customMedia = variant.customizationMedia
+      const widthPx = customMedia.widthPx ?? parsed.output.customization?.canvasWidthPx ?? undefined
+      const heightPx = customMedia.heightPx ?? parsed.output.customization?.canvasHeightPx ?? undefined
+      if (widthPx && heightPx) {
+        declaredDimensions.set(customMedia.mediaId, { widthPx, heightPx })
+      }
+    }
+  }
+
   const supplied = new Map<string, File[]>()
   const suppliedPreviews = new Map<string, File>()
   for (const [name, value] of formData.entries()) {
@@ -63,10 +80,6 @@ export async function parseFullCreateMultipart(request: Request) {
     if (file.size <= 0 || file.size > MAX_ASSET_BYTES) return invalid('Product asset exceeds the 20 MB limit')
     const buffer = await file.arrayBuffer()
     if (buffer.byteLength !== file.size || buffer.byteLength > MAX_ASSET_BYTES) return invalid('Product asset size is invalid')
-    const dimensions = mimeType === 'application/pdf'
-      ? { width: 800, height: 1131 }
-      : readImageDimensions(mimeType, new Uint8Array(buffer))
-    if (!dimensions || dimensions.width < 1 || dimensions.height < 1) return invalid('Media data is invalid or unsupported')
     let previewBuffer: ArrayBuffer | undefined
     let previewMimeType: string | undefined
     const previewFile = suppliedPreviews.get(id)
@@ -74,6 +87,9 @@ export async function parseFullCreateMultipart(request: Request) {
       previewBuffer = await previewFile.arrayBuffer()
       previewMimeType = previewFile.type.trim().toLowerCase()
     }
+    const declared = declaredDimensions.get(id)
+    const dimensions = resolveAssetDimensions({ declared, mimeType, buffer, previewBuffer, previewMimeType })
+    if (!dimensions) return invalid('Media data is invalid or unsupported')
     media.set(id, {
       id: crypto.randomUUID(),
       fieldId: id,

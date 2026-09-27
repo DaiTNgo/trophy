@@ -85,11 +85,11 @@ export function VariantMediaManager({
     const isPdf = file.type === "application/pdf";
     const previewFile = isPdf ? await convertPdfToImageFile(file) : undefined;
     const fileForDimensions = previewFile ?? file;
+    const dimensions = await readDimensions(fileForDimensions).catch(() => null);
     const sibling = product.variants.find(
       (item) => item.id !== variant.id && item.customizationMedia,
     )?.customizationMedia;
     if (sibling) {
-      const dimensions = await readDimensions(fileForDimensions).catch(() => null);
       if (
         !dimensions ||
         dimensions.width !== sibling.widthPx ||
@@ -107,6 +107,7 @@ export function VariantMediaManager({
         Number(variant.id),
         file,
         previewFile,
+        dimensions ?? undefined,
       ),
     );
   }

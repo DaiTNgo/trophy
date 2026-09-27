@@ -204,29 +204,45 @@ export function ProductInfo({
 export function ProductDetailSections({
   description,
   specs,
+  whyThisProductHtml,
+  specificationsHtml,
+  shippingHtml,
 }: {
   description: string;
   specs: Record<string, string>;
+  whyThisProductHtml: string;
+  specificationsHtml: string;
+  shippingHtml: string;
 }) {
   const { t } = useTranslation("products");
+  const hasWhyThisProductContent =
+    whyThisProductHtml.trim().length > 0 || description.trim().length > 0;
+  const hasSpecificationsContent =
+    specificationsHtml.trim().length > 0 || Object.keys(specs).length > 0;
 
   return (
     <section className="mt-10 rounded-lg border border-border-subtle bg-white">
       <div className="divide-y divide-border-subtle">
-        <details className="group" open>
-          <summary className="flex cursor-pointer list-none items-center justify-between px-6 py-4 text-sm font-bold uppercase tracking-[0.12em] text-text-base">
-            <span className="flex items-center gap-2">
-              <Award className="size-4 text-text-muted" />
-              {t("section_why_this_product")}
-            </span>
-            <ChevronDown className="size-4 text-text-muted transition-transform duration-200 group-open:rotate-180" />
-          </summary>
-          <div className="px-6 pb-6 text-sm leading-relaxed text-text-muted">
-            {description}
-          </div>
-        </details>
+        {hasWhyThisProductContent ? (
+          <details className="group" open>
+            <summary className="flex cursor-pointer list-none items-center justify-between px-6 py-4 text-sm font-bold uppercase tracking-[0.12em] text-text-base">
+              <span className="flex items-center gap-2">
+                <Award className="size-4 text-text-muted" />
+                {t("section_why_this_product")}
+              </span>
+              <ChevronDown className="size-4 text-text-muted transition-transform duration-200 group-open:rotate-180" />
+            </summary>
+            {whyThisProductHtml.trim().length > 0 ? (
+              <div className="prose-article px-6 pb-6" dangerouslySetInnerHTML={{ __html: whyThisProductHtml }} />
+            ) : (
+              <div className="px-6 pb-6 text-sm leading-relaxed text-text-muted">
+                {description}
+              </div>
+            )}
+          </details>
+        ) : null}
 
-        {Object.keys(specs).length > 0 ? (
+        {hasSpecificationsContent ? (
           <details className="group">
             <summary className="flex cursor-pointer list-none items-center justify-between px-6 py-4 text-sm font-bold uppercase tracking-[0.12em] text-text-base">
               <span className="flex items-center gap-2">
@@ -235,18 +251,22 @@ export function ProductDetailSections({
               </span>
               <ChevronDown className="size-4 text-text-muted transition-transform duration-200 group-open:rotate-180" />
             </summary>
-            <div className="px-6 pb-6">
-              <div className="grid grid-cols-2 gap-y-2 text-sm">
-                {Object.entries(specs).map(([name, value]) => (
-                  <div key={name} className="contents">
-                    <span className="text-text-muted">{name}:</span>
-                    <span className="font-semibold text-text-base">
-                      {value}
-                    </span>
-                  </div>
-                ))}
+            {specificationsHtml.trim().length > 0 ? (
+              <div className="prose-article px-6 pb-6" dangerouslySetInnerHTML={{ __html: specificationsHtml }} />
+            ) : (
+              <div className="px-6 pb-6">
+                <div className="grid grid-cols-2 gap-y-2 text-sm">
+                  {Object.entries(specs).map(([name, value]) => (
+                    <div key={name} className="contents">
+                      <span className="text-text-muted">{name}:</span>
+                      <span className="font-semibold text-text-base">
+                        {value}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
           </details>
         ) : null}
 
@@ -258,9 +278,13 @@ export function ProductDetailSections({
             </span>
             <ChevronDown className="size-4 text-text-muted transition-transform duration-200 group-open:rotate-180" />
           </summary>
-          <div className="px-6 pb-6 text-sm leading-relaxed text-text-muted">
-            {t("shipping_policy_body")}
-          </div>
+          {shippingHtml.trim().length > 0 ? (
+            <div className="prose-article px-6 pb-6" dangerouslySetInnerHTML={{ __html: shippingHtml }} />
+          ) : (
+            <div className="px-6 pb-6 text-sm leading-relaxed text-text-muted">
+              {t("shipping_policy_body")}
+            </div>
+          )}
         </details>
       </div>
     </section>

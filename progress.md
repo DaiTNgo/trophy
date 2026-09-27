@@ -2,6 +2,146 @@
 
 ## Current Session
 
+- 2026-09-26: **Implemented Product Option Display Types & Swatches (Backend, Admin & Storefront).**
+  - Session & Design Alignment:
+    - Executed `/grilling` interview session with the user to structure Option vs Variant visual responsibilities.
+    - Decided: Option Value holds the Swatch (Color HEX or small image texture) while keeping the Variant table text-based as requested by the user.
+  - Backend:
+    - Added `displayType: text("display_type").notNull().default("text")` to `productOptions` in `apps/backend/src/db/schema.ts`.
+    - Added `colorHex: text("color_hex")` and `swatchAssetId: text("swatch_asset_id")` to `productOptionValues` in `apps/backend/src/db/schema.ts`.
+    - Updated `product-schemas.ts` for `optionsSchema`, `optionCreateSchema`, `optionUpdateSchema`, `optionValueCreateSchema`, `optionValueUpdateSchema`, and `fullCreateProductSchema`.
+    - Updated `product-option-definition-route.ts`, `product-option-value-route.ts`, `product-full-create-persistence.ts`, and `product-reader.ts` to persist and hydrate `displayType`, `colorHex`, `swatchAssetId`, and `swatchAssetUrl`.
+    - Updated `apps/backend/src/routes/storefront/products.ts` to include `swatchAssetUrl` on option values.
+    - Updated persistence test in `product-full-create-persistence.test.ts`.
+  - Admin:
+    - Created `apps/admin/src/components/ui/option-swatch-picker.tsx` providing `ColorSwatchPicker` (with color presets and hex picker popover) and `ImageSwatchPicker` (with instant upload via `/api/admin/products/assets` and thumbnail preview).
+    - Updated `use-create-product.ts` and `create-product-details.tsx` to support selecting `displayType` (`text` | `color` | `image`), rendering text badges for `text` and row lists with swatch pickers for `color` and `image`.
+    - Updated `product-detail-options.tsx` to support `displayType` selection and swatch pickers in the Drawer modal, and render swatch badges in the product options overview list.
+  - Storefront:
+    - Updated `StorefrontDetailResponse["item"]["options"]` in `apps/storefront/app/lib/api.ts` to type `displayType`, `colorHex`, `swatchAssetId`, and `swatchAssetUrl`.
+    - Updated `apps/storefront/app/components/product/ProductOptionGroups.tsx`:
+      - All options render in the structured 2-column grid (`grid gap-1.5 sm:grid-cols-2`) with text labels accompanying the swatches:
+        - `displayType === "color"`: Each button includes a 20px circular color swatch dot (`size-5 rounded-full border border-black/15 shadow-inner`) alongside the localized text label, with focus ring when selected and diagonal slash when unavailable.
+        - `displayType === "image"`: Each button includes a 24px thumbnail image preview (`size-6 rounded border border-black/10`) alongside the localized text label (with fallback monogram if no image uploaded).
+        - `displayType === "text"`: Standard clean text button.
+    - Updated unit tests in `apps/storefront/app/lib/product-option-groups.test.ts` covering text labels alongside color dots and image swatches.
+  - Verification:
+    - `pnpm --filter backend check`: passed.
+    - `pnpm --filter backend test`: 49 test files, 341 tests passed.
+    - `pnpm --filter admin build`: passed (`tsc -b && vp build`).
+    - `pnpm --filter router-cf test`: 9 test files, 32 tests passed.
+    - `pnpm --filter router-cf typecheck`: passed (`wrangler types && react-router typegen && tsc -b`).
+    - `pnpm --filter router-cf build`: passed.
+    - `./init.sh`: passed cleanly across all monorepo apps.
+
+- 2026-09-21: **Implemented Storefront Checkout Enhancements (2-level Address, 100% Bank Transfer, VAT Note, Purchase Notice Modal).**
+  - Session & Interview:
+    - Executed `/grill-with-docs` session, clarifying requirements, dependencies, and domain modeling for all 4 checkout annotations.
+    - Updated `CONTEXT.md` with: `Two-Level Administrative Address`, `Bank Transfer Only Policy`, `Purchase Notice Acknowledgment`, and sharpened `VAT Invoice Request`.
+    - Documented architectural decision in `docs/adr/0022-two-level-administrative-address-and-bank-transfer-policy.md`.
+  - Storefront Implementation:
+    - Installed `vietnam-divisions-js` (MIT license, Resolution 202/2025/QH15 compliant: 34 provinces & 3,321 wards/communes).
+    - `CheckoutForm.tsx`:
+      - Replaced single text address with two-level dynamic selects (Tỉnh/Thành phố & Xã/Phường via `vietnam-divisions-js/v3`) + text input for detailed address (`line1`).
+      - Removed COD option and replaced payment selection with a dedicated 100% Bank Transfer informational card.
+      - Updated VAT section label to "Thông tin nhận hóa đơn VAT" with subtitle "Nếu không chọn, hóa đơn mặc định xuất theo thông tin người mua", revealing corporate fields when checked.
+      - Added mandatory "Tôi đã đọc hiểu và đồng ý nội dung trong lưu ý mua hàng" agreement checkbox.
+      - Integrated `PurchaseNoticeModal` via Radix Dialog explaining 100% upfront payment, custom proofing, fabrication lead time, and inspection/replacement policies.
+    - `checkout.tsx`:
+      - Concatenates detailed address, ward, and province into a single string `line1` and sends only `shipping.primaryAddress: { line1 }` without separate `city`/`province` (maintaining previous API contract while keeping 2-level administrative UI).
+      - Enforced `agreementChecked` before order creation.
+      - Fixed `paymentMethod: "bank_transfer"`.
+    - Removed `DiscountCodeForm` in checkout order summary.
+  - Backend & Verification:
+    - Added test case in `apps/backend/src/routes/storefront/orders.test.ts` verifying order creation with two-level administrative address.
+    - `pnpm --filter backend test`: 49 test files, 341 tests passed.
+    - `pnpm --filter router-cf test`: 8 test files, 29 tests passed.
+    - `pnpm --filter router-cf typecheck`: passed.
+    - `pnpm --filter router-cf build`: passed.
+    - `./init.sh`: passed completely across all monorepo apps.
+
+- 2026-09-21: **Implemented Storefront Multi-Level Contextual Product Breadcrumbs on PDP across all touchpoints.**
+  - Background & Architecture:
+    - Addressed breadcrumb behavior when products belong to multiple Categories or Collections, or are navigated to from various store touchpoints.
+    - Requirements:
+      1. Category/Collection listing with filters: shows exact contextual chain without Home in front (e.g. `Customization › Cup 2 › Product`).
+      2. News articles (`/news/:slug`): links carry `?newsSlug=...`, displaying breadcrumbs `Tin tức › [Tên bài viết] › [Product]`.
+      3. Home, Search, Suggested Products, Recently Viewed, and Cart: pass `?from=home`, displaying breadcrumbs `Trang chủ › [Product]`.
+      4. Direct URL / SEO / clean link: falls back to `Trang chủ › [Category chính] › [Product]`.
+    - Added `Storefront Contextual Breadcrumb` to `CONTEXT.md` and created `docs/adr/0021-storefront-contextual-product-breadcrumbs.md`.
+  - Storefront Implementation:
+    - `apps/storefront/app/lib/storefront-paths.ts`: Updated `getProductPath` to preserve `categoryHandle`, `collectionHandle`, and `from` parameter.
+    - `apps/storefront/app/components/shared/ProductCard.tsx`: Supported `from?: string | null` prop and passed to `getProductPath`.
+    - `apps/storefront/app/components/home/BestSellersSection.tsx`: Added `from="home"` to `<ProductCard>`.
+    - `apps/storefront/app/components/product/SuggestedProductsSection.tsx`: Added `from="home"` to `<ProductCard>`.
+    - `apps/storefront/app/components/cart/RecentlyViewedProducts.tsx`: Added `from="home"` to `<ProductCard>`.
+    - `apps/storefront/app/components/layout/navbar/SearchResults.tsx`: Used `getProductPath({ productHandle: product.handle, from: "home" })` for search product results.
+    - `apps/storefront/app/routes/cart.tsx`: Used `getProductPath({ productHandle: ..., from: "home" })` for cart item links.
+    - `apps/storefront/app/routes/news.$slug.tsx`: Appended `?newsSlug=${encodeURIComponent(article.slug)}` to linked product cards.
+    - `apps/storefront/app/routes/product.$handle.tsx`:
+      - Handled `newsSlug`, `from`, `category`, and `collection` in SSR loader.
+      - Fetched referenced article via `fetchStorefrontArticle(newsSlugParam, locale, backendFetch)`.
+      - Built contextual `breadcrumbItems` matching exact entry point conditions.
+  - Verification:
+    - `pnpm --filter router-cf test` passed (8 test files, 29 tests).
+    - `pnpm --filter router-cf typecheck` passed.
+    - `pnpm --filter router-cf build` passed.
+    - `./init.sh` passed cleanly across all monorepo apps.
+
+- 2026-09-20: **Implemented Many-to-Many Collections, Two-Way Cross-Taxonomy Filtering & Dynamic Facets.**
+  - Background & Architecture:
+    - Analyzed TrophySmack live model and domain requirements: instead of deep rigid hierarchical sub-categories, Trophy uses orthogonal 2-axis taxonomy: Category ("Shop by Product": Trophies, Belts, Plaques, Medals) and Collection ("Shop by Interest": Football, Corporate, Golf, etc.).
+    - Created ADR `docs/adr/0019-many-to-many-product-collections.md` and updated `CONTEXT.md` with `Cross-Taxonomy Filtering`.
+    - Symmetric Filtering:
+      - Collection page (`/collections/:handle` - Shop by Interest) filters by `availableCategories` (Loại sản phẩm: Cúp, Huy chương, Giấy khen...).
+      - Category page (`/categories/:handle` - Shop by Product) filters by `availableCollections` (Dịp/Chủ đề: Bóng đá, Golf, Doanh nghiệp...).
+  - Backend:
+    - Schema: Added `productCollectionLinks` table (`apps/backend/src/db/schema.ts`) and removed single `collectionId` from `products`.
+    - Admin Routes: Updated `product-schemas.ts`, `product-command-route.ts`, `product-reader.ts`, `product-query-route.ts`, and `product-metadata.ts` to manage many-to-many collection links via `collectionIds`.
+    - Storefront Routes:
+      - `apps/backend/src/routes/storefront/collections.ts`: Added `category` filter parameter to `GET /:handle/products`, returning filtered products and dynamic `availableCategories`. Exported `buildCustomizableCondition` and `loadListingPage`.
+      - `apps/backend/src/routes/storefront/categories.ts`: Added `GET /:handle/products` route returning filtered products, pagination, and dynamic `availableCollections` (collections that contain published products in that category), supporting `collection` and `customizable` query params.
+      - `apps/backend/src/routes/storefront/products.ts`: Added `collection` filter parameter and enhanced `q` search to match collection titles and handles from `productCollectionLinks`.
+    - Verification:
+      - Created `apps/backend/src/routes/storefront/categories.test.ts` (API contract tests for `GET /:handle/products` covering 404, customizable validation, item hydration, and `availableCollections`).
+      - `pnpm --filter backend check` clean; `pnpm --filter backend test` (46 test files, 291/291 tests passed).
+  - Storefront:
+    - `apps/storefront/app/lib/api.ts`: Added `availableCollections` to `StorefrontListingResponse`, added `fetchStorefrontCategoryProducts`.
+    - `apps/storefront/app/components/products/ProductListingShell.tsx`: Added optional `title` to `filters` so category pages display "Lọc theo dịp / bộ sưu tập" ("Filter by occasion") while collection pages display "Lọc theo sản phẩm" ("Filter by product").
+    - `apps/storefront/app/routes/categories.$categoryHandle.tsx`: Loader calls `fetchStorefrontCategoryProducts` with `collection: activeCollection` and passes `availableCollections` as filter options.
+    - `apps/storefront/app/components/categories/CategoryProductsListing.tsx` & `CategoryProductsPage.tsx`: Integrated collection filter chips with in-place query param navigation (`?collection=...`), resetting page on filter change without leaving the category view.
+    - `apps/storefront/app/routes/collections.$handle.tsx`: Integrated dynamic `FilterChips` on collection pages based on `availableCategories` returned by backend; supports filtering by category while preserving collection context.
+    - `apps/storefront/app/hooks/useSearch.ts` & `SearchResults.tsx`: Fetches collections in parallel during search queries and displays matched collections alongside categories and products in the search dropdown.
+    - Verification: `pnpm --filter router-cf typecheck` clean; `pnpm --filter router-cf build` clean.
+  - Admin:
+    - `apps/admin/src/components/ui/medusa/category-multiselect.tsx`: Extended `CategoryMultiSelect` with customizable `placeholder`, `searchPlaceholder`, and `emptyText`.
+    - `apps/admin/src/types.ts`: Added `collections?: string[]` and `collectionIds: number[]` to `CatalogProduct`.
+    - `apps/admin/src/lib/products-client.ts`: Updated `CreateFullProductPayload`, `updateProductOrganization`, and `mapToCatalogProduct` to handle multi-collection arrays.
+    - `apps/admin/src/pages/create-product/`: Updated `use-create-product.ts` and `create-product-organize.tsx` to multi-select collections.
+    - `apps/admin/src/pages/product-detail/product-detail-organize.tsx`: Updated Drawer to multi-select collections and display collection badges in the read-only overview.
+    - Verification: `pnpm --filter admin build` clean.
+  - Full Verification:
+    - `./init.sh` passed completely end-to-end (backend tests 291/291, backend build, admin build, storefront typecheck + build).
+    - Live curl testing confirmed dynamic `availableCollections` retrieval and filtered product query on `http://localhost:8787/api/storefront/categories/customization/products?collection=cup-2` and SSR on `http://localhost:5173/categories/customization?collection=cup-2`.
+
+- 2026-09-16: **Fixed RichTextEditor image-insert button, enabled resizable images, added text alignment.**
+  - Fixed the "Chèn ảnh" toolbar button: it relied on native `<label>` → hidden `<input type="file">` click-forwarding, which is broken because `@medusajs/ui` `Tooltip` (Radix UI) wraps the `IconButton` inside the label and intercepts the click. Replaced the `<label>` wrapper with a `fileInputRef` + `onClick={() => fileInputRef.current?.click()}` on the `IconButton`.
+  - Enabled image resizing (free MIT Tiptap core): `Image.configure({ ..., resize: { enabled: true, alwaysPreserveAspectRatio: true, minWidth: 160, minHeight: 96 } })` in `apps/admin/src/components/rich-text/rich-text-editor.tsx`. Uses the built-in `ResizableNodeView` from `@tiptap/core` (MIT) — not a paid Tiptap add-on. Sizes are persisted via `updateAttributes` (width/height) into the saved JSON/HTML.
+  - Added admin-only CSS in `apps/admin/src/index.css` for the otherwise-unstyled resize handles and wrapper (`.prose-article [data-resize-wrapper]` / `[data-resize-handle]`). Storefront (`app.css`) untouched.
+  - Added text alignment (căn trái/giữa/phải/đều): installed `@tiptap/extension-text-align@3.31.3` (MIT, verified via `npm view`) in admin only, configured `TextAlign.configure({ types: ["heading", "paragraph"] })`, and added 4 toolbar buttons (`AlignLeft/AlignCenter/AlignRight/AlignJustify` from lucide-react) in the shared `RichTextEditor` — the single Tiptap editor used by all admin editor screens (article-editor, product-detail-sections, create-product-details; `product-customization-editor.tsx` is its own canvas-based `EditorContent`, not Tiptap). Alignment renders as inline `text-align` style, works in both admin `prose-article` and storefront (only `td` has `text-align: left` CSS; paragraphs/headings unaffected).
+  - Added **image alignment**: new `AlignableImage` extension in `apps/admin/src/components/rich-text/alignable-image.ts` (extends `@tiptap/extension-image`, adds `align` attr persisted as `align-left/center/right` class, `setImageAlign` command via module augmentation). The same 4 alignment toolbar buttons now branch: when an image node is selected → `setImageAlign` (justify maps to center), otherwise → `setTextAlign`. Added `@tiptap/core@3.31.3` as a direct admin dev dependency (MIT, already transitively pinned 3.31.3) so the `declare module "@tiptap/core"` command augmentation typechecks. Alignment classes styled in both `apps/admin/src/index.css` and `apps/storefront/app/app.css` (`.prose-article img.align-left/center/right` use block display + auto margins so they work both inside the editor's flex resize-wrapper AND in the storefront block layout). Resize + align verified to coexist (Visual/labeled jsdom repros).
+  - Fix **live alignment visibility in editor**: added `:has()` rules on `[data-resize-container]` in `apps/admin/src/index.css` — sets `justify-content: center/flex-end` on the flex wrapper container when img has alignment class, since margin auto on img is ineffective inside the ResizableNodeView flex layout.
+  - Verification: `pnpm --filter admin build` (tsc -b + vite) passes; full `./init.sh` passes (backend tests, backend build, admin build, storefront typecheck + build). Diagnostic jsdom scripts exercised the actual extension set: setTextAlign (paragraph/heading/justify/list-item), setImageAlign (center/right, justify→center), resize attributes coexist; throwaway `devtest` super-admin created for browser testing and deleted from local D1 afterward (only `hientran2000` remains).
+  - Todo: manual browser check — insert image, drag corner handle, confirm size persists; select image then click alignment buttons and confirm the alignment is visible live in editor AND persists to saved HTML/renders on storefront.
+
+- 2026-09-14: **Admin-managed PDP rich-text sections (Why This Product? / Specifications / Shipping & fulfillment).**
+  - Backend: `products` table in `apps/backend/src/db/schema.ts` gained `whyThisProductHtml`, `specificationsHtml`, `shippingHtml` (nullable `text`); migration `drizzle/0040_silent_loa.sql` generated and applied locally (`db:generate` + `db:migrate:local`). `product-schemas.ts` defines `productRichTextFields` (plain-object entries, `RICH_TEXT_MAX_LENGTH = 300_000`, `optionalLocalizedRichText`) spread into `createProductSchema`, `updateProductSchema`, and `fullCreateProductSchema.details`. `product-command-route.ts` persists the three Vietnamese columns and upserts `catalog_translations` on create (simple + full-create) and PATCH (`nullableLocalizedPatch`). `product-reader.ts` and `storefront/products.ts` hydrate all three fields and return them as `{ vi, en }` in the storefront detail response.
+  - New API contract tests: `storefront/products.test.ts` describe "GET /:handle admin-authored product section content" (vi/en hydration + empty defaults); `admin/products.route.test.ts` covers persistence via PATCH and rejection of oversized rich-text (>300k) content.
+  - Admin: extracted shared `RichTextEditor` (`apps/admin/src/components/rich-text/rich-text-editor.tsx`, Tiptap StarterKit/Image/Link/Placeholder/Table/YouTube + `uploadProductVariantMedia`, `LanguageSwitch`, `prose-article`). `article-editor.tsx` now consumes it (passing the article placeholders + `label="Body"`); old `components/articles/article-tiptap-editor.tsx` deleted. New `product-detail-sections.tsx` card on the Product Detail edit page (3 rows with plain-text preview + Drawer editor per section, PATCH via new `updateProductSections` in `products-client.ts`). Create wizard gained a "Product sections" block (3 editors) in `create-product-details.tsx`, with `whyThisProductHtml/specificationsHtml/shippingHtml` added to `CreateProductFormValues`, `defaultCreateProductValues`, `submittedDetails`, `CatalogProduct`, `ApiProduct`, `CreateFullProductPayload.details`, plus the mock fixtures in `mock-data.ts` and `product-utils.ts` mappers.
+  - Storefront: `api.ts` `StorefrontDetailResponse.item` includes the three `LocalizedTextValue` fields; `ProductDetailSections` in `ProductInfo.tsx` renders rich HTML via `prose-article` + `dangerouslySetInnerHTML` (same trust as news, admin-authored content), with fallbacks: Why This Product → `description` text, Specifications → attributes grid, Shipping → `shipping_policy_body` i18n; empty Why/Specs sections are hidden. `ProductDetailLayout` passes the three strings down.
+  - Also completed this session (earlier request): product-card hover now only swaps the image when a second (`hover`) image exists — `CardImages` gets `product-card-base-image--swap` only when `hoverImage` is present; `app.css` rule targets `.group:hover .product-card-base-image--swap`.
+  - Verification: `pnpm --filter backend test` (47 files, 326 tests pass, incl. 4 new), `pnpm --filter backend check`, `pnpm --filter backend build`, `pnpm --filter admin build` (tsc -b + vite), `pnpm --filter router-cf typecheck` (wrangler types + typegen + tsc -b), and full `./init.sh` all pass. `feature_list.json` remains the pre-existing invalid baseline JSON (malformed strings/truncation) and was not edited, per repo convention.
+
 - 2026-09-08: **Consolidated image folders & created infinite marquee carousel for real ceremony award moments.**
   - Merged `apps/storefront/public/df7093a5-50a7-4667-af1e-19321d3f855d` (13 images) and `apps/storefront/public/Downloads` (12 images) into unified folder `apps/storefront/public/images/gallery/` (25 images total) and removed the old folders.
   - Created `AwardMomentsSection.tsx` in `apps/storefront/app/components/home/`:

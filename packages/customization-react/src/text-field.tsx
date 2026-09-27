@@ -72,6 +72,9 @@ export function TextField({
     textValue,
   ]);
 
+  const isMultiLine = !pathText && (layer.text.maxLines ?? 1) > 1;
+  const maxLines = Math.max(1, Math.round(layer.text.maxLines ?? 1));
+
   return (
     <div className="space-y-4">
       <style>{`
@@ -84,21 +87,50 @@ export function TextField({
           background-color: #288ab6;
         }
       `}</style>
-      <input
-        type="text"
-        value={pathText ? textValue.text : textValue.text.replace(/\n/g, " ")}
-        placeholder={
-          resolveLocalizedInput(field.placeholder, locale) ||
-          "Letter limit varies, refer to preview to confirm your text is correct"
-        }
-        onChange={(event) =>
-          onChange({
-            ...textValue,
-            text: event.target.value,
-          })
-        }
-        className="trophy-customization-text-input h-10 w-full rounded border border-outline bg-white px-3 text-sm text-on-surface outline-none transition focus:border-accent focus:ring-1 focus:ring-accent/30"
-      />
+      {isMultiLine ? (
+        <div className="space-y-1.5">
+          <textarea
+            rows={Math.min(Math.max(2, maxLines), 5)}
+            value={textValue.text}
+            placeholder={
+              resolveLocalizedInput(field.placeholder, locale) ||
+              "Letter limit varies, refer to preview to confirm your text is correct"
+            }
+            onChange={(event) => {
+              const lines = event.target.value
+                .replace(/\r/g, "")
+                .split("\n")
+                .slice(0, maxLines);
+              onChange({
+                ...textValue,
+                text: lines.join("\n"),
+              });
+            }}
+            className="trophy-customization-text-input w-full resize-none rounded border border-outline bg-white px-3 py-2 text-sm text-on-surface outline-none transition focus:border-accent focus:ring-1 focus:ring-accent/30"
+          />
+          <p className="text-xs text-on-surface-variant/70">
+            {locale === "vi"
+              ? `Tối đa ${maxLines} dòng`
+              : `Maximum ${maxLines} lines`}
+          </p>
+        </div>
+      ) : (
+        <input
+          type="text"
+          value={pathText ? textValue.text : textValue.text.replace(/\n/g, " ")}
+          placeholder={
+            resolveLocalizedInput(field.placeholder, locale) ||
+            "Letter limit varies, refer to preview to confirm your text is correct"
+          }
+          onChange={(event) =>
+            onChange({
+              ...textValue,
+              text: event.target.value,
+            })
+          }
+          className="trophy-customization-text-input h-10 w-full rounded border border-outline bg-white px-3 text-sm text-on-surface outline-none transition focus:border-accent focus:ring-1 focus:ring-accent/30"
+        />
+      )}
       {layer.text.colorPolicy.mode === "shopper_selectable"
         ? (() => {
             const colorPolicy = layer.text.colorPolicy;

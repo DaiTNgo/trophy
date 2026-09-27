@@ -102,6 +102,7 @@ function queueReadProduct(
     updatedAt?: string;
   },
   input?: {
+    collectionRows?: Array<{ id: number; title: string; handle: string }>;
     optionRows?: Array<{ id: number; productId: number; title: string; position: number }>;
     optionValueRows?: Array<{ id: number; optionId: number; value: string; position: number }>;
     optionTranslationRows?: Array<Record<string, unknown>>;
@@ -170,6 +171,7 @@ function queueReadProduct(
   };
 
   db.getQueue.push(baseProduct);
+  db.selectQueue.push(input?.collectionRows ?? []); // collection rows
   db.selectQueue.push([]); // category rows
   db.selectQueue.push([]); // attribute rows
   db.selectQueue.push([]); // product media
@@ -281,6 +283,76 @@ describe("admin products operation-specific routes", () => {
     expect(db.mutations).toContainEqual({ kind: "update", set: expect.objectContaining({ misaSyncStatus: "failed", misaLastError: "MISA rejected product" }) });
   });
 
+  it("synchronizes customization canvas dimensions from variant media at publish", async () => {
+    const variant = {
+      id: 20,
+      productId: 1,
+      title: "Gold",
+      sku: null,
+      priceAmount: 5000,
+      inventoryQuantity: 8,
+      allowBackorder: false,
+      isDefault: true,
+      position: 0,
+      createdAt: "2026-07-04T00:00:00.000Z",
+      updatedAt: "2026-07-04T00:00:00.000Z",
+    };
+    const customizationMediaRow = {
+      variantId: 20,
+      assetId: "asset-1",
+      fileName: "background.png",
+      mimeType: "image/png",
+      widthPx: 1190,
+      heightPx: 1683,
+      byteSize: 2048,
+    };
+    const customizationRow = {
+      enabled: true,
+      canvasWidthPx: 800,
+      canvasHeightPx: 1131,
+      layersJson: "[]",
+      formFieldsJson: "[]",
+    };
+
+    queueReadProduct(
+      db,
+      { id: 1, title: "Champion Cup", status: "draft" },
+      {
+        variantRows: [variant],
+        variantCustomizationMediaRows: [customizationMediaRow],
+        customizationRow,
+      },
+    );
+    queueReadProduct(
+      db,
+      { id: 1, title: "Champion Cup", status: "published" },
+      {
+        variantRows: [variant],
+        variantCustomizationMediaRows: [customizationMediaRow],
+        customizationRow: {
+          ...customizationRow,
+          canvasWidthPx: 1190,
+          canvasHeightPx: 1683,
+        },
+      },
+    );
+
+    const response = await productsRoute.request("/1/publish", { method: "POST" }, {
+      MISA_CLIENT_ID: "client",
+      MISA_CLIENT_SECRET: "secret",
+    } as never);
+
+    expect(response.status).toBe(200);
+    expect(db.mutations).toContainEqual({ kind: "update", set: expect.objectContaining({ status: "published" }) });
+    expect(db.mutations).toContainEqual({
+      kind: "update",
+      set: expect.objectContaining({
+        canvasWidthPx: 1190,
+        canvasHeightPx: 1683,
+      }),
+    });
+  });
+
   it("returns product overview save without waiting for a stalled MISA name update", async () => {
     const variant = {
       id: 20,
@@ -322,6 +394,51 @@ describe("admin products operation-specific routes", () => {
     expect((result as Response).status).toBe(200);
     expect(db.mutations).toContainEqual({ kind: "update", set: expect.objectContaining({ title: "Renamed Cup" }) });
     expect(backgroundTask).toBeDefined();
+  });
+
+  it("persists admin-authored product section HTML when saving product overview", async () => {
+    db.getQueue.push({ id: 1, title: "Champion Cup", handle: "champion-cup", status: "draft", subtitle: null, description: null });
+    queueReadProduct(db, { id: 1, title: "Champion Cup", status: "draft" }, { variantRows: [] });
+
+    const response = await productsRoute.request("/1", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        whyThisProductHtml: { vi: "<p>Cốc in ấn hàng đầu</p>", en: "<p>Top printed cup</p>" },
+        specificationsHtml: { vi: "<p>Thông số kỹ thuật</p>" },
+        shippingHtml: { vi: "<p>Giao nhanh</p>" },
+      }),
+    }, { MISA_CLIENT_ID: "client", MISA_CLIENT_SECRET: "secret" } as never);
+
+    expect(response.status).toBe(200);
+    expect(db.mutations).toContainEqual({
+      kind: "update",
+      set: expect.objectContaining({
+        whyThisProductHtml: "<p>Cốc in ấn hàng đầu</p>",
+        specificationsHtml: "<p>Thông số kỹ thuật</p>",
+        shippingHtml: "<p>Giao nhanh</p>",
+      }),
+    });
+    expect(db.mutations).toContainEqual({
+      kind: "insert",
+      values: expect.objectContaining({
+        ownerType: "product",
+        fieldName: "whyThisProductHtml",
+        locale: "en",
+        value: "<p>Top printed cup</p>",
+      }),
+    });
+  });
+
+  it("rejects oversized product section rich-text content", async () => {
+    const oversized = "x".repeat(300_001);
+    const response = await productsRoute.request("/1", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ whyThisProductHtml: { vi: oversized } }),
+    }, { MISA_CLIENT_ID: "client", MISA_CLIENT_SECRET: "secret" } as never);
+
+    expect(response.status).toBe(400);
   });
 
   it("manually synchronizes one published variant with MISA", async () => {
@@ -458,7 +575,7 @@ describe("admin products operation-specific routes", () => {
     const response = await productsRoute.request("/1/organize", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ collectionId: null, categoryIds: [] }),
+      body: JSON.stringify({ collectionIds: [], categoryIds: [] }),
     });
 
     expect(response.status).toBe(200);

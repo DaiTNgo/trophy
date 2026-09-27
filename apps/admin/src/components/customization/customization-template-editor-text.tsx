@@ -3,14 +3,14 @@ import {
   fitTextToLayer,
   getTextPathRenderAttributes,
   getTextPathSvgD,
-  layerGeometryToPixels,
-  pixelRectToLayerGeometry,
+  getLayerPixelRect,
+  layerPixelRectToGeometry,
   type BackgroundAsset,
   type CustomizationLayer,
   type DynamicFontFamily,
   type TextEditorLayer,
 } from "@trophy/customization";
-import { handleStyle, resizeRect } from "./customization-template-editor";
+import { getHandleCursor, handleStyle, resizeRect } from "./customization-template-editor";
 
 let textMeasureCanvas: HTMLCanvasElement | null = null;
 function quoteFontFamily(fontId: string) { return `"${fontId.replace(/["\\]/g, "\\$&")}"`; }
@@ -45,6 +45,10 @@ export function EditorTextLayer({
     dynamicFonts,
   });
 
+  const flipH = layer.text.flipHorizontal;
+  const flipV = layer.text.flipVertical;
+  const contentTransform = flipH || flipV ? `scale(${flipH ? -1 : 1}, ${flipV ? -1 : 1})` : undefined;
+
   if (layer.text.path.type === "straight") {
     return (
       <div
@@ -60,6 +64,8 @@ export function EditorTextLayer({
           fontStyle: fitted.isItalic ? "italic" : "normal",
           textAlign: fitted.align === "justified" ? "justify" : fitted.align,
           whiteSpace: "pre-wrap",
+          transform: contentTransform,
+          transformOrigin: "center",
         }}
       >
         {fitted.text}
@@ -77,7 +83,14 @@ export function EditorTextLayer({
   const pathD = getTextPathSvgD({ path: renderPath, widthPx, heightPx });
 
   return (
-    <svg className="pointer-events-none h-full w-full select-none overflow-visible bg-teal-500/10" viewBox={`0 0 ${widthPx} ${heightPx}`}>
+    <svg
+      className="pointer-events-none h-full w-full select-none overflow-visible bg-teal-500/10"
+      viewBox={`0 0 ${widthPx} ${heightPx}`}
+      style={{
+        transform: contentTransform,
+        transformOrigin: "center",
+      }}
+    >
       <path d={pathD} fill="none" stroke={pathEditing ? "rgb(245 158 11)" : "transparent"} strokeWidth={pathEditing ? 1 : 0} />
       <defs>
         <path id={pathId} d={pathD} />
@@ -280,37 +293,134 @@ export function ResizeHandles({ layer, background, zoom, onUpdate }: { layer: Cu
   const handles = layer.type === "text" ? (closedTextPath ? ["nw", "n", "ne", "e", "se", "s", "sw", "w"] : ["left", "right"]) : layer.shape.lockAspectRatio ? ["nw", "ne", "sw", "se"] : ["nw", "n", "ne", "e", "se", "s", "sw", "w"];
   return (
     <>
-      {handles.map((handle) => (
-        <button
-          key={handle}
-          type="button"
-          className="absolute size-2 rounded-full bg-ui-fg-interactive"
-          style={handleStyle(handle)}
-          onPointerDown={(event) => {
-            event.stopPropagation();
-            const startX = event.clientX;
-            const startY = event.clientY;
-            const start = layerGeometryToPixels({ geometry: layer.geometry, background });
-            function move(pointer: PointerEvent) {
-              const dx = (pointer.clientX - startX) / zoom;
-              const dy = (pointer.clientY - startY) / zoom;
-              const next = resizeRect(start, handle, dx, dy, layer.type === "image_shape" && layer.shape.lockAspectRatio);
-              const geometry = pixelRectToLayerGeometry({ ...next, heightPx: layer.type === "image_shape" || closedTextPath ? next.heightPx : undefined, background });
-              onUpdate((current) => {
-                const keepTextHeight = current.type === "text" && current.text.path.type === "closed_ellipse";
-                return { ...current, geometry: current.type === "text" ? { ...geometry, heightRatio: keepTextHeight ? geometry.heightRatio ?? 0.1 : undefined } : { ...geometry, heightRatio: geometry.heightRatio ?? 0.1 } } as CustomizationLayer;
-              });
-            }
-            function stop() {
-              window.removeEventListener("pointermove", move);
-              window.removeEventListener("pointerup", stop);
-            }
-            window.addEventListener("pointermove", move);
-            window.addEventListener("pointerup", stop);
-          }}
-        />
-      ))}
+      {handles.map((handle) => {
+        const cursor = getHandleCursor(handle);
+        return (
+          <button
+            key={handle}
+            type="button"
+            aria-label={`Resize handle ${handle}`}
+            className="group absolute z-20 flex items-center justify-center p-0 bg-transparent border-0 touch-none outline-none select-none"
+            style={{
+              ...handleStyle(handle, zoom),
+              width: 24,
+              height: 24,
+              cursor,
+            }}
+            onPointerDown={(event) => {
+              event.stopPropagation();
+              const startX = event.clientX;
+              const startY = event.clientY;
+              const start = getLayerPixelRect({ layer, background });
+              const prevCursor = document.body.style.cursor;
+              const prevUserSelect = document.body.style.userSelect;
+              document.body.style.cursor = cursor;
+              document.body.style.userSelect = "none";
+
+              function move(pointer: PointerEvent) {
+                const dx = (pointer.clientX - startX) / zoom;
+                const dy = (pointer.clientY - startY) / zoom;
+                const next = resizeRect(start, handle, dx, dy, layer.type === "image_shape" && layer.shape.lockAspectRatio);
+                const geometry = layerPixelRectToGeometry({ rect: next, layer, background });
+                onUpdate((current) => ({ ...current, geometry } as CustomizationLayer));
+              }
+
+              function stop() {
+                document.body.style.cursor = prevCursor;
+                document.body.style.userSelect = prevUserSelect;
+                window.removeEventListener("pointermove", move);
+                window.removeEventListener("pointerup", stop);
+                window.removeEventListener("pointercancel", stop);
+              }
+
+              window.addEventListener("pointermove", move);
+              window.addEventListener("pointerup", stop);
+              window.addEventListener("pointercancel", stop);
+            }}
+          >
+            <span
+              className="size-2.5 rounded-full bg-ui-fg-interactive border-2 border-white shadow-sm transition-transform duration-100 group-hover:scale-125 group-active:scale-125 pointer-events-none"
+              style={{ cursor }}
+            />
+          </button>
+        );
+      })}
     </>
   );
 }
 
+export function TextRotationHandle({
+  zoom,
+  onUpdate,
+}: {
+  zoom: number;
+  onUpdate: (updater: (layer: CustomizationLayer) => CustomizationLayer) => void;
+}) {
+  const scale = zoom && zoom > 0 ? 1 / zoom : 1;
+  return (
+    <div
+      className="absolute flex flex-col items-center pointer-events-auto select-none"
+      style={{
+        left: "50%",
+        top: 0,
+        transform: `translate(-50%, -100%) scale(${scale})`,
+        transformOrigin: "bottom center",
+        zIndex: 25,
+      }}
+    >
+      <button
+        type="button"
+        aria-label="Rotate text layer"
+        title="Rotate text layer (Hold Shift to snap 15°)"
+        className="size-4 rounded-full border-2 border-white bg-ui-fg-interactive shadow hover:scale-125 active:scale-125 transition-transform cursor-grab active:cursor-grabbing focus:outline-none focus:ring-2 focus:ring-ui-fg-interactive"
+        onPointerDown={(event) => {
+          event.stopPropagation();
+          event.preventDefault();
+          const target = event.currentTarget.parentElement?.parentElement as HTMLElement | null;
+          if (!target) return;
+          const rect = target.getBoundingClientRect();
+          const centerX = rect.left + rect.width / 2;
+          const centerY = rect.top + rect.height / 2;
+
+          const prevCursor = document.body.style.cursor;
+          const prevUserSelect = document.body.style.userSelect;
+          document.body.style.cursor = "grabbing";
+          document.body.style.userSelect = "none";
+
+          function move(pointer: PointerEvent) {
+            const dx = pointer.clientX - centerX;
+            const dy = pointer.clientY - centerY;
+            let deg = (Math.atan2(dy, dx) * 180) / Math.PI + 90;
+            deg = ((deg % 360) + 360) % 360;
+            if (pointer.shiftKey) {
+              deg = (Math.round(deg / 15) * 15) % 360;
+            } else {
+              deg = Math.round(deg);
+            }
+            onUpdate((current) =>
+              current.type === "text"
+                ? {
+                    ...current,
+                    geometry: { ...current.geometry, rotationDeg: deg },
+                  }
+                : current,
+            );
+          }
+
+          function stop() {
+            document.body.style.cursor = prevCursor;
+            document.body.style.userSelect = prevUserSelect;
+            window.removeEventListener("pointermove", move);
+            window.removeEventListener("pointerup", stop);
+            window.removeEventListener("pointercancel", stop);
+          }
+
+          window.addEventListener("pointermove", move);
+          window.addEventListener("pointerup", stop);
+          window.addEventListener("pointercancel", stop);
+        }}
+      />
+      <div className="w-px h-4 bg-ui-fg-interactive" />
+    </div>
+  );
+}

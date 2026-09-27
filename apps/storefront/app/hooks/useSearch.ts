@@ -1,6 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useSearchParams } from "react-router";
-import { fetchStorefrontCategories, fetchStorefrontProducts } from "@/lib/api";
+import {
+  fetchStorefrontCategories,
+  fetchStorefrontCollections,
+  fetchStorefrontProducts,
+} from "@/lib/api";
 import { getLocalized } from "@/lib/translation";
 
 export interface SearchProduct {
@@ -18,9 +22,17 @@ export interface SearchCategory {
   handle: string;
 }
 
+export interface SearchCollection {
+  id: number;
+  title: string;
+  handle: string;
+  imageUrl?: string | null;
+}
+
 export interface SearchResults {
   products: SearchProduct[];
   categories: SearchCategory[];
+  collections: SearchCollection[];
 }
 
 export function useSearch() {
@@ -51,22 +63,42 @@ export function useSearch() {
     timerRef.current = setTimeout(() => {
       void Promise.all([
         fetchStorefrontProducts({ q, limit: 8, locale }),
-        fetchStorefrontCategories(locale),
+        fetchStorefrontCategories(locale).catch(() => []),
+        fetchStorefrontCollections(locale).catch(() => []),
       ])
-        .then(([productResponse, categoryResponse]) => {
+        .then(([productResponse, categoryResponse, collectionResponse]) => {
           if (!active) return;
 
           const normalizedQuery = q.toLocaleLowerCase(locale);
           const matchedCategories = categoryResponse
             .filter((category) => {
               const name = getLocalized(category.name, locale).toLocaleLowerCase(locale);
-              return name.includes(normalizedQuery) || category.handle.toLowerCase().includes(normalizedQuery);
+              return (
+                name.includes(normalizedQuery) ||
+                category.handle.toLowerCase().includes(normalizedQuery)
+              );
             })
             .slice(0, 8)
             .map((category) => ({
               id: category.id,
               name: getLocalized(category.name, locale),
               handle: category.handle,
+            }));
+
+          const matchedCollections = collectionResponse
+            .filter((collection) => {
+              const title = getLocalized(collection.title, locale).toLocaleLowerCase(locale);
+              return (
+                title.includes(normalizedQuery) ||
+                collection.handle.toLowerCase().includes(normalizedQuery)
+              );
+            })
+            .slice(0, 8)
+            .map((collection) => ({
+              id: collection.id,
+              title: getLocalized(collection.title, locale),
+              handle: collection.handle,
+              imageUrl: collection.imageUrl,
             }));
 
           setResults({
@@ -79,12 +111,13 @@ export function useSearch() {
               priceFrom: product.priceFrom,
             })),
             categories: matchedCategories,
+            collections: matchedCollections,
           });
           setLoading(false);
         })
         .catch(() => {
           if (!active) return;
-          setResults({ products: [], categories: [] });
+          setResults({ products: [], categories: [], collections: [] });
           setLoading(false);
         });
     }, 400);

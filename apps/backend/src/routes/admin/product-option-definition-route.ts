@@ -58,6 +58,7 @@ export const productOptionDefinitionRoute = new Hono<AppEnv>()
       .values({
         productId: product.id,
         title: parsed.output.title.vi,
+        displayType: parsed.output.displayType ?? 'text',
         position: currentOptions.length
       })
       .returning()
@@ -71,6 +72,8 @@ export const productOptionDefinitionRoute = new Hono<AppEnv>()
         values.map((item, index) => ({
           optionId: insertedOption.id,
           value: item.value.vi,
+          colorHex: item.colorHex ?? null,
+          swatchAssetId: item.swatchAssetId ?? null,
           position: index
         }))
       ).returning()
@@ -110,9 +113,16 @@ export const productOptionDefinitionRoute = new Hono<AppEnv>()
       return jsonError(c, uniqueTitleError.status, uniqueTitleError.error)
     }
 
+    const updateData: { title: string; displayType?: string } = {
+      title: parsed.output.title.vi
+    }
+    if (parsed.output.displayType !== undefined) {
+      updateData.displayType = parsed.output.displayType
+    }
+
     await db
       .update(productOptions)
-      .set({ title: parsed.output.title.vi })
+      .set(updateData)
       .where(eq(productOptions.id, option.id))
     await upsertTranslations(db, 'product_option', String(option.id), 'title', parsed.output.title)
 

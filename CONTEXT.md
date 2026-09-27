@@ -181,6 +181,16 @@ _Avoid_: product type, category hierarchy, internal type
 A storefront browsing group based on the shopper's occasion, audience, sport, industry, or buying intent. It is modeled with product collections rather than categories.
 _Avoid_: product category, product type, tag group
 
+**Cross-Taxonomy Filtering**:
+The storefront browsing and search behavior that allows shoppers to filter products across both Product Category (Shop by Product) and Product Collection (Shop by Interest) simultaneously, maintaining two clean orthogonal axes instead of nesting sub-categories.
+_Avoid_: sub-category tree, nested collection, category hierarchy
+
+**Storefront Contextual Breadcrumb**:
+The shopper-facing breadcrumb trail on a Product Detail page that dynamically reflects the shopper's active browsing journey. When navigated from a category or collection listing, it captures context via URL query parameters (`?collection=<handle>` or `?category=<handle>`) and displays that category or collection as the intermediate parent crumb pointing back to the listing. When both parameters are present, collection takes precedence to reflect specific occasion-based intent. When accessed directly without browsing parameters, it falls back to the product's primary category (the first category in the product record) or general collections. The resolution is performed client/SSR-side on the storefront using layout taxonomy data without round-trip backend verification.
+_Avoid_: static breadcrumb, canonical-only trail, nested URL crumbs, backend-verified breadcrumb query
+
+
+
 **Admin Route Surface**:
 The operator-facing backend route surface used by the admin app for management workflows. It owns admin-only catalog, customization, asset, account, draft, and publish interactions.
 _Avoid_: generic product API, internal product routes
@@ -224,6 +234,12 @@ _Avoid_: customization config, editor setup
 **Customization Shape Clipping**:
 The unified geometric masking applied to an Image Shape Layer across storefront preview, admin preview, and raster/PDF production export. Predefined shapes (`rectangle`, `circle`, `rounded_rectangle`, `star`, `heart`, `ellipse`) and custom `vector` shapes clip the user-uploaded or clipart asset to their exact geometric boundary, with `circle` producing an elliptical/circular clip and `rounded_rectangle` producing consistent rounded corners scaled to the layer frame (`radius = Math.min(w, h) * 0.12`). Uploaded media (including images and PDFs) is scaled to `contain` within the bounding box so the entire media is initially visible without being cropped, leaving any empty space transparent.
 _Avoid_: unclipped preview image, rectangular-only image frame, cover scaling, cropping to fill
+**Customization Layer Quick Delete**:
+An on-canvas operator action shown on a selected Customization Layer in the EditorCanvas, allowing instant one-click removal of the layer and its associated form field. It is rendered floating above the layer's top-right corner, maintains a consistent visual scale across canvas zoom levels, and is hidden when the layer is locked, during path editing, or during shape drawing.
+_Avoid_: block delete icon, canvas block remover, delete popup modal
+**Vector Point Deletion Constraint**:
+The geometric rule governing the removal of vertices from closed vector shapes and polygons. To preserve a valid planar area for clipping and rendering, a closed vector path requires a minimum of 3 vertices; the deletion action (via the inspector card or canvas shortcut) is disabled or suppressed when the path reaches 3 points.
+_Avoid_: unbounded point deletion, empty polygon, 2-point polygon
 
 
 **Embedded Product Customization**:
@@ -247,9 +263,8 @@ A product variant that can support shopper-facing customization because it has e
 _Avoid_: valid variant, completed variant
 
 **Background Size Contract**:
-The rule that all Customization Backgrounds for a customizable product declare identical canvas width and height, allowing one customization template to render consistently across every variant background. The admin client supplies and validates this canvas metadata before save; the backend only verifies that submitted and saved declarations agree.
+The rule that all Customization Backgrounds for a customizable product share identical canvas width and height, allowing one customization template to render consistently across every variant background. For published products and during product publish, this contract is strictly enforced. In draft status, variant backgrounds are unconstrained to allow operators to iterate and replace assets freely, and upon successful publish or template save, the product canvas size automatically synchronizes to the variant background dimensions.
 _Avoid_: same-size warning, image dimension hint
-
 **Declared Background Dimensions**:
 The width and height metadata supplied by the admin client for a Customization Background. It is the canvas-size source of truth, including for PDF backgrounds; it is not media dimensions inferred or decoded by the backend.
 _Avoid_: backend-derived canvas size, fixed PDF canvas size
@@ -259,9 +274,8 @@ A short-lived, server-held reservation for a Product while activation, repair, o
 _Avoid_: permanent product lock, browser-tab lock, revision timestamp
 
 **Customization Background**:
-The one independently uploaded asset owned by a variant and explicitly designated as its Background Choice for shopper customization. It is not Gallery Media, cannot be shared with another variant, and only Customization Backgrounds are subject to the Background Size Contract. It has no delete action; an operator can only replace it after client-side and authoritative server-side dimension validation succeeds.
+The one independently uploaded asset owned by a variant and explicitly designated as its Background Choice for shopper customization. It is not Gallery Media, cannot be shared with another variant, and only Customization Backgrounds are subject to the Background Size Contract. It has no delete action; an operator can replace it at any time. In published status, replacement requires matching the existing canvas dimensions; in draft status, replacement is unconstrained by prior canvas dimensions.
 _Avoid_: gallery image, all variant media, upload background
-
 **Variant Media**:
 Media owned by exactly one product variant and shown for that variant. New items append in the operator's selected-file order. It can be selected as a Product Thumbnail without creating a second R2 object.
 _Avoid_: product media upload, shared gallery file, customization background
@@ -331,9 +345,8 @@ The per-customized-order-item process that copies its required media into the or
 _Avoid_: failed checkout, incomplete order rejection, media copy as payment state
 
 **Customization Publish Readiness**:
-The product-level condition that a customizable product must satisfy before it can be published, including one Customization Background for every variant, matching background dimensions, and a valid customization editor model. Draft products may be incomplete but cannot open the customization editor until its required backgrounds are available.
+The product-level condition that a customizable product must satisfy before it can be published, including one Customization Background for every variant, matching background dimensions across all variants, and a valid customization editor model. Upon publish, the product's canvas dimensions automatically synchronize to the verified variant background dimensions. Draft products may be incomplete during authoring.
 _Avoid_: template publish validation, customization status
-
 **Customization Setup Session**:
 The unsaved admin FocusModal workflow for enabling customization on a published product. It stages each variant's Customization Background and the template, then submits one atomic multipart command that validates all state before creating an active customization record. Closing or failing validation leaves the product without customization enabled or newly created assets. It is distinct from a Shopper Customization Draft.
 _Avoid_: persisted setup state, active customization, unpublished product, shopper draft
@@ -378,6 +391,14 @@ _Avoid_: manual font size, free resize, layout suggestion
 The admin-defined input rule for shopper text, such as required state, line-count capacity, whitespace behavior, or allowed character set. It limits what the shopper can submit before rendering and production export, while text size is handled by fit rules instead of character-count limits.
 _Avoid_: validation error copy, typography setting
 
+**Text Layer Flip**:
+The admin-defined visual mirror transformation applied specifically to a Text Layer, supporting independent horizontal flip (`flipHorizontal`) and vertical flip (`flipVertical`). It inverts the rendered text glyphs along the horizontal or vertical axis (e.g., for reverse engraving on transparent crystal or specialized back-surface trophy printing), without modifying non-text layer geometry.
+_Avoid_: block flip, image flip, inverted text, layer mirror
+
+**Text Layer Rotation**:
+The operator-defined angular orientation (`rotationDeg`) applied specifically to a Text Layer, centered on the text layer bounding box. It allows free-angle or stepped rotation in the canvas editor, storefront preview, and production exports, scoped to text customization without exposing rotation controls to non-text layers.
+_Avoid_: block rotation, shape rotation, global canvas rotation
+
 **Order**:
 A shopper's checkout submission containing customer details and one or more purchased items. Each item is captured with its own immutable order item snapshot.
 _Avoid_: single-product purchase, transaction, cart
@@ -418,7 +439,7 @@ The individual represented by the basic checkout information and linked to the M
 _Avoid_: VAT customer, shipping-contact field
 
 **VAT Invoice Request**:
-A shopper's explicit request for a VAT invoice. It requires an invoice entity name, tax ID, invoice email, and invoice address before checkout can proceed. Tax-ID validity is authoritative in MISA; Trophy does not apply an inferred browser checksum.
+A shopper's explicit request to supply separate VAT invoice recipient details ("Thông tin nhận hóa đơn VAT"). When unchecked, the VAT invoice defaults to the individual purchaser's basic checkout information. When checked, it requires an invoice entity name, tax ID, invoice email, and invoice address. Tax-ID validity is authoritative in MISA; Trophy does not apply an inferred browser checksum.
 _Avoid_: issued invoice, optional VAT details
 _Avoid_: incomplete cart item, draft order item, partially customized cart line
 
@@ -442,6 +463,10 @@ _Avoid_: alternate customer, second billing profile, address note
 The immutable checkout address record captured with an order, including the shopper's primary address and any different shipping address supplied for fulfillment.
 _Avoid_: resolved address only, mutable customer address
 
+**Two-Level Administrative Address**:
+The storefront shipping address format following Vietnam's administrative structure (Resolution 202/2025/QH15). It captures Province/City (`province`), Ward/Commune (`ward`/`city`), and Detailed Street Address (`line1`), omitting the former intermediate district level.
+_Avoid_: three-level address, district-required address, freeform single-line address
+
 **Order Number**:
 The shopper-facing identifier returned after order creation and shown on confirmation pages and admin order lists. It is distinct from the internal database ID.
 _Avoid_: order ID, database ID, confirmation token
@@ -453,6 +478,14 @@ _Avoid_: public order detail by number, admin order lookup, unauthenticated orde
 **Manual Payment Order**:
 An order created without an online payment gateway or shopper-selected payment step. The storefront submits customer and delivery information, then operators handle payment and order follow-up manually after creation.
 _Avoid_: online checkout payment, gateway transaction, shopper payment method
+
+**Bank Transfer Only Policy**:
+The storefront checkout policy where bank transfer is the sole accepted payment method, requiring 100% upfront bank transfer after order placement. Cash on delivery (COD) is not offered for storefront checkout.
+_Avoid_: cash on delivery, multiple payment selection, deferred cash payment
+
+**Purchase Notice Acknowledgment**:
+The mandatory shopper agreement required before placing a storefront order ("Tôi đã đọc hiểu và đồng ý nội dung trong lưu ý mua hàng"). It confirms the shopper has acknowledged custom fabrication, proofing, delivery, and upfront payment rules before the order is created.
+_Avoid_: optional terms checkbox, implicit terms agreement, unacknowledged checkout
 
 **Order Item Production Status**:
 The production readiness state tracked per order item. Non-customized items are `not_required`; customized items start as `pending_review`; after an operator confirms the submitted customization snapshot is production-ready, the item becomes `ready`.

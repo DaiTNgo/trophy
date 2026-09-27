@@ -82,12 +82,21 @@ export async function insertFullCreateAttributes(
 export async function insertFullCreateOptions(
   db: Database,
   productId: number,
-  items: Array<{ title: LocalizedInput; values: Array<{ value: LocalizedInput }> }>,
+  items: Array<{
+    title: LocalizedInput
+    displayType?: 'text' | 'color' | 'image'
+    values: Array<{
+      value: LocalizedInput
+      colorHex?: string | null
+      swatchAssetId?: string | null
+    }>
+  }>,
   translations: TranslationWrite[],
 ) {
   const insertedOptions = await db.insert(productOptions).values(items.map((item, position) => ({
     productId,
     title: canonicalValue(item.title),
+    displayType: item.displayType ?? 'text',
     position,
   }))).returning()
   insertedOptions.forEach((option, index) => {
@@ -98,6 +107,8 @@ export async function insertFullCreateOptions(
     items[optionIndex].values.map((item, position) => ({
       optionId: option.id,
       value: canonicalValue(item.value),
+      colorHex: item.colorHex ?? null,
+      swatchAssetId: item.swatchAssetId ?? null,
       position,
       originalValue: item.value,
       optionTitle: canonicalValue(items[optionIndex].title),

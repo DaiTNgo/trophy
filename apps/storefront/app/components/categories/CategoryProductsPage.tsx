@@ -1,3 +1,4 @@
+import { useNavigation } from "react-router";
 import { getLocalized } from "@/lib/translation";
 import type { Route } from "../../routes/+types/categories.$categoryHandle";
 import { CategoryProductsListing } from "./CategoryProductsListing";
@@ -11,7 +12,8 @@ export function CategoryProductsPage({
   loaderData,
 }: CategoryProductsPageProps) {
   const {
-    categories,
+    collectionFilters,
+    activeCollection,
     selectedCategory,
     categoryTitle,
     products,
@@ -21,8 +23,15 @@ export function CategoryProductsPage({
     totalItems,
     locale,
   } = loaderData;
-  const { selectCategory, changePage } =
+  const { selectCollection, changePage } =
     useCategoryListingNavigation(activeCategory);
+
+  const navigation = useNavigation();
+  const isNavigating = navigation.state === "loading";
+  const isLoading =
+    isNavigating &&
+    Boolean(navigation.location?.pathname.startsWith("/categories"));
+
   const listingDescription =
     getLocalized(selectedCategory.description, locale) ||
     (locale === "en"
@@ -33,7 +42,8 @@ export function CategoryProductsPage({
 
   return (
     <CategoryProductsListing
-      categories={categories}
+      collectionFilters={collectionFilters}
+      activeCollection={activeCollection}
       selectedCategory={selectedCategory}
       categoryTitle={categoryTitle}
       listingDescription={listingDescription}
@@ -44,8 +54,9 @@ export function CategoryProductsPage({
       totalPages={totalPages}
       totalItems={totalItems}
       locale={locale}
-      onCategorySelect={selectCategory}
+      onCollectionSelect={selectCollection}
       onPageChange={changePage}
+      isLoading={isLoading}
     />
   );
 }

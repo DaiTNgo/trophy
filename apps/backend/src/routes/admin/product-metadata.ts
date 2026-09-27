@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import { Hono } from "hono";
 import * as v from "valibot";
 import { getDb } from "../../db/client";
@@ -6,7 +6,7 @@ import {
   productCategories,
   productCategoryLinks,
   productCollections,
-  products,
+  productCollectionLinks,
 } from "../../db/schema";
 import type { AppEnv } from "../../lib/env";
 import { jsonError, parseJson } from "../../lib/validation";
@@ -569,21 +569,24 @@ productMetadataRoute.post("/collections/:id/products", async (c) => {
   }
 
   if (addProductIds && addProductIds.length > 0) {
+    const values = addProductIds.map((productId) => ({
+      productId,
+      collectionId: id,
+    }));
     await db
-      .update(products)
-      .set({ collectionId: id, updatedAt: sql`CURRENT_TIMESTAMP` })
-      .where(inArray(products.id, addProductIds))
+      .insert(productCollectionLinks)
+      .values(values)
+      .onConflictDoNothing()
       .run();
   }
 
   if (removeProductIds && removeProductIds.length > 0) {
     await db
-      .update(products)
-      .set({ collectionId: null, updatedAt: sql`CURRENT_TIMESTAMP` })
+      .delete(productCollectionLinks)
       .where(
         and(
-          inArray(products.id, removeProductIds),
-          eq(products.collectionId, id),
+          eq(productCollectionLinks.collectionId, id),
+          inArray(productCollectionLinks.productId, removeProductIds),
         ),
       )
       .run();

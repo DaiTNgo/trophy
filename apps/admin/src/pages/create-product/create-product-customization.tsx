@@ -109,6 +109,7 @@ export function CreateProductCustomization({
           onUndoVectorPoint={embeddedEditor.undoVectorPoint}
           onCloseVectorShape={embeddedEditor.closeVectorShape}
           onCancelDraw={embeddedEditor.cancelDrawMode}
+          onDeleteLayer={embeddedEditor.deleteSelectedLayer}
         />
         <div className="min-h-0 overflow-y-auto overflow-x-hidden">
           <Inspector
@@ -119,6 +120,7 @@ export function CreateProductCustomization({
             onUpdateLayer={embeddedEditor.updateLayer}
             onPathEditingLayerChange={embeddedEditor.setPathEditingLayerId}
             onUpdateTemplate={embeddedEditor.updateTemplate}
+            onSelectVectorPoint={embeddedEditor.setSelectedVectorPointId}
           />
         </div>
       </div>

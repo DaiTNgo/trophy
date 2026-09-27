@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { FileImage } from "lucide-react";
+import { FileImage, Trash2 } from "lucide-react";
 import {
+  getLayerPixelRect,
   getVisibleLayers,
-  layerGeometryToPixels,
-  pixelRectToLayerGeometry,
+  layerPixelRectToGeometry,
   vectorPointsToSvgPathD,
   type BackgroundAsset,
   type CustomizationLayer,
@@ -18,6 +18,7 @@ import {
   EditorTextLayer,
   PathPointOverlay,
   ResizeHandles,
+  TextRotationHandle,
 } from "./customization-template-editor-text";
 const MIN_ZOOM = 0.05;
 const MAX_ZOOM = 2;
@@ -42,6 +43,7 @@ export function EditorCanvas({
   onUndoVectorPoint,
   onCloseVectorShape,
   onCancelDraw,
+  onDeleteLayer,
 }: {
   template: CustomizationTemplate;
   selectedLayerId: string;
@@ -59,6 +61,7 @@ export function EditorCanvas({
   onUndoVectorPoint: () => void;
   onCloseVectorShape: () => void;
   onCancelDraw: () => void;
+  onDeleteLayer?: (layerId: string) => void;
 }) {
   const [zoom, setZoom] = useState(0.72);
   const [pan, setPan] = useState<PanState>({ x: 0, y: 0 });
@@ -266,11 +269,11 @@ export function EditorCanvas({
             const bounds = event.currentTarget.getBoundingClientRect();
             const xRatio = (event.clientX - bounds.left) / bounds.width;
             const yRatio = (event.clientY - bounds.top) / bounds.height;
-            const rect = layerGeometryToPixels({ geometry: layer.geometry, background });
+            const rect = getLayerPixelRect({ layer, background });
             const point = {
               id: createId("path_point"),
               xRatio: Math.max(0, Math.min(1, (xRatio * background.widthPx - rect.xPx) / rect.widthPx)),
-              yRatio: Math.max(0, Math.min(1, (yRatio * background.heightPx - rect.yPx) / Math.max(1, layer.text.maxFontSizePt * layer.text.maxLines * 1.35))),
+              yRatio: Math.max(0, Math.min(1, (yRatio * background.heightPx - rect.yPx) / Math.max(1, rect.heightPx))),
               inHandle: { xRatio: -0.08, yRatio: 0 },
               outHandle: { xRatio: 0.08, yRatio: 0 },
             };
@@ -352,6 +355,7 @@ export function EditorCanvas({
               onEditPath={() => onPathEditingLayerChange(layer.id)}
               onSelectVectorPoint={onSelectVectorPoint}
               onUpdate={(updater) => onUpdateLayer(layer.id, updater)}
+              onDelete={onDeleteLayer ? () => onDeleteLayer(layer.id) : undefined}
             />
           ))}
         </div>
@@ -394,6 +398,7 @@ function CanvasLayer({
   onEditPath,
   onSelectVectorPoint,
   onUpdate,
+  onDelete,
 }: {
   layer: CustomizationLayer;
   background: BackgroundAsset;
@@ -407,12 +412,10 @@ function CanvasLayer({
   onEditPath: () => void;
   onSelectVectorPoint: (pointId: string) => void;
   onUpdate: (updater: (layer: CustomizationLayer) => CustomizationLayer) => void;
+  onDelete?: () => void;
 }) {
-  const rect = layerGeometryToPixels({ geometry: layer.geometry, background });
+  const rect = getLayerPixelRect({ layer, background });
   const closedTextPath = layer.type === "text" && layer.text.path.type === "closed_ellipse";
-  const textHeight = layer.type === "text" ? layer.text.maxLines * layer.text.maxFontSizePt * 1.35 : rect.heightPx;
-  const h = closedTextPath ? Math.max(18, rect.heightPx) : layer.type === "text" ? textHeight : rect.heightPx;
-  const top = layer.type === "text" ? layer.geometry.yRatio * background.heightPx - h / 2 : rect.yPx;
   const drag = useRef<{ x: number; y: number; xPx: number; yPx: number; widthPx: number; heightPx: number } | null>(null);
   function startDrag(event: React.PointerEvent) {
     if (!editing) return;
@@ -423,9 +426,9 @@ function CanvasLayer({
       x: event.clientX,
       y: event.clientY,
       xPx: rect.xPx,
-      yPx: top,
+      yPx: rect.yPx,
       widthPx: rect.widthPx,
-      heightPx: h,
+      heightPx: rect.heightPx,
     };
     event.currentTarget.setPointerCapture(event.pointerId);
   }
@@ -433,26 +436,27 @@ function CanvasLayer({
     if (!editing || !drag.current || layer.locked) return;
     const dx = (event.clientX - drag.current.x) / zoom;
     const dy = (event.clientY - drag.current.y) / zoom;
-    const geometry = pixelRectToLayerGeometry({
-      xPx: drag.current.xPx + dx,
-      yPx: drag.current.yPx + dy,
-      widthPx: drag.current.widthPx,
-      heightPx: drag.current.heightPx,
+    const geometry = layerPixelRectToGeometry({
+      rect: {
+        xPx: drag.current.xPx + dx,
+        yPx: drag.current.yPx + dy,
+        widthPx: drag.current.widthPx,
+        heightPx: drag.current.heightPx,
+        rotationDeg: layer.geometry.rotationDeg,
+      },
+      layer,
       background,
     });
-    onUpdate((current) => {
-      const keepTextHeight = current.type === "text" && current.text.path.type === "closed_ellipse";
-      return { ...current, geometry: current.type === "text" ? { ...geometry, heightRatio: keepTextHeight ? geometry.heightRatio ?? 0.1 : undefined } : { ...geometry, heightRatio: geometry.heightRatio ?? 0.1 } } as CustomizationLayer;
-    });
+    onUpdate((current) => ({ ...current, geometry } as CustomizationLayer));
   }
   return (
     <div
       className={`absolute select-none ${selected ? "ring-2 ring-ui-fg-interactive" : "ring-1 ring-teal-500/70"} ${layer.locked ? "cursor-not-allowed" : "cursor-move"}`}
       style={{
         left: rect.xPx,
-        top,
+        top: rect.yPx,
         width: rect.widthPx,
-        height: h,
+        height: rect.heightPx,
         transform: `rotate(${layer.geometry.rotationDeg}deg)`,
         zIndex: layer.zIndex,
       }}
@@ -473,7 +477,7 @@ function CanvasLayer({
       }}
     >
       {layer.type === "text" ? (
-        <EditorTextLayer layer={layer} widthPx={rect.widthPx} heightPx={h} pathEditing={editing && (pathEditing || (selected && closedTextPath))} dynamicFonts={dynamicFonts} />
+        <EditorTextLayer layer={layer} widthPx={rect.widthPx} heightPx={rect.heightPx} pathEditing={editing && (pathEditing || (selected && closedTextPath))} dynamicFonts={dynamicFonts} />
       ) : layer.shape.type === "vector" && layer.shape.vectorPath ? (
         <svg className="pointer-events-none absolute inset-0 h-full w-full" viewBox="0 0 1 1" preserveAspectRatio="none">
           <path
@@ -498,12 +502,62 @@ function CanvasLayer({
         <VectorPointOverlay layer={layer} selectedPointId={selectedVectorPointId} onSelectPoint={onSelectVectorPoint} onUpdate={onUpdate} />
       ) : null}
       {editing && selected && !layer.locked ? <ResizeHandles layer={layer} background={background} zoom={zoom} onUpdate={onUpdate} /> : null}
+      {editing && selected && !layer.locked && !pathEditing && layer.type === "text" ? (
+        <TextRotationHandle zoom={zoom} onUpdate={onUpdate} />
+      ) : null}
+      {editing && selected && !layer.locked && !pathEditing && onDelete ? (
+        <button
+          type="button"
+          aria-label={`Delete layer ${layer.name}`}
+          title="Delete layer"
+          className="absolute z-30 flex size-6 items-center justify-center rounded-full border border-ui-border-base bg-white text-rose-600 shadow-md transition-colors hover:bg-rose-50 hover:text-rose-700 cursor-pointer focus:outline-none focus:ring-2 focus:ring-rose-500"
+          style={{
+            right: 0,
+            bottom: "calc(100% + 8px)",
+            transform: `scale(${1 / zoom})`,
+            transformOrigin: "bottom right",
+          }}
+          onPointerDown={(event) => {
+            event.stopPropagation();
+            event.preventDefault();
+          }}
+          onClick={(event) => {
+            event.stopPropagation();
+            event.preventDefault();
+            onDelete();
+          }}
+        >
+          <Trash2 className="size-3.5" />
+        </button>
+      ) : null}
     </div>
   );
 }
 
-export function handleStyle(handle: string): React.CSSProperties {
-  const base: React.CSSProperties = { transform: "translate(-50%, -50%)" };
+export function getHandleCursor(handle: string): string {
+  switch (handle) {
+    case "left":
+    case "right":
+    case "w":
+    case "e":
+      return "ew-resize";
+    case "n":
+    case "s":
+      return "ns-resize";
+    case "nw":
+    case "se":
+      return "nwse-resize";
+    case "ne":
+    case "sw":
+      return "nesw-resize";
+    default:
+      return "pointer";
+  }
+}
+
+export function handleStyle(handle: string, zoom?: number): React.CSSProperties {
+  const scale = zoom && zoom > 0 ? 1 / zoom : 1;
+  const base: React.CSSProperties = { transform: `translate(-50%, -50%) scale(${scale})` };
   const map: Record<string, React.CSSProperties> = {
     nw: { left: 0, top: 0 },
     n: { left: "50%", top: 0 },
@@ -519,27 +573,71 @@ export function handleStyle(handle: string): React.CSSProperties {
   return { ...base, ...map[handle] };
 }
 
-export function resizeRect(rect: ReturnType<typeof layerGeometryToPixels>, handle: string, dx: number, dy: number, lockRatio: boolean) {
+export function resizeRect(
+  rect: { xPx: number; yPx: number; widthPx: number; heightPx: number; rotationDeg?: number },
+  handle: string,
+  dx: number,
+  dy: number,
+  lockRatio: boolean,
+) {
+  const minSize = 18;
+  const initialW = Math.max(minSize, rect.widthPx);
+  const initialH = Math.max(minSize, rect.heightPx);
+  const ratio = initialH / initialW;
+
+  if (lockRatio && initialW > 0 && initialH > 0) {
+    if (handle === "se") {
+      const scale = Math.abs(dx) > Math.abs(dy) ? (initialW + dx) / initialW : (initialH + dy) / initialH;
+      const widthPx = Math.max(minSize, initialW * scale);
+      const heightPx = widthPx * ratio;
+      return { ...rect, xPx: rect.xPx, yPx: rect.yPx, widthPx, heightPx };
+    }
+    if (handle === "nw") {
+      const scale = Math.abs(dx) > Math.abs(dy) ? (initialW - dx) / initialW : (initialH - dy) / initialH;
+      const widthPx = Math.max(minSize, initialW * scale);
+      const heightPx = widthPx * ratio;
+      const anchorX = rect.xPx + initialW;
+      const anchorY = rect.yPx + initialH;
+      return { ...rect, xPx: anchorX - widthPx, yPx: anchorY - heightPx, widthPx, heightPx };
+    }
+    if (handle === "ne") {
+      const scale = Math.abs(dx) > Math.abs(dy) ? (initialW + dx) / initialW : (initialH - dy) / initialH;
+      const widthPx = Math.max(minSize, initialW * scale);
+      const heightPx = widthPx * ratio;
+      const anchorX = rect.xPx;
+      const anchorY = rect.yPx + initialH;
+      return { ...rect, xPx: anchorX, yPx: anchorY - heightPx, widthPx, heightPx };
+    }
+    if (handle === "sw") {
+      const scale = Math.abs(dx) > Math.abs(dy) ? (initialW - dx) / initialW : (initialH + dy) / initialH;
+      const widthPx = Math.max(minSize, initialW * scale);
+      const heightPx = widthPx * ratio;
+      const anchorX = rect.xPx + initialW;
+      const anchorY = rect.yPx;
+      return { ...rect, xPx: anchorX - widthPx, yPx: anchorY, widthPx, heightPx };
+    }
+  }
+
+  let widthPx = initialW;
+  let heightPx = initialH;
   let xPx = rect.xPx;
   let yPx = rect.yPx;
-  let widthPx = rect.widthPx;
-  let heightPx = rect.heightPx;
-  if (handle.includes("e") || handle === "right") widthPx += dx;
-  if (handle.includes("s")) heightPx += dy;
+
+  if (handle.includes("e") || handle === "right") {
+    widthPx = Math.max(minSize, initialW + dx);
+  }
+  if (handle.includes("s")) {
+    heightPx = Math.max(minSize, initialH + dy);
+  }
   if (handle.includes("w") || handle === "left") {
-    xPx += dx;
-    widthPx -= dx;
+    widthPx = Math.max(minSize, initialW - dx);
+    xPx = rect.xPx + (initialW - widthPx);
   }
   if (handle.includes("n")) {
-    yPx += dy;
-    heightPx -= dy;
+    heightPx = Math.max(minSize, initialH - dy);
+    yPx = rect.yPx + (initialH - heightPx);
   }
-  widthPx = Math.max(18, widthPx);
-  heightPx = Math.max(18, heightPx);
-  if (lockRatio && rect.widthPx > 0 && rect.heightPx > 0) {
-    const ratio = rect.heightPx / rect.widthPx;
-    heightPx = widthPx * ratio;
-  }
+
   return { ...rect, xPx, yPx, widthPx, heightPx };
 }
 

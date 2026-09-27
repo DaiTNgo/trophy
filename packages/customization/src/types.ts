@@ -147,6 +147,8 @@ export type TextEditorLayer = LayerBase & {
     fontPolicy: TextFontPolicy;
     formatPolicy: TextFormatPolicy;
     path: TextPath;
+    flipHorizontal?: boolean;
+    flipVertical?: boolean;
   };
 };
 
@@ -275,6 +277,8 @@ export type RuntimeTextLayer = {
   geometry: LayerGeometry;
   zIndex: number;
   trimmed: boolean;
+  flipHorizontal?: boolean;
+  flipVertical?: boolean;
 };
 
 export type RuntimeImageShapeLayer = {

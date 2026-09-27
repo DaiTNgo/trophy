@@ -33,4 +33,68 @@ describe('parseFullCreateMultipart', () => {
     extra.append('22222222-2222-4222-8222-222222222222', new File([png], 'extra.png', { type: 'image/png' }))
     await expect(parseFullCreateMultipart(new Request('https://test/products/full-create', { method: 'POST', body: extra }))).resolves.toMatchObject({ success: false })
   })
+
+  it('saves exact declared dimensions for PDF customization media without fallback', async () => {
+    const pdfFile = new File(['%PDF-1.7 dummy content'], 'test.pdf', { type: 'application/pdf' })
+    const customMediaId = 'pending_custom_media_id_1'
+    const customPayload = {
+      mode: 'draft',
+      details: { title: { vi: 'Custom', en: '' }, handle: null },
+      organization: {},
+      attributes: [],
+      options: [],
+      variants: [{
+        title: 'Default',
+        sku: null,
+        media: [],
+        customizationMedia: { mediaId: customMediaId, widthPx: 1190, heightPx: 1683 }
+      }],
+      customization: {
+        enabled: true,
+        canvasWidthPx: 1190,
+        canvasHeightPx: 1683,
+        layers: [],
+        formFields: []
+      }
+    }
+    const form = new FormData()
+    form.append('payload', JSON.stringify(customPayload))
+    form.append(customMediaId, pdfFile)
+    const result = await parseFullCreateMultipart(new Request('https://test/products/full-create', { method: 'POST', body: form }))
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.media.get(customMediaId)).toMatchObject({
+        fileName: 'test.pdf',
+        mimeType: 'application/pdf',
+        widthPx: 1190,
+        heightPx: 1683
+      })
+    }
+  })
+
+  it('rejects PDF asset without dimensions and without preview instead of falling back', async () => {
+    const pdfFile = new File(['%PDF-1.7 dummy content'], 'test.pdf', { type: 'application/pdf' })
+    const customMediaId = 'pending_custom_media_id_2'
+    const noDimPayload = {
+      mode: 'draft',
+      details: { title: { vi: 'Custom', en: '' }, handle: null },
+      organization: {},
+      attributes: [],
+      options: [],
+      variants: [{
+        title: 'Default',
+        sku: null,
+        media: [],
+        customizationMedia: { mediaId: customMediaId }
+      }]
+    }
+    const form = new FormData()
+    form.append('payload', JSON.stringify(noDimPayload))
+    form.append(customMediaId, pdfFile)
+    const result = await parseFullCreateMultipart(new Request('https://test/products/full-create', { method: 'POST', body: form }))
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(result.error).toBe('Media data is invalid or unsupported')
+    }
+  })
 })

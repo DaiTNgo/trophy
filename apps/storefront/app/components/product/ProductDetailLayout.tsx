@@ -13,7 +13,7 @@ import { backendFontUrl, backendStaticFontUrl } from "../../lib/api";
 import { getLocalized } from "../../lib/translation";
 import Container from "../container";
 import { QuantityInput } from "../ui/quantity-input";
-import { ProductBreadcrumbs } from "./ProductBreadcrumbs";
+import { ProductBreadcrumbs, type ProductBreadcrumbItem, type ProductBreadcrumbParent } from "./ProductBreadcrumbs";
 import { ProductCustomizationPurchase } from "./ProductCustomizationPurchase";
 import { ProductGallery, ProductGalleryThumbnails } from "./ProductGallery";
 import { ProductDetailSections, ProductInfo } from "./ProductInfo";
@@ -23,9 +23,13 @@ import { SuggestedProductsSection } from "./SuggestedProductsSection";
 export function ProductDetailLayout({
   state,
   suggestedProducts = [],
+  breadcrumbItems,
+  parentCrumb,
 }: {
   state: ReturnType<typeof useProductDetailState>;
   suggestedProducts?: StorefrontProductItem[];
+  breadcrumbItems?: ProductBreadcrumbItem[];
+  parentCrumb?: ProductBreadcrumbParent | null;
 }) {
   const { t } = useTranslation("products");
   const {
@@ -75,18 +79,22 @@ export function ProductDetailLayout({
     visibleOptions,
     selectedCustomizationFieldId,
     setSelectedCustomizationFieldId,
+    getOptionValueStatus,
   } = state;
   const optionGroups = (
     <ProductOptionGroups
       options={visibleOptions}
       selectedOptionValueIds={selectedOptionValueIds}
       locale={locale}
+      getOptionValueStatus={getOptionValueStatus}
       isAvailable={isOptionValueAvailable}
       onSelect={onOptionSelect}
     />
   );
-  const galleryMediaFrameClassName =
-    "h-[clamp(240px,42svh,380px)] lg:h-[min(72vh,740px)] lg:min-h-[520px]";
+  const hasThumbnails = galleryThumbnails.length > 1;
+  const galleryMediaFrameClassName = hasThumbnails
+    ? "h-[clamp(240px,42svh,380px)] lg:h-[min(calc(100dvh-18.5rem),580px)] lg:min-h-[340px]"
+    : "h-[clamp(240px,42svh,380px)] lg:h-[min(calc(100dvh-13rem),660px)] lg:min-h-[420px]";
 
   const previewNode = customizationTemplate ? (
     <ProductCustomizationPreview
@@ -167,8 +175,10 @@ export function ProductDetailLayout({
     <div className="bg-white font-body-md text-on-surface">
       <ProductBreadcrumbs
         title={getLocalized(product.title, locale)}
+        items={breadcrumbItems}
         categoryTitle={activeCategory ? getLocalized(activeCategory.name, locale) : null}
         categoryHandle={activeCategory?.handle}
+        parentCrumb={parentCrumb}
       />
       <Container className="py-8">
         {revisionNotice ? (
@@ -425,11 +435,14 @@ export function ProductDetailLayout({
           contactHref={selectedVariant?.priceAmount === null ? contactHref : undefined}
         />
           */}
-        <SuggestedProductsSection products={suggestedProducts} locale={locale} />
         <ProductDetailSections
           description={getLocalized(product.description, locale) || ""}
           specs={specs}
+          whyThisProductHtml={getLocalized(product.whyThisProductHtml, locale) || ""}
+          specificationsHtml={getLocalized(product.specificationsHtml, locale) || ""}
+          shippingHtml={getLocalized(product.shippingHtml, locale) || ""}
         />
+        <SuggestedProductsSection products={suggestedProducts} locale={locale} />
       </Container>
     </div>
   );

@@ -1,4 +1,12 @@
-import { type BackgroundAsset, type ShapeType, vectorPointsToSvgPathD, type CustomizationLayer, FONT_FILES } from "@trophy/customization";
+import {
+  type BackgroundAsset,
+  type CustomizationFormField,
+  type CustomizationLayer,
+  type ShapeType,
+  type VectorPoint,
+  vectorPointsToSvgPathD,
+  FONT_FILES,
+} from "@trophy/customization";
 import { useMemo } from "react";
 import { renderPdfBufferToDataUrl } from "../../lib/pdf-preview";
 import { BACKEND_URL } from "../../lib/fetch";
@@ -7,6 +15,234 @@ export type RailTab = "blocks" | "layers" | "form" | "background";
 
 export const createId = (prefix: string) => `${prefix}_${crypto.randomUUID()}`;
 
+export function createDefaultTextLayer({
+  zIndex,
+  order,
+}: {
+  zIndex: number;
+  order: number;
+}): { layer: CustomizationLayer; field: CustomizationFormField } {
+  const id = createId("text");
+  const fieldId = createId("field");
+  return {
+    layer: {
+      id,
+      name: "Text layer",
+      type: "text",
+      hidden: false,
+      locked: false,
+      zIndex,
+      geometry: { xRatio: 0.5, yRatio: 0.5, widthRatio: 0.28, rotationDeg: 0 },
+      text: {
+        sampleText: "YOUR TEXT",
+        maxLines: 1,
+        minFontSizePt: 8,
+        maxFontSizePt: 20,
+        alignPolicy: { mode: "fixed", align: "center" },
+        colorPolicy: { mode: "fixed", color: "#111111" },
+        fontPolicy: { mode: "fixed", fontId: "sans" },
+        formatPolicy: { mode: "fixed", isBold: false, isItalic: false },
+        path: { type: "straight" },
+      },
+    },
+    field: {
+      id: fieldId,
+      layerId: id,
+      label: "Text",
+      placeholder: "YOUR TEXT",
+      required: true,
+      order,
+    },
+  };
+}
+
+export function createDefaultTextOnPathLayer({
+  zIndex,
+  order,
+}: {
+  zIndex: number;
+  order: number;
+}): { layer: CustomizationLayer; field: CustomizationFormField } {
+  const id = createId("text_path");
+  const fieldId = createId("field");
+  return {
+    layer: {
+      id,
+      name: "Text on path",
+      type: "text",
+      hidden: false,
+      locked: false,
+      zIndex,
+      geometry: { xRatio: 0.5, yRatio: 0.5, widthRatio: 0.34, heightRatio: 0.18, rotationDeg: 0 },
+      text: {
+        sampleText: "YOUR TEXT",
+        maxLines: 1,
+        minFontSizePt: 8,
+        maxFontSizePt: 20,
+        alignPolicy: { mode: "fixed", align: "center" },
+        colorPolicy: { mode: "fixed", color: "#111111" },
+        fontPolicy: { mode: "fixed", fontId: "sans" },
+        formatPolicy: { mode: "fixed", isBold: false, isItalic: false },
+        path: {
+          type: "closed_ellipse",
+          bounds: { xRatio: 0.5, yRatio: 0.5, widthRatio: 1, heightRatio: 1 },
+          startAngleDeg: 270,
+          direction: "clockwise",
+          placement: "over_path",
+        },
+      },
+    },
+    field: {
+      id: fieldId,
+      layerId: id,
+      label: "Text on path",
+      placeholder: "YOUR TEXT",
+      required: true,
+      order,
+    },
+  };
+}
+
+export function createDefaultImageShapeLayer(
+  shape: ShapeType,
+  {
+    zIndex,
+    order,
+  }: {
+    zIndex: number;
+    order: number;
+  },
+): { layer: CustomizationLayer; field: CustomizationFormField } {
+  const id = createId("image_shape");
+  const fieldId = createId("field");
+  return {
+    layer: {
+      id,
+      name: shapeLabel(shape),
+      type: "image_shape",
+      hidden: false,
+      locked: false,
+      zIndex,
+      geometry: { xRatio: 0.5, yRatio: 0.5, widthRatio: 0.2, heightRatio: 0.2, rotationDeg: 0 },
+      shape: { type: shape, lockAspectRatio: ["circle", "star", "heart"].includes(shape) },
+      upload: { fit: "cover", defaultCrop: { scale: 1, xRatio: 0, yRatio: 0 } },
+    },
+    field: {
+      id: fieldId,
+      layerId: id,
+      label: "Upload image",
+      helpText: "Your image will be clipped to the selected shape.",
+      required: false,
+      order,
+    },
+  };
+}
+
+export function createDefaultPolygonLayer(
+  sides: number,
+  {
+    zIndex,
+    order,
+  }: {
+    zIndex: number;
+    order: number;
+  },
+): { layer: CustomizationLayer; field: CustomizationFormField } {
+  const actualSides = Math.max(3, Number.isFinite(sides) ? Math.round(sides) : 6);
+  const id = createId("image_shape");
+  const fieldId = createId("field");
+  const radius = 0.4;
+  const cx = 0.5;
+  const cy = 0.5;
+  const polygonPoints: VectorPoint[] = Array.from({ length: actualSides }, (_, i) => {
+    const angle = -Math.PI / 2 + (i * 2 * Math.PI) / actualSides;
+    return {
+      id: createId("vector_point"),
+      type: "corner" as const,
+      xRatio: cx + Math.cos(angle) * radius,
+      yRatio: cy + Math.sin(angle) * radius,
+    };
+  });
+  return {
+    layer: {
+      id,
+      name: `Polygon (${actualSides})`,
+      type: "image_shape",
+      hidden: false,
+      locked: false,
+      zIndex,
+      geometry: { xRatio: 0.5, yRatio: 0.5, widthRatio: 0.25, heightRatio: 0.25, rotationDeg: 0 },
+      shape: { type: "vector", lockAspectRatio: false, vectorPath: { points: polygonPoints, closed: true } },
+      upload: { fit: "cover", defaultCrop: { scale: 1, xRatio: 0, yRatio: 0 } },
+    },
+    field: {
+      id: fieldId,
+      layerId: id,
+      label: "Upload image",
+      helpText: "Your image will be clipped to the polygon shape.",
+      required: false,
+      order,
+    },
+  };
+}
+
+export function createDefaultVectorShapeLayer(
+  points: VectorPoint[],
+  {
+    zIndex,
+    order,
+  }: {
+    zIndex: number;
+    order: number;
+  },
+): { layer: CustomizationLayer; field: CustomizationFormField } {
+  const id = createId("image_shape");
+  const fieldId = createId("field");
+
+  let minX = 1;
+  let minY = 1;
+  let maxX = 0;
+  let maxY = 0;
+  points.forEach((p) => {
+    if (p.xRatio < minX) minX = p.xRatio;
+    if (p.xRatio > maxX) maxX = p.xRatio;
+    if (p.yRatio < minY) minY = p.yRatio;
+    if (p.yRatio > maxY) maxY = p.yRatio;
+  });
+
+  const widthRatio = Math.max(0.01, maxX - minX);
+  const heightRatio = Math.max(0.01, maxY - minY);
+  const xRatio = minX + widthRatio / 2;
+  const yRatio = minY + heightRatio / 2;
+
+  const normalizedPoints = points.map((p) => ({
+    ...p,
+    xRatio: (p.xRatio - minX) / widthRatio,
+    yRatio: (p.yRatio - minY) / heightRatio,
+  }));
+
+  return {
+    layer: {
+      id,
+      name: "Vector shape",
+      type: "image_shape",
+      hidden: false,
+      locked: false,
+      zIndex,
+      geometry: { xRatio, yRatio, widthRatio, heightRatio, rotationDeg: 0 },
+      shape: { type: "vector", lockAspectRatio: true, vectorPath: { points: normalizedPoints, closed: true } },
+      upload: { fit: "cover", defaultCrop: { scale: 1, xRatio: 0, yRatio: 0 } },
+    },
+    field: {
+      id: fieldId,
+      layerId: id,
+      label: "Upload image",
+      helpText: "Your image will be clipped to the selected shape.",
+      required: false,
+      order,
+    },
+  };
+}
 export function FontLoader({ layers, dynamicFonts = [] }: { layers: CustomizationLayer[] | any[]; dynamicFonts?: import("@trophy/customization").DynamicFontFamily[] }) {
   const fontFamilies = useMemo(() => {
     const ids = new Set<string>();

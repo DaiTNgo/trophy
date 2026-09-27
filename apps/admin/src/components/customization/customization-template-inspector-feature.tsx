@@ -16,6 +16,7 @@ export function Inspector({
   onUpdateLayer,
   onPathEditingLayerChange,
   onUpdateTemplate,
+  onSelectVectorPoint,
 }: {
   template: CustomizationTemplate;
   selectedLayer: CustomizationLayer | null;
@@ -24,6 +25,7 @@ export function Inspector({
   onUpdateLayer: (layerId: string, updater: (layer: CustomizationLayer) => CustomizationLayer) => void;
   onPathEditingLayerChange: (layerId: string) => void;
   onUpdateTemplate: (updater: (current: CustomizationTemplate) => CustomizationTemplate) => void;
+  onSelectVectorPoint?: (pointId: string) => void;
 }) {
   return (
     <aside className="overflow-y-auto overflow-x-hidden border-l border-ui-border-base p-4">
@@ -37,7 +39,15 @@ export function Inspector({
           onUpdate={(updater) => onUpdateLayer(selectedLayer.id, updater)}
         />
       ) : null}
-      {selectedLayer?.type === "image_shape" ? <ImageShapeInspector template={template} layer={selectedLayer} selectedVectorPointId={selectedVectorPointId} onUpdate={(updater) => onUpdateLayer(selectedLayer.id, updater)} /> : null}
+      {selectedLayer?.type === "image_shape" ? (
+        <ImageShapeInspector
+          template={template}
+          layer={selectedLayer}
+          selectedVectorPointId={selectedVectorPointId}
+          onUpdate={(updater) => onUpdateLayer(selectedLayer.id, updater)}
+          onSelectVectorPoint={onSelectVectorPoint}
+        />
+      ) : null}
     </aside>
   );
 }

@@ -14,9 +14,9 @@ import { useState, useEffect } from "react";
 import Container from "../container";
 
 const HERO_IMAGES = [
-  "/images/home/hero-1.webp",
-  "/images/home/hero-2.jpg",
-  "/images/home/hero-3.png",
+  "/images/banner/banner_3.jpg",
+  "/images/banner/banner_3_1.jpg",
+  "/images/banner/banner_5.jpg",
 ];
 
 export function HeroSection() {

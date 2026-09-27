@@ -55,6 +55,9 @@ export const defaultCreateProductValues: CreateProductFormValues = {
   handle: "",
   subtitle: { vi: "", en: "" },
   description: { vi: "", en: "" },
+  whyThisProductHtml: { vi: "", en: "" },
+  specificationsHtml: { vi: "", en: "" },
+  shippingHtml: { vi: "", en: "" },
   customizationEnabled: false,
   collection: "",
   categories: [],
@@ -139,7 +142,7 @@ export function useCreateProduct() {
   const [values, setValues] = useState<CreateProductFormValues>(
     defaultCreateProductValues,
   );
-  const [selectedCollectionId, setSelectedCollectionId] = useState<string>("");
+  const [selectedCollectionIds, setSelectedCollectionIds] = useState<string[]>([]);
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
   const [selectedPreviewAssetId, setSelectedPreviewAssetId] = useState<
     string | null
@@ -473,6 +476,7 @@ export function useCreateProduct() {
             vi: option.title.trim(),
             en: "",
           },
+          displayType: option.displayType ?? "text",
           values: option.values
             .filter((v) => v.value.trim() !== "")
             .map((value) => ({
@@ -480,6 +484,8 @@ export function useCreateProduct() {
                 vi: value.value.trim(),
                 en: "",
               },
+              colorHex: value.colorHex ?? null,
+              swatchAssetId: value.swatchAssetId ?? null,
             })),
         }))
         .filter(
@@ -509,7 +515,12 @@ export function useCreateProduct() {
         .map((variant, index) => {
           const media = variant.media.map((asset) => {
             if (!asset.file) throw new Error("Variant media must be selected again before saving.");
-            return { mediaId: asset.id, file: asset.file };
+            return {
+              mediaId: asset.id,
+              file: asset.file,
+              widthPx: asset.widthPx,
+              heightPx: asset.heightPx,
+            };
           });
           const customizationMedia = variant.customizationMedia
             ? (() => {
@@ -518,6 +529,8 @@ export function useCreateProduct() {
                   mediaId: variant.customizationMedia.id,
                   file: variant.customizationMedia.file,
                   previewFile: variant.customizationMedia.previewFile,
+                  widthPx: variant.customizationMedia.widthPx,
+                  heightPx: variant.customizationMedia.heightPx,
                 };
               })()
             : null;
@@ -550,15 +563,22 @@ export function useCreateProduct() {
         ...(hasLocalizedTextValue(values.description)
           ? { description: values.description }
           : {}),
+        ...(hasLocalizedTextValue(values.whyThisProductHtml)
+          ? { whyThisProductHtml: values.whyThisProductHtml }
+          : {}),
+        ...(hasLocalizedTextValue(values.specificationsHtml)
+          ? { specificationsHtml: values.specificationsHtml }
+          : {}),
+        ...(hasLocalizedTextValue(values.shippingHtml)
+          ? { shippingHtml: values.shippingHtml }
+          : {}),
       };
 
       const createdProduct = await createFullProduct({
         mode,
         details: submittedDetails,
         organization: {
-          collectionId: selectedCollectionId
-            ? Number(selectedCollectionId)
-            : null,
+          collectionIds: selectedCollectionIds.map((id) => Number(id)),
           categoryIds: selectedCategoryIds.map((id) => Number(id)),
         },
         attributes: attributes
@@ -753,6 +773,87 @@ export function useCreateProduct() {
             }
           : option,
       ),
+    );
+  }
+
+  function updateOptionDisplayType(
+    optionId: string,
+    displayType: "text" | "color" | "image",
+  ) {
+    setOptionDefinitions((current) =>
+      current.map((option) =>
+        option.id === optionId
+          ? {
+              ...option,
+              displayType,
+            }
+          : option,
+      ),
+    );
+  }
+
+  function updateOptionValueSwatch(
+    optionId: string,
+    valueId: string,
+    swatch: {
+      colorHex?: string | null;
+      swatchAssetId?: string | null;
+      swatchAssetUrl?: string | null;
+    },
+  ) {
+    setOptionDefinitions((current) =>
+      current.map((option) =>
+        option.id === optionId
+          ? {
+              ...option,
+              values: option.values.map((value) =>
+                value.id === valueId
+                  ? {
+                      ...value,
+                      ...(swatch.colorHex !== undefined ? { colorHex: swatch.colorHex } : {}),
+                      ...(swatch.swatchAssetId !== undefined ? { swatchAssetId: swatch.swatchAssetId } : {}),
+                      ...(swatch.swatchAssetUrl !== undefined ? { swatchAssetUrl: swatch.swatchAssetUrl } : {}),
+                    }
+                  : value,
+              ),
+            }
+          : option,
+      ),
+    );
+  }
+
+  function addOptionValueDirect(
+    optionId: string,
+    initial?: {
+      vi?: string;
+      en?: string;
+      colorHex?: string | null;
+      swatchAssetId?: string | null;
+      swatchAssetUrl?: string | null;
+    },
+  ) {
+    const nextValue = createOptionValueDefinition(initial?.vi ?? "");
+    setOptionDefinitions((current) =>
+      current.map((option) => {
+        if (option.id !== optionId) return option;
+        return {
+          ...option,
+          values: [
+            ...option.values,
+            {
+              ...nextValue,
+              value: initial?.vi ?? "",
+              valueTranslations: {
+                vi: initial?.vi ?? "",
+                en: initial?.en ?? "",
+              },
+              colorHex: initial?.colorHex ?? null,
+              swatchAssetId: initial?.swatchAssetId ?? null,
+              swatchAssetUrl: initial?.swatchAssetUrl ?? null,
+            },
+          ],
+        };
+      }),
     );
   }
 
@@ -1044,7 +1145,7 @@ export function useCreateProduct() {
     metadata,
     isLoadingMetadata,
     values,
-    selectedCollectionId,
+    selectedCollectionIds,
     selectedCategoryIds,
     selectedPreviewAssetId,
     embeddedCustomization,
@@ -1076,7 +1177,7 @@ export function useCreateProduct() {
     // Actions
     setValues,
     setValue,
-    setSelectedCollectionId,
+    setSelectedCollectionIds,
     setSelectedCategoryIds,
     setSelectedPreviewAssetId,
     setEmbeddedCustomization,
@@ -1088,12 +1189,15 @@ export function useCreateProduct() {
     addOptionDefinition,
     removeOptionDefinition,
     updateOptionDefinition,
+    updateOptionDisplayType,
     updateOptionTitleTranslation,
     setOptionValueDrafts,
     setOptionDraftValue,
     appendOptionValue,
+    addOptionValueDirect,
     removeOptionValue,
     updateOptionValueTranslation,
+    updateOptionValueSwatch,
     setActiveStep,
     goToStep,
     continueToNextStep,

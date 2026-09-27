@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import {
   DEFAULT_TEMPLATE,
   createDefaultFormValues,
-  layerGeometryToPixels,
-  pixelRectToLayerGeometry,
+  getLayerPixelRect,
+  layerPixelRectToGeometry,
   validateTemplateForPublish,
   type BackgroundAsset,
   type CustomizationFormField,
@@ -16,7 +16,14 @@ import {
   type TextFieldValue,
   type VectorPoint,
 } from "@trophy/customization";
-import { createId, shapeLabel, type RailTab } from "../components/customization/customization-template-ui";
+import {
+  type RailTab,
+  createDefaultTextLayer,
+  createDefaultTextOnPathLayer,
+  createDefaultImageShapeLayer,
+  createDefaultPolygonLayer,
+  createDefaultVectorShapeLayer,
+} from "../components/customization/customization-template-ui";
 
 import { backendFetch, BACKEND_URL } from "../lib/fetch";
 
@@ -99,105 +106,30 @@ export function useTemplateEditor(editParam: string | null) {
 
   function addTextLayer() {
     if (!template.background) return;
-    const id = createId("text");
-    addLayer(
-      {
-        id,
-        name: "Text layer",
-        type: "text",
-        hidden: false,
-        locked: false,
-        zIndex: maxZ(template.layers) + 1,
-        geometry: { xRatio: 0.5, yRatio: 0.5, widthRatio: 0.28, rotationDeg: 0 },
-        text: {
-          sampleText: "YOUR TEXT",
-          maxLines: 1,
-          minFontSizePt: 8,
-          maxFontSizePt: 20,
-          alignPolicy: { mode: "fixed", align: "center" },
-          colorPolicy: { mode: "fixed", color: "#111111" },
-          fontPolicy: { mode: "fixed", fontId: "sans" },
-          formatPolicy: { mode: "fixed", isBold: false, isItalic: false },
-          path: { type: "straight" },
-        },
-      },
-      {
-        id: createId("field"),
-        layerId: id,
-        label: "Text",
-        placeholder: "YOUR TEXT",
-        required: true,
-        order: template.formFields.length + 1,
-      },
-    );
+    const { layer, field } = createDefaultTextLayer({
+      zIndex: maxZ(template.layers) + 1,
+      order: template.formFields.length + 1,
+    });
+    addLayer(layer, field);
   }
 
   function addTextOnPathLayer() {
     if (!template.background) return;
-    const id = createId("text_path");
-    addLayer(
-      {
-        id,
-        name: "Text on path",
-        type: "text",
-        hidden: false,
-        locked: false,
-        zIndex: maxZ(template.layers) + 1,
-        geometry: { xRatio: 0.5, yRatio: 0.5, widthRatio: 0.34, heightRatio: 0.18, rotationDeg: 0 },
-        text: {
-          sampleText: "YOUR TEXT",
-          maxLines: 1,
-          minFontSizePt: 8,
-          maxFontSizePt: 20,
-          alignPolicy: { mode: "fixed", align: "center" },
-          colorPolicy: { mode: "fixed", color: "#111111" },
-          fontPolicy: { mode: "fixed", fontId: "sans" },
-          formatPolicy: { mode: "fixed", isBold: false, isItalic: false },
-          path: {
-            type: "closed_ellipse",
-            bounds: { xRatio: 0.5, yRatio: 0.5, widthRatio: 1, heightRatio: 1 },
-            startAngleDeg: 270,
-            direction: "clockwise",
-            placement: "over_path",
-          },
-        },
-      },
-      {
-        id: createId("field"),
-        layerId: id,
-        label: "Text on path",
-        placeholder: "YOUR TEXT",
-        required: true,
-        order: template.formFields.length + 1,
-      },
-    );
-    setPathEditingLayerId(id);
+    const { layer, field } = createDefaultTextOnPathLayer({
+      zIndex: maxZ(template.layers) + 1,
+      order: template.formFields.length + 1,
+    });
+    addLayer(layer, field);
+    setPathEditingLayerId(layer.id);
   }
 
   function addImageShape(shape: ShapeType) {
     if (!template.background) return;
-    const id = createId("image_shape");
-    addLayer(
-      {
-        id,
-        name: shapeLabel(shape),
-        type: "image_shape",
-        hidden: false,
-        locked: false,
-        zIndex: maxZ(template.layers) + 1,
-        geometry: { xRatio: 0.5, yRatio: 0.5, widthRatio: 0.2, heightRatio: 0.2, rotationDeg: 0 },
-        shape: { type: shape, lockAspectRatio: ["circle", "star", "heart"].includes(shape) },
-        upload: { fit: "cover", defaultCrop: { scale: 1, xRatio: 0, yRatio: 0 } },
-      },
-      {
-        id: createId("field"),
-        layerId: id,
-        label: "Upload image",
-        helpText: "Your image will be clipped to the selected shape.",
-        required: false,
-        order: template.formFields.length + 1,
-      },
-    );
+    const { layer, field } = createDefaultImageShapeLayer(shape, {
+      zIndex: maxZ(template.layers) + 1,
+      order: template.formFields.length + 1,
+    });
+    addLayer(layer, field);
   }
 
   function startDrawMode() {
@@ -221,93 +153,22 @@ export function useTemplateEditor(editParam: string | null) {
 
   function closeVectorShape() {
     if (!template.background || pendingVectorPoints.length < 3) return;
-    const id = createId("image_shape");
-    
-    // Calculate bounding box of pendingVectorPoints
-    let minX = 1, minY = 1, maxX = 0, maxY = 0;
-    pendingVectorPoints.forEach(p => {
-      if (p.xRatio < minX) minX = p.xRatio;
-      if (p.xRatio > maxX) maxX = p.xRatio;
-      if (p.yRatio < minY) minY = p.yRatio;
-      if (p.yRatio > maxY) maxY = p.yRatio;
+    const { layer, field } = createDefaultVectorShapeLayer(pendingVectorPoints, {
+      zIndex: maxZ(template.layers) + 1,
+      order: template.formFields.length + 1,
     });
-    
-    // Calculate layer geometry
-    const widthRatio = Math.max(0.01, maxX - minX);
-    const heightRatio = Math.max(0.01, maxY - minY);
-    const xRatio = minX + widthRatio / 2;
-    const yRatio = minY + heightRatio / 2;
-    
-    // Normalize points to layer bounds (0 to 1)
-    const normalizedPoints = pendingVectorPoints.map(p => ({
-      ...p,
-      xRatio: (p.xRatio - minX) / widthRatio,
-      yRatio: (p.yRatio - minY) / heightRatio,
-    }));
-    
-    addLayer(
-      {
-        id,
-        name: "Vector shape",
-        type: "image_shape",
-        hidden: false,
-        locked: false,
-        zIndex: maxZ(template.layers) + 1,
-        geometry: { xRatio, yRatio, widthRatio, heightRatio, rotationDeg: 0 },
-        shape: { type: "vector", lockAspectRatio: true, vectorPath: { points: normalizedPoints, closed: true } },
-        upload: { fit: "cover", defaultCrop: { scale: 1, xRatio: 0, yRatio: 0 } },
-      },
-      {
-        id: createId("field"),
-        layerId: id,
-        label: "Upload image",
-        helpText: "Your image will be clipped to the selected shape.",
-        required: false,
-        order: template.formFields.length + 1,
-      },
-    );
+    addLayer(layer, field);
     setIsDrawing(false);
     setPendingVectorPoints([]);
   }
 
-  function addPolygon(sides: number | any = 6) {
+  function addPolygon(sides: number = 6) {
     if (!template.background) return;
-    const actualSides = typeof sides === "number" ? sides : 6;
-    const id = createId("image_shape");
-    // Generate a regular polygon with `actualSides` vertices centered at (0.5, 0.5) with radius 0.4
-    const radius = 0.4;
-    const cx = 0.5;
-    const cy = 0.5;
-    const polygonPoints: VectorPoint[] = Array.from({ length: actualSides }, (_, i) => {
-      const angle = -Math.PI / 2 + (i * 2 * Math.PI) / actualSides;
-      return {
-        id: createId("vector_point"),
-        type: "corner" as const,
-        xRatio: cx + Math.cos(angle) * radius,
-        yRatio: cy + Math.sin(angle) * radius,
-      };
+    const { layer, field } = createDefaultPolygonLayer(sides, {
+      zIndex: maxZ(template.layers) + 1,
+      order: template.formFields.length + 1,
     });
-    addLayer(
-      {
-        id,
-        name: `Polygon (${sides})`,
-        type: "image_shape",
-        hidden: false,
-        locked: false,
-        zIndex: maxZ(template.layers) + 1,
-        geometry: { xRatio: 0.5, yRatio: 0.5, widthRatio: 0.25, heightRatio: 0.25, rotationDeg: 0 },
-        shape: { type: "vector", lockAspectRatio: false, vectorPath: { points: polygonPoints, closed: true } },
-        upload: { fit: "cover", defaultCrop: { scale: 1, xRatio: 0, yRatio: 0 } },
-      },
-      {
-        id: createId("field"),
-        layerId: id,
-        label: "Upload image",
-        helpText: "Your image will be clipped to the polygon shape.",
-        required: false,
-        order: template.formFields.length + 1,
-      },
-    );
+    addLayer(layer, field);
   }
 
   function deleteSelectedLayer(id?: string) {
@@ -465,18 +326,14 @@ export function useTemplateEditor(editParam: string | null) {
       const background = template.background;
       if (!background) return;
       updateLayer(selectedLayer.id, (layer) => {
-        const rect = layerGeometryToPixels({ geometry: layer.geometry, background });
+        const rect = getLayerPixelRect({ layer, background });
         const next = {
           ...rect,
           xPx: rect.xPx + (event.key === "ArrowLeft" ? -delta : event.key === "ArrowRight" ? delta : 0),
           yPx: rect.yPx + (event.key === "ArrowUp" ? -delta : event.key === "ArrowDown" ? delta : 0),
         };
-        const geometry = pixelRectToLayerGeometry({
-          ...next,
-          heightPx: layer.type === "image_shape" || (layer.type === "text" && layer.text.path.type === "closed_ellipse") ? next.heightPx : undefined,
-          background,
-        });
-        return { ...layer, geometry: layer.type === "text" ? { ...geometry, heightRatio: layer.text.path.type === "closed_ellipse" ? geometry.heightRatio ?? 0.1 : undefined } : { ...geometry, heightRatio: geometry.heightRatio ?? 0.1 } } as CustomizationLayer;
+        const geometry = layerPixelRectToGeometry({ rect: next, layer, background });
+        return { ...layer, geometry } as CustomizationLayer;
       });
     }
     window.addEventListener("keydown", onKeyDown);

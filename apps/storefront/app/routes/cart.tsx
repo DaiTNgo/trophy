@@ -23,7 +23,7 @@ import {
   type RecentlyViewedProduct,
 } from "../lib/recently-viewed";
 import { RecentlyViewedProducts } from "../components/cart/RecentlyViewedProducts";
-import { getGenericProductPath } from "../lib/storefront-paths";
+import { getProductPath } from "../lib/storefront-paths";
 import { canReviseCartLine, getCartLineRevisionPath } from "../lib/cart-revision";
 import { getLocale } from "../i18n.server";
 import { withStorefrontLoaderLog } from "../lib/observability";
@@ -216,9 +216,10 @@ export default function Cart() {
                 <div className="flex-1 min-w-0">
                   <h3 className="font-bold text-sm sm:text-base mb-1 pr-6 uppercase">
                     <Link
-                      to={getGenericProductPath(
-                        display.handle ?? line.display.productHandle,
-                      )}
+                      to={getProductPath({
+                        productHandle: display.handle ?? line.display.productHandle,
+                        from: "home",
+                      })}
                       className="hover:text-primary transition-colors"
                     >
                       {getLocalized(display.title, locale) ?? getLocalized(line.display.productTitle, locale)}

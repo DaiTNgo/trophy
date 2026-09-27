@@ -1,10 +1,18 @@
 import { Link } from "react-router";
 import { useTranslation } from "react-i18next";
-import { Search } from "lucide-react";
+import { Search, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { SearchResults as SearchResultsType } from "@/hooks/useSearch";
-import type { SearchProduct, SearchCategory } from "@/hooks/useSearch";
-import { getCategoryPath, getGenericProductPath } from "@/lib/storefront-paths";
+import type {
+  SearchProduct,
+  SearchCategory,
+  SearchCollection,
+} from "@/hooks/useSearch";
+import {
+  getCategoryPath,
+  getCollectionPath,
+  getProductPath,
+} from "@/lib/storefront-paths";
 import { formatCurrency } from "@/lib/utils";
 
 interface SearchResultsProps {
@@ -19,7 +27,7 @@ function ProductResult({ product }: { product: SearchProduct }) {
 
   return (
     <Link
-      to={getGenericProductPath(product.handle)}
+      to={getProductPath({ productHandle: product.handle, from: "home" })}
       className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors rounded-md"
     >
       <div className="w-10 h-10 rounded-md bg-gray-100 flex items-center justify-center shrink-0 overflow-hidden">
@@ -62,6 +70,22 @@ function CategoryResult({ category }: { category: SearchCategory }) {
   );
 }
 
+function CollectionResult({ collection }: { collection: SearchCollection }) {
+  return (
+    <Link
+      to={getCollectionPath(collection.handle)}
+      className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors rounded-md"
+    >
+      <div className="w-10 h-10 rounded-md bg-amber-500/10 flex items-center justify-center shrink-0">
+        <Sparkles className="w-4 h-4 text-amber-600" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-medium text-gray-900">{collection.title}</p>
+      </div>
+    </Link>
+  );
+}
+
 function LoadingSkeleton() {
   return (
     <div className="p-4 space-y-3">
@@ -86,27 +110,6 @@ function SectionHeader({ title }: { title: string }) {
   );
 }
 
-function Column({
-  title,
-  items,
-  renderItem,
-}: {
-  title: string;
-  items: SearchProduct[] | SearchCategory[];
-  renderItem: (item: SearchProduct | SearchCategory) => React.ReactNode;
-}) {
-  return (
-    <div>
-      <SectionHeader title={title} />
-      <div className="space-y-0.5">
-        {items.map((item) => (
-          <div key={item.id}>{renderItem(item)}</div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 export function SearchResults({
   results,
   loading,
@@ -121,9 +124,13 @@ export function SearchResults({
     return <LoadingSkeleton />;
   }
 
+  const collections = results?.collections ?? [];
+  const categories = results?.categories ?? [];
+  const products = results?.products ?? [];
+
   if (
     !results ||
-    (results.products.length === 0 && results.categories.length === 0)
+    (products.length === 0 && categories.length === 0 && collections.length === 0)
   ) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -133,45 +140,92 @@ export function SearchResults({
     );
   }
 
-  const hasProducts = results.products.length > 0;
-  const hasCategories = results.categories.length > 0;
-  const bothTypes = hasProducts && hasCategories;
+  const hasProducts = products.length > 0;
+  const hasTaxonomies = categories.length > 0 || collections.length > 0;
 
   return (
     <div onClick={onResultClick} className="pt-3">
-      {bothTypes ? (
-        <div className="grid grid-cols-2">
-          <Column
-            title={t("search_category")}
-            items={results.categories}
-            renderItem={(item) => (
-              <CategoryResult category={item as SearchCategory} />
+      {hasProducts && hasTaxonomies ? (
+        <div className="grid grid-cols-2 divide-x divide-gray-100">
+          <div className="space-y-4">
+            {categories.length > 0 && (
+              <div>
+                <SectionHeader title={t("search_category")} />
+                <div className="space-y-0.5">
+                  {categories.map((item) => (
+                    <CategoryResult key={item.id} category={item} />
+                  ))}
+                </div>
+              </div>
             )}
-          />
-          <Column
-            title={t("search_product")}
-            items={results.products}
-            renderItem={(item) => (
-              <ProductResult product={item as SearchProduct} />
+            {collections.length > 0 && (
+              <div>
+                <SectionHeader title={t("search_collection")} />
+                <div className="space-y-0.5">
+                  {collections.map((item) => (
+                    <CollectionResult key={item.id} collection={item} />
+                  ))}
+                </div>
+              </div>
             )}
-          />
+          </div>
+          <div>
+            <SectionHeader title={t("search_product")} />
+            <div className="space-y-0.5">
+              {products.map((item) => (
+                <ProductResult key={item.id} product={item} />
+              ))}
+            </div>
+          </div>
         </div>
-      ) : hasCategories ? (
-        <Column
-          title={t("search_category")}
-          items={results.categories}
-          renderItem={(item) => (
-            <CategoryResult category={item as SearchCategory} />
-          )}
-        />
+      ) : hasTaxonomies ? (
+        categories.length > 0 && collections.length > 0 ? (
+          <div className="grid grid-cols-2 divide-x divide-gray-100">
+            <div>
+              <SectionHeader title={t("search_category")} />
+              <div className="space-y-0.5">
+                {categories.map((item) => (
+                  <CategoryResult key={item.id} category={item} />
+                ))}
+              </div>
+            </div>
+            <div>
+              <SectionHeader title={t("search_collection")} />
+              <div className="space-y-0.5">
+                {collections.map((item) => (
+                  <CollectionResult key={item.id} collection={item} />
+                ))}
+              </div>
+            </div>
+          </div>
+        ) : categories.length > 0 ? (
+          <div>
+            <SectionHeader title={t("search_category")} />
+            <div className="space-y-0.5">
+              {categories.map((item) => (
+                <CategoryResult key={item.id} category={item} />
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div>
+            <SectionHeader title={t("search_collection")} />
+            <div className="space-y-0.5">
+              {collections.map((item) => (
+                <CollectionResult key={item.id} collection={item} />
+              ))}
+            </div>
+          </div>
+        )
       ) : (
-        <Column
-          title={t("search_product")}
-          items={results.products}
-          renderItem={(item) => (
-            <ProductResult product={item as SearchProduct} />
-          )}
-        />
+        <div>
+          <SectionHeader title={t("search_product")} />
+          <div className="space-y-0.5">
+            {products.map((item) => (
+              <ProductResult key={item.id} product={item} />
+            ))}
+          </div>
+        </div>
       )}
     </div>
   );

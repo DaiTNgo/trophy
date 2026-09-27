@@ -1,12 +1,15 @@
 import { Link } from "react-router";
 import { Image, Headset, Star, StarHalf } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { getGenericProductPath } from "@/lib/storefront-paths";
+import { getProductPath } from "@/lib/storefront-paths";
 import { formatCurrency } from "@/lib/utils";
 
 interface ProductCardProps {
   handle?: string;
   categoryHandle?: string | null;
+  collectionHandle?: string | null;
+  sourceContext?: "category" | "collection";
+  from?: string | null;
   series?: string;
   category?: string;
   categorySummary?: string | null;
@@ -26,6 +29,10 @@ interface ProductCardProps {
 
 export function ProductCard({
   handle,
+  categoryHandle,
+  collectionHandle,
+  sourceContext,
+  from,
   category,
   categorySummary,
   subtitle,
@@ -54,7 +61,13 @@ export function ProductCard({
 
   const fullStars = Math.floor(rating); // rating UI, commented out
   const hasHalfStar = rating % 1 !== 0; // rating UI, commented out
-  const productHref = getGenericProductPath(displayHandle);
+  const productHref = getProductPath({
+    productHandle: displayHandle,
+    categoryHandle,
+    collectionHandle,
+    sourceContext,
+    from,
+  });
 
   if (variant === "listing") {
     return (
@@ -205,7 +218,7 @@ export function ProductCard({
 
 function CardImages({ src, hoverImage, alt, className, sizes }: { src: string; hoverImage?: string | null; alt: string; className: string; sizes?: string }) {
   return <>
-    <img className="product-card-base-image absolute inset-0 h-full w-full object-contain" data-alt={alt} src={src} alt={alt} loading="lazy" sizes={sizes} />
+    <img className={`product-card-base-image absolute inset-0 h-full w-full object-contain ${hoverImage ? "product-card-base-image--swap" : ""}`} data-alt={alt} src={src} alt={alt} loading="lazy" sizes={sizes} />
     {hoverImage ? <img className={`product-card-hover-image absolute inset-0 h-full w-full object-contain opacity-0 transition-[opacity,scale] duration-300 motion-reduce:transition-none ${className}`} src={hoverImage} alt="" aria-hidden="true" loading="lazy" sizes={sizes} /> : null}
   </>;
 }

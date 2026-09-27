@@ -2,15 +2,21 @@ import { useLoaderData, useSearchParams } from "react-router";
 import { ProductDetailLayout } from "../components/product/ProductDetailLayout";
 import { useProductDetailState } from "../hooks/use-product-detail-state";
 import {
+  fetchStorefrontArticle,
+  fetchStorefrontCategories,
+  fetchStorefrontCollections,
   fetchStorefrontDynamicFonts,
   fetchStorefrontProduct,
   fetchStorefrontProducts,
+  type StorefrontCategory,
+  type StorefrontCollection,
   type StorefrontDynamicFont,
 } from "../lib/api";
 import { getLocalized } from "../lib/translation";
 import { withStorefrontLoaderLog } from "../lib/observability";
 import { getLocale } from "../i18n.server";
 import { getBackendServiceFetch } from "../lib/backend-fetch.server";
+import { getCategoryPath, getCollectionPath } from "../lib/storefront-paths";
 import { CART_LINE_REVISION_PARAM } from "../lib/cart-revision";
 import type { Route } from "./+types/product.$handle";
 
@@ -20,16 +26,121 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
     const backendFetch = getBackendServiceFetch(context);
     const product = await fetchStorefrontProduct(params.handle, locale, backendFetch);
 
-    const [dynamicFonts, suggestionsData] = await Promise.all([
+    const url = new URL(request.url);
+    const categoryParam = url.searchParams.get("category");
+    const collectionParam = url.searchParams.get("collection");
+    const newsSlugParam = url.searchParams.get("newsSlug");
+    const fromParam = url.searchParams.get("from");
+
+    const activeCategory =
+      (categoryParam ? product.categories.find((c) => c.handle === categoryParam) : null) ??
+      product.categories[0] ??
+      null;
+
+    const [dynamicFonts, collectionsData, categoriesData, suggestionsData, articleData] = await Promise.all([
       product.customization
         ? fetchStorefrontDynamicFonts(backendFetch)
         : Promise.resolve<StorefrontDynamicFont[]>([]),
+      collectionParam
+        ? fetchStorefrontCollections(locale, backendFetch).catch(() => [] as StorefrontCollection[])
+        : Promise.resolve<StorefrontCollection[]>([]),
+      categoryParam && !product.categories.some((c) => c.handle === categoryParam)
+        ? fetchStorefrontCategories(locale, backendFetch).catch(() => [] as StorefrontCategory[])
+        : Promise.resolve<StorefrontCategory[]>([]),
       fetchStorefrontProducts({
-        category: product.categories[0]?.handle,
+        category: activeCategory?.handle,
         limit: 8,
         locale,
       }, backendFetch).catch(() => ({ items: [], page: 1, limit: 8, total: 0 })),
+      newsSlugParam
+        ? fetchStorefrontArticle(newsSlugParam, locale, backendFetch).catch(() => null)
+        : Promise.resolve(null),
     ]);
+
+    const matchedCategory =
+      (categoryParam ? product.categories.find((c) => c.handle === categoryParam) : null) ??
+      (categoryParam ? categoriesData.find((c) => c.handle === categoryParam) : null);
+
+    const matchedCollection = collectionParam
+      ? collectionsData.find((col) => col.handle === collectionParam) ?? null
+      : null;
+
+    const breadcrumbItems: Array<{ title: string; path: string }> = [];
+    const homeTitle = locale === "en" ? "Home" : "Trang chủ";
+    const newsTitle = locale === "en" ? "News" : "Tin tức";
+
+    if (newsSlugParam) {
+      breadcrumbItems.push({
+        title: newsTitle,
+        path: "/news",
+      });
+      if (articleData) {
+        breadcrumbItems.push({
+          title: articleData.title,
+          path: `/news/${articleData.slug}`,
+        });
+      }
+    } else if (categoryParam || collectionParam) {
+      const keys = Array.from(url.searchParams.keys());
+      const isCollectionFirst =
+        keys.indexOf("collection") !== -1 &&
+        (keys.indexOf("category") === -1 || keys.indexOf("collection") < keys.indexOf("category"));
+
+      if (isCollectionFirst) {
+        if (matchedCollection) {
+          breadcrumbItems.push({
+            title: getLocalized(matchedCollection.title, locale),
+            path: getCollectionPath(matchedCollection.handle),
+          });
+        }
+        if (matchedCategory) {
+          breadcrumbItems.push({
+            title: getLocalized(matchedCategory.name, locale),
+            path: matchedCollection
+              ? `${getCollectionPath(matchedCollection.handle)}?category=${encodeURIComponent(matchedCategory.handle)}`
+              : getCategoryPath(matchedCategory.handle),
+          });
+        }
+      } else {
+        if (matchedCategory) {
+          breadcrumbItems.push({
+            title: getLocalized(matchedCategory.name, locale),
+            path: getCategoryPath(matchedCategory.handle),
+          });
+        }
+        if (matchedCollection) {
+          breadcrumbItems.push({
+            title: getLocalized(matchedCollection.title, locale),
+            path: matchedCategory
+              ? `${getCategoryPath(matchedCategory.handle)}?collection=${encodeURIComponent(matchedCollection.handle)}`
+              : getCollectionPath(matchedCollection.handle),
+          });
+        }
+      }
+    } else if (fromParam === "home") {
+      breadcrumbItems.push({
+        title: homeTitle,
+        path: "/",
+      });
+    }
+
+    if (breadcrumbItems.length === 0) {
+      breadcrumbItems.push({
+        title: homeTitle,
+        path: "/",
+      });
+      if (product.categories[0]) {
+        breadcrumbItems.push({
+          title: getLocalized(product.categories[0].name, locale),
+          path: getCategoryPath(product.categories[0].handle),
+        });
+      } else {
+        breadcrumbItems.push({
+          title: locale === "en" ? "Collections" : "Bộ sưu tập",
+          path: "/products",
+        });
+      }
+    }
 
     let suggestedProducts = suggestionsData.items
       .filter((item) => item.handle !== product.handle)
@@ -51,7 +162,8 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
       dynamicFonts,
       suggestedProducts,
       locale,
-      activeCategory: product.categories[0] ?? null,
+      activeCategory,
+      breadcrumbItems,
     };
   }, { productHandle: params.handle });
 }
@@ -62,7 +174,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
 }
 
 export default function ProductDetail() {
-  const { product, dynamicFonts, suggestedProducts, locale, activeCategory } =
+  const { product, dynamicFonts, suggestedProducts, locale, activeCategory, breadcrumbItems } =
     useLoaderData<typeof loader>();
   const [searchParams] = useSearchParams();
   const state = useProductDetailState({
@@ -72,5 +184,11 @@ export default function ProductDetail() {
     activeCategory,
     cartLineRevisionId: searchParams.get(CART_LINE_REVISION_PARAM),
   });
-  return <ProductDetailLayout state={state} suggestedProducts={suggestedProducts} />;
+  return (
+    <ProductDetailLayout
+      state={state}
+      suggestedProducts={suggestedProducts}
+      breadcrumbItems={breadcrumbItems}
+    />
+  );
 }

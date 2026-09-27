@@ -233,6 +233,22 @@ describe("product full-create helpers", () => {
     expect(row).toBeNull();
   });
 
+  it("preserves explicit client canvas dimensions when provided in customization", () => {
+    const row = buildProductCustomizationInsert({
+      productId: 42,
+      customization: { ...baseCustomization, canvasWidthPx: 1190, canvasHeightPx: 1683 },
+      submittedVariants: [],
+      assetsById: new Map(),
+    });
+
+    expect(row).toMatchObject({
+      productId: 42,
+      enabled: true,
+      canvasWidthPx: 1190,
+      canvasHeightPx: 1683,
+    });
+  });
+
   it("rejects publish when a variant has no customization media", () => {
     const result = validateCustomizationPublishReadiness({
       customization: baseCustomization,

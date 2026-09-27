@@ -2,6 +2,10 @@ export function getCategoryPath(categoryHandle: string) {
   return `/categories/${encodeURIComponent(categoryHandle)}`;
 }
 
+export function getCollectionPath(collectionHandle: string) {
+  return `/collections/${encodeURIComponent(collectionHandle)}`;
+}
+
 export function getGenericProductPath(productHandle: string) {
   return `/product/${encodeURIComponent(productHandle)}`;
 }
@@ -24,11 +28,29 @@ export function getCategoryProductRedirectPath(
 export function getProductPath({
   productHandle,
   categoryHandle,
+  collectionHandle,
+  sourceContext,
+  from,
 }: {
   productHandle: string;
   categoryHandle?: string | null;
+  collectionHandle?: string | null;
+  sourceContext?: "category" | "collection";
+  from?: string | null;
 }) {
-  return getGenericProductPath(productHandle);
+  const params = new URLSearchParams();
+  if (sourceContext === "collection") {
+    if (collectionHandle) params.set("collection", collectionHandle);
+    if (categoryHandle) params.set("category", categoryHandle);
+  } else {
+    if (categoryHandle) params.set("category", categoryHandle);
+    if (collectionHandle) params.set("collection", collectionHandle);
+  }
+  if (from) {
+    params.set("from", from);
+  }
+  const qs = params.toString();
+  return `${getGenericProductPath(productHandle)}${qs ? `?${qs}` : ""}`;
 }
 
 export function getActiveCategoryHandle(pathname: string) {

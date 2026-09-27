@@ -11,7 +11,7 @@ import {
   MAX_ASSET_BYTES,
 } from "../../lib/asset-utils";
 import type { AppEnv } from "../../lib/env";
-import { readImageDimensions } from "../../lib/image-dimensions";
+import { resolveAssetDimensions } from "../../lib/image-dimensions";
 import { toAbsoluteAssetUrl } from "../../lib/url";
 import { jsonError, parseParams } from "../../lib/validation";
 
@@ -58,25 +58,27 @@ export const productAssetsRoute = new Hono<AppEnv>()
       return c.json({ error: "Product asset size is invalid" }, 413);
     }
 
-    let dimensions: { width: number; height: number } | null = null;
-    const widthStr = formData?.get("widthPx");
-    const heightStr = formData?.get("heightPx");
+    const preview = formData?.get("preview") || formData?.get("thumbnail");
+    const previewFile = preview instanceof File ? preview : null;
+    let previewBuffer: ArrayBuffer | null = null;
+    let previewMimeType: string | null = null;
+    if (previewFile && mimeType === "application/pdf") {
+      previewBuffer = await previewFile.arrayBuffer();
+      previewMimeType = previewFile.type.trim().toLowerCase();
+    }
+
+    const widthStr = formData?.get("widthPx") || formData?.get("width");
+    const heightStr = formData?.get("heightPx") || formData?.get("height");
     const clientWidth = widthStr ? Number(widthStr) : NaN;
     const clientHeight = heightStr ? Number(heightStr) : NaN;
-
-    if (Number.isFinite(clientWidth) && Number.isFinite(clientHeight) && clientWidth > 0 && clientHeight > 0) {
-      dimensions = { width: clientWidth, height: clientHeight };
-    } else if (mimeType === "application/pdf") {
-      // Fallback for PDFs if client didn't provide dimensions
-      dimensions = { width: 800, height: 1131 };
-    } else {
-      const bytes = new Uint8Array(buffer);
-      dimensions = readImageDimensions(mimeType, bytes);
+    const declared = Number.isFinite(clientWidth) && Number.isFinite(clientHeight) && clientWidth > 0 && clientHeight > 0
+      ? { widthPx: clientWidth, heightPx: clientHeight }
+      : null;
+    const dimensions = resolveAssetDimensions({ declared, mimeType, buffer, previewBuffer, previewMimeType });
+    if (!dimensions) {
+      return c.json({ error: mimeType === "application/pdf" ? "Missing PDF dimensions in upload request" : "Media data is invalid or unsupported" }, 422);
     }
 
-    if (!dimensions || dimensions.width < 1 || dimensions.height < 1) {
-      return c.json({ error: "Media data is invalid or unsupported" }, 422);
-    }
 
     const id = crypto.randomUUID();
     const objectKey = `product-assets/${session.userId}/${id}/original.${extensionForMimeType(mimeType)}`;
@@ -91,12 +93,8 @@ export const productAssetsRoute = new Hono<AppEnv>()
       },
     });
 
-    const preview = formData?.get("preview") || formData?.get("thumbnail");
-    const previewFile = preview instanceof File ? preview : null;
     let previewObjectKey: string | null = null;
-    if (previewFile && mimeType === "application/pdf") {
-      const previewBuffer = await previewFile.arrayBuffer();
-      const previewMimeType = previewFile.type.trim().toLowerCase();
+    if (previewBuffer && previewMimeType) {
       previewObjectKey = `product-assets/${session.userId}/${id}/preview.${extensionForMimeType(previewMimeType)}`;
       await c.env.CUSTOMIZATION_ASSETS.put(previewObjectKey, previewBuffer, {
         httpMetadata: { contentType: previewMimeType },

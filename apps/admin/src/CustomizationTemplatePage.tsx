@@ -109,6 +109,7 @@ export default function CustomizationTemplatePage() {
           onUndoVectorPoint={undoVectorPoint}
           onCloseVectorShape={closeVectorShape}
           onCancelDraw={cancelDrawMode}
+          onDeleteLayer={deleteSelectedLayer}
         />
         <Inspector
           template={template}
@@ -118,6 +119,7 @@ export default function CustomizationTemplatePage() {
           onUpdateLayer={updateLayer}
           onPathEditingLayerChange={setPathEditingLayerId}
           onUpdateTemplate={updateTemplate}
+          onSelectVectorPoint={setSelectedVectorPointId}
         />
       </div>
       {previewOpen ? (

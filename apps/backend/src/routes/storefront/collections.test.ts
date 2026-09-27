@@ -339,4 +339,65 @@ describe("GET /api/storefront/collections/:handle/products", () => {
     const body = (await res.json()) as any;
     expect(body.items[0].thumbnail).toBeNull();
   });
+
+  it("filters collection products by category and returns availableCategories dynamic facets", async () => {
+    const queuedDb = createQueuedDb([
+      // collection lookup
+      { id: 42, handle: "bong-da", visibility: "public" },
+      // availableCategories query
+      [
+        { id: 1, name: "Cúp", handle: "cup", position: 0 },
+        { id: 2, name: "Huy chương", handle: "huy-chuong", position: 1 },
+      ],
+      // loadListingPage: items query (ends with .offset)
+      [
+        {
+          id: 101,
+          title: "Cúp Bóng Đá",
+          subtitle: null,
+          handle: "cup-bong-da",
+          status: "published",
+        },
+      ],
+      // loadListingPage: total query (ends with .get)
+      { total: 1 },
+      // categoryRows
+      [{ productId: 101, categoryId: 1, name: "Cúp" }],
+      // productMediaRows
+      [],
+      // variantRows
+      [
+        {
+          id: 1001,
+          productId: 101,
+          isDefault: true,
+          priceAmount: 50000,
+          position: 0,
+        },
+      ],
+      // variantMediaRows
+      [],
+      // variantCustomizationMediaRows
+      [],
+      // customizationRows
+      [],
+    ]);
+    (dbClient.getDb as any).mockReturnValue(queuedDb);
+
+    const res = await storefrontCollectionsRoute.request(
+      "/bong-da/products?category=cup",
+    );
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as any;
+    expect(body.items).toHaveLength(1);
+    expect(body.items[0]).toMatchObject({
+      id: 101,
+      handle: "cup-bong-da",
+    });
+    expect(body.availableCategories).toEqual([
+      { id: 1, name: "Cúp", handle: "cup" },
+      { id: 2, name: "Huy chương", handle: "huy-chuong" },
+    ]);
+  });
 });

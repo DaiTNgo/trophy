@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Container, Heading, Text, Drawer, Button, Select, Badge, Label, DropdownMenu, IconButton, toast } from "@medusajs/ui";
+import { Container, Heading, Text, Drawer, Button, Badge, Label, DropdownMenu, IconButton, toast } from "@medusajs/ui";
 import { MoreHorizontal } from "lucide-react";
 import { CategoryMultiSelect } from "../../components/ui/medusa/category-multiselect";
 import type { CatalogProduct } from "../../types";
@@ -15,7 +15,9 @@ export function ProductDetailOrganize({ product, mutate }: ProductDetailOrganize
   const [open, setOpen] = useState(false);
 
   // Form state — numeric IDs
-  const [collectionId, setCollectionId] = useState<number | null>(product.collectionId);
+  const [collectionIds, setCollectionIds] = useState<number[]>(
+    product.collectionIds ?? (product.collectionId ? [product.collectionId] : []),
+  );
   const [categoryIds, setCategoryIds] = useState<number[]>(product.categoryIds ?? []);
 
   // Remote metadata
@@ -31,7 +33,9 @@ export function ProductDetailOrganize({ product, mutate }: ProductDetailOrganize
     if (!open) return;
 
     // Reset form to current product state
-    setCollectionId(product.collectionId);
+    setCollectionIds(
+      product.collectionIds ?? (product.collectionId ? [product.collectionId] : []),
+    );
     setCategoryIds(product.categoryIds ?? []);
 
     setMetaLoading(true);
@@ -46,13 +50,13 @@ export function ProductDetailOrganize({ product, mutate }: ProductDetailOrganize
         });
       })
       .finally(() => setMetaLoading(false));
-  }, [open, product.collectionId, product.categoryIds]);
+  }, [open, product.collectionIds, product.collectionId, product.categoryIds]);
 
   const handleSave = async () => {
     setIsSubmitting(true);
     try {
       await updateProductOrganization(product.id, {
-        collectionId: collectionId ?? null,
+        collectionIds,
         categoryIds,
       });
       await mutate();
@@ -98,35 +102,26 @@ export function ProductDetailOrganize({ product, mutate }: ProductDetailOrganize
               <Drawer.Title>Edit Organization</Drawer.Title>
             </Drawer.Header>
             <Drawer.Body className="flex flex-col gap-y-6 overflow-y-auto">
-              {/* Collection */}
+              {/* Collections */}
               <div className="flex flex-col gap-y-2">
-                <Label>Collection</Label>
+                <Label>Collections</Label>
                 <Text size="xsmall" className="text-ui-fg-muted">
                   Merchandising grouping (e.g. occasion or audience).
                 </Text>
                 {metaLoading ? (
                   <LoadingPlaceholder />
                 ) : (
-                  <Select
-                    value={collectionId !== null ? String(collectionId) : "none"}
-                    onValueChange={(val) =>
-                      setCollectionId(val === "none" ? null : Number(val))
-                    }
-                  >
-                    <Select.Trigger>
-                      <Select.Value placeholder="No collection" />
-                    </Select.Trigger>
-                    <Select.Content>
-                      <Select.Item value="none">
-                        <span className="text-ui-fg-muted">No collection</span>
-                      </Select.Item>
-                      {collections.map((col) => (
-                        <Select.Item key={col.id} value={String(col.id)}>
-                          {col.label}
-                        </Select.Item>
-                      ))}
-                    </Select.Content>
-                  </Select>
+                  <CategoryMultiSelect
+                    values={collectionIds.map(String)}
+                    options={collections.map((col) => ({
+                      value: String(col.id),
+                      label: col.label,
+                    }))}
+                    onChange={(vals) => setCollectionIds(vals.map(Number))}
+                    placeholder="Select collections"
+                    searchPlaceholder="Search collections..."
+                    emptyText="No collections found"
+                  />
                 )}
               </div>
 
@@ -171,10 +166,24 @@ export function ProductDetailOrganize({ product, mutate }: ProductDetailOrganize
         {/* Read-only display */}
         <div className="flex flex-col">
           <div className="grid grid-cols-2 px-6 py-4 border-t border-ui-border-base">
-            <Text size="small" className="text-ui-fg-subtle font-medium">Collection</Text>
-            <Text size="small" className="text-ui-fg-base">
-              {product.collection || "—"}
-            </Text>
+            <Text size="small" className="text-ui-fg-subtle font-medium">Collections</Text>
+            {product.collections?.length ? (
+              <div className="flex flex-wrap gap-1">
+                {product.collections.map((col) => (
+                  <Badge key={col} size="xsmall">
+                    {col}
+                  </Badge>
+                ))}
+              </div>
+            ) : product.collection ? (
+              <Text size="small" className="text-ui-fg-base">
+                {product.collection}
+              </Text>
+            ) : (
+              <Text size="small" className="text-ui-fg-base">
+                —
+              </Text>
+            )}
           </div>
           <div className="grid grid-cols-2 px-6 py-4 border-t border-ui-border-base">
             <Text size="small" className="text-ui-fg-subtle font-medium">Categories</Text>
