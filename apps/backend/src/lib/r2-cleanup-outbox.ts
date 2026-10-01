@@ -1,4 +1,5 @@
 import { and, eq, isNull, lte, or } from 'drizzle-orm'
+import { getDb } from '../db/client'
 import { r2CleanupJobs } from '../db/schema'
 import type { AppBindings } from './env'
 
@@ -29,7 +30,6 @@ export function r2CleanupJobValues(objectKeys: string[]) {
 }
 
 export async function processR2CleanupJobs(env: AppBindings) {
-  const { getDb } = await import('../db/client')
   const db = getDb(env)
   const jobs = await db
     .select()

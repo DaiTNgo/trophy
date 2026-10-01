@@ -20,6 +20,7 @@ export interface StorageObjectMetadata {
   contentType?: string
   etag?: string
   size?: number
+  customMetadata?: Record<string, string>
 }
 
 export interface StorageObject {
@@ -31,6 +32,8 @@ export interface StorageObject {
   httpMetadata?: {
     contentType?: string
   }
+  /** Custom metadata key/value pairs attached to the object (mirrors R2 customMetadata). */
+  customMetadata?: Record<string, string>
   httpEtag: string
   size: number
 }
@@ -39,6 +42,8 @@ export interface StoragePutOptions {
   httpMetadata?: {
     contentType?: string
   }
+  /** Custom metadata key/value pairs to attach to the object (mirrors R2 customMetadata). */
+  customMetadata?: Record<string, string>
 }
 
 export interface StorageAdapter {
@@ -84,12 +89,16 @@ export class LocalStorageAdapter implements StorageAdapter {
       if (!stats.isFile()) return null
 
       let contentType = 'application/octet-stream'
+      let customMetadata: Record<string, string> | undefined
       const metaPath = this.getMetaPath(key)
       try {
         const metaRaw = await fs.readFile(metaPath, 'utf8')
         const meta: StorageObjectMetadata = JSON.parse(metaRaw)
         if (meta.contentType) {
           contentType = meta.contentType
+        }
+        if (meta.customMetadata && typeof meta.customMetadata === 'object') {
+          customMetadata = meta.customMetadata
         }
       } catch {
         const ext = path.extname(key).toLowerCase()
@@ -107,6 +116,7 @@ export class LocalStorageAdapter implements StorageAdapter {
         size: stats.size,
         httpEtag: etag,
         httpMetadata: { contentType },
+        customMetadata,
         writeHttpMetadata: (headers: Headers) => {
           headers.set('content-type', contentType)
           headers.set('content-length', stats.size.toString())
@@ -156,13 +166,14 @@ export class LocalStorageAdapter implements StorageAdapter {
 
     await fs.writeFile(filePath, buffer)
 
-    if (options?.httpMetadata) {
+    if (options?.httpMetadata || options?.customMetadata) {
       const metaPath = this.getMetaPath(key)
       await fs.writeFile(
         metaPath,
         JSON.stringify({
-          contentType: options.httpMetadata.contentType,
-          size: buffer.length
+          contentType: options.httpMetadata?.contentType,
+          size: buffer.length,
+          ...(options.customMetadata ? { customMetadata: options.customMetadata } : {}),
         }),
         'utf8'
       )

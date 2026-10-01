@@ -19,7 +19,7 @@ COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 COPY packages ./packages
 COPY apps/backend ./apps/backend
 COPY apps/admin ./apps/admin
-RUN pnpm --filter admin build
+RUN pnpm --filter admin build:docker
 
 # 3. Nginx runtime stage
 FROM nginx:alpine AS runner
@@ -29,7 +29,7 @@ COPY apps/admin/nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80
 
 # Healthcheck for container orchestration
-HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost/ || exit 1
+HEALTHCHECK --interval=10s --timeout=5s --start-period=5s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://127.0.0.1/ || exit 1
 
 CMD ["nginx", "-g", "daemon off;"]

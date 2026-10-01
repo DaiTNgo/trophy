@@ -69,8 +69,8 @@ services:
       MISA_API_BASE_URL: ${MISA_API_BASE_URL:-https://crmconnect.misa.vn/api/v2}
     volumes:
       - storage_data:/app/apps/backend/storage
-    expose:
-      - "8787"
+    ports:
+      - "${BACKEND_PORT:-8787}:8787"
     ulimits:
       nofile:
         soft: 65535
@@ -112,8 +112,8 @@ services:
       PORT: 3000
       BACKEND_INTERNAL_URL: http://backend:8787
       BACKEND_URL: ${BACKEND_PUBLIC_URL:-http://localhost/api}
-    expose:
-      - "3000"
+    ports:
+      - "${STOREFRONT_PORT:-3000}:3000"
     ulimits:
       nofile:
         soft: 65535
@@ -147,8 +147,8 @@ services:
     tmpfs:
       - /tmp:rw,noexec,nosuid
       - /var/run:rw,noexec,nosuid
-    expose:
-      - "80"
+    ports:
+      - "${ADMIN_PORT:-5174}:80"
     deploy:
       resources:
         limits:
@@ -206,6 +206,24 @@ services:
     networks:
       - trophy_net
 
+  # ============================================================================
+  # 6. Docker Management Dashboard (Dockhand - https://dockhand.pro)
+  # ============================================================================
+  dockhand:
+    image: fnsys/dockhand:latest
+    container_name: trophy_dockhand
+    restart: unless-stopped
+    ports:
+      - "${DOCKHAND_PORT:-3001}:3000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - dockhand_data:/app/data
+    profiles:
+      - dockhand
+      - tools
+    networks:
+      - trophy_net
+
 # ==============================================================================
 # Persistent Volumes
 # ==============================================================================
@@ -213,6 +231,8 @@ volumes:
   postgres_data:
     driver: local
   storage_data:
+    driver: local
+  dockhand_data:
     driver: local
 
 # ==============================================================================

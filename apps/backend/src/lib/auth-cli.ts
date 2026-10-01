@@ -4,6 +4,7 @@ import { admin } from 'better-auth/plugins/admin'
 import { username } from 'better-auth/plugins/username'
 import { defaultAc, userAc } from 'better-auth/plugins/admin/access'
 import * as schema from '../db/schema'
+import { getDb } from '../db/client'
 import { AUTH_BASE_PATH } from './auth'
 
 const superAdminAc = defaultAc.newRole({
@@ -11,14 +12,18 @@ const superAdminAc = defaultAc.newRole({
   session: []
 })
 
+/**
+ * Standalone auth instance for CLI/seed scripts.
+ * Reads DATABASE_URL from environment (same as the runtime server).
+ */
 export const auth = betterAuth({
   appName: 'Trophy Admin',
-  baseURL: 'http://localhost:8787',
+  baseURL: process.env.BETTER_AUTH_URL || 'http://localhost:8787',
   basePath: AUTH_BASE_PATH,
-  secret: 'replace-this-local-dev-secret-with-a-real-value',
+  secret: process.env.BETTER_AUTH_SECRET || 'replace-this-local-dev-secret-with-a-real-value',
   trustedOrigins: ['http://127.0.0.1:5173', 'http://localhost:5173'],
-  database: drizzleAdapter({} as never, {
-    provider: 'sqlite',
+  database: drizzleAdapter(getDb(), {
+    provider: 'pg',
     usePlural: true,
     schema
   }),

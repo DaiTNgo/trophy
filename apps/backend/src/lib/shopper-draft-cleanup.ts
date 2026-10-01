@@ -1,4 +1,5 @@
 import { and, eq, lte } from "drizzle-orm";
+import { getDb } from "../db/client";
 import { customizationAssets } from "../db/schema";
 import type { AppBindings } from "./env";
 
@@ -9,7 +10,6 @@ export async function processExpiredShopperDraftAssets(
   env: AppBindings,
   now = new Date(),
 ) {
-  const { getDb } = await import("../db/client");
   const db = getDb(env);
   const assets = await db
     .select()
