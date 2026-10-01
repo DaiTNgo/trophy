@@ -27,14 +27,20 @@ export function getBackendServiceFetch(
     backendBaseUrlStr.endsWith("/") ? backendBaseUrlStr : `${backendBaseUrlStr}/`
   );
 
+  const publicBackendUrlStr = process.env.BACKEND_URL || "http://127.0.0.1:8787";
+  const publicBackendHost = new URL(publicBackendUrlStr).host;
+
+  const isBackendHost = (host: string) => {
+    return host === "localhost:8787" || host === "127.0.0.1:8787" || host === publicBackendHost;
+  };
+
   return async (input: RequestInfo | URL, init?: RequestInit) => {
     let targetUrl: URL;
 
     if (typeof input === "string") {
       if (input.startsWith("http://") || input.startsWith("https://")) {
         const parsed = new URL(input);
-        // If pointing to localhost/127.0.0.1:8787, redirect to internal backend URL in Docker
-        if (parsed.host === "localhost:8787" || parsed.host === "127.0.0.1:8787") {
+        if (isBackendHost(parsed.host)) {
           targetUrl = new URL(`${parsed.pathname}${parsed.search}`, backendBaseUrl);
         } else {
           targetUrl = parsed;
@@ -43,14 +49,14 @@ export function getBackendServiceFetch(
         targetUrl = new URL(input.replace(/^\/+/, ""), backendBaseUrl);
       }
     } else if (input instanceof URL) {
-      if (input.host === "localhost:8787" || input.host === "127.0.0.1:8787") {
+      if (isBackendHost(input.host)) {
         targetUrl = new URL(`${input.pathname}${input.search}`, backendBaseUrl);
       } else {
         targetUrl = input;
       }
     } else {
       const parsed = new URL(input.url);
-      if (parsed.host === "localhost:8787" || parsed.host === "127.0.0.1:8787") {
+      if (isBackendHost(parsed.host)) {
         targetUrl = new URL(`${parsed.pathname}${parsed.search}`, backendBaseUrl);
       } else {
         targetUrl = parsed;

@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { storefrontBrandAssetsRoute } from "./brand-assets";
 
 describe("storefront brand asset routes", () => {
-  it("serves immutable font assets with a browser-only cache policy", async () => {
+  it("serves immutable font assets with a public cache policy", async () => {
     const get = vi.fn(async () => ({
       body: new ReadableStream(),
       httpEtag: "etag-font-inter",
@@ -19,7 +19,7 @@ describe("storefront brand asset routes", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(response.headers.get("cache-control")).toBe("private, max-age=31536000, immutable");
+    expect(response.headers.get("cache-control")).toBe("public, max-age=31536000, immutable");
     expect(response.headers.get("etag")).toBe("etag-font-inter");
     expect(get).toHaveBeenCalledWith("fonts/font_inter_regular.ttf");
   });

@@ -37,7 +37,8 @@ export async function parseFullCreateMultipart(request: Request) {
     ...variant.media.map((media) => media.mediaId),
     ...(variant.customizationMedia ? [variant.customizationMedia.mediaId] : [])
   ])
-  if (new Set(declaredIds).size !== declaredIds.length) return invalid('Each declared media ID must be unique')
+
+  const uniqueDeclaredIds = new Set(declaredIds)
 
   const declaredDimensions = new Map<string, { widthPx: number; heightPx: number }>()
   for (const variant of parsed.output.variants) {
@@ -68,12 +69,12 @@ export async function parseFullCreateMultipart(request: Request) {
       supplied.set(name, [...(supplied.get(name) ?? []), value])
     }
   }
-  if (supplied.size !== declaredIds.length || declaredIds.some((id) => supplied.get(id)?.length !== 1)) {
+  if (supplied.size !== uniqueDeclaredIds.size || [...uniqueDeclaredIds].some((id) => supplied.get(id)?.length !== 1)) {
     return invalid('Each declared media ID must have exactly one matching file and no unreferenced files')
   }
 
   const media = new Map<string, ValidatedFullCreateMedia>()
-  for (const id of declaredIds) {
+  for (const id of uniqueDeclaredIds) {
     const file = supplied.get(id)![0]
     const mimeType = file.type.trim().toLowerCase()
     if (!allowedMimeTypes.has(mimeType)) return invalid('Only PNG, JPEG, WEBP, and PDF product assets are supported')
@@ -90,6 +91,7 @@ export async function parseFullCreateMultipart(request: Request) {
     const declared = declaredDimensions.get(id)
     const dimensions = resolveAssetDimensions({ declared, mimeType, buffer, previewBuffer, previewMimeType })
     if (!dimensions) return invalid('Media data is invalid or unsupported')
+
     media.set(id, {
       id: crypto.randomUUID(),
       fieldId: id,
@@ -100,7 +102,7 @@ export async function parseFullCreateMultipart(request: Request) {
       byteSize: buffer.byteLength,
       buffer,
       previewBuffer,
-      previewMimeType,
+      previewMimeType
     })
   }
 

@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vp dev",
     "build": "tsc -b && vp build",
+    "build:docker": "tsc -b && vite build",
     "test": "vitest run --config vitest.config.ts",
     "lint": "vp lint .",
     "analyze": "ANALYZE_BUNDLE=1 vp build",

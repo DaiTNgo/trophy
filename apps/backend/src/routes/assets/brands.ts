@@ -23,7 +23,7 @@ export const assetsBrandsRoute = new Hono<AppEnv>()
     const object = await c.env.CUSTOMIZATION_ASSETS.get(key);
     
     if (!object) {
-      return c.notFound();
+      return c.json({ error: 'Not found' }, 404);
     }
 
     const headers = new Headers();
@@ -50,7 +50,7 @@ export const assetsBrandsRoute = new Hono<AppEnv>()
     const object = await c.env.CUSTOMIZATION_ASSETS.get(key);
     
     if (!object) {
-      return c.notFound();
+      return c.json({ error: 'Not found' }, 404);
     }
 
     const headers = new Headers();
