@@ -118,19 +118,25 @@ export function CreateProductPage() {
               <div className="flex-1 flex flex-col min-h-0">
                 <ProgressTabs.Content
                   value="details"
-                  className="outline-none px-6 py-6"
+                  forceMount
+                  className="outline-none px-6 py-6 data-[state=inactive]:hidden"
                 >
                   <CreateProductDetails state={state} />
                 </ProgressTabs.Content>
 
                 <ProgressTabs.Content
                   value="organize"
-                  className="outline-none px-6 py-6"
+                  forceMount
+                  className="outline-none px-6 py-6 data-[state=inactive]:hidden"
                 >
                   <CreateProductOrganize state={state} />
                 </ProgressTabs.Content>
 
-                <ProgressTabs.Content value="variants" className="space-y-5">
+                <ProgressTabs.Content
+                  value="variants"
+                  forceMount
+                  className="space-y-5 data-[state=inactive]:hidden"
+                >
                   <CreateProductVariants state={state} />
                 </ProgressTabs.Content>
 

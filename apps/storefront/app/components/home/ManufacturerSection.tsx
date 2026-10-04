@@ -1,6 +1,7 @@
 import { Link } from "react-router";
 import { useTranslation } from "react-i18next";
 import { Type, ImageUp, Eye, Palette, ArrowRight } from "lucide-react";
+import { getCategoryPath } from "@/lib/storefront-paths";
 
 const PRODUCT_IMAGE = "/images/home/customization-workspace.jpg";
 
@@ -65,7 +66,7 @@ export function CustomizationFeatureSection() {
             </div>
 
             <Link
-              to="/categories/san-pham-tuy-chinh"
+              to={getCategoryPath("customization")}
               className="inline-flex items-center gap-2 rounded-lg bg-action-support px-8 py-4 font-label-md text-label-md uppercase tracking-widest text-white transition-all duration-300 hover:bg-action-support-hover"
             >
               {t("customization_cta")}

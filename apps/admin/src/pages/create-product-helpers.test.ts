@@ -7,6 +7,8 @@ import {
   getSubmittedCustomization,
   hasEmbeddedCustomizationDraft,
   resolveSelectedPreviewBackground,
+  createInitialSectionEditors,
+  updateSectionEditorValue,
 } from "./create-product-helpers";
 
 const buildVariant = ({
@@ -153,4 +155,70 @@ describe("create product helpers", () => {
       formFields: draft.formFields,
     });
   });
+
+  describe("product sections state preservation", () => {
+    it("initializes empty section editors when form values are empty", () => {
+      const editors = createInitialSectionEditors();
+
+      expect(editors.whyThisProductHtml).toEqual({
+        vi: { html: "", json: null },
+        en: { html: "", json: null },
+      });
+      expect(editors.specificationsHtml).toEqual({
+        vi: { html: "", json: null },
+        en: { html: "", json: null },
+      });
+      expect(editors.shippingHtml).toEqual({
+        vi: { html: "", json: null },
+        en: { html: "", json: null },
+      });
+    });
+
+    it("initializes section editors with existing form values", () => {
+      const editors = createInitialSectionEditors({
+        whyThisProductHtml: { vi: "<p>Ly do chon</p>", en: "<p>Why choose</p>" },
+        specificationsHtml: { vi: "<p>Thong so</p>", en: "" },
+        shippingHtml: { vi: "", en: "" },
+      });
+
+      expect(editors.whyThisProductHtml).toEqual({
+        vi: { html: "<p>Ly do chon</p>", json: null },
+        en: { html: "<p>Why choose</p>", json: null },
+      });
+      expect(editors.specificationsHtml).toEqual({
+        vi: { html: "<p>Thong so</p>", json: null },
+        en: { html: "", json: null },
+      });
+    });
+
+    it("updates section editor value immutably without clobbering other sections or locales", () => {
+      const initial = createInitialSectionEditors({
+        whyThisProductHtml: { vi: "<p>Initial VI</p>", en: "<p>Initial EN</p>" },
+      });
+
+      const updated = updateSectionEditorValue(
+        initial,
+        "whyThisProductHtml",
+        "vi",
+        {
+          html: "<p>Updated VI</p>",
+          json: JSON.stringify({ type: "doc", content: [] }),
+        },
+      );
+
+      expect(updated.whyThisProductHtml.vi).toEqual({
+        html: "<p>Updated VI</p>",
+        json: JSON.stringify({ type: "doc", content: [] }),
+      });
+      // English content remains untouched
+      expect(updated.whyThisProductHtml.en).toEqual({
+        html: "<p>Initial EN</p>",
+        json: null,
+      });
+      // Other sections remain untouched
+      expect(updated.specificationsHtml).toEqual(initial.specificationsHtml);
+      expect(updated.shippingHtml).toEqual(initial.shippingHtml);
+    });
+  });
 });
+

@@ -58,6 +58,18 @@ const DEFAULT_PLACEHOLDERS: Record<AdminLocale, string> = {
   en: "Start writing your content...",
 };
 
+function parseRichTextContent(value?: { json?: string | null; html?: string }) {
+  if (!value) return "";
+  if (value.json) {
+    try {
+      return JSON.parse(value.json) as object;
+    } catch {
+      // Fallback to html
+    }
+  }
+  return value.html || "";
+}
+
 /** Swaps the editor content to the requested locale without clobbering the user's undo history while typing. */
 function useEditorLocaleSync(
   editor: Editor | null,
@@ -67,7 +79,7 @@ function useEditorLocaleSync(
   useEffect(() => {
     if (!editor) return;
     const value = valueByLocale[locale];
-    editor.commands.setContent(value.json ? (JSON.parse(value.json) as object) : value.html || "");
+    editor.commands.setContent(parseRichTextContent(value));
     // Only re-run when switching language; valueByLocale is read at that moment.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [locale]);
@@ -180,9 +192,7 @@ export function RichTextEditor({
         nocookie: true,
       }),
     ],
-    content: valueByLocale.vi.json
-      ? (JSON.parse(valueByLocale.vi.json) as object)
-      : valueByLocale.vi.html || "",
+    content: parseRichTextContent(valueByLocale.vi),
     onUpdate: ({ editor }) => {
       onChangeByLocale(localeRef.current, {
         html: editor.getHTML(),

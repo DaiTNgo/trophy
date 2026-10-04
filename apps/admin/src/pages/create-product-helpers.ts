@@ -1,5 +1,38 @@
 import type { BackgroundAsset, ProductCustomization } from "@trophy/customization";
-import type { ProductVariant, ProductVariantMedia } from "../types";
+import type { AdminLocale, CreateProductFormValues, ProductVariant, ProductVariantMedia } from "../types";
+import type { RichTextEditorValue, RichTextValueByLocale } from "../components/rich-text/rich-text-editor";
+import type { RichTextSectionKey } from "../lib/product-utils";
+
+export const createInitialSectionEditors = (
+  values?: Partial<CreateProductFormValues>,
+): Record<RichTextSectionKey, RichTextValueByLocale> => ({
+  whyThisProductHtml: {
+    vi: { html: values?.whyThisProductHtml?.vi || "", json: null },
+    en: { html: values?.whyThisProductHtml?.en || "", json: null },
+  },
+  specificationsHtml: {
+    vi: { html: values?.specificationsHtml?.vi || "", json: null },
+    en: { html: values?.specificationsHtml?.en || "", json: null },
+  },
+  shippingHtml: {
+    vi: { html: values?.shippingHtml?.vi || "", json: null },
+    en: { html: values?.shippingHtml?.en || "", json: null },
+  },
+});
+
+export const updateSectionEditorValue = (
+  currentEditors: Record<RichTextSectionKey, RichTextValueByLocale>,
+  key: RichTextSectionKey,
+  locale: AdminLocale,
+  value: RichTextEditorValue,
+): Record<RichTextSectionKey, RichTextValueByLocale> => ({
+  ...currentEditors,
+  [key]: {
+    ...currentEditors[key],
+    [locale]: value,
+  },
+});
+
 
 export type EmbeddedCustomizationDraft = Pick<
   ProductCustomization,

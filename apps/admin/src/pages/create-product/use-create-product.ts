@@ -11,8 +11,12 @@ import {
   getPreviewBackgrounds,
   getSubmittedCustomization,
   resolveSelectedPreviewBackground,
+  createInitialSectionEditors,
+  updateSectionEditorValue,
   type EmbeddedCustomizationDraft,
 } from "../create-product-helpers";
+import type { RichTextEditorValue, RichTextValueByLocale } from "../../components/rich-text/rich-text-editor";
+import type { RichTextSectionKey } from "../../lib/product-utils";
 import {
   fetchProductMetadata,
   type ProductMetadataSnapshot,
@@ -149,6 +153,9 @@ export function useCreateProduct() {
     useState<EmbeddedCustomizationDraft>(() =>
       createEmptyEmbeddedCustomizationDraft(),
     );
+  const [sectionEditors, setSectionEditors] = useState<
+    Record<RichTextSectionKey, RichTextValueByLocale>
+  >(() => createInitialSectionEditors(defaultCreateProductValues));
   const [attributes, setAttributes] = useState<ProductAttribute[]>([
     { key: { vi: "", en: "" }, value: { vi: "", en: "" } },
   ]);
@@ -358,7 +365,51 @@ export function useCreateProduct() {
     nextValue: CreateProductFormValues[K],
   ) {
     setValues((current) => ({ ...current, [key]: nextValue }));
+    if (
+      key === "whyThisProductHtml" ||
+      key === "specificationsHtml" ||
+      key === "shippingHtml"
+    ) {
+      const val = nextValue as LocalizedTextValue;
+      setSectionEditors((current) => ({
+        ...current,
+        [key]: {
+          vi: {
+            html: val?.vi || "",
+            json:
+              current[key as RichTextSectionKey]?.vi?.html === val?.vi
+                ? current[key as RichTextSectionKey]?.vi?.json
+                : null,
+          },
+          en: {
+            html: val?.en || "",
+            json:
+              current[key as RichTextSectionKey]?.en?.html === val?.en
+                ? current[key as RichTextSectionKey]?.en?.json
+                : null,
+          },
+        },
+      }));
+    }
   }
+
+  function updateSectionEditor(
+    key: RichTextSectionKey,
+    locale: AdminLocale,
+    value: RichTextEditorValue,
+  ) {
+    setSectionEditors((current) =>
+      updateSectionEditorValue(current, key, locale, value),
+    );
+    setValues((current) => ({
+      ...current,
+      [key]: {
+        ...current[key],
+        [locale]: value.html,
+      },
+    }));
+  }
+
 
   function updateAttribute(
     index: number,
@@ -1160,6 +1211,7 @@ export function useCreateProduct() {
     metadata,
     isLoadingMetadata,
     values,
+    sectionEditors,
     selectedCollectionIds,
     selectedCategoryIds,
     selectedPreviewAssetId,
@@ -1192,6 +1244,8 @@ export function useCreateProduct() {
     // Actions
     setValues,
     setValue,
+    setSectionEditors,
+    updateSectionEditor,
     setSelectedCollectionIds,
     setSelectedCategoryIds,
     setSelectedPreviewAssetId,

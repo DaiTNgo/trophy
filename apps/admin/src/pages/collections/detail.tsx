@@ -21,7 +21,11 @@ import {
 import { ProductSelectorDrawer } from "../../components/product-selector-drawer";
 import { uploadProductVariantMedia } from "../../lib/product-assets-client";
 import { MediaPreview } from "../../components/ui/media-preview";
-import { convertPdfToImageFile } from "../../lib/pdf-preview";
+import {
+  ACCEPT_IMAGE_MIME_TYPES,
+  SUPPORTED_IMAGE_TYPES_HINT,
+  validateCategoryOrCollectionMediaFile,
+} from "../../lib/media-asset";
 import {
   LocalizedTextField,
   createEmptyLocalizedText,
@@ -52,6 +56,7 @@ export function CollectionDetailPage() {
   const [imageUrl, setImageUrl] = useState("");
   const [previewUrl, setPreviewUrl] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const [imageError, setImageError] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -169,18 +174,23 @@ export function CollectionDetailPage() {
     const selectedFile = e.target.files?.[0];
     if (!selectedFile) return;
 
-    try {
-      let fileToProcess = selectedFile;
-      if (selectedFile.type === "application/pdf") {
-        fileToProcess = await convertPdfToImageFile(selectedFile);
-      }
-      setFile(fileToProcess);
+    setImageError(null);
+    const validationError = validateCategoryOrCollectionMediaFile(selectedFile);
+    if (validationError) {
+      setImageError(validationError);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
 
-      const newPreviewUrl = URL.createObjectURL(fileToProcess);
+    try {
+      setFile(selectedFile);
+
+      const newPreviewUrl = URL.createObjectURL(selectedFile);
       setPreviewUrl(newPreviewUrl);
       setImageUrl(""); // Clear the existing imageUrl since we have a new file
     } catch (err) {
       console.error("Failed to load file preview", err);
+      setImageError(err instanceof Error ? err.message : "Failed to load file preview.");
     } finally {
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
@@ -193,10 +203,12 @@ export function CollectionDetailPage() {
     setFile(null);
     setPreviewUrl("");
     setImageUrl("");
+    setImageError(null);
   };
 
   async function handleSave() {
     setIsSaving(true);
+    setImageError(null);
     try {
       let finalImageUrl = imageUrl;
 
@@ -230,10 +242,12 @@ export function CollectionDetailPage() {
           setFile(null);
         }
       } else {
-        console.error("Failed to save collection");
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error || "Failed to save collection");
       }
     } catch (e) {
       console.error(e);
+      setImageError(e instanceof Error ? e.message : "Failed to save collection");
     } finally {
       setIsSaving(false);
     }
@@ -332,21 +346,21 @@ export function CollectionDetailPage() {
             <Container className="p-0 overflow-hidden w-full lg:w-[320px] h-fit">
               <div className="flex flex-col">
                 <div className="flex items-center justify-between px-6 py-4">
-                  <Heading level="h2" className="text-xl font-semibold">
-                    Media
-                  </Heading>
+                  <div className="flex flex-col gap-1">
+                    <Heading level="h2" className="text-xl font-semibold">
+                      Media
+                    </Heading>
+                    <Text size="small" className="text-ui-fg-subtle">
+                      {SUPPORTED_IMAGE_TYPES_HINT}
+                    </Text>
+                  </div>
                 </div>
                 <div className="flex flex-col gap-y-4 border-t border-ui-border-base px-6 py-4">
                   {previewUrl ? (
                     <div className="relative h-48 w-48 overflow-hidden rounded-lg border border-ui-border-base bg-ui-bg-subtle">
                       <MediaPreview
                         src={previewUrl}
-                        mimeType={
-                          file?.type ||
-                          (previewUrl.toLowerCase().endsWith(".pdf")
-                            ? "application/pdf"
-                            : "image/jpeg")
-                        }
+                        mimeType={file?.type || "image/jpeg"}
                         className="h-full w-full object-cover"
                         alt="Collection Preview"
                       />
@@ -371,10 +385,17 @@ export function CollectionDetailPage() {
                   <input
                     ref={fileInputRef}
                     type="file"
-                    accept="image/*,application/pdf"
+                    accept={ACCEPT_IMAGE_MIME_TYPES}
                     className="hidden"
                     onChange={handleFileSelect}
                   />
+                  {imageError ? (
+                    <div className="rounded-md border border-ui-border-error bg-ui-bg-error p-3">
+                      <Text size="small" className="text-ui-fg-error">
+                        {imageError}
+                      </Text>
+                    </div>
+                  ) : null}
                   <div className="flex gap-2">
                     <Button
                       variant="secondary"
@@ -649,19 +670,19 @@ export function CollectionDetailPage() {
               </div>
 
               <div className="flex flex-col gap-y-2">
-                <Label className="text-ui-fg-base">
-                  Collection Image (optional)
-                </Label>
+                <div className="flex flex-col gap-1">
+                  <Label className="text-ui-fg-base">
+                    Collection Image (optional)
+                  </Label>
+                  <Text size="small" className="text-ui-fg-subtle">
+                    {SUPPORTED_IMAGE_TYPES_HINT}
+                  </Text>
+                </div>
                 {previewUrl ? (
                   <div className="relative overflow-hidden rounded-lg border border-ui-border-base bg-ui-bg-subtle w-48 h-48">
                     <MediaPreview
                       src={previewUrl}
-                      mimeType={
-                        file?.type ||
-                        (previewUrl.toLowerCase().endsWith(".pdf")
-                          ? "application/pdf"
-                          : "image/jpeg")
-                      }
+                      mimeType={file?.type || "image/jpeg"}
                       className="h-full w-full object-cover"
                       alt="Collection Preview"
                     />
@@ -686,10 +707,17 @@ export function CollectionDetailPage() {
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept="image/*,application/pdf"
+                  accept={ACCEPT_IMAGE_MIME_TYPES}
                   className="hidden"
                   onChange={handleFileSelect}
                 />
+                {imageError ? (
+                  <div className="rounded-md border border-ui-border-error bg-ui-bg-error p-3">
+                    <Text size="small" className="text-ui-fg-error">
+                      {imageError}
+                    </Text>
+                  </div>
+                ) : null}
               </div>
             </div>
           </Container>

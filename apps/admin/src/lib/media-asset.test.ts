@@ -12,7 +12,13 @@ vi.mock("./image-dimensions", () => ({
   getNativeMediaDimensions: mocks.getNativeMediaDimensions,
 }));
 
-import { dimensionsMatch, readMediaAsset, toPreviewImageFile } from "./media-asset";
+import {
+  dimensionsMatch,
+  readMediaAsset,
+  toPreviewImageFile,
+  validateCategoryOrCollectionMediaFile,
+  MAX_METADATA_IMAGE_BYTES,
+} from "./media-asset";
 
 const pdf = () => new File(["pdf"], "bg.pdf", { type: "application/pdf" });
 const png = () => new File(["png"], "bg.png", { type: "image/png" });
@@ -65,5 +71,30 @@ describe("media asset reading", () => {
     expect(dimensionsMatch(actual, { widthPx: 800, heightPx: 601 })).toBe(false);
     expect(dimensionsMatch(actual, { widthPx: null, heightPx: null })).toBe(false);
     expect(dimensionsMatch(null, { widthPx: 800, heightPx: 600 })).toBe(false);
+  });
+
+  describe("validateCategoryOrCollectionMediaFile", () => {
+    it("accepts valid image types (PNG, JPEG, WebP)", () => {
+      expect(validateCategoryOrCollectionMediaFile(new File(["data"], "test.png", { type: "image/png" }))).toBeNull();
+      expect(validateCategoryOrCollectionMediaFile(new File(["data"], "test.jpg", { type: "image/jpeg" }))).toBeNull();
+      expect(validateCategoryOrCollectionMediaFile(new File(["data"], "test.webp", { type: "image/webp" }))).toBeNull();
+    });
+
+    it("rejects unsupported types like PDF, SVG, GIF, txt", () => {
+      expect(validateCategoryOrCollectionMediaFile(new File(["data"], "test.pdf", { type: "application/pdf" }))).toMatch(/Unsupported file type/);
+      expect(validateCategoryOrCollectionMediaFile(new File(["data"], "test.svg", { type: "image/svg+xml" }))).toMatch(/Unsupported file type/);
+      expect(validateCategoryOrCollectionMediaFile(new File(["data"], "test.gif", { type: "image/gif" }))).toMatch(/Unsupported file type/);
+      expect(validateCategoryOrCollectionMediaFile(new File(["data"], "test.txt", { type: "text/plain" }))).toMatch(/Unsupported file type/);
+    });
+
+    it("rejects empty files", () => {
+      expect(validateCategoryOrCollectionMediaFile(new File([], "test.png", { type: "image/png" }))).toMatch(/File is empty/);
+    });
+
+    it("rejects files exceeding 20MB", () => {
+      const largeFile = new File(["dummy"], "large.png", { type: "image/png" });
+      Object.defineProperty(largeFile, "size", { value: MAX_METADATA_IMAGE_BYTES + 1 });
+      expect(validateCategoryOrCollectionMediaFile(largeFile)).toMatch(/20 MB/);
+    });
   });
 });

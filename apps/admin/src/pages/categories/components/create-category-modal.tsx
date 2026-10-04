@@ -17,7 +17,11 @@ import type { Edge } from "./sortable-list";
 import { RankingList } from "./ranking-list";
 import { uploadProductVariantMedia } from "../../../lib/product-assets-client";
 import { MediaPreview } from "../../../components/ui/media-preview";
-import { convertPdfToImageFile } from "../../../lib/pdf-preview";
+import {
+  ACCEPT_IMAGE_MIME_TYPES,
+  SUPPORTED_IMAGE_TYPES_HINT,
+  validateCategoryOrCollectionMediaFile,
+} from "../../../lib/media-asset";
 
 type CategoryItem = {
   id: string;
@@ -43,6 +47,7 @@ export function CreateCategoryModal({ open, onOpenChange, categories, onSuccess 
   const [visibility, setVisibility] = useState<"public" | "hidden">("public");
   const [previewUrl, setPreviewUrl] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const [imageError, setImageError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [orderedItems, setOrderedItems] = useState<CategoryItem[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -61,6 +66,7 @@ export function CreateCategoryModal({ open, onOpenChange, categories, onSuccess 
       setVisibility("public");
       setPreviewUrl("");
       setFile(null);
+      setImageError(null);
       setOrderedItems([...categories]);
     }
   }, [open, categories]);
@@ -119,21 +125,25 @@ export function CreateCategoryModal({ open, onOpenChange, categories, onSuccess 
     const selectedFile = e.target.files?.[0];
     if (!selectedFile) return;
 
-    try {
-      let fileToProcess = selectedFile;
-      if (selectedFile.type === "application/pdf") {
-        fileToProcess = await convertPdfToImageFile(selectedFile);
-      }
+    setImageError(null);
+    const validationError = validateCategoryOrCollectionMediaFile(selectedFile);
+    if (validationError) {
+      setImageError(validationError);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
 
+    try {
       if (previewUrl && previewUrl.startsWith("blob:")) {
         URL.revokeObjectURL(previewUrl);
       }
 
-      setFile(fileToProcess);
-      setPreviewUrl(URL.createObjectURL(fileToProcess));
+      setFile(selectedFile);
+      setPreviewUrl(URL.createObjectURL(selectedFile));
       setImageUrl("");
     } catch (err) {
       console.error("Failed to load file preview", err);
+      setImageError(err instanceof Error ? err.message : "Failed to load file preview.");
     } finally {
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
@@ -146,11 +156,13 @@ export function CreateCategoryModal({ open, onOpenChange, categories, onSuccess 
     setFile(null);
     setPreviewUrl("");
     setImageUrl("");
+    setImageError(null);
   };
 
   const handleSave = async () => {
     if (!title.vi.trim()) return;
     setIsSaving(true);
+    setImageError(null);
     try {
       let finalImageUrl = imageUrl;
 
@@ -190,6 +202,7 @@ export function CreateCategoryModal({ open, onOpenChange, categories, onSuccess 
       navigate(`/categories/${newCatId}`);
     } catch (e) {
       console.error(e);
+      setImageError(e instanceof Error ? e.message : "Failed to create category");
     } finally {
       setIsSaving(false);
     }
@@ -279,14 +292,19 @@ export function CreateCategoryModal({ open, onOpenChange, categories, onSuccess 
                 </div>
 
                 <div className="flex flex-col gap-y-2">
-                  <Label className="flex items-center gap-x-1" weight="plus">
-                    Category Image <span className="text-ui-fg-muted font-normal">(Optional)</span>
-                  </Label>
+                  <div className="flex flex-col gap-y-1">
+                    <Label className="flex items-center gap-x-1" weight="plus">
+                      Category Image <span className="text-ui-fg-muted font-normal">(Optional)</span>
+                    </Label>
+                    <Text size="small" className="text-ui-fg-subtle">
+                      {SUPPORTED_IMAGE_TYPES_HINT}
+                    </Text>
+                  </div>
                   {previewUrl ? (
                     <div className="relative h-48 w-48 overflow-hidden rounded-lg border border-ui-border-base bg-ui-bg-subtle">
                       <MediaPreview
                         src={previewUrl}
-                        mimeType={file?.type || (previewUrl.toLowerCase().endsWith(".pdf") ? "application/pdf" : "image/jpeg")}
+                        mimeType={file?.type || "image/jpeg"}
                         className="h-full w-full object-cover"
                         alt="Category Preview"
                       />
@@ -311,10 +329,17 @@ export function CreateCategoryModal({ open, onOpenChange, categories, onSuccess 
                   <input
                     ref={fileInputRef}
                     type="file"
-                    accept="image/*,application/pdf"
+                    accept={ACCEPT_IMAGE_MIME_TYPES}
                     className="hidden"
                     onChange={handleFileSelect}
                   />
+                  {imageError ? (
+                    <div className="rounded-md border border-ui-border-error bg-ui-bg-error p-3">
+                      <Text size="small" className="text-ui-fg-error">
+                        {imageError}
+                      </Text>
+                    </div>
+                  ) : null}
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">

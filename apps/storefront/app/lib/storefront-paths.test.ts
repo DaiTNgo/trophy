@@ -1,12 +1,18 @@
 import { describe, expect, it } from "vitest";
 import {
   getActiveCategoryHandle,
+  getCategoryPath,
   getCategoryProductPath,
   getGenericProductPath,
   getProductPath,
 } from "./storefront-paths";
 
 describe("storefront product paths", () => {
+  it("generates category paths correctly", () => {
+    expect(getCategoryPath("customization")).toBe("/categories/customization");
+    expect(getCategoryPath("cup-vinh-danh")).toBe("/categories/cup-vinh-danh");
+  });
+
   it("generates contextual product paths with query params", () => {
     expect(getProductPath({ productHandle: "champion-cup" }))
       .toBe("/product/champion-cup");
@@ -30,6 +36,7 @@ describe("storefront product paths", () => {
 
   it("extracts active category handle from pathname correctly", () => {
     expect(getActiveCategoryHandle("/categories/cup-kim-loai")).toBe("cup-kim-loai");
+    expect(getActiveCategoryHandle("/categories/customization")).toBe("customization");
     expect(getActiveCategoryHandle("/categories/cup-pha-le/products/pha-le-1")).toBe("cup-pha-le");
     expect(getActiveCategoryHandle("/products")).toBeNull();
     expect(getActiveCategoryHandle("/")).toBeNull();

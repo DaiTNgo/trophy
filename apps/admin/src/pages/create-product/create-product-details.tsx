@@ -12,7 +12,7 @@ import {
   LocalizedTextField,
   createLocalizedText,
 } from "../../components/ui/medusa";
-import { RichTextEditor, type RichTextValueByLocale } from "../../components/rich-text/rich-text-editor";
+import { RichTextEditor } from "../../components/rich-text/rich-text-editor";
 import { buildVariantSignature } from "./use-create-product";
 import { hasEmbeddedCustomizationDraft } from "../create-product-helpers";
 import { ProductAttributesEditor } from "../../components/products/product-attributes-editor";
@@ -29,12 +29,8 @@ type CreateProductDetailsProps = {
   state: ReturnType<typeof useCreateProduct>;
 };
 
-import { RICH_TEXT_SECTIONS, type RichTextSectionKey } from "../../lib/product-utils";
+import { RICH_TEXT_SECTIONS } from "../../lib/product-utils";
 
-const EMPTY_RICH_TEXT: RichTextValueByLocale = {
-  vi: { html: "", json: null },
-  en: { html: "", json: null },
-};
 
 const ProductGeneralEditor = memo(function ProductGeneralEditor({
   values,
@@ -155,17 +151,11 @@ export function CreateProductDetails({ state }: CreateProductDetailsProps) {
     Record<string, AdminLocale>
   >({});
   const [attributeLocale, setAttributeLocale] = useState<AdminLocale>("vi");
-  const [sectionEditors, setSectionEditors] = useState<
-    Record<RichTextSectionKey, RichTextValueByLocale>
-  >({
-    whyThisProductHtml: EMPTY_RICH_TEXT,
-    specificationsHtml: EMPTY_RICH_TEXT,
-    shippingHtml: EMPTY_RICH_TEXT,
-  });
-
   const {
     values,
     setValue,
+    sectionEditors,
+    updateSectionEditor,
     embeddedCustomization,
     attributes,
     optionDefinitions,
@@ -189,21 +179,6 @@ export function CreateProductDetails({ state }: CreateProductDetailsProps) {
     value: ProductOptionValueDefinition,
   ): LocalizedTextValue {
     return value.valueTranslations ?? createLocalizedText(value.value);
-  }
-
-  function handleSectionChange(
-    key: RichTextSectionKey,
-    locale: AdminLocale,
-    value: RichTextValueByLocale[AdminLocale],
-  ) {
-    setSectionEditors((current) => ({
-      ...current,
-      [key]: { ...current[key], [locale]: value },
-    }));
-    setValue(key, {
-      vi: locale === "vi" ? value.html : sectionEditors[key].vi.html,
-      en: locale === "en" ? value.html : sectionEditors[key].en.html,
-    });
   }
 
   return (
@@ -278,9 +253,10 @@ export function CreateProductDetails({ state }: CreateProductDetailsProps) {
               <RichTextEditor
                 key={section.key}
                 label={section.label}
+                placeholderByLocale={section.placeholderByLocale}
                 valueByLocale={sectionEditors[section.key]}
                 onChangeByLocale={(locale, value) =>
-                  handleSectionChange(section.key, locale, value)
+                  updateSectionEditor(section.key, locale, value)
                 }
               />
             </div>

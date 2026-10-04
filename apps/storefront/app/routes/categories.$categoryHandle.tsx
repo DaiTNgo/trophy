@@ -1,3 +1,4 @@
+import { redirect } from "react-router";
 import { CategoryProductsPage as CategoryProductsPageView } from "@/components/categories/CategoryProductsPage";
 import {
   fetchStorefrontCategories,
@@ -14,12 +15,17 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
     "category-products",
     request,
     async () => {
+      const url = new URL(request.url);
+      const activeCategory = params.categoryHandle;
+
+      if (activeCategory === "san-pham-tuy-chinh") {
+        throw redirect(`/categories/customization${url.search}`, 301);
+      }
+
       const locale = getLocale(context);
       const backendFetch = getBackendServiceFetch(context);
-      const url = new URL(request.url);
       const currentPage = Number(url.searchParams.get("page")) || 1;
       const activeCollection = url.searchParams.get("collection") || "";
-      const activeCategory = params.categoryHandle;
 
       const apiCategories = await fetchStorefrontCategories(
         locale,

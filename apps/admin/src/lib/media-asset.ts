@@ -3,6 +3,35 @@ import { convertPdfToImageFile } from "./pdf-preview";
 
 export type MediaDimensions = { widthPx: number; heightPx: number };
 
+export const MAX_METADATA_IMAGE_BYTES = 20 * 1024 * 1024; // 20 MB
+export const ALLOWED_IMAGE_MIME_TYPES = new Set([
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+]);
+export const ACCEPT_IMAGE_MIME_TYPES = "image/png,image/jpeg,image/webp";
+export const SUPPORTED_IMAGE_TYPES_HINT = "PNG, JPG, WEBP up to 20MB";
+
+export function validateCategoryOrCollectionMediaFile(file: File): string | null {
+  const mimeType = file.type.trim();
+  if (mimeType && !ALLOWED_IMAGE_MIME_TYPES.has(mimeType)) {
+    return "Unsupported file type. Only PNG, JPG, and WEBP files are supported.";
+  }
+  if (!mimeType) {
+    const ext = file.name.split(".").pop()?.toLowerCase();
+    if (!ext || !["png", "jpg", "jpeg", "webp"].includes(ext)) {
+      return "Unsupported file type. Only PNG, JPG, and WEBP files are supported.";
+    }
+  }
+  if (file.size <= 0) {
+    return "File is empty.";
+  }
+  if (file.size > MAX_METADATA_IMAGE_BYTES) {
+    return "File exceeds the 20 MB limit.";
+  }
+  return null;
+}
+
 export function isPdfFile(file: File): boolean {
   return file.type === "application/pdf";
 }

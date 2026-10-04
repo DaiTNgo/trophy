@@ -213,3 +213,13 @@ Hệ thống Docker đã được cấu hình các tiêu chuẩn khắt khe cho 
 * **Giới hạn tài nguyên (Resource Limits):** Mỗi container đều có giới hạn trần RAM rõ ràng (Backend 1GB, Storefront 1GB, Database 1GB, Admin/Gateway 256MB) tránh nguy cơ 1 tiến trình ngốn cạn RAM gây treo VPS.
 * **Xoay vòng Log (Log Rotation):** Giới hạn tối đa 5 file log (mỗi file 20MB) cho mỗi container, đảm bảo ổ cứng VPS không bị tràn do log sau thời gian dài vận hành.
 
+
+
+docker run --rm \
+  -v $(pwd):/app \
+  -w /app \
+  --network trophy_trophy_net \
+  -e CI=true \
+  -e DATABASE_URL="postgres://trophy:trophy_secret@db:5432/trophy" \
+  node:22-alpine \
+  sh -c "npm install -g pnpm && pnpm install && pnpm --filter backend db:push"

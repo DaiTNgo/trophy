@@ -20,6 +20,7 @@ const CATEGORY_DESC_KEYS: Record<string, string> = {
   "bang-vinh-danh": "categories_desc_bang_vinh_danh",
   "cup-the-thao": "categories_desc_cup_the_thao",
   "san-pham-tuy-chinh": "categories_desc_san_pham_tuy_chinh",
+  "customization": "categories_desc_customization",
 };
 
 interface ShopByProductSectionProps {

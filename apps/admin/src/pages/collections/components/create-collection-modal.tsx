@@ -19,7 +19,11 @@ import {
   type AdminLocale,
   type LocalizedTextValue,
 } from "../../../components/ui/medusa";
-import { convertPdfToImageFile } from "../../../lib/pdf-preview";
+import {
+  ACCEPT_IMAGE_MIME_TYPES,
+  SUPPORTED_IMAGE_TYPES_HINT,
+  validateCategoryOrCollectionMediaFile,
+} from "../../../lib/media-asset";
 import { Upload, Trash } from "lucide-react";
 
 interface CreateCollectionModalProps {
@@ -41,6 +45,7 @@ export function CreateCollectionModal({
   const [visibility, setVisibility] = useState<"public" | "hidden">("public");
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState("");
+  const [imageError, setImageError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
@@ -53,6 +58,7 @@ export function CreateCollectionModal({
       setVisibility("public");
       setFile(null);
       setPreviewUrl("");
+      setImageError(null);
     }
   }, [open]);
 
@@ -68,15 +74,20 @@ export function CreateCollectionModal({
     const selectedFile = e.target.files?.[0];
     if (!selectedFile) return;
 
+    setImageError(null);
+    const validationError = validateCategoryOrCollectionMediaFile(selectedFile);
+    if (validationError) {
+      setImageError(validationError);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+
     try {
-      let finalFile = selectedFile;
-      if (selectedFile.type === "application/pdf") {
-        finalFile = await convertPdfToImageFile(selectedFile);
-      }
-      setFile(finalFile);
-      setPreviewUrl(URL.createObjectURL(finalFile));
+      setFile(selectedFile);
+      setPreviewUrl(URL.createObjectURL(selectedFile));
     } catch (err) {
       console.error("Failed to process file:", err);
+      setImageError(err instanceof Error ? err.message : "Failed to process file.");
     } finally {
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
@@ -88,6 +99,7 @@ export function CreateCollectionModal({
     }
     setFile(null);
     setPreviewUrl("");
+    setImageError(null);
   };
 
   const handleSave = async () => {
@@ -95,6 +107,7 @@ export function CreateCollectionModal({
 
     if (!vietnameseTitle) return;
     setIsSaving(true);
+    setImageError(null);
     try {
       let finalImageUrl = null;
       if (file) {
@@ -116,7 +129,10 @@ export function CreateCollectionModal({
         },
       );
 
-      if (!res.ok) throw new Error("Failed to create collection");
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error || "Failed to create collection");
+      }
       const { item } = await res.json();
 
       onSuccess();
@@ -124,6 +140,7 @@ export function CreateCollectionModal({
       navigate(`/collections/${item.id}`);
     } catch (e) {
       console.error(e);
+      setImageError(e instanceof Error ? e.message : "Failed to create collection");
     } finally {
       setIsSaving(false);
     }
@@ -244,7 +261,7 @@ export function CreateCollectionModal({
                             Upload Image
                           </Text>
                           <Text size="small" className="text-ui-fg-subtle">
-                            PNG, JPG, WEBP up to 5MB
+                            {SUPPORTED_IMAGE_TYPES_HINT}
                           </Text>
                           <div className="mt-2">
                             <Button
@@ -258,13 +275,20 @@ export function CreateCollectionModal({
                               type="file"
                               ref={fileInputRef}
                               className="hidden"
-                              accept="image/*,application/pdf"
+                              accept={ACCEPT_IMAGE_MIME_TYPES}
                               onChange={handleFileChange}
                             />
                           </div>
                         </div>
                       </div>
                     )}
+                    {imageError ? (
+                      <div className="rounded-md border border-ui-border-error bg-ui-bg-error p-3">
+                        <Text size="small" className="text-ui-fg-error">
+                          {imageError}
+                        </Text>
+                      </div>
+                    ) : null}
                   </div>
                 </div>
               </div>

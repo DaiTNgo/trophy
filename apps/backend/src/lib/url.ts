@@ -17,7 +17,7 @@ export function toAbsoluteAssetUrl(c: Context, url: string | null | undefined): 
 
     let reqUrlStr = c.req.url;
     if (reqUrlStr.startsWith("/")) {
-      const host = c.req.header("host") || "localhost:8787";
+      const host = c.req.header?.("host") || "localhost:8787";
       // Use http in local dev when req.url is relative
       const protocol = host.includes("localhost") || host.includes("127.0.0.1") ? "http" : "https";
       reqUrlStr = `${protocol}://${host}${reqUrlStr}`;
@@ -25,12 +25,12 @@ export function toAbsoluteAssetUrl(c: Context, url: string | null | undefined): 
 
     const reqUrl = new URL(reqUrlStr);
     
-    const forwardedProto = c.req.header("x-forwarded-proto");
+    const forwardedProto = c.req.header?.("x-forwarded-proto");
     if (forwardedProto) {
       reqUrl.protocol = `${forwardedProto}:`;
     }
 
-    const forwardedHost = c.req.header("x-forwarded-host");
+    const forwardedHost = c.req.header?.("x-forwarded-host");
     if (forwardedHost) {
       const [hostname, port] = forwardedHost.split(":");
       reqUrl.hostname = hostname;
