@@ -11,8 +11,7 @@ COPY apps/backend/package.json ./apps/backend/
 RUN pnpm install --frozen-lockfile
 
 # 2. Build & Deploy stage
-FROM base AS builder
-COPY --from=deps /app ./
+FROM deps AS builder
 COPY packages ./packages
 COPY apps/backend ./apps/backend
 

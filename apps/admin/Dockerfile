@@ -13,8 +13,7 @@ COPY apps/admin/package.json ./apps/admin/
 RUN pnpm install --frozen-lockfile
 
 # 2. Build stage
-FROM base AS builder
-COPY --from=deps /app ./
+FROM deps AS builder
 COPY packages ./packages
 COPY apps/backend ./apps/backend
 COPY apps/admin ./apps/admin
