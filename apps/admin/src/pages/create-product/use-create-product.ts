@@ -17,8 +17,7 @@ import {
   fetchProductMetadata,
   type ProductMetadataSnapshot,
 } from "../../lib/product-metadata-client";
-import { convertPdfToImageFile } from "../../lib/pdf-preview";
-import { getNativeMediaDimensions } from "../../lib/image-dimensions";
+import { dimensionsMatch, readMediaAsset } from "../../lib/media-asset";
 import {
   createFullProduct,
   mapApiProductToCatalogProduct,
@@ -32,6 +31,7 @@ import {
   isPublishReady,
   reconcileVariantRows,
   validateCreateProduct,
+  sanitizeLocalizedRichText,
 } from "../../lib/product-utils";
 import { slugify } from "../../lib/utils";
 import type {
@@ -564,14 +564,14 @@ export function useCreateProduct() {
         ...(hasLocalizedTextValue(values.description)
           ? { description: values.description }
           : {}),
-        ...(hasLocalizedTextValue(values.whyThisProductHtml)
-          ? { whyThisProductHtml: values.whyThisProductHtml }
+        ...(sanitizeLocalizedRichText(values.whyThisProductHtml)
+          ? { whyThisProductHtml: sanitizeLocalizedRichText(values.whyThisProductHtml)! }
           : {}),
-        ...(hasLocalizedTextValue(values.specificationsHtml)
-          ? { specificationsHtml: values.specificationsHtml }
+        ...(sanitizeLocalizedRichText(values.specificationsHtml)
+          ? { specificationsHtml: sanitizeLocalizedRichText(values.specificationsHtml)! }
           : {}),
-        ...(hasLocalizedTextValue(values.shippingHtml)
-          ? { shippingHtml: values.shippingHtml }
+        ...(sanitizeLocalizedRichText(values.shippingHtml)
+          ? { shippingHtml: sanitizeLocalizedRichText(values.shippingHtml)! }
           : {}),
       };
 
@@ -641,6 +641,29 @@ export function useCreateProduct() {
       delete next[optionId];
       return next;
     });
+  }
+
+  function updateOptionFromDraft(draft: import("../../types").OptionDraft) {
+    setOptionDefinitions((current) =>
+      current.map((option) =>
+        option.id === draft.id
+          ? {
+              ...option,
+              title: draft.titleTranslations.vi,
+              titleTranslations: draft.titleTranslations,
+              displayType: draft.displayType,
+              values: draft.values.map(v => ({
+                id: (v.id ?? Math.random().toString(36).substring(7)).toString(),
+                value: v.valueTranslations.vi,
+                valueTranslations: v.valueTranslations,
+                colorHex: v.colorHex,
+                swatchAssetId: v.swatchAssetId,
+                swatchAssetUrl: v.swatchAssetUrl,
+              }))
+            }
+          : option
+      )
+    );
   }
 
   function updateOptionDefinition(optionId: string, title: string) {
@@ -938,13 +961,13 @@ export function useCreateProduct() {
             );
           }
 
-          let fileToProcess = file;
-          if (file.type === "application/pdf") {
-            fileToProcess = await convertPdfToImageFile(file);
-          }
-
+          const asset = await readMediaAsset(file);
+          const fileToProcess = asset.previewFile ?? file;
           const objectUrl = URL.createObjectURL(fileToProcess);
-          const dimensions = await getNativeMediaDimensions(file).then(res => ({ width: res.widthPx, height: res.heightPx }));
+          const dimensions = {
+            width: asset.dimensions.widthPx,
+            height: asset.dimensions.heightPx,
+          };
 
           return {
             id: `pending_${crypto.randomUUID()}`,
@@ -993,21 +1016,20 @@ export function useCreateProduct() {
           "Only PNG, JPEG, WebP, and PDF product assets are supported.",
         );
       }
-      const isPdf = file.type === "application/pdf";
-      const previewFile = isPdf ? await convertPdfToImageFile(file) : undefined;
+      const asset = await readMediaAsset(file);
+      const previewFile = asset.previewFile;
       const fileForPreview = previewFile ?? file;
       const objectUrl = URL.createObjectURL(fileForPreview);
-      const dimensions = await getNativeMediaDimensions(file).then(res => ({ width: res.widthPx, height: res.heightPx }));
+      const dimensions = {
+        width: asset.dimensions.widthPx,
+        height: asset.dimensions.heightPx,
+      };
       const expected = effectiveVariantRows.find(
         (variant) =>
           buildVariantSignature(variant.options) !== variantSignature &&
           variant.customizationMedia,
       )?.customizationMedia;
-      if (
-        expected &&
-        (expected.widthPx !== dimensions.width ||
-          expected.heightPx !== dimensions.height)
-      ) {
+      if (expected && !dimensionsMatch(asset.dimensions, expected)) {
         URL.revokeObjectURL(objectUrl);
         throw new Error(
           `Customization Media must be ${expected.widthPx} x ${expected.heightPx} px.`,
@@ -1164,6 +1186,7 @@ export function useCreateProduct() {
     setOptionDefinitions,
     addOptionDefinition,
     removeOptionDefinition,
+    updateOptionFromDraft,
     updateOptionDefinition,
     updateOptionDisplayType,
     updateOptionTitleTranslation,

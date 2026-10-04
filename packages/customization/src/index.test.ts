@@ -934,5 +934,107 @@ describe("text fitting and paths", () => {
       expect(runtimeLayer.geometry.rotationDeg).toBe(45);
     }
   });
+
+  it("validates shopper custom colors against allowCustomColor policy", () => {
+    const baseTemplate: CustomizationTemplate = {
+      templateId: "tpl_color_test",
+      name: "Color test",
+      version: 1,
+      background: {
+        assetId: "bg_1",
+        contentUrl: "/bg.png",
+        widthPx: 600,
+        heightPx: 600,
+      },
+      layers: [
+        {
+          id: "layer_text",
+          name: "Text Layer",
+          type: "text",
+          hidden: false,
+          locked: false,
+          zIndex: 1,
+          geometry: {
+            xRatio: 0.1,
+            yRatio: 0.1,
+            widthRatio: 0.8,
+            heightRatio: 0.2,
+            rotationDeg: 0,
+          },
+          text: {
+            path: { type: "straight" },
+            sampleText: "Sample",
+            minFontSizePt: 10,
+            maxFontSizePt: 24,
+            maxLines: 1,
+            colorPolicy: {
+              mode: "shopper_selectable",
+              defaultColor: "#000000",
+              options: [{ value: "#000000", label: "Black" }, { value: "#ffffff", label: "White" }],
+              allowCustomColor: false,
+            },
+            fontPolicy: { mode: "fixed", fontId: "sans" },
+            formatPolicy: { mode: "fixed", isBold: false, isItalic: false },
+            alignPolicy: { mode: "fixed", align: "center" },
+          },
+        },
+      ],
+      formFields: [
+        {
+          id: "field_text",
+          layerId: "layer_text",
+          label: "Text",
+          required: true,
+          order: 0,
+        },
+      ],
+    };
+
+    // When allowCustomColor is false, custom color is rejected
+    const rejected = validateCustomizationValues({
+      template: baseTemplate,
+      values: {
+        field_text: { text: "Hello", color: "#ff0000" },
+      },
+    });
+    expect(rejected.valid).toBe(false);
+    expect(rejected.issues.map((i) => i.code)).toContain("OPTION_NOT_ALLOWED");
+
+    // When preset color is used, validation passes
+    const presetValid = validateCustomizationValues({
+      template: baseTemplate,
+      values: {
+        field_text: { text: "Hello", color: "#ffffff" },
+      },
+    });
+    expect(presetValid.valid).toBe(true);
+
+    // When allowCustomColor is true, custom color is accepted
+    const customAllowedTemplate: CustomizationTemplate = {
+      ...baseTemplate,
+      layers: [
+        {
+          ...baseTemplate.layers[0],
+          text: {
+            ...baseTemplate.layers[0].text,
+            colorPolicy: {
+              mode: "shopper_selectable",
+              defaultColor: "#000000",
+              options: [{ value: "#000000", label: "Black" }],
+              allowCustomColor: true,
+            },
+          },
+        },
+      ],
+    };
+
+    const accepted = validateCustomizationValues({
+      template: customAllowedTemplate,
+      values: {
+        field_text: { text: "Hello", color: "#ff0000" },
+      },
+    });
+    expect(accepted.valid).toBe(true);
+  });
 });
 

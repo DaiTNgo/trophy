@@ -1,30 +1,12 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   DEFAULT_TEMPLATE,
-  createDefaultFormValues,
-  type CustomizationFormField,
-  type CustomizationFormValues,
-  type CustomizationLayer,
   type CustomizationTemplate,
-  type ClipartFieldValue,
-  type ImageShapeFieldValue,
-  type ShapeType,
-  type TextFieldValue,
-  type VectorPoint,
 } from "@trophy/customization";
-import {
-  createId,
-  type RailTab,
-  createDefaultTextLayer,
-  createDefaultTextOnPathLayer,
-  createDefaultImageShapeLayer,
-  createDefaultPolygonLayer,
-  createDefaultVectorShapeLayer,
-} from "../components/customization/customization-template-ui";
 import { getProductCustomizationPublishIssue } from "./product-customization-publish";
+import { useTemplateEditorCore } from "./use-template-editor-core";
 
-const maxZ = (layers: CustomizationLayer[]) => layers.length > 0 ? Math.max(...layers.map((layer) => layer.zIndex)) : 0;
-
+/** Editor that keeps the template in local state and saves it through `saveCustomization`. */
 export function useProductCustomizationEditor(
   productId: string,
   initialCustomization: any,
@@ -49,168 +31,12 @@ export function useProductCustomizationEditor(
       productId,
     };
   });
-  
-  const [selectedLayerId, setSelectedLayerId] = useState(template.layers[0]?.id ?? "");
-  const [activeTab, setActiveTab] = useState<RailTab>("blocks");
-  const [flash, setFlash] = useState("");
-  const [previewOpen, setPreviewOpen] = useState(false);
-  const [pathEditingLayerId, setPathEditingLayerId] = useState("");
-  const [selectedVectorPointId, setSelectedVectorPointId] = useState<string | null>(null);
-  const [isDrawing, setIsDrawing] = useState(false);
-  const [pendingVectorPoints, setPendingVectorPoints] = useState<VectorPoint[]>([]);
-  const [previewValues, setPreviewValues] = useState<CustomizationFormValues>(() =>
-    createDefaultFormValues(template),
-  );
-  const [deleted, setDeleted] = useState<{
-    layer: CustomizationLayer;
-    field?: CustomizationFormField;
-    selectedLayerId: string;
-  } | null>(null);
   const [pendingPdfFile, setPendingPdfFile] = useState<File | null>(null);
 
-  useEffect(() => {
-    setPreviewValues(createDefaultFormValues(template));
-  }, [template]);
-
-  function flashMessage(msg: string) {
-    setFlash(msg);
-    setTimeout(() => setFlash(""), 3000);
-  }
-
-  function updateTemplate(updater: (current: CustomizationTemplate) => CustomizationTemplate) {
-    setTemplate(updater);
-  }
-
-  function updateLayer(layerId: string, updater: (layer: CustomizationLayer) => CustomizationLayer) {
-    updateTemplate((current) => ({
-      ...current,
-      layers: current.layers.map((l) => (l.id === layerId ? updater(l) : l)),
-    }));
-  }
-
-  function updateField(fieldId: string, updater: (field: CustomizationFormField) => CustomizationFormField) {
-    updateTemplate((current) => ({
-      ...current,
-      formFields: current.formFields.map((f) => (f.id === fieldId ? updater(f) : f)),
-    }));
-  }
-
-  const selectedLayer = template.layers.find((l) => l.id === selectedLayerId);
-
-  function addLayer(layer: CustomizationLayer, field: CustomizationFormField) {
-    updateTemplate((current) => ({
-      ...current,
-      layers: [...current.layers, layer],
-      formFields: [...current.formFields, field],
-    }));
-    setSelectedLayerId(layer.id);
-  }
-
-  function addTextLayer() {
-    const { layer, field } = createDefaultTextLayer({
-      zIndex: maxZ(template.layers) + 1,
-      order: template.formFields.length + 1,
-    });
-    addLayer(layer, field);
-  }
-
-  function addTextOnPathLayer() {
-    const { layer, field } = createDefaultTextOnPathLayer({
-      zIndex: maxZ(template.layers) + 1,
-      order: template.formFields.length + 1,
-    });
-    addLayer(layer, field);
-    setPathEditingLayerId(layer.id);
-  }
-
-  function addImageShape(shapeType: ShapeType) {
-    const { layer, field } = createDefaultImageShapeLayer(shapeType, {
-      zIndex: maxZ(template.layers) + 1,
-      order: template.formFields.length + 1,
-    });
-    addLayer(layer, field);
-  }
-
-  function addPolygon(sides: number = 6) {
-    const { layer, field } = createDefaultPolygonLayer(sides, {
-      zIndex: maxZ(template.layers) + 1,
-      order: template.formFields.length + 1,
-    });
-    addLayer(layer, field);
-  }
-
-  function startDrawMode() {
-    setIsDrawing(true);
-    setPendingVectorPoints([]);
-    setSelectedLayerId("");
-  }
-
-  function cancelDrawMode() {
-    setIsDrawing(false);
-    setPendingVectorPoints([]);
-    if (template.layers.length > 0) {
-      setSelectedLayerId(template.layers[template.layers.length - 1].id);
-    }
-  }
-
-  function addVectorPoint(pt: { xRatio: number; yRatio: number }) {
-    setPendingVectorPoints((prev) => [
-      ...prev,
-      {
-        id: createId("point"),
-        type: "corner",
-        xRatio: pt.xRatio,
-        yRatio: pt.yRatio,
-      },
-    ]);
-  }
-
-  function undoVectorPoint() {
-    setPendingVectorPoints((prev) => prev.slice(0, -1));
-  }
-
-  function closeVectorShape() {
-    if (pendingVectorPoints.length < 3) {
-      cancelDrawMode();
-      return;
-    }
-    const { layer, field } = createDefaultVectorShapeLayer(pendingVectorPoints, {
-      zIndex: maxZ(template.layers) + 1,
-      order: template.formFields.length + 1,
-    });
-    addLayer(layer, field);
-    setIsDrawing(false);
-    setPendingVectorPoints([]);
-  }
-
-  function deleteSelectedLayer() {
-    if (!selectedLayerId) return;
-    const layer = template.layers.find((l) => l.id === selectedLayerId);
-    if (!layer) return;
-    
-    const field = template.formFields.find((f) => f.layerId === layer.id);
-
-    setDeleted({ layer, field, selectedLayerId });
-    updateTemplate((current) => ({
-      ...current,
-      layers: current.layers.filter((l) => l.id !== selectedLayerId),
-      formFields: current.formFields.filter((f) => f.id !== field?.id),
-    }));
-    setSelectedLayerId("");
-    flashMessage("Layer deleted.");
-  }
-
-  function undoDelete() {
-    if (!deleted) return;
-    updateTemplate((current) => ({
-      ...current,
-      layers: [...current.layers, deleted.layer].sort((a, b) => a.zIndex - b.zIndex),
-      formFields: deleted.field ? [...current.formFields, deleted.field] : current.formFields,
-    }));
-    setSelectedLayerId(deleted.selectedLayerId);
-    setDeleted(null);
-    flashMessage("Layer restored.");
-  }
+  const core = useTemplateEditorCore({
+    template,
+    applyTemplateUpdate: setTemplate,
+  });
 
   async function saveDraft() {
     try {
@@ -221,10 +47,10 @@ export function useProductCustomizationEditor(
         layers: template.layers,
         formFields: template.formFields,
       });
-      flashMessage("Saved");
+      core.flashMessage("Saved");
     } catch (e: any) {
       console.error(e);
-      flashMessage("Error saving");
+      core.flashMessage("Error saving");
     }
   }
 
@@ -239,7 +65,7 @@ export function useProductCustomizationEditor(
         throw new Error(publishIssue);
       }
       await saveDraft();
-      flashMessage("Published");
+      core.flashMessage("Published");
     } catch (e: any) {
       if (e instanceof Error && e.message) {
         alert(e.message);
@@ -253,7 +79,7 @@ export function useProductCustomizationEditor(
     if (pdfFile) {
       setPendingPdfFile(pdfFile);
     }
-    updateTemplate((current) => ({
+    core.updateTemplate((current) => ({
       ...current,
       background: {
         ...asset,
@@ -262,51 +88,11 @@ export function useProductCustomizationEditor(
     }));
   }
 
-  function handlePreviewChange(fieldId: string, value: TextFieldValue | ImageShapeFieldValue | ClipartFieldValue | null) {
-    setPreviewValues((prev) => ({ ...prev, [fieldId]: value }));
-  }
-
-  function resetPreviewValues() {
-    setPreviewValues(createDefaultFormValues(template));
-  }
-
   return {
-    template,
-    selectedLayerId,
-    activeTab,
-    flash,
-    previewOpen,
-    pathEditingLayerId,
-    selectedVectorPointId,
-    previewValues,
-    deleted,
-    selectedLayer,
-    isDrawing,
-    pendingVectorPoints,
-    setSelectedLayerId,
-    setActiveTab,
-    setPreviewOpen,
-    setPathEditingLayerId,
-    setSelectedVectorPointId,
-    updateTemplate,
-    updateLayer,
-    updateField,
-    addTextLayer,
-    addTextOnPathLayer,
-    addImageShape,
-    addPolygon,
-    startDrawMode,
-    cancelDrawMode,
-    addVectorPoint,
-    undoVectorPoint,
-    closeVectorShape,
-    deleteSelectedLayer,
-    undoDelete,
+    ...core,
     saveDraft,
     publish,
     updateBackground,
-    handlePreviewChange,
-    resetPreviewValues,
     pendingPdfFile,
   };
 }

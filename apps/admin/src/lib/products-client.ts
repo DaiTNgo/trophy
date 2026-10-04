@@ -453,6 +453,34 @@ export async function createProductOptionValue(
   return body.item as ApiProduct;
 }
 
+export async function updateProductOptionBulk(
+  id: string,
+  optionId: number,
+  payload: {
+    title: { vi: string; en?: string };
+    displayType: "text" | "color" | "image";
+    values: Array<{
+      id: number | null;
+      value: { vi: string; en?: string };
+      colorHex?: string | null;
+      swatchAssetId?: string | null;
+    }>;
+  },
+) {
+  const response = await backendFetch(`/api/admin/products/${id}/options/${optionId}/bulk`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => null);
+    throw new Error(err?.error || "Failed to bulk update option.");
+  }
+  const body = await response.json();
+  return body.item as ApiProduct;
+}
+
 export async function updateProductOptionValue(
   id: string,
   valueId: number,

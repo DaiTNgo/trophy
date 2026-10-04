@@ -88,6 +88,18 @@ export const optionUpdateSchema = v.object({
   title: localizedString(1, 120),
   displayType: optionDisplayTypeSchema,
 })
+export const optionBulkUpdateSchema = v.object({
+  title: localizedString(1, 120),
+  displayType: optionDisplayTypeSchema,
+  values: v.array(
+    v.object({
+      id: v.nullable(v.pipe(v.number(), v.integer())),
+      value: localizedString(1, 120),
+      colorHex: optionColorHexSchema,
+      swatchAssetId: optionSwatchAssetIdSchema,
+    })
+  )
+})
 export const optionValueCreateSchema = v.object({
   value: localizedString(1, 120),
   colorHex: optionColorHexSchema,

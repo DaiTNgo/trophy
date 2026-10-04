@@ -12,8 +12,7 @@ import {
   mapApiProductToCatalogProduct,
   ProductCommandError,
 } from "../../lib/products-client";
-import { convertPdfToImageFile } from "../../lib/pdf-preview";
-import { getNativeMediaDimensions } from "../../lib/image-dimensions";
+import { dimensionsMatch, readMediaAsset, toPreviewImageFile } from "../../lib/media-asset";
 import type { AdminLocale, CatalogProduct, LocalizedTextValue, ProductAttribute } from "../../types";
 
 type ProductDetailVariantsProps = {
@@ -242,29 +241,23 @@ export function useProductDetailVariants({ product, mutate, updateProduct }: Pro
         await updateProductVariantStock(product.id, [{ id: variantForm.id, inventoryQuantity }]);
       } else {
         const galleryMedia = await Promise.all(
-          variantForm.galleryMedia.map((file) =>
-            file.type === "application/pdf" ? convertPdfToImageFile(file) : file,
-          ),
+          variantForm.galleryMedia.map(toPreviewImageFile),
         );
         const originalCustomizationBg = variantForm.customizationBackground;
-        const customizationPreview =
-          originalCustomizationBg?.type === "application/pdf"
-            ? await convertPdfToImageFile(originalCustomizationBg)
-            : undefined;
 
         if (product.customization?.enabled && !originalCustomizationBg) {
           throw new Error("A Customization Background is required while customization is active.");
         }
-        const customizationDimensions = originalCustomizationBg
-          ? await getNativeMediaDimensions(originalCustomizationBg).then(res => ({ width: res.widthPx, height: res.heightPx })).catch(() => null)
+        const customizationAsset = originalCustomizationBg
+          ? await readMediaAsset(originalCustomizationBg)
           : null;
-        if (product.customization?.enabled && originalCustomizationBg) {
-          if (
-            !customizationDimensions ||
-            customizationDimensions.width !== product.customization.canvasWidthPx ||
-            customizationDimensions.height !== product.customization.canvasHeightPx
-          ) {
-            throw new Error(`Customization Background must be ${product.customization.canvasWidthPx} x ${product.customization.canvasHeightPx} px.`);
+        if (product.customization?.enabled && customizationAsset) {
+          const expected = {
+            widthPx: product.customization.canvasWidthPx,
+            heightPx: product.customization.canvasHeightPx,
+          };
+          if (!dimensionsMatch(customizationAsset.dimensions, expected)) {
+            throw new Error(`Customization Background must be ${expected.widthPx} x ${expected.heightPx} px.`);
           }
         }
         const next = await atomicCreateVariant(product.id, product.updatedAt, {
@@ -282,15 +275,16 @@ export function useProductDetailVariants({ product, mutate, updateProduct }: Pro
             mediaId: crypto.randomUUID(),
             file,
           })),
-          customizationMedia: originalCustomizationBg
-            ? {
-                mediaId: crypto.randomUUID(),
-                file: originalCustomizationBg,
-                previewFile: customizationPreview,
-                widthPx: customizationDimensions?.width ?? 0,
-                heightPx: customizationDimensions?.height ?? 0,
-              }
-            : null,
+          customizationMedia:
+            originalCustomizationBg && customizationAsset
+              ? {
+                  mediaId: crypto.randomUUID(),
+                  file: originalCustomizationBg,
+                  previewFile: customizationAsset.previewFile,
+                  widthPx: customizationAsset.dimensions.widthPx,
+                  heightPx: customizationAsset.dimensions.heightPx,
+                }
+              : null,
         });
         updateProduct(() => mapApiProductToCatalogProduct(next));
         productWasPatched = true;

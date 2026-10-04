@@ -263,7 +263,7 @@ A product variant that can support shopper-facing customization because it has e
 _Avoid_: valid variant, completed variant
 
 **Background Size Contract**:
-The rule that all Customization Backgrounds for a customizable product share identical canvas width and height, allowing one customization template to render consistently across every variant background. For published products and during product publish, this contract is strictly enforced. In draft status, variant backgrounds are unconstrained to allow operators to iterate and replace assets freely, and upon successful publish or template save, the product canvas size automatically synchronizes to the variant background dimensions.
+The rule that all Customization Backgrounds for a customizable product share identical canvas width and height, allowing one customization template to render consistently across every variant background. For published products and during product publish, this contract is strictly enforced. In draft status, variant backgrounds are unconstrained to allow operators to iterate and replace assets freely, and upon successful publish or template save, the product canvas size automatically synchronizes to the variant background dimensions. A background whose dimensions cannot be read is rejected at upload in every status; unknown dimensions are never stored.
 _Avoid_: same-size warning, image dimension hint
 **Declared Background Dimensions**:
 The width and height metadata supplied by the admin client for a Customization Background. It is the canvas-size source of truth, including for PDF backgrounds; it is not media dimensions inferred or decoded by the backend.

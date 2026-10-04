@@ -15,8 +15,7 @@ import {
   replaceVariantCustomizationBackground,
   uploadManagedVariantMedia,
 } from "../../lib/products-client";
-import { convertPdfToImageFile } from "../../lib/pdf-preview";
-import { getNativeMediaDimensions } from "../../lib/image-dimensions";
+import { dimensionsMatch, readMediaAsset, toPreviewImageFile } from "../../lib/media-asset";
 import { MediaPreview } from "../../components/ui/media-preview";
 
 type Props = {
@@ -65,25 +64,24 @@ export function VariantMediaManager({
     }
   }
   async function replaceBackground(file: File) {
-    const isPdf = file.type === "application/pdf";
-    const previewFile = isPdf ? await convertPdfToImageFile(file) : undefined;
-    const dimensions = await getNativeMediaDimensions(file)
-      .then((res) => ({ width: res.widthPx, height: res.heightPx }))
-      .catch(() => null);
+    let asset: Awaited<ReturnType<typeof readMediaAsset>>;
+    try {
+      asset = await readMediaAsset(file);
+    } catch (error) {
+      toast.error("Customization Background could not be read", {
+        description: error instanceof Error ? error.message : "Try another file.",
+      });
+      return;
+    }
+    const { previewFile, dimensions: measured } = asset;
     const sibling = product.variants.find(
       (item) => item.id !== variant.id && item.customizationMedia,
     )?.customizationMedia;
-    if (sibling) {
-      if (
-        !dimensions ||
-        dimensions.width !== sibling.widthPx ||
-        dimensions.height !== sibling.heightPx
-      ) {
-        toast.error("Customization Background has the wrong size", {
-          description: `Use ${sibling.widthPx} x ${sibling.heightPx} px.`,
-        });
-        return;
-      }
+    if (sibling && !dimensionsMatch(measured, sibling)) {
+      toast.error("Customization Background has the wrong size", {
+        description: `Use ${sibling.widthPx} x ${sibling.heightPx} px.`,
+      });
+      return;
     }
     await run("background", () =>
       replaceVariantCustomizationBackground(
@@ -91,17 +89,13 @@ export function VariantMediaManager({
         Number(variant.id),
         file,
         previewFile,
-        dimensions ?? undefined,
+        { width: measured.widthPx, height: measured.heightPx },
       ),
     );
   }
 
   async function uploadGallery(files: File[]) {
-    const filesToUpload = await Promise.all(
-      files.map((file) =>
-        file.type === "application/pdf" ? convertPdfToImageFile(file) : file,
-      ),
-    );
+    const filesToUpload = await Promise.all(files.map(toPreviewImageFile));
     return uploadManagedVariantMedia(
       product.id,
       Number(variant.id),

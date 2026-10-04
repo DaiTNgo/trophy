@@ -147,6 +147,19 @@ export type ProductOptionValueDefinition = {
   swatchAssetUrl?: string | null;
 };
 
+export type OptionDraft = {
+  id: string | number | null;
+  titleTranslations: LocalizedTextValue;
+  displayType: "text" | "color" | "image";
+  values: Array<{
+    id: string | number | null;
+    valueTranslations: LocalizedTextValue;
+    colorHex?: string | null;
+    swatchAssetId?: string | null;
+    swatchAssetUrl?: string | null;
+  }>;
+};
+
 export type ProductAttribute = {
   key: LocalizedTextValue;
   value: LocalizedTextValue;

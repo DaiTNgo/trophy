@@ -537,3 +537,26 @@ export const RICH_TEXT_SECTIONS: Array<{
     placeholderByLocale: { vi: "Vận chuyển và giao hàng...", en: "Shipping & fulfillment..." },
   },
 ];
+
+export function sanitizeRichTextValue(html: string | null | undefined): string | null {
+  if (!html) return null;
+  // If we are in an environment without DOMParser (e.g. testing), just fallback to basic regex check
+  if (typeof DOMParser === "undefined") {
+    const stripped = html.replace(/<[^>]*>?/gm, "").trim();
+    if (stripped === "" && !/<(img|iframe)/i.test(html)) return null;
+    return html;
+  }
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  if (doc.body.textContent?.trim() === "" && doc.body.querySelectorAll("img, iframe, video").length === 0) {
+    return null;
+  }
+  return html;
+}
+
+export function sanitizeLocalizedRichText(val: import("../types").LocalizedTextValue | null | undefined): import("../types").LocalizedTextValue | null {
+  if (!val) return null;
+  const sanitizedVi = sanitizeRichTextValue(val.vi);
+  const sanitizedEn = sanitizeRichTextValue(val.en);
+  if (!sanitizedVi && !sanitizedEn) return null;
+  return { vi: sanitizedVi ?? "", en: sanitizedEn ?? "" };
+}

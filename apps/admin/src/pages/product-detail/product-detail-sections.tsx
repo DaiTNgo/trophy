@@ -7,7 +7,7 @@ import { RichTextEditor, type RichTextValueByLocale } from "../../components/ric
 
 type Props = { product: CatalogProduct; mutate: () => Promise<void> };
 
-import { RICH_TEXT_SECTIONS, type RichTextSectionKey as SectionKey } from "../../lib/product-utils";
+import { RICH_TEXT_SECTIONS, sanitizeRichTextValue, type RichTextSectionKey as SectionKey } from "../../lib/product-utils";
 
 const fromLocalized = (value: LocalizedTextValue): RichTextValueByLocale => ({
   vi: { html: value.vi || "", json: null },
@@ -30,8 +30,8 @@ export function ProductDetailSections({ product, mutate }: Props) {
     if (!editing) return;
     setIsSubmitting(true);
     try {
-      const vi = draft.vi.html.trim();
-      const en = draft.en.html.trim();
+      const vi = sanitizeRichTextValue(draft.vi.html) ?? "";
+      const en = sanitizeRichTextValue(draft.en.html) ?? "";
       const payload: ProductSectionsPayload = {
         [editing]: vi || en ? { vi: vi || undefined, en: en || undefined } : null,
       };

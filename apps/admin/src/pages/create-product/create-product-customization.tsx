@@ -1,18 +1,18 @@
-import { useState } from "react";
-import { Button } from "@medusajs/ui";
-import { Eye } from "lucide-react";
-import { EditorCanvas } from "../../components/customization/customization-template-editor";
-import { Inspector } from "../../components/customization/customization-template-inspector";
-import {
-  LeftPanel,
-  Rail,
-} from "../../components/customization/customization-template-panels";
-import { PreviewDialog } from "../../components/customization/customization-template-preview";
 import type { BackgroundAsset } from "@trophy/customization";
+import { CustomizationEditorWorkspace } from "../../components/customization/customization-editor-workspace";
 import type { useCreateProduct } from "./use-create-product";
 
+export type CreateProductCustomizationState = Pick<
+  ReturnType<typeof useCreateProduct>,
+  | "embeddedEditor"
+  | "previewBackgrounds"
+  | "selectedPreviewAssetId"
+  | "setSelectedPreviewAssetId"
+  | "dynamicFonts"
+>;
+
 type CreateProductCustomizationProps = {
-  state: ReturnType<typeof useCreateProduct>;
+  state: CreateProductCustomizationState;
   onUploadBackground?: (background: BackgroundAsset, file?: File) => void;
 };
 
@@ -28,112 +28,18 @@ export function CreateProductCustomization({
     dynamicFonts,
   } = state;
 
-  const [previewOpen, setPreviewOpen] = useState(false);
-
   return (
-    <section
-      className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-ui-border-base bg-ui-bg-base shadow-sm"
-    >
-      {/* <div className="flex items-center justify-between border-b border-ui-border-base px-4 py-3">
-        <div>
-          <Heading level="h2">Customization</Heading>
-          <Text size="small" className="mt-1 text-ui-fg-subtle">
-            Embedded product-create mode. Preview backgrounds come from each variant's staged Customization Media.
-          </Text>
-        </div>
-        <div className="text-right">
-          <Text size="small" className="text-ui-fg-subtle">
-            Draft preserved in session
-          </Text>
-          <Text size="small" className="mt-1 text-ui-fg-base">
-            {embeddedCustomization.canvasWidthPx && embeddedCustomization.canvasHeightPx
-              ? `${embeddedCustomization.canvasWidthPx} x ${embeddedCustomization.canvasHeightPx}`
-              : "Canvas not seeded yet"}
-          </Text>
-        </div>
-      </div> */}
-      <div className="grid min-h-0 flex-1 overflow-hidden grid-cols-[56px_280px_minmax(0,1fr)_320px]">
-        <Rail
-          activeTab={embeddedEditor.activeTab}
-          onChange={embeddedEditor.setActiveTab}
-        />
-        <div className="flex min-h-0 flex-col">
-          <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
-            <LeftPanel
-              activeTab={embeddedEditor.activeTab}
-              template={embeddedEditor.template}
-              selectedLayerId={embeddedEditor.selectedLayerId}
-              onAddText={embeddedEditor.addTextLayer}
-              onAddTextOnPath={embeddedEditor.addTextOnPathLayer}
-              onAddShape={embeddedEditor.addImageShape}
-              onAddPolygon={embeddedEditor.addPolygon}
-              onDrawShape={embeddedEditor.startDrawMode}
-              onSelectLayer={embeddedEditor.setSelectedLayerId}
-              onUpdateTemplate={embeddedEditor.updateTemplate}
-              onUpdateField={embeddedEditor.updateField}
-              onDelete={embeddedEditor.deleteSelectedLayer}
-              onUploadBackground={onUploadBackground}
-              embeddedBackgrounds={{
-                items: previewBackgrounds,
-                selectedAssetId: selectedPreviewAssetId,
-                onSelectAssetId: setSelectedPreviewAssetId,
-              }}
-            />
-          </div>
-          <div className="border-r border-t border-ui-border-base p-4 bg-ui-bg-base">
-            <Button
-              type="button"
-              variant="secondary"
-              className="w-full justify-center"
-              onClick={() => setPreviewOpen(true)}
-            >
-              <Eye className="mr-2 size-4" />
-              Preview
-            </Button>
-          </div>
-        </div>
-        <EditorCanvas
-          template={embeddedEditor.template}
-          selectedLayerId={embeddedEditor.selectedLayerId}
-          pathEditingLayerId={embeddedEditor.pathEditingLayerId}
-          selectedVectorPointId={embeddedEditor.selectedVectorPointId}
-          isDrawing={embeddedEditor.isDrawing}
-          pendingVectorPoints={embeddedEditor.pendingVectorPoints}
-          dynamicFonts={dynamicFonts}
-          onSelectLayer={embeddedEditor.setSelectedLayerId}
-          onPathEditingLayerChange={embeddedEditor.setPathEditingLayerId}
-          onSelectVectorPoint={embeddedEditor.setSelectedVectorPointId}
-          onUpdateLayer={embeddedEditor.updateLayer}
-          onUploadBackground={onUploadBackground}
-          onAddVectorPoint={embeddedEditor.addVectorPoint}
-          onUndoVectorPoint={embeddedEditor.undoVectorPoint}
-          onCloseVectorShape={embeddedEditor.closeVectorShape}
-          onCancelDraw={embeddedEditor.cancelDrawMode}
-          onDeleteLayer={embeddedEditor.deleteSelectedLayer}
-        />
-        <div className="min-h-0 overflow-y-auto overflow-x-hidden">
-          <Inspector
-            template={embeddedEditor.template}
-            selectedLayer={embeddedEditor.selectedLayer}
-            pathEditingLayerId={embeddedEditor.pathEditingLayerId}
-            selectedVectorPointId={embeddedEditor.selectedVectorPointId}
-            onUpdateLayer={embeddedEditor.updateLayer}
-            onPathEditingLayerChange={embeddedEditor.setPathEditingLayerId}
-            onUpdateTemplate={embeddedEditor.updateTemplate}
-            onSelectVectorPoint={embeddedEditor.setSelectedVectorPointId}
-          />
-        </div>
-      </div>
-      {previewOpen ? (
-        <PreviewDialog
-          template={embeddedEditor.template}
-          values={embeddedEditor.previewValues}
-          pendingPdfFile={null}
-          onChange={embeddedEditor.handlePreviewChange}
-          onClose={() => setPreviewOpen(false)}
-          onReset={embeddedEditor.resetPreviewValues}
-        />
-      ) : null}
+    <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-ui-border-base bg-ui-bg-base shadow-sm">
+      <CustomizationEditorWorkspace
+        editor={embeddedEditor}
+        dynamicFonts={dynamicFonts}
+        onUploadBackground={onUploadBackground}
+        embeddedBackgrounds={{
+          items: previewBackgrounds,
+          selectedAssetId: selectedPreviewAssetId,
+          onSelectAssetId: setSelectedPreviewAssetId,
+        }}
+      />
     </section>
   );
 }

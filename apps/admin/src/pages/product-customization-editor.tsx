@@ -2,10 +2,7 @@ import { Save } from "lucide-react";
 import { useNavigate, useParams } from "react-router";
 import { Button, FocusModal } from "@medusajs/ui";
 import { useProductCustomizationEditor } from "../hooks/useProductCustomizationEditor";
-import { EditorCanvas } from "../components/customization/customization-template-editor";
-import { Inspector } from "../components/customization/customization-template-inspector";
-import { LeftPanel, Rail } from "../components/customization/customization-template-panels";
-import { PreviewDialog } from "../components/customization/customization-template-preview";
+import { CustomizationEditorWorkspace } from "../components/customization/customization-editor-workspace";
 import { useBrandAssets } from "../hooks/use-brand-assets";
 import { useProductDetail } from "./product-detail/use-product-detail";
 import { updateProductCustomization } from "../lib/products-client";
@@ -114,42 +111,6 @@ function EditorContent({ product, productId, mutate }: { product: CatalogProduct
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const {
-    template,
-    selectedLayerId,
-    activeTab,
-    flash,
-    previewOpen,
-    pathEditingLayerId,
-    selectedVectorPointId,
-    previewValues,
-    selectedLayer,
-    isDrawing,
-    pendingVectorPoints,
-    setSelectedLayerId,
-    setActiveTab,
-    setPreviewOpen,
-    setPathEditingLayerId,
-    setSelectedVectorPointId,
-    updateTemplate,
-    updateLayer,
-    updateField,
-    addTextLayer,
-    addTextOnPathLayer,
-    addImageShape,
-    addPolygon,
-    startDrawMode,
-    cancelDrawMode,
-    addVectorPoint,
-    undoVectorPoint,
-    closeVectorShape,
-    deleteSelectedLayer,
-    saveDraft,
-    updateBackground,
-    handlePreviewChange,
-    resetPreviewValues,
-  } = editor;
-
   return (
     <FocusModal open={true} onOpenChange={(open) => { if (!open) navigate(`/products/${product.id}`); }}>
       <FocusModal.Content>
@@ -159,11 +120,8 @@ function EditorContent({ product, productId, mutate }: { product: CatalogProduct
               <h2 className="text-sm font-medium">Customization Editor: {product.title?.vi || product.title?.en}</h2>
             </div>
             <div className="flex items-center gap-x-2">
-              <span className="text-ui-fg-subtle text-xs">{flash}</span>
-              <Button variant="secondary" size="small" onClick={() => setPreviewOpen(true)}>
-                Preview
-              </Button>
-              <Button variant="primary" size="small" onClick={() => void saveDraft()} isLoading={isSaving}>
+              <span className="text-ui-fg-subtle text-xs">{editor.flash}</span>
+              <Button variant="primary" size="small" onClick={() => void editor.saveDraft()} isLoading={isSaving}>
                 <Save className="mr-2 h-4 w-4" />
                 Save & Close
               </Button>
@@ -171,74 +129,23 @@ function EditorContent({ product, productId, mutate }: { product: CatalogProduct
           </div>
         </FocusModal.Header>
         <FocusModal.Body className="flex h-[calc(100vh-64px)] flex-col overflow-hidden bg-ui-bg-base">
-          <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)] grid-cols-[56px_280px_minmax(0,1fr)_320px]">
-            <Rail activeTab={activeTab} onChange={setActiveTab} />
-            <LeftPanel
-              activeTab={activeTab}
-              template={template}
-              selectedLayerId={selectedLayerId}
-              onAddText={addTextLayer}
-              onAddTextOnPath={addTextOnPathLayer}
-              onAddShape={addImageShape}
-              onAddPolygon={addPolygon}
-              onDrawShape={startDrawMode}
-              onSelectLayer={setSelectedLayerId}
-              onUpdateTemplate={updateTemplate}
-              onUpdateField={updateField}
-              onDelete={deleteSelectedLayer}
-              onUploadBackground={updateBackground}
-              embeddedBackgrounds={{
-                items: previewBackgrounds,
-                selectedAssetId: selectedPreviewAssetId,
-                onSelectAssetId: (assetId) => {
-                  setSelectedPreviewAssetId(assetId);
-                  const selected = previewBackgrounds.find((bg) => bg.assetId === assetId);
-                  if (selected) {
-                    updateBackground(selected);
-                  }
-                },
-              }}
-            />
-            <EditorCanvas
-              template={template}
-              selectedLayerId={selectedLayerId}
-              pathEditingLayerId={pathEditingLayerId}
-              selectedVectorPointId={selectedVectorPointId}
-              isDrawing={isDrawing}
-              pendingVectorPoints={pendingVectorPoints}
-              dynamicFonts={dynamicFonts}
-              onSelectLayer={setSelectedLayerId}
-              onUpdateLayer={updateLayer}
-              onAddVectorPoint={addVectorPoint}
-              onCloseVectorShape={closeVectorShape}
-              onCancelDraw={cancelDrawMode}
-              onUndoVectorPoint={undoVectorPoint}
-              onPathEditingLayerChange={setPathEditingLayerId}
-              onSelectVectorPoint={setSelectedVectorPointId}
-              onUploadBackground={updateBackground}
-              onDeleteLayer={deleteSelectedLayer}
-            />
-            <Inspector
-              template={template}
-              selectedLayer={selectedLayer || null}
-              pathEditingLayerId={pathEditingLayerId}
-              selectedVectorPointId={selectedVectorPointId}
-              onUpdateLayer={updateLayer}
-              onPathEditingLayerChange={setPathEditingLayerId}
-              onUpdateTemplate={updateTemplate}
-              onSelectVectorPoint={setSelectedVectorPointId}
-            />
-          </div>
-          {previewOpen && (
-            <PreviewDialog
-              template={template}
-              values={previewValues}
-              dynamicFonts={dynamicFonts}
-              onChange={handlePreviewChange}
-              onReset={resetPreviewValues}
-              onClose={() => setPreviewOpen(false)}
-            />
-          )}
+          <CustomizationEditorWorkspace
+            editor={editor}
+            dynamicFonts={dynamicFonts}
+            pendingPdfFile={editor.pendingPdfFile}
+            onUploadBackground={editor.updateBackground}
+            embeddedBackgrounds={{
+              items: previewBackgrounds,
+              selectedAssetId: selectedPreviewAssetId,
+              onSelectAssetId: (assetId) => {
+                setSelectedPreviewAssetId(assetId);
+                const selected = previewBackgrounds.find((bg) => bg.assetId === assetId);
+                if (selected) {
+                  editor.updateBackground(selected);
+                }
+              },
+            }}
+          />
         </FocusModal.Body>
       </FocusModal.Content>
     </FocusModal>

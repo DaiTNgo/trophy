@@ -22,8 +22,7 @@ import {
   reactivateCustomization,
   repairCustomization,
 } from "../../lib/products-client";
-import { convertPdfToImageFile } from "../../lib/pdf-preview";
-import { getNativeMediaDimensions } from "../../lib/image-dimensions";
+import { isPdfFile, readMediaAsset } from "../../lib/media-asset";
 import type { CatalogProduct } from "../../types";
 import { useBrandAssets } from "../../hooks/use-brand-assets";
 import { useEmbeddedProductCustomizationEditor } from "../../hooks/use-embedded-product-customization-editor";
@@ -186,13 +185,10 @@ function CustomizationBackgroundModal({
     dimensions?: { widthPx: number; heightPx: number },
     previewUrl?: string,
   ) => {
-    const isPdf = file.type === "application/pdf";
-    const previewFile = isPdf ? await convertPdfToImageFile(file) : undefined;
-    const size = dimensions && !isPdf
-      ? dimensions
-      : await getNativeMediaDimensions(file)
-          .then((res) => ({ widthPx: res.widthPx, heightPx: res.heightPx }))
-          .catch(() => ({ widthPx: 0, heightPx: 0 }));
+    const isPdf = isPdfFile(file);
+    const asset = dimensions && !isPdf ? null : await readMediaAsset(file);
+    const previewFile = asset?.previewFile;
+    const size = asset?.dimensions ?? dimensions!;
     setFiles((current) => ({
       ...current,
       [variantId]: {
@@ -218,7 +214,11 @@ function CustomizationBackgroundModal({
       file,
       { widthPx: background.widthPx, heightPx: background.heightPx },
       background.previewUrl,
-    );
+    ).catch((error) => {
+      toast.error("Customization Media could not be read", {
+        description: error instanceof Error ? error.message : undefined,
+      });
+    });
   };
 
   const save = async () => {
@@ -454,7 +454,7 @@ function CustomizationBackgroundModal({
                         selectedPreviewAssetId,
                         setSelectedPreviewAssetId,
                         dynamicFonts,
-                      } as never
+                      }
                     }
                     onUploadBackground={replaceSelectedBackground}
                   />
