@@ -1,5 +1,3 @@
-name: Deploy to VPS (Zero-Downtime)
-
 on:
   push:
     branches:
@@ -9,8 +7,6 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  # TODO: Thay username của bạn tại đây (viết thường hết)
-  IMAGE_NAME_PREFIX: ${{ github.repository_owner }}/trophy
 
 jobs:
   build-and-push:
@@ -24,6 +20,9 @@ jobs:
         service: [backend, storefront, admin]
 
     steps:
+      - name: Prepare lowercase image prefix
+        run: echo "IMAGE_NAME_PREFIX=$(echo '${{ github.repository_owner }}/trophy' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -80,6 +79,9 @@ jobs:
     runs-on: ubuntu-latest
     needs: build-and-push
     steps:
+      - name: Prepare lowercase image prefix
+        run: echo "IMAGE_NAME_PREFIX=$(echo '${{ github.repository_owner }}/trophy' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+
       - name: Checkout repository (để copy docker-compose sang VPS)
         uses: actions/checkout@v4
 
