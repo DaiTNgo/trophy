@@ -90,6 +90,7 @@ jobs:
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USERNAME }}
+          port: 24700
           key: ${{ secrets.VPS_SSH_KEY }}
           source: "docker-compose.yml"
           target: "/opt/trophy" # Thư mục chứa app trên VPS
@@ -102,6 +103,7 @@ jobs:
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USERNAME }}
+          port: 24700
           key: ${{ secrets.VPS_SSH_KEY }}
           envs: REGISTRY,PREFIX
           script: |
