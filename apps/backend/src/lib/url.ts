@@ -19,6 +19,12 @@ export function toAbsoluteAssetUrl(c: Context, url: string | null | undefined): 
     }
 
     const reqUrl = new URL(reqUrlStr);
+    
+    const forwardedProto = c.req.header("x-forwarded-proto");
+    if (forwardedProto) {
+      reqUrl.protocol = `${forwardedProto}:`;
+    }
+
     // backend-local paths should be resolved against the request origin
     return new URL(url, reqUrl.origin).toString();
   } catch (e) {
