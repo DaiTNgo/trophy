@@ -73,4 +73,25 @@ describe("admin product assets routes", () => {
     // It should resolve against the requested origin
     expect(data.asset.contentUrl).toMatch(/^http:\/\/localhost:8787\/api\/assets\/products\/[^\/]+\/content$/);
   });
+
+  it("returns 415 when uploading an unsupported file type", async () => {
+    const formData = new FormData();
+    formData.append(
+      "file",
+      new File(["plain text content"], "test.txt", { type: "text/plain" }),
+    );
+
+    const res = await adminRoute.request(
+      "http://localhost:8787/products/assets",
+      {
+        method: "POST",
+        body: formData,
+      },
+      env,
+    );
+
+    expect(res.status).toBe(415);
+    const data = await res.json() as any;
+    expect(data.error).toBe("Only PNG, JPEG, WEBP, and PDF product assets are supported");
+  });
 });

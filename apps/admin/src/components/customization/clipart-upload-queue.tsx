@@ -9,6 +9,8 @@ import {
 import type { LocalizedTextValue } from "../../types";
 import {
   type UploadDraft,
+  ACCEPT_CLIPART_MIME_TYPES,
+  SUPPORTED_CLIPART_TYPES_HINT,
   buildUploadDraftErrors,
   clipartNameFromFile,
   inferClipartMimeType,
@@ -87,16 +89,21 @@ export function ClipartUploadQueue({
 
   return (
     <div className="flex flex-col gap-4">
-      <Input
-        type="file"
-        multiple
-        accept=".svg,.png,.webp,image/svg+xml,image/png,image/webp"
-        onChange={(event) => {
-          appendUploadDrafts(Array.from(event.target.files ?? []));
-          event.target.value = "";
-        }}
-        disabled={isUploading || !categoryActive}
-      />
+      <div className="flex flex-col gap-1.5">
+        <Input
+          type="file"
+          multiple
+          accept={ACCEPT_CLIPART_MIME_TYPES}
+          onChange={(event) => {
+            appendUploadDrafts(Array.from(event.target.files ?? []));
+            event.target.value = "";
+          }}
+          disabled={isUploading || !categoryActive}
+        />
+        <Text size="small" className="text-ui-fg-subtle">
+          {SUPPORTED_CLIPART_TYPES_HINT}
+        </Text>
+      </div>
       {!categoryActive ? (
         <Text size="small" className="text-ui-fg-subtle">
           Reactivate this category before uploading new clipart media.
@@ -104,16 +111,24 @@ export function ClipartUploadQueue({
       ) : null}
       {uploadDrafts.length ? (
         <div className="grid gap-3">
-          {uploadDrafts.map((draft, index) => (
-            <div
-              key={`${draft.file.name}-${draft.file.lastModified}-${index}`}
-              className="grid gap-3 rounded-md border border-ui-border-base p-3 md:grid-cols-[88px_minmax(0,1fr)_auto]"
-            >
-              <UploadFilePreview
-                file={draft.file}
-                alt={draft.name.vi || draft.file.name}
-                className="h-20 w-20 rounded border border-ui-border-base bg-white object-contain"
-              />
+          {uploadDrafts.map((draft, index) => {
+            const errors = uploadDraftErrors[index] ?? [];
+            const hasErrors = errors.length > 0;
+
+            return (
+              <div
+                key={`${draft.file.name}-${draft.file.lastModified}-${index}`}
+                className={`grid gap-3 rounded-md border p-3 md:grid-cols-[88px_minmax(0,1fr)_auto] ${
+                  hasErrors
+                    ? "border-ui-border-error bg-ui-bg-error/30"
+                    : "border-ui-border-base bg-ui-bg-base"
+                }`}
+              >
+                <UploadFilePreview
+                  file={draft.file}
+                  alt={draft.name.vi || draft.file.name}
+                  className="h-20 w-20 rounded border border-ui-border-base bg-white object-contain"
+                />
               <div className="flex flex-col gap-2">
                 <div className="flex flex-col gap-1">
                   <Text size="xsmall" className="text-ui-fg-subtle">
@@ -145,13 +160,14 @@ export function ClipartUploadQueue({
                   </div>
                 ) : null}
               </div>
-              <div className="flex items-start justify-end">
-                <Button variant="secondary" size="small" onClick={() => removeUploadDraft(index)} disabled={isUploading}>
-                  <X className="h-4 w-4" />
-                </Button>
+                <div className="flex items-start justify-end">
+                  <Button variant="secondary" size="small" onClick={() => removeUploadDraft(index)} disabled={isUploading}>
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       ) : (
         <Text size="small" className="text-ui-fg-subtle">

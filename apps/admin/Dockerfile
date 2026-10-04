@@ -14,6 +14,8 @@ RUN pnpm install --frozen-lockfile
 
 # 2. Build stage
 FROM deps AS builder
+ARG VITE_BACKEND_URL
+ENV VITE_BACKEND_URL=${VITE_BACKEND_URL}
 COPY packages ./packages
 COPY apps/backend ./apps/backend
 COPY apps/admin ./apps/admin

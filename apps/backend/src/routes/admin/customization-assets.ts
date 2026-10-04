@@ -53,7 +53,7 @@ export const customizationAssetsRoute = new Hono<AppEnv>()
     }
 
     if (!allowedMimeTypes.has(mimeType)) {
-      return jsonError(c, 415, "Only PNG, JPEG, and PDF customization assets are supported");
+      return jsonError(c, 415, "Only PNG, JPEG, WEBP, and PDF customization assets are supported");
     }
 
     const ownerKey = cleanOwnerKey(c.req.header("x-upload-token") ?? "");

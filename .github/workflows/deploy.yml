@@ -2,7 +2,7 @@ on:
   push:
     branches:
       - main
-      - migrate/db_env
+      # - migrate/db_env
   workflow_dispatch:
 
 env:
@@ -108,7 +108,7 @@ jobs:
           envs: REGISTRY,PREFIX
           script: |
             cd /opt/trophy
-            
+
             # Tạo file .env.production cho Backend runtime
             cat <<EOT > /opt/trophy/.env.production
             ADMIN_APP_ORIGIN=${{ secrets.ADMIN_APP_ORIGIN }}
@@ -122,32 +122,32 @@ jobs:
             MISA_API_BASE_URL=${{ secrets.MISA_API_BASE_URL }}
             EOT
             chmod 600 /opt/trophy/.env.production
-            
+
             # Khai báo image dùng để pull
             export IMAGE_BACKEND=${REGISTRY}/${PREFIX}-backend:latest
             export IMAGE_STOREFRONT=${REGISTRY}/${PREFIX}-storefront:latest
             export IMAGE_ADMIN=${REGISTRY}/${PREFIX}-admin:latest
-            
+
             # Login vào Github Container Registry (Cần tạo Personal Access Token có quyền read:packages)
             echo "${{ secrets.CR_PAT }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-            
+
             # Cấp quyền cho thư mục Bind Mount để NodeJS (user 1000) có quyền ghi file
             mkdir -p /opt/trophy/storage
             sudo chown -R 1000:1000 /opt/trophy/storage
-            
+
             # 1. Pull các image mới nhất về (mà không cần build)
             docker compose pull backend storefront admin
-            
+
             # 2. Chạy Database Migration Script độc lập (Zero-Downtime)
             docker compose run --rm \
               -e IMAGE_BACKEND=$IMAGE_BACKEND \
               backend node dist/backend/migrate.js
-            
+
             # 3. Khởi động lại các container (Docker sẽ tự swap container cũ/mới mượt mà)
             IMAGE_BACKEND=$IMAGE_BACKEND \
             IMAGE_STOREFRONT=$IMAGE_STOREFRONT \
             IMAGE_ADMIN=$IMAGE_ADMIN \
             docker compose --env-file .env.production up -d backend storefront admin
-            
+
             # 4. Dọn dẹp các image cũ để giải phóng ổ cứng VPS
             docker image prune -af

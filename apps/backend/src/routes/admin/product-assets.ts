@@ -46,7 +46,7 @@ export const productAssetsRoute = new Hono<AppEnv>()
 
     const mimeType = file.type.trim();
     if (!allowedMimeTypes.has(mimeType)) {
-      return c.json({ error: "Only PNG, JPEG, and PDF product assets are supported" }, 415);
+      return c.json({ error: "Only PNG, JPEG, WEBP, and PDF product assets are supported" }, 415);
     }
 
     if (file.size <= 0 || file.size > MAX_ASSET_BYTES) {

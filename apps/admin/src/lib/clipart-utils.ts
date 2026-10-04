@@ -2,6 +2,8 @@ import type { LocalizedTextValue } from "../types";
 
 export const MAX_CLIPART_ASSET_BYTES = 20 * 1024 * 1024;
 export const SUPPORTED_CLIPART_MIME_TYPES = new Set(["image/svg+xml", "image/png", "image/webp"]);
+export const ACCEPT_CLIPART_MIME_TYPES = ".svg,.png,.webp,image/svg+xml,image/png,image/webp";
+export const SUPPORTED_CLIPART_TYPES_HINT = "SVG, PNG, WEBP up to 20MB";
 
 export type UploadDraft = {
   file: File;

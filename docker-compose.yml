@@ -144,6 +144,8 @@ services:
     build:
       context: .
       dockerfile: apps/admin/Dockerfile
+      args:
+        - VITE_BACKEND_URL=${VITE_BACKEND_URL}
     container_name: trophy_admin
     restart: unless-stopped
     security_opt:
