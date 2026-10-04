@@ -2,6 +2,25 @@
 
 ## Current Session
 
+- 2026-10-04: **Architectural Review: Docker Compose, Monorepo Build & Database Migration Strategy.**
+  - Session & Interview:
+    - Executed `/grill-with-docs` interview session focusing on Docker Compose and the Monorepo deployment architecture.
+    - Decided to pivot to a Zero-Downtime Deployment model by executing database migrations independently of the application startup.
+    - Updated `CONTEXT.md` with: `Deployment Pipeline` and `Zero-Downtime Migration Strategy`.
+    - Documented architectural decision in `docs/adr/0001-database-migration-strategy.md`.
+  - Backend Implementation:
+    - Created a standalone programmatic migration script in `apps/backend/src/db/migrate.ts`.
+    - Configured `vite.config.ts` to output `dist/backend/migrate.js` alongside the main app.
+    - Modified `apps/backend/Dockerfile` to copy the `drizzle/` migrations directory into the isolated `/prod/backend` output.
+    - Standardized `STORAGE_DIR` to use `/app/storage` to prevent path mismatches when running the container independent of Compose.
+  - Storefront Implementation:
+    - Cleaned up `apps/storefront/Dockerfile` by removing unnecessary `COPY apps/backend` commands, correctly mirroring the independent HTTP API communication flow.
+  - Docker Compose:
+    - Standardized backend `STORAGE_DIR` volume mount to `/app/storage`.
+  - Verification:
+    - Live tested Docker builds for backend, admin, and storefront successfully.
+    - `pnpm --filter backend build` confirmed successful build of `migrate.js` alongside `index.js`.
+
 - 2026-09-26: **Implemented Product Option Display Types & Swatches (Backend, Admin & Storefront).**
   - Session & Design Alignment:
     - Executed `/grilling` interview session with the user to structure Option vs Variant visual responsibilities.

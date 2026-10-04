@@ -42,6 +42,7 @@ services:
   # 2. Backend API Service (Hono + Node.js 22)
   # ============================================================================
   backend:
+    image: ${IMAGE_BACKEND:-trophy-backend:local}
     build:
       context: .
       dockerfile: apps/backend/Dockerfile
@@ -59,18 +60,18 @@ services:
     environment:
       PORT: 8787
       DATABASE_URL: postgres://${POSTGRES_USER:-trophy}:${POSTGRES_PASSWORD:-trophy_secret}@db:5432/${POSTGRES_DB:-trophy}
-      STORAGE_DIR: /app/apps/backend/storage
-      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-trophy-secret-key-change-in-production}
-      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost}
-      ADMIN_APP_ORIGIN: ${ADMIN_APP_ORIGIN:-http://localhost}
-      STOREFRONT_APP_ORIGIN: ${STOREFRONT_APP_ORIGIN:-http://localhost}
+      STORAGE_DIR: /app/storage
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL}
+      ADMIN_APP_ORIGIN: ${ADMIN_APP_ORIGIN}
+      STOREFRONT_APP_ORIGIN: ${STOREFRONT_APP_ORIGIN}
       MISA_CLIENT_ID: ${MISA_CLIENT_ID:-}
       MISA_CLIENT_SECRET: ${MISA_CLIENT_SECRET:-}
       MISA_API_BASE_URL: ${MISA_API_BASE_URL:-https://crmconnect.misa.vn/api/v2}
     volumes:
-      - storage_data:/app/apps/backend/storage
+      - ./storage:/app/storage
     ports:
-      - "${BACKEND_PORT:-8787}:8787"
+      - "127.0.0.1:${BACKEND_PORT:-8787}:8787"
     ulimits:
       nofile:
         soft: 65535
@@ -94,6 +95,7 @@ services:
   # 3. Storefront SSR Service (React Router v7)
   # ============================================================================
   storefront:
+    image: ${IMAGE_STOREFRONT:-trophy-storefront:local}
     build:
       context: .
       dockerfile: apps/storefront/Dockerfile
@@ -111,9 +113,9 @@ services:
     environment:
       PORT: 3000
       BACKEND_INTERNAL_URL: http://backend:8787
-      BACKEND_URL: ${BACKEND_PUBLIC_URL:-http://localhost/api}
+      BACKEND_URL: ${BACKEND_PUBLIC_URL}
     ports:
-      - "${STOREFRONT_PORT:-3000}:3000"
+      - "127.0.0.1:${STOREFRONT_PORT:-3000}:3000"
     ulimits:
       nofile:
         soft: 65535
@@ -137,6 +139,7 @@ services:
   # 4. Admin Portal Service (SPA Static Nginx)
   # ============================================================================
   admin:
+    image: ${IMAGE_ADMIN:-trophy-admin:local}
     build:
       context: .
       dockerfile: apps/admin/Dockerfile
@@ -148,7 +151,7 @@ services:
       - /tmp:rw,noexec,nosuid
       - /var/run:rw,noexec,nosuid
     ports:
-      - "${ADMIN_PORT:-5174}:80"
+      - "127.0.0.1:${ADMIN_PORT:-5174}:80"
     deploy:
       resources:
         limits:
@@ -231,7 +234,7 @@ services:
     container_name: trophy_dockhand
     restart: unless-stopped
     ports:
-      - "${DOCKHAND_PORT:-3001}:3000"
+      - "127.0.0.1:${DOCKHAND_PORT:-3001}:3000"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - dockhand_data:/app/data
@@ -246,8 +249,6 @@ services:
 # ==============================================================================
 volumes:
   postgres_data:
-    driver: local
-  storage_data:
     driver: local
   dockhand_data:
     driver: local

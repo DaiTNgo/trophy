@@ -19,9 +19,53 @@ Dự án gồm 3 ứng dụng chính và các gói thư viện chia sẻ trong m
 
 ---
 
-## 🐳 Triển khai với Docker (Production trên VPS)
+## 🐳 Triển khai với Docker (Production trên VPS & CI/CD)
 
-Hệ thống được đóng gói hoàn chỉnh bằng Docker Compose, sẵn sàng chạy trên mọi VPS có cài đặt Docker & Docker Compose.
+Hệ thống được đóng gói hoàn chỉnh bằng Docker Compose, sẵn sàng chạy trên VPS hoặc qua CI/CD pipeline (GitHub Actions, GitLab CI).
+
+### Quản lý Biến Môi Trường (Environment Variables)
+**⚠️ Quan trọng:** Không bao giờ commit file `.env.production` lên Git.
+Hệ thống yêu cầu các biến môi trường cho 3 mục đích khác nhau:
+1. **Backend (Runtime):** Cần file `.env.production` tại thư mục gốc để Docker Compose nạp vào container (thông qua chỉ thị `env_file`).
+2. **Admin (Build-time):** Cần file `apps/admin/.env.production` để Vite nạp biến (như `VITE_BACKEND_URL`) vào mã nguồn JS tĩnh lúc build.
+3. **Storefront (Build-time):** Cần file `apps/storefront/.env.production` để Vite/React Router nạp các biến dùng cho phía client lúc build.
+
+### Hướng dẫn thiết lập CI/CD (GitHub Actions / GitLab CI)
+
+Trong pipeline CI/CD, bạn cần lấy các secrets từ Secret Manager (chứ không lưu trong Git) và tự động tạo (generate) các file `.env.production` **trước khi gọi lệnh build/up**.
+
+Ví dụ script chạy trên VPS thông qua SSH từ CI/CD:
+
+```bash
+# 1. Đi tới thư mục dự án
+cd ~/trophy
+git pull origin main
+
+# 2. Tạo file .env.production cho BACKEND (tại thư mục gốc)
+cat <<EOT > .env.production
+ADMIN_APP_ORIGIN=https://admin.yourdomain.com
+STOREFRONT_APP_ORIGIN=https://yourdomain.com
+BETTER_AUTH_SECRET=${{ secrets.BETTER_AUTH_SECRET }}
+JETPAY_SECRET=${{ secrets.JETPAY_SECRET }}
+# ... thêm các biến khác
+EOT
+
+# 3. Tạo file .env.production cho ADMIN (để Vite build)
+cat <<EOT > apps/admin/.env.production
+VITE_BACKEND_URL=https://api.yourdomain.com
+EOT
+
+# 4. Tạo file .env.production cho STOREFRONT (nếu cần biến VITE_)
+cat <<EOT > apps/storefront/.env.production
+VITE_API_URL=https://api.yourdomain.com
+EOT
+
+# 5. Phân quyền bảo mật file
+chmod 600 .env.production apps/admin/.env.production apps/storefront/.env.production
+
+# 6. Build và khởi động lại Docker
+docker compose --env-file .env.production up -d --build backend storefront admin
+```
 
 ### Các dịch vụ trong cụm Docker (`docker-compose.yml`):
 - **`db`** (`postgres:16-alpine`): Cơ sở dữ liệu PostgreSQL lưu trên volume `postgres_data`.

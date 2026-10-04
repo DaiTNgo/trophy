@@ -24,6 +24,9 @@ RUN pnpm --filter backend --prod --legacy deploy /prod/backend
 # Copy the built dist output into the deployed isolated directory
 RUN cp -r /app/apps/backend/dist /prod/backend/dist
 
+# Copy drizzle migration files for the standalone migration script
+RUN cp -r /app/apps/backend/drizzle /prod/backend/drizzle
+
 # 3. Production runtime stage
 FROM node:22-alpine AS runner
 WORKDIR /app
@@ -31,7 +34,7 @@ ENV NODE_ENV=production
 RUN apk add --no-cache dumb-init
 
 # Prepare directories for app and storage with proper non-root permissions
-RUN mkdir -p /app/apps/backend/storage && chown -R node:node /app
+RUN mkdir -p /app/storage && chown -R node:node /app
 
 # Copy deployed backend code and dependencies
 COPY --from=builder --chown=node:node /prod/backend /app

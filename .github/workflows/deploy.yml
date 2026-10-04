@@ -1,0 +1,147 @@
+name: Deploy to VPS (Zero-Downtime)
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  REGISTRY: ghcr.io
+  # TODO: Thay username của bạn tại đây (viết thường hết)
+  IMAGE_NAME_PREFIX: ${{ github.repository_owner }}/trophy
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    strategy:
+      matrix:
+        service: [backend, storefront, admin]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_PREFIX }}-${{ matrix.service }}
+          tags: |
+            type=raw,value=latest
+            type=sha,format=short
+
+      - name: Generate frontend .env.production
+        if: matrix.service == 'admin' || matrix.service == 'storefront'
+        run: |
+          if [ "${{ matrix.service }}" == "admin" ]; then
+            echo "VITE_BACKEND_URL=${{ secrets.VITE_BACKEND_URL }}" > apps/admin/.env.production
+          elif [ "${{ matrix.service }}" == "storefront" ]; then
+            echo "VITE_API_URL=${{ secrets.VITE_API_URL }}" > apps/storefront/.env.production
+          fi
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: apps/${{ matrix.service }}/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_PREFIX }}-${{ matrix.service }}:latest
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    steps:
+      - name: Checkout repository (để copy docker-compose sang VPS)
+        uses: actions/checkout@v4
+
+      - name: Copy docker-compose.yml to VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          source: "docker-compose.yml"
+          target: "/opt/trophy" # Thư mục chứa app trên VPS
+
+      - name: Execute deployment commands via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          REGISTRY: ${{ env.REGISTRY }}
+          PREFIX: ${{ env.IMAGE_NAME_PREFIX }}
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          envs: REGISTRY,PREFIX
+          script: |
+            cd /opt/trophy
+            
+            # Tạo file .env.production cho Backend runtime
+            cat <<EOT > /opt/trophy/.env.production
+            ADMIN_APP_ORIGIN=${{ secrets.ADMIN_APP_ORIGIN }}
+            STOREFRONT_APP_ORIGIN=${{ secrets.STOREFRONT_APP_ORIGIN }}
+            BETTER_AUTH_SECRET=${{ secrets.BETTER_AUTH_SECRET }}
+            BETTER_AUTH_URL=${{ secrets.BETTER_AUTH_URL }}
+            JETPAY_ID=${{ secrets.JETPAY_ID }}
+            JETPAY_SECRET=${{ secrets.JETPAY_SECRET }}
+            MISA_CLIENT_ID=${{ secrets.MISA_CLIENT_ID }}
+            MISA_CLIENT_SECRET=${{ secrets.MISA_CLIENT_SECRET }}
+            MISA_API_BASE_URL=${{ secrets.MISA_API_BASE_URL }}
+            EOT
+            chmod 600 /opt/trophy/.env.production
+            
+            # Khai báo image dùng để pull
+            export IMAGE_BACKEND=${REGISTRY}/${PREFIX}-backend:latest
+            export IMAGE_STOREFRONT=${REGISTRY}/${PREFIX}-storefront:latest
+            export IMAGE_ADMIN=${REGISTRY}/${PREFIX}-admin:latest
+            
+            # Login vào Github Container Registry (Cần tạo Personal Access Token có quyền read:packages)
+            echo "${{ secrets.CR_PAT }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            
+            # Cấp quyền cho thư mục Bind Mount để NodeJS (user 1000) có quyền ghi file
+            mkdir -p /opt/trophy/storage
+            sudo chown -R 1000:1000 /opt/trophy/storage
+            
+            # 1. Pull các image mới nhất về (mà không cần build)
+            docker compose pull backend storefront admin
+            
+            # 2. Chạy Database Migration Script độc lập (Zero-Downtime)
+            docker compose run --rm \
+              -e IMAGE_BACKEND=$IMAGE_BACKEND \
+              backend node dist/backend/migrate.js
+            
+            # 3. Khởi động lại các container (Docker sẽ tự swap container cũ/mới mượt mà)
+            IMAGE_BACKEND=$IMAGE_BACKEND \
+            IMAGE_STOREFRONT=$IMAGE_STOREFRONT \
+            IMAGE_ADMIN=$IMAGE_ADMIN \
+            docker compose --env-file .env.production up -d backend storefront admin
+            
+            # 4. Dọn dẹp các image cũ để giải phóng ổ cứng VPS
+            docker image prune -af

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Button, Container, Heading, Text, Drawer, DropdownMenu, IconButton, toast } from "@medusajs/ui";
 import { MoreHorizontal } from "lucide-react";
 import { updateProductAttributes } from "../../lib/products-client";
+import { validateProductAttributes, isAttributeRowActive } from "../../lib/product-utils";
 import type { CatalogProduct, ProductAttribute, AdminLocale } from "../../types";
 import { ProductAttributesEditor } from "../../components/products/product-attributes-editor";
 
@@ -30,14 +31,25 @@ export function ProductDetailAttributes({ product, mutate }: ProductDetailAttrib
   const handleSave = async () => {
     setIsSubmitting(true);
     try {
-      const validAttrs = attributes.filter(a => a.key.vi.trim() && a.value.vi.trim());
-      await updateProductAttributes(product.id, validAttrs.map(a => ({ name: a.key, value: a.value })));
+      const attributeError = validateProductAttributes(attributes);
+      if (attributeError) {
+        throw new Error(attributeError);
+      }
+
+      const activeAttrs = attributes.filter(isAttributeRowActive);
+      await updateProductAttributes(
+        product.id,
+        activeAttrs.map((a) => ({
+          name: { vi: a.key.vi.trim(), en: a.key.en.trim() || undefined },
+          value: { vi: a.value.vi.trim(), en: a.value.en.trim() || undefined },
+        })),
+      );
       await mutate();
       setOpen(false);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to save attributes";
       toast.error("Attributes could not be saved", {
-        description: `${message} Check that each attribute has both a name and a Vietnamese value, then try again.`,
+        description: message,
       });
     } finally {
       setIsSubmitting(false);
@@ -99,8 +111,8 @@ export function ProductDetailAttributes({ product, mutate }: ProductDetailAttrib
                 key={idx}
                 className="grid grid-cols-2 px-6 py-4 border-t border-ui-border-base"
               >
-                <Text size="small" className="text-ui-fg-subtle font-medium">{attr.key.vi}</Text>
-                <Text size="small" className="text-ui-fg-base">{attr.value.vi}</Text>
+                <Text size="small" className="text-ui-fg-subtle font-medium">{attr.key.vi || attr.key.en}</Text>
+                <Text size="small" className="text-ui-fg-base">{attr.value.vi || attr.value.en}</Text>
               </div>
             ))
           ) : (

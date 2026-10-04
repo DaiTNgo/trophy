@@ -61,27 +61,33 @@ function hasVietnameseCatalogText(value: unknown) {
   return Boolean(value && typeof value === 'object' && 'vi' in value && String(value.vi ?? '').trim())
 }
 
-function isLocalizedComplete(value: unknown) {
-  if (typeof value === 'string') return value.trim().length > 0
-  return Boolean(value && typeof value === 'object' && 'vi' in value && 'en' in value && String(value.vi ?? '').trim() && String(value.en ?? '').trim())
-}
-
 export function validatePublishable(product: ProductForPublish) {
   if (!hasVietnameseCatalogText(product.title)) return 'Product title requires Vietnamese text before publish'
   for (const attribute of product.attributes) {
-    if (!isLocalizedComplete(attribute.name) || !isLocalizedComplete(attribute.value)) return 'All product attributes must have translated names and values before publish'
+    if (!hasVietnameseCatalogText(attribute.name) || !hasVietnameseCatalogText(attribute.value)) {
+      return 'All product attributes require Vietnamese names and values before publish'
+    }
   }
   for (const option of product.options) {
-    if (!isLocalizedComplete(option.title)) return 'All product options must have translated titles before publish'
+    if (!hasVietnameseCatalogText(option.title)) {
+      return 'All product options require Vietnamese titles before publish'
+    }
     for (const value of option.values) {
-      if (!isLocalizedComplete(value.value)) return 'All product option values must have translated labels before publish'
+      if (!hasVietnameseCatalogText(value.value)) {
+        return 'All product option values require Vietnamese labels before publish'
+      }
     }
   }
   if (product.variants.length === 0) return 'A product must have at least one variant'
   for (const variant of product.variants) {
+    if (variant.title !== undefined && !hasVietnameseCatalogText(variant.title)) {
+      return 'Every variant requires a title with Vietnamese text before publish'
+    }
     if (variant.priceAmount === null) return 'Every variant must have a price before publish'
     for (const attribute of variant.attributes ?? []) {
-      if (!isLocalizedComplete(attribute.name) || !isLocalizedComplete(attribute.value)) return 'All variant attributes must have translated names and values before publish'
+      if (!hasVietnameseCatalogText(attribute.name) || !hasVietnameseCatalogText(attribute.value)) {
+        return 'All variant attributes require Vietnamese names and values before publish'
+      }
     }
   }
   if (!productUsesVariantMode(product)) {

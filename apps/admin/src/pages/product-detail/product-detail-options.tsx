@@ -9,6 +9,7 @@ import {
   deleteProductOption,
   updateProductOptionBulk,
 } from "../../lib/products-client";
+import { validateProductOptionDraft } from "../../lib/product-utils";
 import { ProductOptionEditor } from "../../components/product/ProductOptionEditor";
 import type { CatalogProduct, AdminLocale, OptionDraft } from "../../types";
 
@@ -76,38 +77,29 @@ export function ProductDetailOptions({ product, mutate }: ProductDetailOptionsPr
     if (!activeOption) return;
     setIsSaving(true);
 
+    const optionError = validateProductOptionDraft(activeOption);
+    if (optionError) {
+      toast.error("Option could not be saved", {
+        description: optionError,
+      });
+      setIsSaving(false);
+      return;
+    }
+
     const trimmedTitleVi = activeOption.titleTranslations.vi.trim();
     const trimmedTitleEn = activeOption.titleTranslations.en.trim();
-    if (!trimmedTitleVi) {
-      const message = "Vietnamese option title is required.";
-      toast.error("Option could not be saved", {
-        description: `${message} Enter a Vietnamese option title and at least one value, then try again.`,
-      });
-      setIsSaving(false);
-      return;
-    }
-
     const finalValues = activeOption.values;
-
-    if (finalValues.length === 0) {
-      const message = "At least one variation value is required.";
-      toast.error("Option could not be saved", {
-        description: `${message} Add at least one variation value, then try again.`,
-      });
-      setIsSaving(false);
-      return;
-    }
 
     try {
       if (activeOption.id === null) {
         // Creating a new option
         await createProductOption(product.id, {
-          title: { vi: trimmedTitleVi, en: trimmedTitleEn },
+          title: { vi: trimmedTitleVi, en: trimmedTitleEn || undefined },
           displayType: activeOption.displayType,
           values: finalValues.map((v) => ({
             value: {
               vi: v.valueTranslations.vi.trim(),
-              en: v.valueTranslations.en.trim(),
+              en: v.valueTranslations.en.trim() || undefined,
             },
             colorHex: v.colorHex ?? null,
             swatchAssetId: v.swatchAssetId ?? null,
@@ -117,11 +109,14 @@ export function ProductDetailOptions({ product, mutate }: ProductDetailOptionsPr
         // Updating an existing option using the bulk endpoint
         const optionId = activeOption.id;
         await updateProductOptionBulk(product.id, Number(optionId), {
-          title: { vi: trimmedTitleVi, en: trimmedTitleEn },
+          title: { vi: trimmedTitleVi, en: trimmedTitleEn || undefined },
           displayType: activeOption.displayType,
           values: finalValues.map((v) => ({
             id: v.id ? Number(v.id) : null,
-            value: { vi: v.valueTranslations.vi.trim(), en: v.valueTranslations.en.trim() },
+            value: {
+              vi: v.valueTranslations.vi.trim(),
+              en: v.valueTranslations.en.trim() || undefined,
+            },
             colorHex: v.colorHex ?? null,
             swatchAssetId: v.swatchAssetId ?? null,
           })),

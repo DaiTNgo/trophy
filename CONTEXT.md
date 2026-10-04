@@ -502,3 +502,11 @@ _Avoid_: screen pixels, display coordinates, preview coordinates
 **PDF Document Coordinates**:
 The absolute, scale-1.0 coordinate system (typically in points) of the original PDF used for print production. The backend stores all Customization Background dimensions and block placements exclusively in this coordinate system, regardless of the preview image resolution.
 _Avoid_: image size, scale-2x size, print pixels
+
+**Deployment Pipeline**:
+The automated process (e.g., via GitHub Actions) that builds the immutable Docker Image and pushes it to a registry. The production VPS only pulls and runs the image and never holds the source code or runs development tools.
+_Avoid_: Git-pull deployment, VPS build, manual server compilation
+
+**Zero-Downtime Migration Strategy**:
+The database schema update process executed as a discrete step (using the compiled programmatic `migrate.js` script) prior to rolling out new application container versions. This prevents table locking or schema incompatibility from crashing the active containers serving user traffic during the deployment.
+_Avoid_: Startup automatic migration, drizzle-kit on production, app-init migration

@@ -3,6 +3,7 @@ import { Container, Heading, Text, Drawer, Button, Input, StatusBadge, DropdownM
 import { MoreHorizontal } from "lucide-react";
 import type { CatalogProduct } from "../../types";
 import { updateProductOverview, publishProduct, archiveProduct } from "../../lib/products-client";
+import { validateProductTitle } from "../../lib/product-utils";
 import { LocalizedTextField } from "../../components/ui/medusa";
 import type { AdminLocale } from "../../types";
 
@@ -37,15 +38,23 @@ export function ProductDetailOverview({ product, mutate }: ProductDetailOverview
   const handleSave = async () => {
     setIsSubmitting(true);
     try {
-      if (!title.vi.trim()) {
-        throw new Error("Vietnamese product title is required.");
+      const titleError = validateProductTitle(title);
+      if (titleError) {
+        throw new Error(titleError);
       }
 
+      const hasSubtitle = Boolean(subtitle.vi.trim() || subtitle.en.trim());
+      const hasDescription = Boolean(description.vi.trim() || description.en.trim());
+
       await updateProductOverview(product.id, {
-        title: { vi: title.vi, en: title.en || undefined },
-        handle,
-        subtitle: subtitle.vi ? { vi: subtitle.vi, en: subtitle.en || undefined } : null,
-        description: description.vi ? { vi: description.vi, en: description.en || undefined } : null,
+        title: { vi: title.vi.trim(), en: title.en.trim() || undefined },
+        handle: handle.trim() || null,
+        subtitle: hasSubtitle
+          ? { vi: subtitle.vi.trim() || undefined, en: subtitle.en.trim() || undefined }
+          : null,
+        description: hasDescription
+          ? { vi: description.vi.trim() || undefined, en: description.en.trim() || undefined }
+          : null,
       });
 
       if (status !== product.status) {
@@ -61,7 +70,7 @@ export function ProductDetailOverview({ product, mutate }: ProductDetailOverview
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to save overview";
       toast.error("Product overview could not be saved", {
-        description: `${message} Enter a Vietnamese title and review the overview fields, then try again.`,
+        description: message,
       });
     } finally {
       setIsSubmitting(false);

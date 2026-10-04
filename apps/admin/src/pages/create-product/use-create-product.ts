@@ -28,6 +28,7 @@ import {
   DEFAULT_PRODUCT_OPTION_TITLE,
   DEFAULT_PRODUCT_OPTION_VALUE,
   getEffectiveOptionDefinitions,
+  isAttributeRowActive,
   isPublishReady,
   reconcileVariantRows,
   validateCreateProduct,
@@ -81,10 +82,6 @@ export function buildVariantSignature(
   return options.map((option) => `${option.option}:${option.value}`).join("|");
 }
 
-function hasLocalizedTextValue(value: LocalizedTextValue) {
-  return Object.values(value).some((localeValue) => localeValue.trim() !== "");
-}
-
 const validationErrorGuidance: Partial<
   Record<keyof CreateProductErrors, string>
 > = {
@@ -92,9 +89,9 @@ const validationErrorGuidance: Partial<
   handle:
     "Use a different handle in Details, or leave it blank to generate one from the title.",
   attributes:
-    "In Details, complete both the name and value for every attribute row, or remove empty rows.",
+    "In Details, complete both the Vietnamese name and value for every attribute row, or remove empty rows.",
   optionDefinitions:
-    "In Details, add a product option with a title and at least one unique value.",
+    "In Details, ensure each option has a Vietnamese title and every value has a unique Vietnamese name.",
   variants:
     "Open Variants, select at least one variant to create, and fix the variant values shown in the table.",
   publish:
@@ -473,17 +470,22 @@ export function useCreateProduct() {
         optionDefinitions,
       )
         .map((option) => ({
-          title: option.titleTranslations ?? {
-            vi: option.title.trim(),
-            en: "",
-          },
+          title: option.titleTranslations
+            ? {
+                vi: option.titleTranslations.vi.trim(),
+                en: option.titleTranslations.en.trim() || undefined,
+              }
+            : {
+                vi: option.title.trim(),
+                en: undefined,
+              },
           displayType: option.displayType ?? "text",
           values: option.values
-            .filter((v) => v.value.trim() !== "")
+            .filter((v) => (v.valueTranslations?.vi ?? v.value).trim() !== "")
             .map((value) => ({
-              value: value.valueTranslations ?? {
-                vi: value.value.trim(),
-                en: "",
+              value: {
+                vi: (value.valueTranslations?.vi ?? value.value).trim(),
+                en: value.valueTranslations?.en?.trim() || undefined,
               },
               colorHex: value.colorHex ?? null,
               swatchAssetId: value.swatchAssetId ?? null,
@@ -556,13 +558,26 @@ export function useCreateProduct() {
         };
         });
       const submittedDetails = {
-        title: values.title,
+        title: {
+          vi: values.title.vi.trim(),
+          en: values.title.en.trim() || undefined,
+        },
         handle: values.handle.trim() || null,
-        ...(hasLocalizedTextValue(values.subtitle)
-          ? { subtitle: values.subtitle }
+        ...(values.subtitle.vi.trim() || values.subtitle.en.trim()
+          ? {
+              subtitle: {
+                vi: values.subtitle.vi.trim(),
+                en: values.subtitle.en.trim() || undefined,
+              },
+            }
           : {}),
-        ...(hasLocalizedTextValue(values.description)
-          ? { description: values.description }
+        ...(values.description.vi.trim() || values.description.en.trim()
+          ? {
+              description: {
+                vi: values.description.vi.trim(),
+                en: values.description.en.trim() || undefined,
+              },
+            }
           : {}),
         ...(sanitizeLocalizedRichText(values.whyThisProductHtml)
           ? { whyThisProductHtml: sanitizeLocalizedRichText(values.whyThisProductHtml)! }
@@ -583,14 +598,16 @@ export function useCreateProduct() {
           categoryIds: selectedCategoryIds.map((id) => Number(id)),
         },
         attributes: attributes
-          .filter(
-            (attribute) =>
-              attribute.key.vi.trim() !== "" &&
-              attribute.value.vi.trim() !== "",
-          )
+          .filter(isAttributeRowActive)
           .map((attribute) => ({
-            name: attribute.key,
-            value: attribute.value,
+            name: {
+              vi: attribute.key.vi.trim(),
+              en: attribute.key.en.trim() || undefined,
+            },
+            value: {
+              vi: attribute.value.vi.trim(),
+              en: attribute.value.en.trim() || undefined,
+            },
             unit: null,
           })),
         options: submittedOptions,

@@ -4,12 +4,15 @@ import { visualizer } from "rollup-plugin-visualizer";
 export default defineConfig({
   build: {
     target: "node22",
-    ssr: "src/index.ts",
+    ssr: true,
     outDir: "dist/backend",
     rollupOptions: {
-      input: "src/index.ts",
+      input: {
+        index: "src/index.ts",
+        migrate: "src/db/migrate.ts"
+      },
       output: {
-        entryFileNames: "index.js",
+        entryFileNames: "[name].js",
         format: "esm",
       },
     },

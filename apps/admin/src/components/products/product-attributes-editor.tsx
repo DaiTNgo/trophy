@@ -53,6 +53,7 @@ export function ProductAttributesEditor({
               onLocaleChange={onLocaleChange}
               onChange={(val) => updateAttributeField(index, "key", val)}
               placeholder={{ vi: "Tên thuộc tính (VD: Chất liệu)", en: "Attribute name" }}
+              requiredLocales={["vi"]}
             />
           </div>
           <div className="flex-1 min-w-0">
@@ -63,6 +64,7 @@ export function ProductAttributesEditor({
               onLocaleChange={onLocaleChange}
               onChange={(val) => updateAttributeField(index, "value", val)}
               placeholder={{ vi: "Giá trị (VD: Cotton)", en: "Attribute value" }}
+              requiredLocales={["vi"]}
             />
           </div>
           <IconButton

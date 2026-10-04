@@ -3,6 +3,7 @@ import type {
   CatalogProduct,
   CreateProductFormValues,
   CreateProductSubmission,
+  LocalizedTextValue,
   ProductAttribute,
   ProductOptionDefinition,
   ProductOptionValueDefinition,
@@ -216,6 +217,59 @@ function getEffectiveVariantRows(
   }));
 }
 
+export function validateProductTitle(title: LocalizedTextValue | undefined | null): string | null {
+  if (!title?.vi?.trim()) {
+    return "Vietnamese product title is required.";
+  }
+  return null;
+}
+
+export function isAttributeRowActive(attribute: ProductAttribute): boolean {
+  return Boolean(
+    attribute.key.vi.trim() !== "" ||
+    attribute.key.en.trim() !== "" ||
+    attribute.value.vi.trim() !== "" ||
+    attribute.value.en.trim() !== "",
+  );
+}
+
+export function validateProductAttributes(attributes: ProductAttribute[]): string | null {
+  const activeAttributes = attributes.filter(isAttributeRowActive);
+  if (
+    activeAttributes.some(
+      (attribute) =>
+        attribute.key.vi.trim() === "" || attribute.value.vi.trim() === "",
+    )
+  ) {
+    return "Each attribute row must have both a Vietnamese name and value.";
+  }
+  return null;
+}
+
+export function validateProductOptionDraft(option: {
+  titleTranslations: LocalizedTextValue;
+  values: Array<{ valueTranslations: LocalizedTextValue }>;
+}): string | null {
+  if (!option.titleTranslations?.vi?.trim()) {
+    return "Vietnamese option title is required.";
+  }
+  if (!option.values || option.values.length === 0) {
+    return "At least one variation value is required.";
+  }
+  if (option.values.some((v) => !v.valueTranslations?.vi?.trim())) {
+    return "Each option value requires a Vietnamese name.";
+  }
+  const seenValues = new Set<string>();
+  for (const v of option.values) {
+    const normalizedValue = v.valueTranslations.vi.trim().toLowerCase();
+    if (seenValues.has(normalizedValue)) {
+      return "Values within the same option must be unique.";
+    }
+    seenValues.add(normalizedValue);
+  }
+  return null;
+}
+
 export function validateCreateProduct({
   mode,
   values,
@@ -265,37 +319,25 @@ export function validateCreateProduct({
   if (hasVariantsEnabled) {
     if (effectiveOptionDefinitions.length === 0) {
       nextErrors.optionDefinitions = "Add at least one product option before continuing with variants.";
-    }
-
-    const invalidOption = effectiveOptionDefinitions.find(
-      (option) => option.title === "" || option.values.filter((value) => value.value !== "").length === 0,
-    );
-    if (invalidOption) {
-      nextErrors.optionDefinitions = "Each product option needs a title and at least one value.";
-    }
-
-    const duplicateValueOption = effectiveOptionDefinitions.find((option) => {
-      const seenValues = new Set<string>();
-      for (const value of option.values) {
-        const normalizedValue = value.value.toLowerCase();
-        if (normalizedValue === "") {
-          continue;
+    } else {
+      for (const option of effectiveOptionDefinitions) {
+        const optionError = validateProductOptionDraft({
+          titleTranslations: option.titleTranslations ?? { vi: option.title, en: "" },
+          values: option.values.map((v) => ({
+            valueTranslations: v.valueTranslations ?? { vi: v.value, en: "" },
+          })),
+        });
+        if (optionError) {
+          nextErrors.optionDefinitions = optionError;
+          break;
         }
-        if (seenValues.has(normalizedValue)) {
-          return true;
-        }
-        seenValues.add(normalizedValue);
       }
-      return false;
-    });
-    if (duplicateValueOption) {
-      nextErrors.optionDefinitions = "Values within the same option must be unique.";
     }
   }
 
-  const cleanedAttributes = attributes.filter((attribute) => attribute.key.vi.trim() !== "" || attribute.value.vi.trim() !== "");
-  if (cleanedAttributes.some((attribute) => attribute.key.vi.trim() === "" || attribute.value.vi.trim() === "")) {
-    nextErrors.attributes = "Each attribute row must have both a name and a value.";
+  const attributeError = validateProductAttributes(attributes);
+  if (attributeError) {
+    nextErrors.attributes = attributeError;
   }
 
   if (mode === "publish") {
@@ -367,7 +409,13 @@ export function isPublishReady(
   const effectiveVariantRows = getEffectiveVariantRows(values, variantRows, optionDefinitions);
   const hasVariantsEnabled = optionDefinitions ? values.hasVariants : values.hasVariants || effectiveOptionDefinitions.length > 0;
   const variantStructureValid =
-    (!hasVariantsEnabled || effectiveOptionDefinitions.every((option) => option.title !== "" && option.values.some((value) => value.value !== ""))) &&
+    (!hasVariantsEnabled ||
+      effectiveOptionDefinitions.every(
+        (option) =>
+          option.title.trim() !== "" &&
+          option.values.length > 0 &&
+          option.values.every((value) => (value.valueTranslations?.vi ?? value.value).trim() !== "")
+      )) &&
     effectiveVariantRows.length > 0;
   const variantPricingValid = effectiveVariantRows.every((variant) => Number(variant.price || 0) > 0);
 
@@ -382,7 +430,7 @@ export function createMockProduct(existingProducts: CatalogProduct[], input: Cre
   const today = "2026-06-21";
   const optionDefinitions = getEffectiveOptionDefinitions(input.values, input.optionDefinitions);
   const variantRows = getEffectiveVariantRows(input.values, input.variantRows, input.optionDefinitions);
-  const attributes = input.attributes.filter((attribute) => attribute.key.vi.trim() !== "" && attribute.value.vi.trim() !== "");
+  const attributes = input.attributes.filter(isAttributeRowActive);
   const highestInventory = variantRows.reduce((total, variant) => total + variant.inventory, 0);
   const leadPrice = variantRows[0]?.price ?? 0;
   const status = input.mode === "draft" ? "Draft" : "Published";
@@ -441,7 +489,7 @@ export function buildUpdatedProduct(current: CatalogProduct, input: CreateProduc
     collection: input.values.collection,
     categories: input.values.categories,
     media: [],
-    attributes: input.attributes.filter((attribute) => attribute.key.vi.trim() !== "" && attribute.value.vi.trim() !== ""),
+    attributes: input.attributes.filter(isAttributeRowActive),
     optionDefinitions,
     variants: variantRows.map((variant, index) => ({
       ...variant,

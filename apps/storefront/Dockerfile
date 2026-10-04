@@ -8,14 +8,12 @@ FROM base AS deps
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc* ./
 COPY packages/customization/package.json ./packages/customization/
 COPY packages/customization-react/package.json ./packages/customization-react/
-COPY apps/backend/package.json ./apps/backend/
 COPY apps/storefront/package.json ./apps/storefront/
 RUN pnpm install --frozen-lockfile
 
 # 2. Build & Deploy stage
 FROM deps AS builder
 COPY packages ./packages
-COPY apps/backend ./apps/backend
 COPY apps/storefront ./apps/storefront
 
 # Build the storefront app

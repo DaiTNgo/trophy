@@ -137,7 +137,7 @@ export function ProductOptionEditor({
             <div className="rounded-md border border-ui-border-base bg-ui-bg-field px-3 py-2">
               <div className="flex flex-wrap gap-2 items-center">
                 {option.values.map((v, index) => {
-                  const missingLocales = getMissingLocalizedTextLocales(v.valueTranslations);
+                  const missingLocales = getMissingLocalizedTextLocales(v.valueTranslations, ["vi"]);
                   return (
                     <Badge
                       key={v.id ?? index}
@@ -271,7 +271,7 @@ export function ProductOptionEditor({
                             };
                             onChange({ ...option, values: next });
                           }}
-                          placeholder="Tên giá trị (VI)"
+                          placeholder="Tên giá trị (VI) *"
                           disabled={disabled}
                         />
                         <Input
