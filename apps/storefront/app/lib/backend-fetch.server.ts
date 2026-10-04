@@ -62,7 +62,17 @@ export function getBackendServiceFetch(
         targetUrl = parsed;
       }
     }
+    const newInit = { ...init };
+    const publicUrlObj = new URL(publicBackendUrlStr);
+    
+    // Inject X-Forwarded headers so backend uses public URL for asset links
+    if (targetUrl.host === backendBaseUrl.host) {
+      const headers = new Headers(newInit.headers);
+      headers.set("X-Forwarded-Host", publicUrlObj.host);
+      headers.set("X-Forwarded-Proto", publicUrlObj.protocol.replace(":", ""));
+      newInit.headers = headers;
+    }
 
-    return fetch(targetUrl.toString(), init);
+    return fetch(targetUrl.toString(), newInit);
   };
 }
