@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - main
+      - migrate/db_env
+  workflow_dispatch:
 
 env:
   REGISTRY: ghcr.io
