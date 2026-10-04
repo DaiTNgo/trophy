@@ -18,6 +18,7 @@ import {
   type ProductMetadataSnapshot,
 } from "../../lib/product-metadata-client";
 import { convertPdfToImageFile } from "../../lib/pdf-preview";
+import { getNativeMediaDimensions } from "../../lib/image-dimensions";
 import {
   createFullProduct,
   mapApiProductToCatalogProduct,
@@ -942,24 +943,8 @@ export function useCreateProduct() {
             fileToProcess = await convertPdfToImageFile(file);
           }
 
-          let dimensions: { width: number; height: number };
           const objectUrl = URL.createObjectURL(fileToProcess);
-          dimensions = await new Promise<{
-            width: number;
-            height: number;
-          }>((resolve, reject) => {
-            const image = new Image();
-            image.onload = () => {
-              resolve({
-                width: image.naturalWidth,
-                height: image.naturalHeight,
-              });
-            };
-            image.onerror = () => {
-              reject(new Error("Unable to read image dimensions."));
-            };
-            image.src = objectUrl;
-          });
+          const dimensions = await getNativeMediaDimensions(file).then(res => ({ width: res.widthPx, height: res.heightPx }));
 
           return {
             id: `pending_${crypto.randomUUID()}`,
@@ -1012,16 +997,7 @@ export function useCreateProduct() {
       const previewFile = isPdf ? await convertPdfToImageFile(file) : undefined;
       const fileForPreview = previewFile ?? file;
       const objectUrl = URL.createObjectURL(fileForPreview);
-      const dimensions = await new Promise<{ width: number; height: number }>(
-        (resolve, reject) => {
-          const image = new Image();
-          image.onload = () =>
-            resolve({ width: image.naturalWidth, height: image.naturalHeight });
-          image.onerror = () =>
-            reject(new Error("Unable to read image dimensions."));
-          image.src = objectUrl;
-        },
-      );
+      const dimensions = await getNativeMediaDimensions(file).then(res => ({ width: res.widthPx, height: res.heightPx }));
       const expected = effectiveVariantRows.find(
         (variant) =>
           buildVariantSignature(variant.options) !== variantSignature &&

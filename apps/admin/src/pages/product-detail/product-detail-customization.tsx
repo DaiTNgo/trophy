@@ -23,6 +23,7 @@ import {
   repairCustomization,
 } from "../../lib/products-client";
 import { convertPdfToImageFile } from "../../lib/pdf-preview";
+import { getNativeMediaDimensions } from "../../lib/image-dimensions";
 import type { CatalogProduct } from "../../types";
 import { useBrandAssets } from "../../hooks/use-brand-assets";
 import { useEmbeddedProductCustomizationEditor } from "../../hooks/use-embedded-product-customization-editor";
@@ -42,23 +43,6 @@ type ProductDetailCustomizationProps = {
 };
 
 type SetupMode = "activate" | "repair";
-
-async function readImageDimensions(file: File) {
-  const url = URL.createObjectURL(file);
-  try {
-    const image = new window.Image();
-    return await new Promise<{ width: number; height: number }>(
-      (resolve, reject) => {
-        image.onload = () =>
-          resolve({ width: image.naturalWidth, height: image.naturalHeight });
-        image.onerror = reject;
-        image.src = url;
-      },
-    );
-  } finally {
-    URL.revokeObjectURL(url);
-  }
-}
 
 function CustomizationBackgroundModal({
   product,
@@ -204,13 +188,11 @@ function CustomizationBackgroundModal({
   ) => {
     const isPdf = file.type === "application/pdf";
     const previewFile = isPdf ? await convertPdfToImageFile(file) : undefined;
-    const fileForDimensions = previewFile ?? file;
     const size = dimensions && !isPdf
       ? dimensions
-      : await readImageDimensions(fileForDimensions).then(({ width, height }) => ({
-        widthPx: width,
-        heightPx: height,
-      }));
+      : await getNativeMediaDimensions(file)
+          .then((res) => ({ widthPx: res.widthPx, heightPx: res.heightPx }))
+          .catch(() => ({ widthPx: 0, heightPx: 0 }));
     setFiles((current) => ({
       ...current,
       [variantId]: {

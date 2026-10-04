@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { Button, Container, Heading, Text, Drawer, DropdownMenu, IconButton, toast } from "@medusajs/ui";
-import { Plus, Trash2, MoreHorizontal } from "lucide-react";
+import { MoreHorizontal } from "lucide-react";
 import { updateProductAttributes } from "../../lib/products-client";
-import type { CatalogProduct, ProductAttribute, AdminLocale, LocalizedTextValue } from "../../types";
-import { LocalizedTextField } from "../../components/ui/medusa";
+import type { CatalogProduct, ProductAttribute, AdminLocale } from "../../types";
+import { ProductAttributesEditor } from "../../components/products/product-attributes-editor";
 
 type ProductDetailAttributesProps = {
   product: CatalogProduct;
@@ -25,20 +25,6 @@ export function ProductDetailAttributes({ product, mutate }: ProductDetailAttrib
       setAttributeLocale("vi");
     }
     setOpen(isOpen);
-  };
-
-  const updateAttributeField = (index: number, field: "key" | "value", value: LocalizedTextValue) => {
-    const newAttrs = [...attributes];
-    newAttrs[index][field] = value;
-    setAttributes(newAttrs);
-  };
-
-  const addAttributeRow = () => {
-    setAttributes([...attributes, { key: { vi: "", en: "" }, value: { vi: "", en: "" } }]);
-  };
-
-  const removeAttributeRow = (index: number) => {
-    setAttributes(attributes.filter((_, i) => i !== index));
   };
 
   const handleSave = async () => {
@@ -84,51 +70,15 @@ export function ProductDetailAttributes({ product, mutate }: ProductDetailAttrib
             </Drawer.Header>
             <Drawer.Body className="flex flex-col gap-y-6 overflow-y-auto">
               <div className="flex flex-col gap-y-3">
-                <div className="flex items-center justify-between">
-                  <Text size="small" className="text-ui-fg-subtle">
-                    Attributes
-                  </Text>
-                  <Button type="button" variant="secondary" size="small" onClick={addAttributeRow}>
-                    <Plus className="h-4 w-4" />
-                    Add attribute
-                  </Button>
-                </div>
-                {attributes.map((attribute, index) => (
-                  <div
-                    key={index}
-                    className="flex gap-3 items-center"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <LocalizedTextField
-                        id={`attribute-key-${index}`}
-                        value={attribute.key}
-                        locale={attributeLocale}
-                        onLocaleChange={setAttributeLocale}
-                        onChange={(val) => updateAttributeField(index, "key", val)}
-                        placeholder={{ vi: "Attribute name", en: "Attribute name" }}
-                        // requiredLocales={["vi"]}
-                      />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <LocalizedTextField
-                        id={`attribute-value-${index}`}
-                        value={attribute.value}
-                        locale={attributeLocale}
-                        onLocaleChange={setAttributeLocale}
-                        onChange={(val) => updateAttributeField(index, "value", val)}
-                        placeholder={{ vi: "Attribute value", en: "Attribute value" }}
-                        // requiredLocales={["vi"]}
-                      />
-                    </div>
-                    <IconButton
-                      type="button"
-                      variant="transparent"
-                      onClick={() => removeAttributeRow(index)}
-                    >
-                      <Trash2 className="h-4 w-4 text-ui-fg-error" />
-                    </IconButton>
-                  </div>
-                ))}
+                <Text size="small" className="text-ui-fg-subtle">
+                  Attributes
+                </Text>
+                <ProductAttributesEditor
+                  attributes={attributes}
+                  onChange={setAttributes}
+                  locale={attributeLocale}
+                  onLocaleChange={setAttributeLocale}
+                />
               </div>
             </Drawer.Body>
             <Drawer.Footer>

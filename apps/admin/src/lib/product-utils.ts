@@ -510,3 +510,30 @@ function ensureUniqueHandle(seed: string, existingProducts: CatalogProduct[]) {
 
   return `${base}-${suffix}`;
 }
+export type RichTextSectionKey = "whyThisProductHtml" | "specificationsHtml" | "shippingHtml";
+
+export const RICH_TEXT_SECTIONS: Array<{
+  key: RichTextSectionKey;
+  label: string;
+  description: string;
+  placeholderByLocale: { vi: string; en: string };
+}> = [
+  {
+    key: "whyThisProductHtml",
+    label: "Why This Product?",
+    description: "Persuasive copy shown in the first product detail accordion.",
+    placeholderByLocale: { vi: "Vì sao chọn sản phẩm này...", en: "Why this product..." },
+  },
+  {
+    key: "specificationsHtml",
+    label: "Specifications",
+    description: "Technical details. When empty, the storefront falls back to the product attributes grid.",
+    placeholderByLocale: { vi: "Thông số kỹ thuật...", en: "Specifications..." },
+  },
+  {
+    key: "shippingHtml",
+    label: "Shipping & fulfillment",
+    description: "Shipping policy copy. When empty, the storefront shows the default policy.",
+    placeholderByLocale: { vi: "Vận chuyển và giao hàng...", en: "Shipping & fulfillment..." },
+  },
+];

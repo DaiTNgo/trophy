@@ -110,3 +110,25 @@ export async function convertPdfToImageFile(file: File): Promise<File> {
     }, "image/webp", 0.9);
   });
 }
+
+export async function getPdfDimensions(file: File): Promise<{ widthPx: number; heightPx: number }> {
+  const [pdfjsLib, arrayBuffer] = await Promise.all([
+    getPdfjs(),
+    file.arrayBuffer(),
+  ]);
+
+  const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+  const pdfDocument = await loadingTask.promise;
+
+  if (pdfDocument.numPages === 0) {
+    throw new Error("PDF file contains no pages.");
+  }
+
+  const page = await pdfDocument.getPage(1);
+  const viewport = page.getViewport({ scale: 1.0 });
+
+  return {
+    widthPx: Math.round(viewport.width),
+    heightPx: Math.round(viewport.height),
+  };
+}

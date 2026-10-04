@@ -7,28 +7,7 @@ import { RichTextEditor, type RichTextValueByLocale } from "../../components/ric
 
 type Props = { product: CatalogProduct; mutate: () => Promise<void> };
 
-type SectionKey = "whyThisProductHtml" | "specificationsHtml" | "shippingHtml";
-
-const SECTION_META: Array<{ key: SectionKey; label: string; description: string; placeholderByLocale: { vi: string; en: string } }> = [
-  {
-    key: "whyThisProductHtml",
-    label: "Why This Product?",
-    description: "Persuasive copy shown in the first product detail accordion.",
-    placeholderByLocale: { vi: "Vì sao chọn sản phẩm này...", en: "Why this product..." },
-  },
-  {
-    key: "specificationsHtml",
-    label: "Specifications",
-    description: "Technical details. When empty, the storefront falls back to the product attributes grid.",
-    placeholderByLocale: { vi: "Thông số kỹ thuật...", en: "Specifications..." },
-  },
-  {
-    key: "shippingHtml",
-    label: "Shipping & fulfillment",
-    description: "Shipping policy copy. When empty, the storefront shows the default policy.",
-    placeholderByLocale: { vi: "Vận chuyển và giao hàng...", en: "Shipping & fulfillment..." },
-  },
-];
+import { RICH_TEXT_SECTIONS, type RichTextSectionKey as SectionKey } from "../../lib/product-utils";
 
 const fromLocalized = (value: LocalizedTextValue): RichTextValueByLocale => ({
   vi: { html: value.vi || "", json: null },
@@ -77,7 +56,7 @@ export function ProductDetailSections({ product, mutate }: Props) {
       </div>
 
       <div className="flex flex-col">
-        {SECTION_META.map((section) => {
+        {RICH_TEXT_SECTIONS.map((section) => {
           const value = product[section.key];
           const hasContent = Boolean(value?.vi?.trim() || value?.en?.trim());
           return (
@@ -108,7 +87,7 @@ export function ProductDetailSections({ product, mutate }: Props) {
       <Drawer open={editing !== null} onOpenChange={(open) => !open && setEditing(null)}>
         <Drawer.Content className="!max-w-3xl">
           <Drawer.Header>
-            <Drawer.Title>{SECTION_META.find((section) => section.key === editing)?.label}</Drawer.Title>
+            <Drawer.Title>{RICH_TEXT_SECTIONS.find((section) => section.key === editing)?.label}</Drawer.Title>
           </Drawer.Header>
           <Drawer.Body className="flex flex-col gap-y-4 overflow-y-auto">
             <div className="flex flex-col gap-y-1.5">
@@ -116,8 +95,8 @@ export function ProductDetailSections({ product, mutate }: Props) {
               {editing ? (
                 <RichTextEditor
                   key={editing}
-                  label={SECTION_META.find((section) => section.key === editing)?.label}
-                  placeholderByLocale={SECTION_META.find((section) => section.key === editing)?.placeholderByLocale}
+                  label={RICH_TEXT_SECTIONS.find((section) => section.key === editing)?.label}
+                  placeholderByLocale={RICH_TEXT_SECTIONS.find((section) => section.key === editing)?.placeholderByLocale}
                   valueByLocale={draft}
                   onChangeByLocale={(locale, value) => {
                     setDraft((current) => ({ ...current, [locale]: value }));

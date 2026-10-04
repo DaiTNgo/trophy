@@ -16,6 +16,7 @@ import {
   uploadManagedVariantMedia,
 } from "../../lib/products-client";
 import { convertPdfToImageFile } from "../../lib/pdf-preview";
+import { getNativeMediaDimensions } from "../../lib/image-dimensions";
 import { MediaPreview } from "../../components/ui/media-preview";
 
 type Props = {
@@ -25,24 +26,6 @@ type Props = {
   onOpenChange: (open: boolean) => void;
   updateProduct: (updater: (current: CatalogProduct) => CatalogProduct) => void;
 };
-
-async function readDimensions(file: File) {
-  const url = URL.createObjectURL(file);
-  try {
-    const image = new window.Image();
-    const dimensions = await new Promise<{ width: number; height: number }>(
-      (resolve, reject) => {
-        image.onload = () =>
-          resolve({ width: image.naturalWidth, height: image.naturalHeight });
-        image.onerror = reject;
-        image.src = url;
-      },
-    );
-    return dimensions;
-  } finally {
-    URL.revokeObjectURL(url);
-  }
-}
 
 export function VariantMediaManager({
   product,
@@ -84,8 +67,9 @@ export function VariantMediaManager({
   async function replaceBackground(file: File) {
     const isPdf = file.type === "application/pdf";
     const previewFile = isPdf ? await convertPdfToImageFile(file) : undefined;
-    const fileForDimensions = previewFile ?? file;
-    const dimensions = await readDimensions(fileForDimensions).catch(() => null);
+    const dimensions = await getNativeMediaDimensions(file)
+      .then((res) => ({ width: res.widthPx, height: res.heightPx }))
+      .catch(() => null);
     const sibling = product.variants.find(
       (item) => item.id !== variant.id && item.customizationMedia,
     )?.customizationMedia;

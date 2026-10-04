@@ -13,6 +13,7 @@ import {
   ProductCommandError,
 } from "../../lib/products-client";
 import { convertPdfToImageFile } from "../../lib/pdf-preview";
+import { getNativeMediaDimensions } from "../../lib/image-dimensions";
 import type { AdminLocale, CatalogProduct, LocalizedTextValue, ProductAttribute } from "../../types";
 
 type ProductDetailVariantsProps = {
@@ -33,20 +34,6 @@ export type VariantFormState = {
   galleryMedia: File[];
   customizationBackground: File | null;
 };
-
-async function readImageDimensions(file: File) {
-  const url = URL.createObjectURL(file);
-  try {
-    const image = new window.Image();
-    return await new Promise<{ width: number; height: number }>((resolve, reject) => {
-      image.onload = () => resolve({ width: image.naturalWidth, height: image.naturalHeight });
-      image.onerror = reject;
-      image.src = url;
-    });
-  } finally {
-    URL.revokeObjectURL(url);
-  }
-}
 
 
 function buildVariantForm(product: CatalogProduct, variant?: CatalogProduct["variants"][number]): VariantFormState {
@@ -268,9 +255,8 @@ export function useProductDetailVariants({ product, mutate, updateProduct }: Pro
         if (product.customization?.enabled && !originalCustomizationBg) {
           throw new Error("A Customization Background is required while customization is active.");
         }
-        const fileForDimensions = customizationPreview ?? originalCustomizationBg;
-        const customizationDimensions = fileForDimensions
-          ? await readImageDimensions(fileForDimensions).catch(() => null)
+        const customizationDimensions = originalCustomizationBg
+          ? await getNativeMediaDimensions(originalCustomizationBg).then(res => ({ width: res.widthPx, height: res.heightPx })).catch(() => null)
           : null;
         if (product.customization?.enabled && originalCustomizationBg) {
           if (

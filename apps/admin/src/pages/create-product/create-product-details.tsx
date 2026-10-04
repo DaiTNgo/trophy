@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { memo, useState } from "react";
 import {
   Badge,
   Button,
@@ -21,6 +21,7 @@ import {
 import { RichTextEditor, type RichTextValueByLocale } from "../../components/rich-text/rich-text-editor";
 import { buildVariantSignature } from "./use-create-product";
 import { hasEmbeddedCustomizationDraft } from "../create-product-helpers";
+import { ProductAttributesEditor } from "../../components/products/product-attributes-editor";
 import type {
   AdminLocale,
   LocalizedTextValue,
@@ -32,123 +33,34 @@ type CreateProductDetailsProps = {
   state: ReturnType<typeof useCreateProduct>;
 };
 
-type RichTextSectionKey = "whyThisProductHtml" | "specificationsHtml" | "shippingHtml";
+import { RICH_TEXT_SECTIONS, type RichTextSectionKey } from "../../lib/product-utils";
 
 const EMPTY_RICH_TEXT: RichTextValueByLocale = {
   vi: { html: "", json: null },
   en: { html: "", json: null },
 };
 
-const RICH_TEXT_SECTIONS: Array<{
-  key: RichTextSectionKey;
-  label: string;
-  description: string;
-}> = [
-  {
-    key: "whyThisProductHtml",
-    label: "Why This Product?",
-    description: "Persuasive copy shown in the first product detail accordion.",
-  },
-  {
-    key: "specificationsHtml",
-    label: "Specifications",
-    description: "Technical details. When empty, the storefront falls back to the product attributes grid.",
-  },
-  {
-    key: "shippingHtml",
-    label: "Shipping & fulfillment",
-    description: "Shipping policy copy. When empty, the storefront shows the default policy.",
-  },
-];
-
-export function CreateProductDetails({ state }: CreateProductDetailsProps) {
-  const [optionTitleLocales, setOptionTitleLocales] = useState<
-    Record<string, AdminLocale>
-  >({});
+const ProductGeneralEditor = memo(function ProductGeneralEditor({
+  values,
+  setValue,
+}: {
+  values: {
+    title: LocalizedTextValue;
+    subtitle: LocalizedTextValue;
+    handle: string;
+    description: LocalizedTextValue;
+  };
+  setValue: <K extends "title" | "subtitle" | "handle" | "description">(
+    field: K,
+    value: any,
+  ) => void;
+}) {
   const [titleLocale, setTitleLocale] = useState<AdminLocale>("vi");
   const [subtitleLocale, setSubtitleLocale] = useState<AdminLocale>("vi");
   const [descriptionLocale, setDescriptionLocale] = useState<AdminLocale>("vi");
-  const [attributeLocales, setAttributeLocales] = useState<
-    Record<number, { key: AdminLocale; value: AdminLocale }>
-  >({});
-  const [sectionEditors, setSectionEditors] = useState<
-    Record<RichTextSectionKey, RichTextValueByLocale>
-  >({
-    whyThisProductHtml: EMPTY_RICH_TEXT,
-    specificationsHtml: EMPTY_RICH_TEXT,
-    shippingHtml: EMPTY_RICH_TEXT,
-  });
-
-  const {
-    values,
-    setValue,
-    embeddedCustomization,
-    attributes,
-    addAttributeRow,
-    updateAttribute,
-    removeAttributeRow,
-    optionDefinitions,
-    addOptionDefinition,
-    updateOptionDisplayType,
-    updateOptionValueSwatch,
-    addOptionValueDirect,
-    effectiveVariantRows,
-    toggleAllVariants,
-    toggleVariantCreation,
-    setOptionDraftValue,
-    optionValueDrafts,
-    appendOptionValue,
-    removeOptionValue,
-    updateOptionTitleTranslation,
-    updateOptionValueTranslation,
-    removeOptionDefinition,
-  } = state;
-
-  function getOptionTitleLocale(optionId: string) {
-    return optionTitleLocales[optionId] ?? "vi";
-  }
-
-  function setOptionTitleLocale(optionId: string, locale: AdminLocale) {
-    setOptionTitleLocales((current) => ({ ...current, [optionId]: locale }));
-  }
-
-  function getOptionValueTranslations(
-    value: ProductOptionValueDefinition,
-  ): LocalizedTextValue {
-    return value.valueTranslations ?? createLocalizedText(value.value);
-  }
-
-  function setAttributeLocale(
-    index: number,
-    field: "key" | "value",
-    locale: AdminLocale,
-  ) {
-    setAttributeLocales((current) => ({
-      ...current,
-      [index]: {
-        ...(current[index] ?? { key: "vi", value: "vi" }),
-        [field]: locale,
-      },
-    }));
-  }
-
-  function handleSectionChange(
-    key: RichTextSectionKey,
-    locale: AdminLocale,
-    value: RichTextValueByLocale[AdminLocale],
-  ) {
-    setSectionEditors((current) => ({
-      ...current,
-      [key]: { ...current[key], [locale]: value },
-    }));
-    setValue(key, {
-      vi: locale === "vi" ? value.html : sectionEditors[key].vi.html,
-      en: locale === "en" ? value.html : sectionEditors[key].en.html,
-    });
-  }
 
   return (
-    <div className="space-y-8 ">
+    <>
       <div>
         <Heading level="h2">General</Heading>
         <Text size="small" className="mt-1 text-ui-fg-subtle">
@@ -238,6 +150,77 @@ export function CreateProductDetails({ state }: CreateProductDetailsProps) {
           multiline
         />
       </div>
+    </>
+  );
+});
+
+export function CreateProductDetails({ state }: CreateProductDetailsProps) {
+  const [optionTitleLocales, setOptionTitleLocales] = useState<
+    Record<string, AdminLocale>
+  >({});
+  const [attributeLocale, setAttributeLocale] = useState<AdminLocale>("vi");
+  const [sectionEditors, setSectionEditors] = useState<
+    Record<RichTextSectionKey, RichTextValueByLocale>
+  >({
+    whyThisProductHtml: EMPTY_RICH_TEXT,
+    specificationsHtml: EMPTY_RICH_TEXT,
+    shippingHtml: EMPTY_RICH_TEXT,
+  });
+
+  const {
+    values,
+    setValue,
+    embeddedCustomization,
+    attributes,
+    optionDefinitions,
+    addOptionDefinition,
+    updateOptionDisplayType,
+    updateOptionValueSwatch,
+    addOptionValueDirect,
+    effectiveVariantRows,
+    toggleAllVariants,
+    toggleVariantCreation,
+    setOptionDraftValue,
+    optionValueDrafts,
+    appendOptionValue,
+    removeOptionValue,
+    updateOptionTitleTranslation,
+    updateOptionValueTranslation,
+    removeOptionDefinition,
+  } = state;
+
+  function getOptionTitleLocale(optionId: string) {
+    return optionTitleLocales[optionId] ?? "vi";
+  }
+
+  function setOptionTitleLocale(optionId: string, locale: AdminLocale) {
+    setOptionTitleLocales((current) => ({ ...current, [optionId]: locale }));
+  }
+
+  function getOptionValueTranslations(
+    value: ProductOptionValueDefinition,
+  ): LocalizedTextValue {
+    return value.valueTranslations ?? createLocalizedText(value.value);
+  }
+
+  function handleSectionChange(
+    key: RichTextSectionKey,
+    locale: AdminLocale,
+    value: RichTextValueByLocale[AdminLocale],
+  ) {
+    setSectionEditors((current) => ({
+      ...current,
+      [key]: { ...current[key], [locale]: value },
+    }));
+    setValue(key, {
+      vi: locale === "vi" ? value.html : sectionEditors[key].vi.html,
+      en: locale === "en" ? value.html : sectionEditors[key].en.html,
+    });
+  }
+
+  return (
+    <div className="space-y-8 ">
+      <ProductGeneralEditor values={values} setValue={setValue} />
 
       <div className="rounded-xl border border-ui-border-base bg-ui-bg-base px-4 py-4">
         <div className="flex items-start justify-between gap-4">
@@ -276,43 +259,15 @@ export function CreateProductDetails({ state }: CreateProductDetailsProps) {
               Optional product properties that do not affect variant generation.
             </Text>
           </div>
-          <Button type="button" variant="secondary" onClick={addAttributeRow}>
-            Add attribute
-          </Button>
         </div>
-        <div className="space-y-3">
-          {attributes.map((attribute, index) => (
-            <div key={index} className="grid gap-3 md:grid-cols-[1fr_1fr_auto]">
-              <LocalizedTextField
-                id={`attribute-key-${index}`}
-                value={attribute.key}
-                locale={attributeLocales[index]?.key ?? "vi"}
-                onLocaleChange={(locale) =>
-                  setAttributeLocale(index, "key", locale)
-                }
-                onChange={(value) => updateAttribute(index, "key", value)}
-                placeholder={{ vi: "Chất liệu", en: "Material" }}
-              />
-              <LocalizedTextField
-                id={`attribute-value-${index}`}
-                value={attribute.value}
-                locale={attributeLocales[index]?.value ?? "vi"}
-                onLocaleChange={(locale) =>
-                  setAttributeLocale(index, "value", locale)
-                }
-                onChange={(value) => updateAttribute(index, "value", value)}
-                placeholder={{ vi: "Cotton", en: "Cotton blend" }}
-              />
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => removeAttributeRow(index)}
-                disabled={attributes.length === 1}
-              >
-                Remove
-              </Button>
-            </div>
-          ))}
+        <div className="space-y-3 mt-3">
+          <ProductAttributesEditor
+            attributes={attributes}
+            onChange={state.setAttributes}
+            locale={attributeLocale}
+            onLocaleChange={setAttributeLocale}
+            disableRemoveIfOne={true}
+          />
         </div>
       </div>
 
