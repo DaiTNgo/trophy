@@ -27,7 +27,9 @@ export function toAbsoluteAssetUrl(c: Context, url: string | null | undefined): 
 
     const forwardedHost = c.req.header("x-forwarded-host");
     if (forwardedHost) {
-      reqUrl.host = forwardedHost;
+      const [hostname, port] = forwardedHost.split(":");
+      reqUrl.hostname = hostname;
+      reqUrl.port = port || "";
     }
 
     // backend-local paths should be resolved against the request origin
