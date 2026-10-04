@@ -12,8 +12,7 @@ RUN pnpm install --frozen-lockfile
 
 # 2. Build & Deploy stage
 FROM base AS builder
-COPY --from=deps /app/node_modules ./node_modules
-COPY pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc* ./
+COPY --from=deps /app ./
 COPY packages ./packages
 COPY apps/backend ./apps/backend
 
