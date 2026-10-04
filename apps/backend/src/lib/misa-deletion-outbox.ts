@@ -1,4 +1,5 @@
 import { and, eq, isNull, lte, or } from 'drizzle-orm'
+import { getDb } from '../db/client'
 import { misaDeletionJobs } from '../db/schema'
 import type { AppBindings } from './env'
 import { deleteMisaProducts, MisaRequestError } from './misa'
@@ -30,7 +31,6 @@ export function misaDeletionJobValues(misaProductIds: number[]) {
 }
 
 export async function processMisaDeletionJobs(env: AppBindings) {
-  const { getDb } = await import('../db/client')
   const db = getDb(env)
   const jobs = await db
     .select()

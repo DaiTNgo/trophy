@@ -1,4 +1,5 @@
 import { and, eq, lte } from "drizzle-orm";
+import { getDb } from "../db/client";
 import { articles } from "../db/schema";
 import type { AppBindings } from "./env";
 
@@ -12,7 +13,6 @@ export async function processScheduledArticlePublishing(
   env: AppBindings,
   now = new Date(),
 ) {
-  const { getDb } = await import("../db/client");
   const db = getDb(env);
 
   const due = await db

@@ -10,6 +10,11 @@ export function toAbsoluteAssetUrl(c: Context, url: string | null | undefined): 
       return url;
     }
 
+    // Best and safest way: Use explicit public URL if configured
+    if (process.env.PUBLIC_BACKEND_URL) {
+      return new URL(url, process.env.PUBLIC_BACKEND_URL).toString();
+    }
+
     let reqUrlStr = c.req.url;
     if (reqUrlStr.startsWith("/")) {
       const host = c.req.header("host") || "localhost:8787";
@@ -19,6 +24,19 @@ export function toAbsoluteAssetUrl(c: Context, url: string | null | undefined): 
     }
 
     const reqUrl = new URL(reqUrlStr);
+    
+    const forwardedProto = c.req.header("x-forwarded-proto");
+    if (forwardedProto) {
+      reqUrl.protocol = `${forwardedProto}:`;
+    }
+
+    const forwardedHost = c.req.header("x-forwarded-host");
+    if (forwardedHost) {
+      const [hostname, port] = forwardedHost.split(":");
+      reqUrl.hostname = hostname;
+      reqUrl.port = port || "";
+    }
+
     // backend-local paths should be resolved against the request origin
     return new URL(url, reqUrl.origin).toString();
   } catch (e) {

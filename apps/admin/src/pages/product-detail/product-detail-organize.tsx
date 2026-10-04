@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { Container, Heading, Text, Drawer, Button, Badge, Label, DropdownMenu, IconButton, toast } from "@medusajs/ui";
+import { Container, Heading, Text, Drawer, Button, Badge, DropdownMenu, IconButton, toast } from "@medusajs/ui";
 import { MoreHorizontal } from "lucide-react";
-import { CategoryMultiSelect } from "../../components/ui/medusa/category-multiselect";
+import { ProductOrganizeEditor } from "../../components/products/product-organize-editor";
 import type { CatalogProduct } from "../../types";
 import { updateProductOrganization } from "../../lib/products-client";
 import { fetchProductMetadata, type ProductMetadataItem } from "../../lib/product-metadata-client";
@@ -71,11 +71,6 @@ export function ProductDetailOrganize({ product, mutate }: ProductDetailOrganize
     }
   };
 
-  const LoadingPlaceholder = () => (
-    <div className="rounded-md border border-ui-border-base bg-ui-bg-base px-3 py-2 text-sm text-ui-fg-muted">
-      Loading…
-    </div>
-  );
 
   return (
     <Container className="p-0 overflow-hidden">
@@ -102,49 +97,16 @@ export function ProductDetailOrganize({ product, mutate }: ProductDetailOrganize
               <Drawer.Title>Edit Organization</Drawer.Title>
             </Drawer.Header>
             <Drawer.Body className="flex flex-col gap-y-6 overflow-y-auto">
-              {/* Collections */}
-              <div className="flex flex-col gap-y-2">
-                <Label>Collections</Label>
-                <Text size="xsmall" className="text-ui-fg-muted">
-                  Merchandising grouping (e.g. occasion or audience).
-                </Text>
-                {metaLoading ? (
-                  <LoadingPlaceholder />
-                ) : (
-                  <CategoryMultiSelect
-                    values={collectionIds.map(String)}
-                    options={collections.map((col) => ({
-                      value: String(col.id),
-                      label: col.label,
-                    }))}
-                    onChange={(vals) => setCollectionIds(vals.map(Number))}
-                    placeholder="Select collections"
-                    searchPlaceholder="Search collections..."
-                    emptyText="No collections found"
-                  />
-                )}
-              </div>
-
-              {/* Categories */}
-              <div className="flex flex-col gap-y-2">
-                <Label>Categories</Label>
-                <Text size="xsmall" className="text-ui-fg-muted">
-                  Shopper-facing placement. A product may belong to multiple categories.
-                </Text>
-                {metaLoading ? (
-                  <LoadingPlaceholder />
-                ) : (
-                  <CategoryMultiSelect
-                    values={categoryIds.map(String)}
-                    options={categories.map((cat) => ({
-                      value: String(cat.id),
-                      label: cat.label,
-                      locked: Boolean(product.customization?.enabled && cat.isSystem),
-                    }))}
-                    onChange={(vals) => setCategoryIds(vals.map(Number))}
-                  />
-                )}
-              </div>
+              <ProductOrganizeEditor
+                collections={collections}
+                categories={categories}
+                selectedCollectionIds={collectionIds.map(String)}
+                onChangeCollectionIds={(vals) => setCollectionIds(vals.map(Number))}
+                selectedCategoryIds={categoryIds.map(String)}
+                onChangeCategoryIds={(vals) => setCategoryIds(vals.map(Number))}
+                isLoading={metaLoading}
+                isCustomizationEnabled={Boolean(product.customization?.enabled)}
+              />
             </Drawer.Body>
             <Drawer.Footer>
               <Drawer.Close asChild>

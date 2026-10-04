@@ -29,5 +29,5 @@ export const fontsRoute = new Hono<AppEnv>()
       return new Response(object.body as unknown as ReadableStream, { headers });
     }
 
-    return c.notFound();
+    return c.json({ error: 'Not found' }, 404);
   });

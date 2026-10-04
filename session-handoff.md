@@ -1,3 +1,12 @@
+- 2026-10-04: **Architectural Review: Docker Compose, Monorepo Build & Database Migration Strategy.**
+  - Executed `/grill-with-docs` interview session focusing on Docker Compose and the Monorepo deployment architecture.
+  - Decided to pivot to a Zero-Downtime Deployment model by executing database migrations independently of the application startup.
+  - Created a standalone programmatic migration script in `apps/backend/src/db/migrate.ts` and configured `vite.config.ts` to build it. Modified `apps/backend/Dockerfile` to copy the `drizzle/` migrations directory into the isolated output.
+  - Standardized `STORAGE_DIR` to use `/app/storage` in both Compose and Dockerfiles to prevent path mismatches.
+  - Cleaned up `apps/storefront/Dockerfile` by removing unnecessary `COPY apps/backend` commands, correctly mirroring the independent HTTP API communication flow.
+  - Updated `CONTEXT.md` with: `Deployment Pipeline` and `Zero-Downtime Migration Strategy`, and documented architectural decision in `docs/adr/0001-database-migration-strategy.md`.
+  - Next Session: any feature development or further adjustments. `feature_list.json` is not updated because this is architectural/repo-level refactoring. `./init.sh` and Docker builds pass cleanly.
+
 - 2026-09-26: **Implemented Product Option Display Types & Swatches across Backend, Admin & Storefront.**
   - Aligned UX through `/grilling`: Admin can configure Option display type (`text`, `color`, `image`). For `text`, existing badge/button list is kept. For `color` and `image`, display visual swatches (Color HEX picker with presets or small image/texture upload with preview). The variant table is kept text-based as requested by the user.
   - Backend: Added `displayType` to `productOptions` and `colorHex`, `swatchAssetId` to `productOptionValues` in `schema.ts`. Updated admin routes, schemas, full create persistence, and reader to persist and return swatches and `swatchAssetUrl`. Updated storefront product options to map `swatchAssetUrl`.

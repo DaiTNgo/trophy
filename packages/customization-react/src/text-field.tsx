@@ -12,6 +12,7 @@ import {
   type TextFieldValue,
 } from "@trophy/customization";
 import { useEffect } from "react";
+import { Plus } from "lucide-react";
 
 export function TextField({
   field,
@@ -134,16 +135,35 @@ export function TextField({
       {layer.text.colorPolicy.mode === "shopper_selectable"
         ? (() => {
             const colorPolicy = layer.text.colorPolicy;
+            const activeColor = textValue.color ?? colorPolicy.defaultColor;
+            const isPreset = colorPolicy.options.some(
+              (option) =>
+                option.value.toLowerCase() === activeColor?.toLowerCase(),
+            );
+            const inputHexValue = (() => {
+              if (activeColor && /^#[0-9a-fA-F]{6}$/.test(activeColor)) {
+                return activeColor;
+              }
+              if (activeColor && /^#[0-9a-fA-F]{3}$/.test(activeColor)) {
+                return `#${activeColor[1]}${activeColor[1]}${activeColor[2]}${activeColor[2]}${activeColor[3]}${activeColor[3]}`;
+              }
+              return "#000000";
+            })();
+            const customColorTitle = resolveLocalizedInput(
+              { en: "Custom color", vi: "Màu tùy chỉnh" },
+              locale,
+            );
+
             return (
               <div className="space-y-2">
                 <p className="text-xs font-semibold uppercase tracking-[0.1em] text-on-surface-variant">
                   Text Color
                 </p>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   {colorPolicy.options.map((option) => {
                     const selected =
-                      (textValue.color ?? colorPolicy.defaultColor) ===
-                      option.value;
+                      isPreset &&
+                      activeColor?.toLowerCase() === option.value.toLowerCase();
                     const optionLabel = resolveLocalizedInput(
                       option.label,
                       locale,
@@ -165,6 +185,38 @@ export function TextField({
                       />
                     );
                   })}
+                  {colorPolicy.allowCustomColor ? (
+                    <div className="relative inline-flex items-center">
+                      <label
+                        title={customColorTitle}
+                        aria-label={customColorTitle}
+                        className={`group relative flex size-8 cursor-pointer items-center justify-center rounded-full border-2 transition ${
+                          !isPreset
+                            ? "border-accent ring-2 ring-accent/40 ring-offset-1"
+                            : "border-dashed border-outline-variant bg-surface-container hover:border-accent hover:ring-2 hover:ring-accent/30"
+                        }`}
+                        style={{
+                          backgroundColor: !isPreset ? activeColor : undefined,
+                        }}
+                      >
+                        <input
+                          type="color"
+                          value={inputHexValue}
+                          onChange={(event) =>
+                            onChange({
+                              ...textValue,
+                              color: event.target.value,
+                            })
+                          }
+                          className="absolute inset-0 size-full cursor-pointer opacity-0"
+                          aria-label={customColorTitle}
+                        />
+                        {isPreset ? (
+                          <Plus className="size-3.5 text-on-surface-variant transition group-hover:text-on-surface" />
+                        ) : null}
+                      </label>
+                    </div>
+                  ) : null}
                 </div>
               </div>
             );

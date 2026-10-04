@@ -507,23 +507,27 @@ export const productCommandRoute = new Hono<AppEnv>()
       const submittedVariant = normalizedAssetVariants[variantIndex]
       for (const media of submittedVariant.media) {
         const source = mediaByAssetId.get(media.assetId)!
-        const objectKey = buildCatalogVariantMediaKey({ productId: insertedProduct.id, variantId: variant.id, assetId: source.id, extension: extensionForMimeType(source.mimeType) })
+        const newAssetId = crypto.randomUUID()
+        media.assetId = newAssetId
+        const objectKey = buildCatalogVariantMediaKey({ productId: insertedProduct.id, variantId: variant.id, assetId: newAssetId, extension: extensionForMimeType(source.mimeType) })
         await c.env.CUSTOMIZATION_ASSETS.put(objectKey, source.buffer, { httpMetadata: { contentType: source.mimeType } })
         writtenObjectKeys.push(objectKey)
-        assetRows.push(fullCreateAssetInput(source, objectKey, insertedProduct.id))
+        assetRows.push(fullCreateAssetInput({ ...source, id: newAssetId }, objectKey, insertedProduct.id))
       }
       if (submittedVariant.customizationMedia) {
         const source = mediaByAssetId.get(submittedVariant.customizationMedia.assetId)!
-        const objectKey = buildCatalogVariantCustomizationBackgroundKey({ productId: insertedProduct.id, variantId: variant.id, assetId: source.id, extension: extensionForMimeType(source.mimeType) })
+        const newAssetId = crypto.randomUUID()
+        submittedVariant.customizationMedia.assetId = newAssetId
+        const objectKey = buildCatalogVariantCustomizationBackgroundKey({ productId: insertedProduct.id, variantId: variant.id, assetId: newAssetId, extension: extensionForMimeType(source.mimeType) })
         await c.env.CUSTOMIZATION_ASSETS.put(objectKey, source.buffer, { httpMetadata: { contentType: source.mimeType } })
         writtenObjectKeys.push(objectKey)
         let previewObjectKey: string | null = null
         if (source.previewBuffer && source.previewMimeType) {
-          previewObjectKey = `catalog/${insertedProduct.id}/variants/${variant.id}/customization-background/${source.id}/preview.${extensionForMimeType(source.previewMimeType)}`
+          previewObjectKey = `catalog/${insertedProduct.id}/variants/${variant.id}/customization-background/${newAssetId}/preview.${extensionForMimeType(source.previewMimeType)}`
           await c.env.CUSTOMIZATION_ASSETS.put(previewObjectKey, source.previewBuffer, { httpMetadata: { contentType: source.previewMimeType } })
           writtenObjectKeys.push(previewObjectKey)
         }
-        assetRows.push(fullCreateAssetInput(source, objectKey, insertedProduct.id, previewObjectKey))
+        assetRows.push(fullCreateAssetInput({ ...source, id: newAssetId }, objectKey, insertedProduct.id, previewObjectKey))
       }
     }
     if (assetRows.length > 0) await db.insert(productAssets).values(assetRows)

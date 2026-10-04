@@ -263,8 +263,16 @@ export const validateCustomizationValues = ({
       if (field.required && !textValue.text.trim()) {
         issues.push({ code: "REQUIRED_VALUE_MISSING", fieldId: field.id, layerId: layer.id, message: `${field.label} is required.` });
       }
-      if (layer.text.colorPolicy.mode === "shopper_selectable" && !layer.text.colorPolicy.options.some((option) => option.value === textValue.color)) {
-        issues.push({ code: "OPTION_NOT_ALLOWED", fieldId: field.id, layerId: layer.id, message: `${field.label} contains an unavailable color.` });
+      if (layer.text.colorPolicy.mode === "shopper_selectable") {
+        const isAllowedOption = layer.text.colorPolicy.options.some(
+          (option) => option.value.toLowerCase() === textValue.color?.toLowerCase(),
+        );
+        const isAllowedCustom = Boolean(
+          layer.text.colorPolicy.allowCustomColor && textValue.color && textValue.color.trim(),
+        );
+        if (!isAllowedOption && !isAllowedCustom) {
+          issues.push({ code: "OPTION_NOT_ALLOWED", fieldId: field.id, layerId: layer.id, message: `${field.label} contains an unavailable color.` });
+        }
       }
       if (layer.text.fontPolicy.mode === "shopper_selectable" && !layer.text.fontPolicy.options.some((option) => option.value === textValue.fontId)) {
         issues.push({ code: "OPTION_NOT_ALLOWED", fieldId: field.id, layerId: layer.id, message: `${field.label} contains an unavailable font.` });

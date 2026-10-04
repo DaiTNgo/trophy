@@ -1,159 +1,215 @@
-# Turborepo starter
+# Trophy Monorepo
 
-This Turborepo starter is maintained by the Turborepo core team.
+Hệ thống thương mại điện tử chuyên biệt cho sản phẩm cúp, huy chương và quà tặng lưu niệm (Customizable Trophy E-Commerce Platform), được tổ chức dưới dạng pnpm monorepo.
 
-## Using this example
+---
 
-Run the following command:
+## 🏗️ Cấu trúc dự án (Architecture & Apps)
 
-```sh
-npx create-turbo@latest
+Dự án gồm 3 ứng dụng chính và các gói thư viện chia sẻ trong monorepo:
+
+| Ứng dụng / Package | Filter name | Công nghệ | Cổng Dev | Cổng Production | Mô tả |
+|---|---|---|---|---|---|
+| `apps/backend` | `backend` | Hono + Node.js + Drizzle ORM | `8787` | `8787` (Nội bộ) | REST API & RPC routes, Better-Auth, MISA integration, Background cron tasks |
+| `apps/storefront` | `router-cf` | React Router v7 (SSR) | `5173` | `3000` (Nội bộ) | Giao diện bán hàng cho khách hàng, bộ tùy biến sản phẩm (Customizer), checkout |
+| `apps/admin` | `admin` | React SPA + `@medusajs/ui` | `5174` | `80` (Nội bộ) | Cổng quản trị viên, quản lý sản phẩm, đơn hàng, tùy biến, bài viết |
+| `packages/customization` | `customization` | TypeScript | — | — | Shared types & validation cho bộ thiết kế tùy biến |
+| `packages/customization-react` | `customization-react` | React 19 | — | — | React canvas editor component cho tùy biến cúp |
+| `docker/gateway` | `gateway` | Nginx Alpine | — | `80` / `443` | Reverse Proxy & Gateway đón traffic, phân phối domain và routing |
+
+---
+
+## 🐳 Triển khai với Docker (Production trên VPS & CI/CD)
+
+Hệ thống được đóng gói hoàn chỉnh bằng Docker Compose, sẵn sàng chạy trên VPS hoặc qua CI/CD pipeline (GitHub Actions, GitLab CI).
+
+### Quản lý Biến Môi Trường (Environment Variables)
+**⚠️ Quan trọng:** Không bao giờ commit file `.env.production` lên Git.
+Hệ thống yêu cầu các biến môi trường cho 3 mục đích khác nhau:
+1. **Backend (Runtime):** Cần file `.env.production` tại thư mục gốc để Docker Compose nạp vào container (thông qua chỉ thị `env_file`).
+2. **Admin (Build-time):** Cần file `apps/admin/.env.production` để Vite nạp biến (như `VITE_BACKEND_URL`) vào mã nguồn JS tĩnh lúc build.
+3. **Storefront (Build-time):** Cần file `apps/storefront/.env.production` để Vite/React Router nạp các biến dùng cho phía client lúc build.
+
+### Hướng dẫn thiết lập CI/CD (GitHub Actions / GitLab CI)
+
+Trong pipeline CI/CD, bạn cần lấy các secrets từ Secret Manager (chứ không lưu trong Git) và tự động tạo (generate) các file `.env.production` **trước khi gọi lệnh build/up**.
+
+Ví dụ script chạy trên VPS thông qua SSH từ CI/CD:
+
+```bash
+# 1. Đi tới thư mục dự án
+cd ~/trophy
+git pull origin main
+
+# 2. Tạo file .env.production cho BACKEND (tại thư mục gốc)
+cat <<EOT > .env.production
+ADMIN_APP_ORIGIN=https://admin.yourdomain.com
+STOREFRONT_APP_ORIGIN=https://yourdomain.com
+BETTER_AUTH_SECRET=${{ secrets.BETTER_AUTH_SECRET }}
+JETPAY_SECRET=${{ secrets.JETPAY_SECRET }}
+# ... thêm các biến khác
+EOT
+
+# 3. Tạo file .env.production cho ADMIN (để Vite build)
+cat <<EOT > apps/admin/.env.production
+VITE_BACKEND_URL=https://api.yourdomain.com
+EOT
+
+# 4. Tạo file .env.production cho STOREFRONT (nếu cần biến VITE_)
+cat <<EOT > apps/storefront/.env.production
+VITE_API_URL=https://api.yourdomain.com
+EOT
+
+# 5. Phân quyền bảo mật file
+chmod 600 .env.production apps/admin/.env.production apps/storefront/.env.production
+
+# 6. Build và khởi động lại Docker
+docker compose --env-file .env.production up -d --build backend storefront admin
 ```
 
-## What's inside?
+### Các dịch vụ trong cụm Docker (`docker-compose.yml`):
+- **`db`** (`postgres:16-alpine`): Cơ sở dữ liệu PostgreSQL lưu trên volume `postgres_data`.
+- **`backend`**: Ứng dụng Hono chạy trên Node.js 22, lưu trữ file vào volume `storage_data`.
+- **`storefront`**: Ứng dụng React Router chạy SSR trên Node.js 22 (kết nối nội bộ tới `backend:8787`).
+- **`admin`**: Ứng dụng SPA được build tĩnh và phục vụ bởi Nginx.
+- **`gateway`**: Nginx Reverse Proxy đón traffic cổng `80`/`443` ra ngoài internet và điều hướng:
+  - Subdomain `admin.*` hoặc đường dẫn `/admin/` $\rightarrow$ Admin Portal
+  - Subdomain `api.*` hoặc đường dẫn `/api/` & `/fonts/` $\rightarrow$ Backend API
+  - Mặc định `/` $\rightarrow$ Storefront SSR
 
-This Turborepo includes the following packages/apps:
+### Các bước triển khai VPS:
 
-### Apps and Packages
+1. **Chuẩn bị cấu hình môi trường:**
+   ```bash
+   cp .env.example .env
+   ```
+   *Mở file `.env` và cập nhật các thông số bảo mật:*
+   - `POSTGRES_PASSWORD`: Mật khẩu cơ sở dữ liệu mạnh.
+   - `BETTER_AUTH_SECRET`: Khóa bí mật ngẫu nhiên (32 ký tự trở lên).
+   - `BETTER_AUTH_URL`, `ADMIN_APP_ORIGIN`, `STOREFRONT_APP_ORIGIN`: Domain thật của bạn (ví dụ: `https://trophy.vn`).
 
-- `docs`: a [Next.js](https://nextjs.org/) app
-- `web`: another [Next.js](https://nextjs.org/) app
-- `@repo/ui`: a stub React component library shared by both `web` and `docs` applications
-- `@repo/eslint-config`: `eslint` configurations (includes `eslint-config-next` and `eslint-config-prettier`)
-- `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
+2. **Khởi động toàn bộ hệ thống bằng Docker Compose:**
+   ```bash
+   docker compose up -d --build
+   ```
 
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
+3. **Khởi tạo schema database PostgreSQL (chỉ cần chạy lần đầu):**
+   ```bash
+   docker compose exec backend pnpm db:push
+   ```
 
-### Utilities
+4. **Kiểm tra trạng thái & logs:**
+   ```bash
+   docker compose ps
+   docker compose logs -f
+   ```
 
-This Turborepo has some additional tools already setup for you:
+5. **Khởi tạo tài khoản quản trị viên (Admin Bootstrap):**
+   - Mở trình duyệt truy cập vào giao diện Admin (`/admin` hoặc `admin.yourdomain.com`).
+   - Giao diện Onboarding sẽ tự động hiển thị để bạn thiết lập tài khoản quản trị viên đầu tiên (`super-admin`).
 
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
+---
 
-### Build
+## 💻 Hướng dẫn phát triển cục bộ (Local Hybrid Dev)
 
-To build all apps and packages, run the following command:
+Để đạt tốc độ phát triển cao nhất với Hot Module Replacement (HMR) tức thì trên máy Mac/PC:
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo build
+### 1. Khởi động PostgreSQL qua Docker
+Chỉ cần chạy container database trong nền:
+```bash
+docker compose up -d db
 ```
 
-Without global `turbo`, use your package manager:
-
-```sh
-cd my-turborepo
-npx turbo build
-pnpm dlx turbo build
-pnpm exec turbo build
+### 2. Cài đặt dependencies & Sync schema
+```bash
+./init.sh                        # Cài đặt và verify toàn bộ monorepo
+pnpm --filter backend db:push    # Đẩy schema vào Postgres local
 ```
 
-You can build a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
+### 3. Chạy các app bằng `pnpm dev`
+Mở 3 terminal riêng hoặc chạy song song:
+```bash
+# Terminal 1: Backend API (cổng 8787)
+pnpm --filter backend dev
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
+# Terminal 2: Storefront SSR (cổng 5173)
+pnpm --filter router-cf dev
 
-```sh
-turbo build --filter=docs
+# Terminal 3: Admin Portal (cổng 5174)
+pnpm --filter admin dev
 ```
 
-Without global `turbo`:
+---
 
-```sh
-npx turbo build --filter=docs
-pnpm exec turbo build --filter=docs
-pnpm exec turbo build --filter=docs
+## 🗄️ Quản lý Cơ sở dữ liệu (Drizzle ORM)
+
+Dự án sử dụng **Drizzle ORM** với PostgreSQL. Schema được định nghĩa tại [`apps/backend/src/db/schema.ts`](./apps/backend/src/db/schema.ts).
+
+Các lệnh quản lý:
+```bash
+# Đẩy trực tiếp schema thay đổi vào DB (Development / Setup mới)
+pnpm --filter backend db:push
+
+# Tạo migration file khi có thay đổi schema
+pnpm --filter backend db:generate
+
+# Chạy migration
+pnpm --filter backend db:migrate
+
+# Mở giao diện trực quan Drizzle Studio để xem & sửa data
+pnpm --filter backend studio
 ```
 
-### Develop
+---
 
-To develop all apps and packages, run the following command:
+## 📂 Quản lý Lưu trữ tập tin (Storage)
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
+Hệ thống sử dụng **Local Storage Volume** lưu trữ trên ổ đĩa VPS (thay thế Cloudflare R2):
+- Mã nguồn adapter: [`apps/backend/src/lib/storage.ts`](./apps/backend/src/lib/storage.ts).
+- Thư mục lưu trữ: Được mount vào `/app/apps/backend/storage` trên Docker volume `storage_data`.
+- Tự động quản lý MD5 Etag, MIME type, stream tải file nhanh và an toàn.
 
-```sh
-cd my-turborepo
-turbo dev
+---
+
+## 🧪 Kiểm tra & Nghiệm thu (Verification)
+
+Trước khi commit code hoặc deploy, luôn chạy script kiểm tra toàn diện:
+```bash
+./init.sh
 ```
 
-Without global `turbo`, use your package manager:
+Script này tự động:
+1. `pnpm install` — Đồng bộ dependencies workspace
+2. `pnpm --filter backend check` — Type-check Backend TypeScript
+3. `pnpm --filter backend test` — Chạy toàn bộ 340+ unit & API contract tests
+4. `pnpm --filter backend build` — Build bundle Backend
+5. `pnpm --filter admin build` — Type-check & build Admin SPA
+6. `pnpm --filter router-cf typecheck` — Type-check Storefront SSR
+7. `pnpm --filter router-cf build` — Build SSR & Client bundle Storefront
 
-```sh
-cd my-turborepo
-npx turbo dev
-pnpm exec turbo dev
-pnpm exec turbo dev
-```
+---
 
-You can develop a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
+## 🛡️ Tối ưu hóa Bảo mật & Hiệu năng (Hardening & Optimization)
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
+Hệ thống Docker đã được cấu hình các tiêu chuẩn khắt khe cho môi trường Production:
 
-```sh
-turbo dev --filter=web
-```
+### 1. Bảo mật & Chống xâm nhập (Security & Anti-hack)
+* **Non-root Containers:** Backend và Storefront chạy dưới user phi đặc quyền (`USER node`, UID 1000), ngăn chặn nguy cơ container breakout chiếm quyền root host.
+* **Network Isolation:** PostgreSQL chỉ lắng nghe duy nhất trên `127.0.0.1:5432` và mạng Docker nội bộ. Tuyệt đối **không mở cổng database ra ngoài internet**.
+* **Ngăn chặn leo thang đặc quyền:** Toàn bộ services được gắn cờ `security_opt: [no-new-privileges:true]`.
+* **Chống Brute-force & DDoS:** Nginx Gateway được cấu hình rate limiting theo IP:
+  * `/api/admin/auth/` (Login/Auth): Giới hạn 5 req/s (burst 10) chống vét cạn mật khẩu.
+  * `/api/`: Giới hạn 30 req/s (burst 50) chống spam request.
+  * `limit_conn`: Giới hạn tối đa 50 kết nối đồng thời trên mỗi IP.
+* **Chống tấn công Slowloris:** Cấu hình thời gian chờ nghiêm ngặt (`client_body_timeout 15s`, `client_header_timeout 15s`, `send_timeout 15s`).
+* **Chống rò rỉ thông tin:** Bật `server_tokens off` (ẩn phiên bản Nginx), tự động chặn mọi request đến file ẩn (`.env`, `.git`).
+* **Security Headers:** Tự động đính kèm `X-Content-Type-Options: nosniff`, `X-Frame-Options: SAMEORIGIN`, `X-XSS-Protection: 1; mode=block`, `Referrer-Policy`.
+* **Chống Path Traversal:** `LocalStorageAdapter` xác thực đường dẫn tuyệt đối theo `baseDir`, chặn đứng kỹ thuật `../` đọc trộm file hệ thống.
 
-Without global `turbo`:
+### 2. Tối ưu hóa Hiệu năng (Performance Optimization)
+* **HTTP Keepalive Connection Pooling:** Nginx duy trì pool kết nối keepalive (32 connection) liên tục với Backend và Storefront qua HTTP 1.1, giảm thiểu độ trễ bắt tay TCP cho từng request.
+* **Nén Gzip tự động:** Bật nén Gzip mức 6 cho toàn bộ payload JSON, HTML, CSS, JavaScript, SVG, giảm tới 70-80% băng thông truyền tải.
+* **Bộ nhớ đệm Asset tĩnh (Immutable Cache):** Các tài nguyên JS, CSS, Font có hash được cấu hình `Cache-Control: public, max-age=31536000, immutable`, giảm tải tối đa cho server.
+* **Giới hạn tài nguyên (Resource Limits):** Mỗi container đều có giới hạn trần RAM rõ ràng (Backend 1GB, Storefront 1GB, Database 1GB, Admin/Gateway 256MB) tránh nguy cơ 1 tiến trình ngốn cạn RAM gây treo VPS.
+* **Xoay vòng Log (Log Rotation):** Giới hạn tối đa 5 file log (mỗi file 20MB) cho mỗi container, đảm bảo ổ cứng VPS không bị tràn do log sau thời gian dài vận hành.
 
-```sh
-npx turbo dev --filter=web
-pnpm exec turbo dev --filter=web
-pnpm exec turbo dev --filter=web
-```
-
-### Remote Caching
-
-> [!TIP]
-> Vercel Remote Cache is free for all plans. Get started today at [vercel.com](https://vercel.com/signup?utm_source=remote-cache-sdk&utm_campaign=free_remote_cache).
-
-Turborepo can use a technique known as [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
-
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup?utm_source=turborepo-examples), then enter the following commands:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo login
-```
-
-Without global `turbo`, use your package manager:
-
-```sh
-cd my-turborepo
-npx turbo login
-pnpm exec turbo login
-pnpm exec turbo login
-```
-
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
-
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo link
-```
-
-Without global `turbo`:
-
-```sh
-npx turbo link
-pnpm exec turbo link
-pnpm exec turbo link
-```
-
-## Useful Links
-
-Learn more about the power of Turborepo:
-
-- [Tasks](https://turborepo.dev/docs/crafting-your-repository/running-tasks)
-- [Caching](https://turborepo.dev/docs/crafting-your-repository/caching)
-- [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching)
-- [Filtering](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters)
-- [Configuration Options](https://turborepo.dev/docs/reference/configuration)
-- [CLI Usage](https://turborepo.dev/docs/reference/command-line-reference)

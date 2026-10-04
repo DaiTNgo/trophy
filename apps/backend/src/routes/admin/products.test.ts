@@ -453,6 +453,79 @@ describe("product full-create helpers", () => {
     );
   });
 
+  it("allows publish when attributes and options have Vietnamese but no English translations", () => {
+    const product = buildPublishableProduct("Cúp vàng");
+    product.attributes = [
+      { name: { vi: "Chất liệu", en: "" }, value: { vi: "Đồng mạ vàng", en: "" } },
+    ];
+    product.options = [
+      {
+        id: 10,
+        productId: 7,
+        title: { vi: "Kích thước", en: "" },
+        position: 0,
+        values: [
+          {
+            id: 100,
+            optionId: 10,
+            value: { vi: "Tiêu chuẩn", en: "" },
+            position: 0,
+          },
+        ],
+      },
+    ];
+    product.variants[0].title = { vi: "Bản chuẩn", en: "" };
+    product.variants[0].attributes = [
+      { name: { vi: "Khắc laser", en: "" }, value: { vi: "Có", en: "" } },
+    ];
+
+    expect(validatePublishable(product)).toBeNull();
+  });
+
+  it("rejects publish when an attribute is missing Vietnamese text", () => {
+    const product = buildPublishableProduct("Cúp vàng");
+    product.attributes = [
+      { name: { vi: "", en: "Material" }, value: { vi: "Đồng mạ vàng", en: "Gold-plated brass" } },
+    ];
+    expect(validatePublishable(product)).toBe(
+      "All product attributes require Vietnamese names and values before publish",
+    );
+  });
+
+  it("rejects publish when an option title is missing Vietnamese text", () => {
+    const product = buildPublishableProduct("Cúp vàng");
+    product.options[0].title = { vi: "", en: "Size" };
+    expect(validatePublishable(product)).toBe(
+      "All product options require Vietnamese titles before publish",
+    );
+  });
+
+  it("rejects publish when an option value is missing Vietnamese text", () => {
+    const product = buildPublishableProduct("Cúp vàng");
+    product.options[0].values[0].value = { vi: "", en: "Standard" };
+    expect(validatePublishable(product)).toBe(
+      "All product option values require Vietnamese labels before publish",
+    );
+  });
+
+  it("rejects publish when a variant title is missing Vietnamese text", () => {
+    const product = buildPublishableProduct("Cúp vàng");
+    product.variants[0].title = { vi: "", en: "Standard Variant" };
+    expect(validatePublishable(product)).toBe(
+      "Every variant requires a title with Vietnamese text before publish",
+    );
+  });
+
+  it("rejects publish when a variant attribute is missing Vietnamese text", () => {
+    const product = buildPublishableProduct("Cúp vàng");
+    product.variants[0].attributes = [
+      { name: { vi: "Khắc laser", en: "" }, value: { vi: "", en: "Yes" } },
+    ];
+    expect(validatePublishable(product)).toBe(
+      "All variant attributes require Vietnamese names and values before publish",
+    );
+  });
+
   it("preserves stable media ordering per variant", () => {
     const rows = buildVariantMediaInsertRows(
       [{ id: 11 }, { id: 12 }],

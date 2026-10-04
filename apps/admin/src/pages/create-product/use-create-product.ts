@@ -17,7 +17,7 @@ import {
   fetchProductMetadata,
   type ProductMetadataSnapshot,
 } from "../../lib/product-metadata-client";
-import { convertPdfToImageFile } from "../../lib/pdf-preview";
+import { dimensionsMatch, readMediaAsset } from "../../lib/media-asset";
 import {
   createFullProduct,
   mapApiProductToCatalogProduct,
@@ -28,9 +28,11 @@ import {
   DEFAULT_PRODUCT_OPTION_TITLE,
   DEFAULT_PRODUCT_OPTION_VALUE,
   getEffectiveOptionDefinitions,
+  isAttributeRowActive,
   isPublishReady,
   reconcileVariantRows,
   validateCreateProduct,
+  sanitizeLocalizedRichText,
 } from "../../lib/product-utils";
 import { slugify } from "../../lib/utils";
 import type {
@@ -80,10 +82,6 @@ export function buildVariantSignature(
   return options.map((option) => `${option.option}:${option.value}`).join("|");
 }
 
-function hasLocalizedTextValue(value: LocalizedTextValue) {
-  return Object.values(value).some((localeValue) => localeValue.trim() !== "");
-}
-
 const validationErrorGuidance: Partial<
   Record<keyof CreateProductErrors, string>
 > = {
@@ -91,9 +89,9 @@ const validationErrorGuidance: Partial<
   handle:
     "Use a different handle in Details, or leave it blank to generate one from the title.",
   attributes:
-    "In Details, complete both the name and value for every attribute row, or remove empty rows.",
+    "In Details, complete both the Vietnamese name and value for every attribute row, or remove empty rows.",
   optionDefinitions:
-    "In Details, add a product option with a title and at least one unique value.",
+    "In Details, ensure each option has a Vietnamese title and every value has a unique Vietnamese name.",
   variants:
     "Open Variants, select at least one variant to create, and fix the variant values shown in the table.",
   publish:
@@ -472,17 +470,22 @@ export function useCreateProduct() {
         optionDefinitions,
       )
         .map((option) => ({
-          title: option.titleTranslations ?? {
-            vi: option.title.trim(),
-            en: "",
-          },
+          title: option.titleTranslations
+            ? {
+                vi: option.titleTranslations.vi.trim(),
+                en: option.titleTranslations.en.trim() || undefined,
+              }
+            : {
+                vi: option.title.trim(),
+                en: undefined,
+              },
           displayType: option.displayType ?? "text",
           values: option.values
-            .filter((v) => v.value.trim() !== "")
+            .filter((v) => (v.valueTranslations?.vi ?? v.value).trim() !== "")
             .map((value) => ({
-              value: value.valueTranslations ?? {
-                vi: value.value.trim(),
-                en: "",
+              value: {
+                vi: (value.valueTranslations?.vi ?? value.value).trim(),
+                en: value.valueTranslations?.en?.trim() || undefined,
               },
               colorHex: value.colorHex ?? null,
               swatchAssetId: value.swatchAssetId ?? null,
@@ -555,22 +558,35 @@ export function useCreateProduct() {
         };
         });
       const submittedDetails = {
-        title: values.title,
+        title: {
+          vi: values.title.vi.trim(),
+          en: values.title.en.trim() || undefined,
+        },
         handle: values.handle.trim() || null,
-        ...(hasLocalizedTextValue(values.subtitle)
-          ? { subtitle: values.subtitle }
+        ...(values.subtitle.vi.trim() || values.subtitle.en.trim()
+          ? {
+              subtitle: {
+                vi: values.subtitle.vi.trim(),
+                en: values.subtitle.en.trim() || undefined,
+              },
+            }
           : {}),
-        ...(hasLocalizedTextValue(values.description)
-          ? { description: values.description }
+        ...(values.description.vi.trim() || values.description.en.trim()
+          ? {
+              description: {
+                vi: values.description.vi.trim(),
+                en: values.description.en.trim() || undefined,
+              },
+            }
           : {}),
-        ...(hasLocalizedTextValue(values.whyThisProductHtml)
-          ? { whyThisProductHtml: values.whyThisProductHtml }
+        ...(sanitizeLocalizedRichText(values.whyThisProductHtml)
+          ? { whyThisProductHtml: sanitizeLocalizedRichText(values.whyThisProductHtml)! }
           : {}),
-        ...(hasLocalizedTextValue(values.specificationsHtml)
-          ? { specificationsHtml: values.specificationsHtml }
+        ...(sanitizeLocalizedRichText(values.specificationsHtml)
+          ? { specificationsHtml: sanitizeLocalizedRichText(values.specificationsHtml)! }
           : {}),
-        ...(hasLocalizedTextValue(values.shippingHtml)
-          ? { shippingHtml: values.shippingHtml }
+        ...(sanitizeLocalizedRichText(values.shippingHtml)
+          ? { shippingHtml: sanitizeLocalizedRichText(values.shippingHtml)! }
           : {}),
       };
 
@@ -582,14 +598,16 @@ export function useCreateProduct() {
           categoryIds: selectedCategoryIds.map((id) => Number(id)),
         },
         attributes: attributes
-          .filter(
-            (attribute) =>
-              attribute.key.vi.trim() !== "" &&
-              attribute.value.vi.trim() !== "",
-          )
+          .filter(isAttributeRowActive)
           .map((attribute) => ({
-            name: attribute.key,
-            value: attribute.value,
+            name: {
+              vi: attribute.key.vi.trim(),
+              en: attribute.key.en.trim() || undefined,
+            },
+            value: {
+              vi: attribute.value.vi.trim(),
+              en: attribute.value.en.trim() || undefined,
+            },
             unit: null,
           })),
         options: submittedOptions,
@@ -640,6 +658,29 @@ export function useCreateProduct() {
       delete next[optionId];
       return next;
     });
+  }
+
+  function updateOptionFromDraft(draft: import("../../types").OptionDraft) {
+    setOptionDefinitions((current) =>
+      current.map((option) =>
+        option.id === draft.id
+          ? {
+              ...option,
+              title: draft.titleTranslations.vi,
+              titleTranslations: draft.titleTranslations,
+              displayType: draft.displayType,
+              values: draft.values.map(v => ({
+                id: (v.id ?? Math.random().toString(36).substring(7)).toString(),
+                value: v.valueTranslations.vi,
+                valueTranslations: v.valueTranslations,
+                colorHex: v.colorHex,
+                swatchAssetId: v.swatchAssetId,
+                swatchAssetUrl: v.swatchAssetUrl,
+              }))
+            }
+          : option
+      )
+    );
   }
 
   function updateOptionDefinition(optionId: string, title: string) {
@@ -937,29 +978,13 @@ export function useCreateProduct() {
             );
           }
 
-          let fileToProcess = file;
-          if (file.type === "application/pdf") {
-            fileToProcess = await convertPdfToImageFile(file);
-          }
-
-          let dimensions: { width: number; height: number };
+          const asset = await readMediaAsset(file);
+          const fileToProcess = asset.previewFile ?? file;
           const objectUrl = URL.createObjectURL(fileToProcess);
-          dimensions = await new Promise<{
-            width: number;
-            height: number;
-          }>((resolve, reject) => {
-            const image = new Image();
-            image.onload = () => {
-              resolve({
-                width: image.naturalWidth,
-                height: image.naturalHeight,
-              });
-            };
-            image.onerror = () => {
-              reject(new Error("Unable to read image dimensions."));
-            };
-            image.src = objectUrl;
-          });
+          const dimensions = {
+            width: asset.dimensions.widthPx,
+            height: asset.dimensions.heightPx,
+          };
 
           return {
             id: `pending_${crypto.randomUUID()}`,
@@ -1008,30 +1033,20 @@ export function useCreateProduct() {
           "Only PNG, JPEG, WebP, and PDF product assets are supported.",
         );
       }
-      const isPdf = file.type === "application/pdf";
-      const previewFile = isPdf ? await convertPdfToImageFile(file) : undefined;
+      const asset = await readMediaAsset(file);
+      const previewFile = asset.previewFile;
       const fileForPreview = previewFile ?? file;
       const objectUrl = URL.createObjectURL(fileForPreview);
-      const dimensions = await new Promise<{ width: number; height: number }>(
-        (resolve, reject) => {
-          const image = new Image();
-          image.onload = () =>
-            resolve({ width: image.naturalWidth, height: image.naturalHeight });
-          image.onerror = () =>
-            reject(new Error("Unable to read image dimensions."));
-          image.src = objectUrl;
-        },
-      );
+      const dimensions = {
+        width: asset.dimensions.widthPx,
+        height: asset.dimensions.heightPx,
+      };
       const expected = effectiveVariantRows.find(
         (variant) =>
           buildVariantSignature(variant.options) !== variantSignature &&
           variant.customizationMedia,
       )?.customizationMedia;
-      if (
-        expected &&
-        (expected.widthPx !== dimensions.width ||
-          expected.heightPx !== dimensions.height)
-      ) {
+      if (expected && !dimensionsMatch(asset.dimensions, expected)) {
         URL.revokeObjectURL(objectUrl);
         throw new Error(
           `Customization Media must be ${expected.widthPx} x ${expected.heightPx} px.`,
@@ -1188,6 +1203,7 @@ export function useCreateProduct() {
     setOptionDefinitions,
     addOptionDefinition,
     removeOptionDefinition,
+    updateOptionFromDraft,
     updateOptionDefinition,
     updateOptionDisplayType,
     updateOptionTitleTranslation,

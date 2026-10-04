@@ -15,7 +15,12 @@ export const localizedString = (minLength = 1, maxLength = 200) =>
   v.object({
     vi: v.pipe(v.string(), v.trim(), v.minLength(minLength), v.maxLength(maxLength)),
     en: v.optional(v.union([
-      v.pipe(v.string(), v.trim(), v.maxLength(maxLength)),
+      v.pipe(
+        v.string(),
+        v.trim(),
+        v.maxLength(maxLength),
+        v.transform((value) => (value.length === 0 ? null : value))
+      ),
       v.null(),
       v.undefined()
     ]))
@@ -24,12 +29,22 @@ export const localizedString = (minLength = 1, maxLength = 200) =>
 export const localizedNullableText = (maxLength = 2000) =>
   v.object({
     vi: v.optional(v.union([
-      v.pipe(v.string(), v.trim(), v.maxLength(maxLength)),
+      v.pipe(
+        v.string(),
+        v.trim(),
+        v.maxLength(maxLength),
+        v.transform((value) => (value.length === 0 ? null : value))
+      ),
       v.null(),
       v.undefined()
     ])),
     en: v.optional(v.union([
-      v.pipe(v.string(), v.trim(), v.maxLength(maxLength)),
+      v.pipe(
+        v.string(),
+        v.trim(),
+        v.maxLength(maxLength),
+        v.transform((value) => (value.length === 0 ? null : value))
+      ),
       v.null(),
       v.undefined()
     ]))

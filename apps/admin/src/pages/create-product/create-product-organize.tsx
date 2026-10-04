@@ -1,22 +1,10 @@
-import { Heading, Label, Text } from "@medusajs/ui";
-import type { ReactNode } from "react";
-import { CategoryMultiSelect } from "../../components/ui/medusa/category-multiselect";
+import { Heading, Text } from "@medusajs/ui";
 import type { useCreateProduct } from "./use-create-product";
+import { ProductOrganizeEditor } from "../../components/products/product-organize-editor";
 
 type CreateProductOrganizeProps = {
   state: ReturnType<typeof useCreateProduct>;
 };
-
-function OptionalFormLabel({ children }: { children: ReactNode }) {
-  return (
-    <Label className="flex items-center gap-x-1">
-      {children}
-      <Text as="span" size="small" className="text-ui-fg-muted">
-        (Optional)
-      </Text>
-    </Label>
-  );
-}
 
 export function CreateProductOrganize({ state }: CreateProductOrganizeProps) {
   const {
@@ -25,6 +13,7 @@ export function CreateProductOrganize({ state }: CreateProductOrganizeProps) {
     setSelectedCollectionIds,
     selectedCategoryIds,
     setSelectedCategoryIds,
+    values,
   } = state;
 
   return (
@@ -38,41 +27,15 @@ export function CreateProductOrganize({ state }: CreateProductOrganizeProps) {
       </div>
 
       <div className="grid gap-5 md:grid-cols-1">
-        <div className="space-y-2">
-          <OptionalFormLabel>Collections (Shop by Interest)</OptionalFormLabel>
-          <CategoryMultiSelect
-            values={selectedCollectionIds}
-            options={metadata.collections.map((option) => ({
-              value: String(option.id),
-              label: option.label,
-            }))}
-            onChange={setSelectedCollectionIds}
-            placeholder="Select collections"
-            searchPlaceholder="Search collections..."
-            emptyText="No collections found"
-          />
-          <Text size="small" className="text-ui-fg-subtle">
-            Used for merchandising groupings like occasions or audiences.
-          </Text>
-        </div>
-      </div>
-
-      <div className="grid gap-5 mt-5">
-        <div className="space-y-2">
-          <OptionalFormLabel>Categories (Shop by Product)</OptionalFormLabel>
-          <CategoryMultiSelect
-            values={selectedCategoryIds}
-            options={metadata.categories.map((category) => ({
-              value: String(category.id),
-              label: category.label,
-            }))}
-            onChange={setSelectedCategoryIds}
-          />
-          <Text size="small" className="text-ui-fg-subtle">
-            Shopper-facing product-kind placement. A product may belong to
-            multiple categories.
-          </Text>
-        </div>
+        <ProductOrganizeEditor
+          collections={metadata.collections}
+          categories={metadata.categories}
+          selectedCollectionIds={selectedCollectionIds}
+          onChangeCollectionIds={setSelectedCollectionIds}
+          selectedCategoryIds={selectedCategoryIds}
+          onChangeCategoryIds={setSelectedCategoryIds}
+          isCustomizationEnabled={values.customizationEnabled}
+        />
       </div>
     </div>
   );

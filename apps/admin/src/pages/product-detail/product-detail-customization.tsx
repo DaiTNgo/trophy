@@ -22,7 +22,7 @@ import {
   reactivateCustomization,
   repairCustomization,
 } from "../../lib/products-client";
-import { convertPdfToImageFile } from "../../lib/pdf-preview";
+import { isPdfFile, readMediaAsset } from "../../lib/media-asset";
 import type { CatalogProduct } from "../../types";
 import { useBrandAssets } from "../../hooks/use-brand-assets";
 import { useEmbeddedProductCustomizationEditor } from "../../hooks/use-embedded-product-customization-editor";
@@ -42,23 +42,6 @@ type ProductDetailCustomizationProps = {
 };
 
 type SetupMode = "activate" | "repair";
-
-async function readImageDimensions(file: File) {
-  const url = URL.createObjectURL(file);
-  try {
-    const image = new window.Image();
-    return await new Promise<{ width: number; height: number }>(
-      (resolve, reject) => {
-        image.onload = () =>
-          resolve({ width: image.naturalWidth, height: image.naturalHeight });
-        image.onerror = reject;
-        image.src = url;
-      },
-    );
-  } finally {
-    URL.revokeObjectURL(url);
-  }
-}
 
 function CustomizationBackgroundModal({
   product,
@@ -202,15 +185,10 @@ function CustomizationBackgroundModal({
     dimensions?: { widthPx: number; heightPx: number },
     previewUrl?: string,
   ) => {
-    const isPdf = file.type === "application/pdf";
-    const previewFile = isPdf ? await convertPdfToImageFile(file) : undefined;
-    const fileForDimensions = previewFile ?? file;
-    const size = dimensions && !isPdf
-      ? dimensions
-      : await readImageDimensions(fileForDimensions).then(({ width, height }) => ({
-        widthPx: width,
-        heightPx: height,
-      }));
+    const isPdf = isPdfFile(file);
+    const asset = dimensions && !isPdf ? null : await readMediaAsset(file);
+    const previewFile = asset?.previewFile;
+    const size = asset?.dimensions ?? dimensions!;
     setFiles((current) => ({
       ...current,
       [variantId]: {
@@ -236,7 +214,11 @@ function CustomizationBackgroundModal({
       file,
       { widthPx: background.widthPx, heightPx: background.heightPx },
       background.previewUrl,
-    );
+    ).catch((error) => {
+      toast.error("Customization Media could not be read", {
+        description: error instanceof Error ? error.message : undefined,
+      });
+    });
   };
 
   const save = async () => {
@@ -472,7 +454,7 @@ function CustomizationBackgroundModal({
                         selectedPreviewAssetId,
                         setSelectedPreviewAssetId,
                         dynamicFonts,
-                      } as never
+                      }
                     }
                     onUploadBackground={replaceSelectedBackground}
                   />

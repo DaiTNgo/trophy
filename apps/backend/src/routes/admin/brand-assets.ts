@@ -5,6 +5,7 @@ import { brandColors, fontFamilies } from "../../db/schema";
 import type { AppEnv } from "../../lib/env";
 import { jsonError } from "../../lib/validation";
 import { getStaticFontBytes } from "../../lib/static-fonts";
+import { buildBrandFontKey } from "../../lib/r2-media-keys";
 
 export const adminBrandAssetsRoute = new Hono<AppEnv>()
   .get("/colors", async (c) => {
@@ -124,10 +125,10 @@ export const adminBrandAssetsRoute = new Hono<AppEnv>()
     // Basic upload endpoint for TTF files
     const buffer = await c.req.arrayBuffer();
     const mimeType = c.req.header("content-type") ?? "font/ttf";
-    
-    // We just use a random ID for the asset
+
+    // Use the canonical key builder so keys are consistent across the codebase
     const assetId = `font_${crypto.randomUUID()}`;
-    const key = `fonts/${assetId}.ttf`;
+    const key = buildBrandFontKey(assetId);
 
     await c.env.CUSTOMIZATION_ASSETS.put(key, buffer, {
       httpMetadata: { contentType: mimeType },

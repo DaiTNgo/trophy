@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import type { AppEnv } from "./lib/env";
+import { getAppBindings } from "./lib/env";
 import { AUTH_BASE_PATH, getAuth } from "./lib/auth";
 import {
   SESSION_CORS_POLICY,
@@ -11,6 +12,11 @@ import { adminRoute } from "./routes/admin";
 import { storefrontRoute } from "./routes/storefront";
 
 const app = new Hono<AppEnv>();
+
+app.use("*", async (c, next) => {
+  (c as any).env = getAppBindings(c.env);
+  await next();
+});
 
 app.use("/api/storefront/*", async (c, next) => {
   const startedAt = Date.now();

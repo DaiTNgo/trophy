@@ -263,7 +263,7 @@ A product variant that can support shopper-facing customization because it has e
 _Avoid_: valid variant, completed variant
 
 **Background Size Contract**:
-The rule that all Customization Backgrounds for a customizable product share identical canvas width and height, allowing one customization template to render consistently across every variant background. For published products and during product publish, this contract is strictly enforced. In draft status, variant backgrounds are unconstrained to allow operators to iterate and replace assets freely, and upon successful publish or template save, the product canvas size automatically synchronizes to the variant background dimensions.
+The rule that all Customization Backgrounds for a customizable product share identical canvas width and height, allowing one customization template to render consistently across every variant background. For published products and during product publish, this contract is strictly enforced. In draft status, variant backgrounds are unconstrained to allow operators to iterate and replace assets freely, and upon successful publish or template save, the product canvas size automatically synchronizes to the variant background dimensions. A background whose dimensions cannot be read is rejected at upload in every status; unknown dimensions are never stored.
 _Avoid_: same-size warning, image dimension hint
 **Declared Background Dimensions**:
 The width and height metadata supplied by the admin client for a Customization Background. It is the canvas-size source of truth, including for PDF backgrounds; it is not media dimensions inferred or decoded by the backend.
@@ -494,3 +494,19 @@ _Avoid_: order status, fulfillment status, customization status
 **Admin Draft Discard Guard**:
 A confirmation prompt shown when closing a create-product creation modal, preventing accidental data loss by requiring the operator to confirm discard before the modal closes. It covers the Escape key, backdrop click, Cancel button, and browser back. Does not appear after a successful submission.
 _Avoid_: unsaved changes warning, dirty form guard, close protection
+
+**Editor Canvas Coordinates**:
+The relative coordinate system used by the browser to display and interact with customization blocks on the screen. These are calculated based on the CSS dimensions of the canvas, decoupled from the high-resolution image preview.
+_Avoid_: screen pixels, display coordinates, preview coordinates
+
+**PDF Document Coordinates**:
+The absolute, scale-1.0 coordinate system (typically in points) of the original PDF used for print production. The backend stores all Customization Background dimensions and block placements exclusively in this coordinate system, regardless of the preview image resolution.
+_Avoid_: image size, scale-2x size, print pixels
+
+**Deployment Pipeline**:
+The automated process (e.g., via GitHub Actions) that builds the immutable Docker Image and pushes it to a registry. The production VPS only pulls and runs the image and never holds the source code or runs development tools.
+_Avoid_: Git-pull deployment, VPS build, manual server compilation
+
+**Zero-Downtime Migration Strategy**:
+The database schema update process executed as a discrete step (using the compiled programmatic `migrate.js` script) prior to rolling out new application container versions. This prevents table locking or schema incompatibility from crashing the active containers serving user traffic during the deployment.
+_Avoid_: Startup automatic migration, drizzle-kit on production, app-init migration
