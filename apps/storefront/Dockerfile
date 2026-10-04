@@ -18,6 +18,8 @@ COPY --from=deps /app ./
 COPY packages ./packages
 COPY apps/backend ./apps/backend
 COPY apps/storefront ./apps/storefront
+RUN ls -la /app/apps/storefront/node_modules || true
+RUN ls -la /app/apps/storefront || true
 
 # Build the storefront app
 RUN pnpm --filter router-cf build
