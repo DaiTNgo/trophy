@@ -21,17 +21,17 @@ export function getBackendServiceFetch(
   const backendBaseUrlStr =
     process.env.BACKEND_INTERNAL_URL ||
     process.env.BACKEND_URL ||
-    "http://127.0.0.1:8787";
+    "http://localhost:8787";
 
   const backendBaseUrl = new URL(
     backendBaseUrlStr.endsWith("/") ? backendBaseUrlStr : `${backendBaseUrlStr}/`
   );
 
-  const publicBackendUrlStr = process.env.BACKEND_URL || "http://127.0.0.1:8787";
+  const publicBackendUrlStr = process.env.BACKEND_URL || "http://localhost:8787";
   const publicBackendHost = new URL(publicBackendUrlStr).host;
 
   const isBackendHost = (host: string) => {
-    return host === "localhost:8787" || host === "127.0.0.1:8787" || host === publicBackendHost;
+    return host === "localhost:8787" || host === publicBackendHost;
   };
 
   return async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -64,7 +64,7 @@ export function getBackendServiceFetch(
     }
     const newInit = { ...init };
     const publicUrlObj = new URL(publicBackendUrlStr);
-    
+
     // Inject X-Forwarded headers so backend uses public URL for asset links
     if (targetUrl.host === backendBaseUrl.host) {
       const headers = new Headers(newInit.headers);
