@@ -1,47 +1,27 @@
-import { useState, type FormEvent } from "react";
-import { Button, Container, Heading, Input, Label, Text } from "@medusajs/ui";
+import { Container, Heading, Text } from "@medusajs/ui";
 import { KeyRound } from "lucide-react";
-import { InlineError } from "../components/ui/medusa/inline-error";
-import { SuccessMessage } from "../components/ui/medusa/success-message";
+import {
+  PasswordChangeForm,
+  type PasswordChangeResult,
+} from "../components/auth/password-change-form";
 import { useAuth } from "../hooks/use-auth";
 import { recoverOtherSuperAdmin } from "../lib/auth-client";
 import { isSuperAdmin } from "../lib/auth-utils";
-import { validateChangePassword } from "../lib/validation";
-import type { ChangePasswordFormErrors, ChangePasswordFormValues } from "../types";
+
+async function recover(currentPassword: string, newPassword: string): Promise<PasswordChangeResult> {
+  try {
+    await recoverOtherSuperAdmin(currentPassword, newPassword);
+    return { ok: true };
+  } catch (error) {
+    return {
+      ok: false,
+      message: error instanceof Error ? error.message : "Unable to recover super-admin access.",
+    };
+  }
+}
 
 export function SuperAdminRecoveryPage() {
   const auth = useAuth();
-  const [values, setValues] = useState<ChangePasswordFormValues>({
-    currentPassword: "",
-    newPassword: "",
-    confirmPassword: "",
-  });
-  const [errors, setErrors] = useState<ChangePasswordFormErrors>({});
-  const [message, setMessage] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const nextErrors = validateChangePassword(values);
-    if (Object.keys(nextErrors).length > 0) {
-      setErrors(nextErrors);
-      return;
-    }
-
-    setIsSubmitting(true);
-    setMessage(null);
-    try {
-      await recoverOtherSuperAdmin(values.currentPassword, values.newPassword);
-      setErrors({});
-      setValues({ currentPassword: "", newPassword: "", confirmPassword: "" });
-      setMessage("The other super-admin password was replaced and their sessions were revoked.");
-    } catch (error) {
-      setErrors({ form: error instanceof Error ? error.message : "Unable to recover super-admin access." });
-    } finally {
-      setIsSubmitting(false);
-    }
-  }
-
   if (!isSuperAdmin(auth.user?.role)) {
     return (
       <Container>
@@ -70,44 +50,19 @@ export function SuperAdminRecoveryPage() {
       </Container>
 
       <Container className="max-w-2xl">
-        <form className="flex flex-col gap-y-4" onSubmit={handleSubmit} noValidate>
-          <div className="space-y-2">
-            <Label htmlFor="recovery-current-password">Your current password</Label>
-            <Input
-              id="recovery-current-password"
-              type="password"
-              value={values.currentPassword}
-              onChange={(event) => setValues((current) => ({ ...current, currentPassword: event.target.value }))}
-            />
-            {errors.currentPassword ? <Text size="small" className="text-rose-700">{errors.currentPassword}</Text> : null}
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="recovery-new-password">New password for the other super-admin</Label>
-            <Input
-              id="recovery-new-password"
-              type="password"
-              value={values.newPassword}
-              onChange={(event) => setValues((current) => ({ ...current, newPassword: event.target.value }))}
-            />
-            {errors.newPassword ? <Text size="small" className="text-rose-700">{errors.newPassword}</Text> : null}
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="recovery-confirm-password">Confirm new password</Label>
-            <Input
-              id="recovery-confirm-password"
-              type="password"
-              value={values.confirmPassword}
-              onChange={(event) => setValues((current) => ({ ...current, confirmPassword: event.target.value }))}
-            />
-            {errors.confirmPassword ? <Text size="small" className="text-rose-700">{errors.confirmPassword}</Text> : null}
-          </div>
-          {errors.form ? <InlineError message={errors.form} /> : null}
-          {message ? <SuccessMessage message={message} /> : null}
-          <Button type="submit" disabled={isSubmitting} className="w-full">
-            <KeyRound className="h-4 w-4" />
-            {isSubmitting ? "Replacing..." : "Replace other super-admin password"}
-          </Button>
-        </form>
+        <PasswordChangeForm
+          idPrefix="recovery-"
+          labels={{
+            currentPassword: "Your current password",
+            newPassword: "New password for the other super-admin",
+            confirmPassword: "Confirm new password",
+          }}
+          submitIcon={<KeyRound className="h-4 w-4" />}
+          submitLabel="Replace other super-admin password"
+          submittingLabel="Replacing..."
+          successMessage="The other super-admin password was replaced and their sessions were revoked."
+          onSubmit={recover}
+        />
       </Container>
     </div>
   );

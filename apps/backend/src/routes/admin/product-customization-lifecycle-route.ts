@@ -2,8 +2,8 @@ import {
   validateProductCustomizationDraft,
   type ProductCustomization
 } from '@trophy/customization'
-import { and, eq, inArray, sql } from 'drizzle-orm'
-import { Hono } from 'hono'
+import { and, eq, inArray } from 'drizzle-orm'
+import { Hono, type Context } from 'hono'
 import { getDb } from '../../db/client'
 import {
   catalogTranslations,
@@ -18,7 +18,7 @@ import {
 } from '../../db/schema'
 import type { AppEnv } from '../../lib/env'
 import { extensionForMimeType } from '../../lib/asset-utils'
-import { prepareCustomizationTranslations } from '../../lib/customization-translation'
+import { customizationTranslationStatements, prepareCustomizationTranslations } from '../../lib/customization-translation'
 import { r2CleanupJobValues } from '../../lib/r2-cleanup-outbox'
 import { buildCatalogVariantCustomizationBackgroundKey } from '../../lib/r2-media-keys'
 import { jsonError, parseParams } from '../../lib/validation'
@@ -34,6 +34,7 @@ import {
 import {
   parseCustomizationActivationMultipart,
   parseCustomizationRepairMultipart,
+  type ValidatedCustomizationBackground,
 } from './product-customization-multipart'
 import { readProduct } from './product-reader'
 import { idParamsSchema } from './product-schemas'
@@ -47,36 +48,46 @@ import {
 
 const nowIso = () => new Date().toISOString()
 
-function customizationTranslationStatements(
-  db: ReturnType<typeof getDb>,
-  writes: ReturnType<typeof prepareCustomizationTranslations>,
+/**
+ * Uploads customization backgrounds (and their previews) for a catalog product and returns
+ * the asset rows to insert. Every written key is appended to `writtenObjectKeys` for rollback.
+ */
+async function storeCustomizationBackgrounds(
+  c: Context<AppEnv>,
+  productId: number,
+  backgrounds: ValidatedCustomizationBackground[],
+  writtenObjectKeys: string[],
 ) {
-  return writes.flatMap((write) => ['vi', 'en'].map((locale) => {
-    const value = write.values[locale]
-    if (value === null) {
-      return db.delete(catalogTranslations).where(and(
-        eq(catalogTranslations.ownerType, write.ownerType),
-        eq(catalogTranslations.ownerKey, write.ownerKey),
-        eq(catalogTranslations.fieldName, write.fieldName),
-        eq(catalogTranslations.locale, locale),
-      ))
-    }
-    return db.insert(catalogTranslations).values({
-      ownerType: write.ownerType,
-      ownerKey: write.ownerKey,
-      fieldName: write.fieldName,
-      locale,
-      value: value ?? '',
-    }).onConflictDoUpdate({
-      target: [
-        catalogTranslations.ownerType,
-        catalogTranslations.ownerKey,
-        catalogTranslations.fieldName,
-        catalogTranslations.locale,
-      ],
-      set: { value: value ?? '', updatedAt: sql`CURRENT_TIMESTAMP` },
+  const assetRows: Array<typeof productAssets.$inferInsert> = []
+  for (const background of backgrounds) {
+    const assetId = background.id
+    const objectKey = buildCatalogVariantCustomizationBackgroundKey({
+      productId,
+      variantId: background.variantId,
+      assetId,
+      extension: extensionForMimeType(background.mimeType)
     })
-  }))
+    await c.env.CUSTOMIZATION_ASSETS.put(objectKey, background.buffer, { httpMetadata: { contentType: background.mimeType } })
+    writtenObjectKeys.push(objectKey)
+    let previewObjectKey: string | null = null
+    if (background.previewBuffer && background.previewMimeType) {
+      previewObjectKey = `catalog/${productId}/variants/${background.variantId}/customization-background/${assetId}/preview.${extensionForMimeType(background.previewMimeType)}`
+      await c.env.CUSTOMIZATION_ASSETS.put(previewObjectKey, background.previewBuffer, { httpMetadata: { contentType: background.previewMimeType } })
+      writtenObjectKeys.push(previewObjectKey)
+    }
+    assetRows.push({
+      id: assetId,
+      ownerKey: `catalog:${productId}`,
+      objectKey,
+      previewObjectKey,
+      fileName: background.fileName,
+      mimeType: background.mimeType,
+      widthPx: background.widthPx,
+      heightPx: background.heightPx,
+      byteSize: background.byteSize
+    })
+  }
+  return assetRows
 }
 
 export const productCustomizationLifecycleRoute = new Hono<AppEnv>()
@@ -131,34 +142,7 @@ export const productCustomizationLifecycleRoute = new Hono<AppEnv>()
     const assetRows: Array<typeof productAssets.$inferInsert> = []
     const translationWrites = prepareCustomizationTranslations(template)
     try {
-      for (const background of backgrounds) {
-        const assetId = background.id
-        const objectKey = buildCatalogVariantCustomizationBackgroundKey({
-          productId: product.id,
-          variantId: background.variantId,
-          assetId,
-          extension: extensionForMimeType(background.mimeType)
-        })
-        await c.env.CUSTOMIZATION_ASSETS.put(objectKey, background.buffer, { httpMetadata: { contentType: background.mimeType } })
-        writtenObjectKeys.push(objectKey)
-        let previewObjectKey: string | null = null
-        if (background.previewBuffer && background.previewMimeType) {
-          previewObjectKey = `catalog/${product.id}/variants/${background.variantId}/customization-background/${assetId}/preview.${extensionForMimeType(background.previewMimeType)}`
-          await c.env.CUSTOMIZATION_ASSETS.put(previewObjectKey, background.previewBuffer, { httpMetadata: { contentType: background.previewMimeType } })
-          writtenObjectKeys.push(previewObjectKey)
-        }
-        assetRows.push({
-          id: assetId,
-          ownerKey: `catalog:${product.id}`,
-          objectKey,
-          previewObjectKey,
-          fileName: background.fileName,
-          mimeType: background.mimeType,
-          widthPx: background.widthPx,
-          heightPx: background.heightPx,
-          byteSize: background.byteSize
-        })
-      }
+      assetRows.push(...await storeCustomizationBackgrounds(c, product.id, backgrounds, writtenObjectKeys))
       if (!await refreshCustomizationOperation(db, product.id, operationToken)) {
         throw new Error('Customization operation lease expired before activation could be saved')
       }
@@ -362,34 +346,7 @@ export const productCustomizationLifecycleRoute = new Hono<AppEnv>()
     })
     const obsoleteTranslationKeys = previousTranslationKeys.filter((key) => !submittedTranslationKeys.includes(key))
     try {
-      for (const background of multipart.input.backgrounds) {
-        const assetId = background.id
-        const objectKey = buildCatalogVariantCustomizationBackgroundKey({
-          productId: product.id,
-          variantId: background.variantId,
-          assetId,
-          extension: extensionForMimeType(background.mimeType)
-        })
-        await c.env.CUSTOMIZATION_ASSETS.put(objectKey, background.buffer, { httpMetadata: { contentType: background.mimeType } })
-        writtenObjectKeys.push(objectKey)
-        let previewObjectKey: string | null = null
-        if (background.previewBuffer && background.previewMimeType) {
-          previewObjectKey = `catalog/${product.id}/variants/${background.variantId}/customization-background/${assetId}/preview.${extensionForMimeType(background.previewMimeType)}`
-          await c.env.CUSTOMIZATION_ASSETS.put(previewObjectKey, background.previewBuffer, { httpMetadata: { contentType: background.previewMimeType } })
-          writtenObjectKeys.push(previewObjectKey)
-        }
-        assetRows.push({
-          id: assetId,
-          ownerKey: `catalog:${product.id}`,
-          objectKey,
-          previewObjectKey,
-          fileName: background.fileName,
-          mimeType: background.mimeType,
-          widthPx: background.widthPx,
-          heightPx: background.heightPx,
-          byteSize: background.byteSize
-        })
-      }
+      assetRows.push(...await storeCustomizationBackgrounds(c, product.id, multipart.input.backgrounds, writtenObjectKeys))
       if (!await refreshCustomizationOperation(db, product.id, operationToken)) {
         throw new Error('Customization operation lease expired before repair could be saved')
       }

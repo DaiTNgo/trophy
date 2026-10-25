@@ -2,31 +2,14 @@ import { and, eq, isNull, lte, or } from 'drizzle-orm'
 import { getDb } from '../db/client'
 import { misaDeletionJobs } from '../db/schema'
 import type { AppBindings } from './env'
+import { newOutboxJob, OUTBOX_BATCH_SIZE, outboxLeaseExpiresAt, outboxNow, outboxRetryAt } from './outbox-schedule'
 import { deleteMisaProducts, MisaRequestError } from './misa'
 
-const RETRY_CAP_MS = 24 * 60 * 60 * 1000
-const BATCH_SIZE = 50
-const LEASE_MS = 5 * 60 * 1000
-
-const nowIso = () => new Date().toISOString()
-
-function retryAt(attempts: number) {
-  const delay = Math.min(RETRY_CAP_MS, 60_000 * 2 ** Math.min(attempts, 10))
-  return new Date(Date.now() + delay).toISOString()
-}
-
-function leaseExpiresAt() {
-  return new Date(Date.now() + LEASE_MS).toISOString()
-}
-
 export function misaDeletionJobValues(misaProductIds: number[]) {
-  const queuedAt = nowIso()
+  const queuedAt = outboxNow()
   return [...new Set(misaProductIds)].map((misaProductId) => ({
-    id: crypto.randomUUID(),
+    ...newOutboxJob(queuedAt),
     misaProductId,
-    attempts: 0,
-    nextAttemptAt: queuedAt,
-    createdAt: queuedAt,
   }))
 }
 
@@ -37,20 +20,20 @@ export async function processMisaDeletionJobs(env: AppBindings) {
     .from(misaDeletionJobs)
     .where(and(
       isNull(misaDeletionJobs.completedAt),
-      lte(misaDeletionJobs.nextAttemptAt, nowIso()),
-      or(isNull(misaDeletionJobs.leaseExpiresAt), lte(misaDeletionJobs.leaseExpiresAt, nowIso())),
+      lte(misaDeletionJobs.nextAttemptAt, outboxNow()),
+      or(isNull(misaDeletionJobs.leaseExpiresAt), lte(misaDeletionJobs.leaseExpiresAt, outboxNow())),
     ))
-    .limit(BATCH_SIZE)
+    .limit(OUTBOX_BATCH_SIZE)
 
   for (const job of jobs) {
     const leaseToken = crypto.randomUUID()
     const claimed = await db
       .update(misaDeletionJobs)
-      .set({ leaseToken, leaseExpiresAt: leaseExpiresAt() })
+      .set({ leaseToken, leaseExpiresAt: outboxLeaseExpiresAt() })
       .where(and(
         eq(misaDeletionJobs.id, job.id),
         isNull(misaDeletionJobs.completedAt),
-        or(isNull(misaDeletionJobs.leaseExpiresAt), lte(misaDeletionJobs.leaseExpiresAt, nowIso())),
+        or(isNull(misaDeletionJobs.leaseExpiresAt), lte(misaDeletionJobs.leaseExpiresAt, outboxNow())),
       ))
       .returning({ id: misaDeletionJobs.id })
       .get()
@@ -59,7 +42,7 @@ export async function processMisaDeletionJobs(env: AppBindings) {
     try {
       await deleteMisaProducts(env, [job.misaProductId])
       await db.update(misaDeletionJobs)
-        .set({ completedAt: nowIso(), lastError: null, leaseToken: null, leaseExpiresAt: null })
+        .set({ completedAt: outboxNow(), lastError: null, leaseToken: null, leaseExpiresAt: null })
         .where(and(eq(misaDeletionJobs.id, job.id), eq(misaDeletionJobs.leaseToken, leaseToken)))
     } catch (error) {
       const completed = error instanceof MisaRequestError &&
@@ -72,10 +55,10 @@ export async function processMisaDeletionJobs(env: AppBindings) {
       }
       await db.update(misaDeletionJobs)
         .set(completed
-          ? { completedAt: nowIso(), lastError: null, leaseToken: null, leaseExpiresAt: null }
+          ? { completedAt: outboxNow(), lastError: null, leaseToken: null, leaseExpiresAt: null }
           : {
               attempts,
-              nextAttemptAt: retryAt(attempts),
+              nextAttemptAt: outboxRetryAt(attempts),
               lastError: error instanceof Error ? error.message : 'MISA deletion failed',
               leaseToken: null,
               leaseExpiresAt: null,

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
   Button,
   FocusModal,
@@ -11,7 +11,8 @@ import {
 } from "@medusajs/ui";
 import { useNavigate } from "react-router";
 import { backendFetch } from "../../../lib/fetch";
-import { uploadProductVariantMedia } from "../../../lib/product-assets-client";
+import { useImageUploadField } from "../../../hooks/use-image-upload-field";
+import { ImageUploadError } from "../../../components/catalog/image-picker";
 import { MediaPreview } from "../../../components/ui/media-preview";
 import {
   LocalizedTextField,
@@ -22,7 +23,6 @@ import {
 import {
   ACCEPT_IMAGE_MIME_TYPES,
   SUPPORTED_IMAGE_TYPES_HINT,
-  validateCategoryOrCollectionMediaFile,
 } from "../../../lib/media-asset";
 import { Upload, Trash } from "lucide-react";
 
@@ -43,11 +43,9 @@ export function CreateCollectionModal({
   const [titleLocale, setTitleLocale] = useState<AdminLocale>("vi");
   const [handle, setHandle] = useState("");
   const [visibility, setVisibility] = useState<"public" | "hidden">("public");
-  const [file, setFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState("");
-  const [imageError, setImageError] = useState<string | null>(null);
+  const image = useImageUploadField();
+  const resetImage = image.reset;
   const [isSaving, setIsSaving] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -56,64 +54,18 @@ export function CreateCollectionModal({
       setTitleLocale("vi");
       setHandle("");
       setVisibility("public");
-      setFile(null);
-      setPreviewUrl("");
-      setImageError(null);
+      resetImage();
     }
-  }, [open]);
-
-  useEffect(() => {
-    return () => {
-      if (previewUrl && previewUrl.startsWith("blob:")) {
-        URL.revokeObjectURL(previewUrl);
-      }
-    };
-  }, [previewUrl]);
-
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0];
-    if (!selectedFile) return;
-
-    setImageError(null);
-    const validationError = validateCategoryOrCollectionMediaFile(selectedFile);
-    if (validationError) {
-      setImageError(validationError);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-      return;
-    }
-
-    try {
-      setFile(selectedFile);
-      setPreviewUrl(URL.createObjectURL(selectedFile));
-    } catch (err) {
-      console.error("Failed to process file:", err);
-      setImageError(err instanceof Error ? err.message : "Failed to process file.");
-    } finally {
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    }
-  };
-
-  const handleRemoveImage = () => {
-    if (previewUrl && previewUrl.startsWith("blob:")) {
-      URL.revokeObjectURL(previewUrl);
-    }
-    setFile(null);
-    setPreviewUrl("");
-    setImageError(null);
-  };
+  }, [open, resetImage]);
 
   const handleSave = async () => {
     const vietnameseTitle = title.vi.trim();
 
     if (!vietnameseTitle) return;
     setIsSaving(true);
-    setImageError(null);
+    image.setError(null);
     try {
-      let finalImageUrl = null;
-      if (file) {
-        const media = await uploadProductVariantMedia(file);
-        finalImageUrl = media.contentUrl;
-      }
+      const finalImageUrl = await image.resolveImageUrl();
 
       const res = await backendFetch(
         "/api/admin/product-metadata/collections",
@@ -140,7 +92,7 @@ export function CreateCollectionModal({
       navigate(`/collections/${item.id}`);
     } catch (e) {
       console.error(e);
-      setImageError(e instanceof Error ? e.message : "Failed to create collection");
+      image.setError(e instanceof Error ? e.message : "Failed to create collection");
     } finally {
       setIsSaving(false);
     }
@@ -235,17 +187,17 @@ export function CreateCollectionModal({
                         Media
                       </Heading>
                     </div>
-                    {previewUrl ? (
+                    {image.previewUrl ? (
                       <div className="relative aspect-[4/3] w-[400px] max-w-full rounded-lg overflow-hidden bg-ui-bg-subtle border border-ui-border-base group">
                         <MediaPreview
-                          src={previewUrl}
+                          src={image.previewUrl}
                           className="w-full h-full object-cover"
                         />
                         <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
                           <IconButton
                             size="small"
                             variant="transparent"
-                            onClick={handleRemoveImage}
+                            onClick={image.remove}
                           >
                             <Trash className="h-4 w-4 text-ui-fg-muted" />
                           </IconButton>
@@ -267,28 +219,22 @@ export function CreateCollectionModal({
                             <Button
                               variant="secondary"
                               size="small"
-                              onClick={() => fileInputRef.current?.click()}
+                              onClick={image.openPicker}
                             >
                               Choose file
                             </Button>
                             <input
                               type="file"
-                              ref={fileInputRef}
+                              ref={image.inputRef}
                               className="hidden"
                               accept={ACCEPT_IMAGE_MIME_TYPES}
-                              onChange={handleFileChange}
+                              onChange={image.handleFileChange}
                             />
                           </div>
                         </div>
                       </div>
                     )}
-                    {imageError ? (
-                      <div className="rounded-md border border-ui-border-error bg-ui-bg-error p-3">
-                        <Text size="small" className="text-ui-fg-error">
-                          {imageError}
-                        </Text>
-                      </div>
-                    ) : null}
+                    <ImageUploadError message={image.error} />
                   </div>
                 </div>
               </div>

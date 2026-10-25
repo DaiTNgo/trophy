@@ -1,12 +1,37 @@
+import { and, eq, sql } from 'drizzle-orm'
 import { hydrateTranslations, upsertTranslations, hydrateAndResolveTranslations } from './catalog-translation'
 import type { Locale } from './locale'
 import type { Database } from '../db/client'
+import { catalogTranslations } from '../db/schema'
 
 export type CustomizationTranslationWrite = {
   ownerType: 'customization_form_field' | 'customization_layer'
   ownerKey: string
   fieldName: 'label' | 'helpText' | 'placeholder'
   values: Record<string, string | null | undefined>
+}
+
+const FORM_FIELD_TRANSLATED_FIELDS = ['label', 'helpText', 'placeholder'] as const
+const FORM_FIELD_HYDRATION = FORM_FIELD_TRANSLATED_FIELDS.map((fieldName) => ({ fieldName, objectKey: fieldName }))
+const OPTION_HYDRATION = [{ fieldName: 'label', objectKey: 'label' }]
+
+/**
+ * Shopper-selectable color/font options of text layers, with the translation owner key
+ * each option's label is stored under (`<layerId>:color:<value>` / `<layerId>:font:<value>`).
+ */
+function selectableTextOptions(customization: any): Array<{ ownerKey: string; option: any }> {
+  const options: Array<{ ownerKey: string; option: any }> = []
+  for (const layer of customization?.layers ?? []) {
+    if (layer.type !== 'text') continue
+    for (const kind of ['color', 'font'] as const) {
+      const policy = kind === 'color' ? layer.text.colorPolicy : layer.text.fontPolicy
+      if (policy?.mode !== 'shopper_selectable') continue
+      for (const option of policy.options) {
+        options.push({ ownerKey: `${layer.id}:${kind}:${option.value}`, option })
+      }
+    }
+  }
+  return options
 }
 
 /**
@@ -29,186 +54,102 @@ export function prepareCustomizationTranslations(customization: any): Customizat
   }
 
   for (const field of customization?.formFields ?? []) {
-    collect('customization_form_field', String(field.id), 'label', field)
-    collect('customization_form_field', String(field.id), 'helpText', field)
-    collect('customization_form_field', String(field.id), 'placeholder', field)
+    for (const fieldName of FORM_FIELD_TRANSLATED_FIELDS) {
+      collect('customization_form_field', String(field.id), fieldName, field)
+    }
   }
 
-  for (const layer of customization?.layers ?? []) {
-    if (layer.type !== 'text') continue
-    for (const option of layer.text.colorPolicy?.mode === 'shopper_selectable'
-      ? layer.text.colorPolicy.options
-      : []) {
-      collect('customization_layer', `${layer.id}:color:${option.value}`, 'label', option)
-    }
-    for (const option of layer.text.fontPolicy?.mode === 'shopper_selectable'
-      ? layer.text.fontPolicy.options
-      : []) {
-      collect('customization_layer', `${layer.id}:font:${option.value}`, 'label', option)
-    }
+  for (const { ownerKey, option } of selectableTextOptions(customization)) {
+    collect('customization_layer', ownerKey, 'label', option)
   }
 
   return writes
 }
 
-export async function hydrateCustomization(db: Database, customization: any) {
+/** Batch statements applying translation writes: null deletes a locale, anything else upserts it. */
+export function customizationTranslationStatements(db: Database, writes: CustomizationTranslationWrite[]) {
+  return writes.flatMap((write) => ['vi', 'en'].map((locale) => {
+    const value = write.values[locale]
+    if (value === null) {
+      return db.delete(catalogTranslations).where(and(
+        eq(catalogTranslations.ownerType, write.ownerType),
+        eq(catalogTranslations.ownerKey, write.ownerKey),
+        eq(catalogTranslations.fieldName, write.fieldName),
+        eq(catalogTranslations.locale, locale),
+      ))
+    }
+    return db.insert(catalogTranslations).values({
+      ownerType: write.ownerType,
+      ownerKey: write.ownerKey,
+      fieldName: write.fieldName,
+      locale,
+      value: value ?? '',
+    }).onConflictDoUpdate({
+      target: [
+        catalogTranslations.ownerType,
+        catalogTranslations.ownerKey,
+        catalogTranslations.fieldName,
+        catalogTranslations.locale,
+      ],
+      set: { value: value ?? '', updatedAt: sql`CURRENT_TIMESTAMP` },
+    })
+  }))
+}
+
+type HydrateFn = (
+  ownerType: CustomizationTranslationWrite['ownerType'],
+  items: any[],
+  idExtractor: (item: any) => string,
+  fields: Array<{ fieldName: string; objectKey: string }>,
+) => Promise<unknown>
+
+async function hydrateCustomizationWith(customization: any, hydrate: HydrateFn) {
   if (!customization) return
 
-  if (customization.formFields && customization.formFields.length > 0) {
-    await hydrateTranslations(
-      db,
-      'customization_form_field',
-      customization.formFields,
-      (f: any) => String(f.id),
-      [
-        { fieldName: 'label', objectKey: 'label' },
-        { fieldName: 'helpText', objectKey: 'helpText' },
-        { fieldName: 'placeholder', objectKey: 'placeholder' }
-      ],
-      [
-        { fieldName: 'label', objectKey: 'label' },
-        { fieldName: 'helpText', objectKey: 'helpText' },
-        { fieldName: 'placeholder', objectKey: 'placeholder' }
-      ]
-    )
+  if (customization.formFields?.length > 0) {
+    await hydrate('customization_form_field', customization.formFields, (f) => String(f.id), FORM_FIELD_HYDRATION)
   }
 
-  if (customization.layers && customization.layers.length > 0) {
-    const allOptions: any[] = []
-    for (const layer of customization.layers) {
-      if (layer.type === 'text') {
-        if (layer.text.colorPolicy?.mode === 'shopper_selectable') {
-          for (const o of layer.text.colorPolicy.options) {
-            o._id = `${layer.id}:color:${o.value}`
-            allOptions.push(o)
-          }
-        }
-        if (layer.text.fontPolicy?.mode === 'shopper_selectable') {
-          for (const o of layer.text.fontPolicy.options) {
-            o._id = `${layer.id}:font:${o.value}`
-            allOptions.push(o)
-          }
-        }
-      }
-    }
-    
-    if (allOptions.length > 0) {
-      await hydrateTranslations(
-        db,
-        'customization_layer',
-        allOptions,
-        (o) => String(o._id),
-        [{ fieldName: 'label', objectKey: 'label' }],
-        [{ fieldName: 'label', objectKey: 'label' }]
-      )
-      
-      for (const o of allOptions) {
-        delete o._id
-      }
-    }
+  const selectable = selectableTextOptions(customization)
+  if (selectable.length > 0) {
+    const ownerKeys = new Map(selectable.map(({ ownerKey, option }) => [option, ownerKey]))
+    await hydrate('customization_layer', selectable.map(({ option }) => option), (o) => ownerKeys.get(o)!, OPTION_HYDRATION)
   }
+}
+
+export async function hydrateCustomization(db: Database, customization: any) {
+  await hydrateCustomizationWith(customization, (ownerType, items, idExtractor, fields) =>
+    hydrateTranslations(db, ownerType, items, idExtractor, fields, fields),
+  )
+}
+
+export async function hydrateAndResolveCustomization(db: Database, customization: any, locale: Locale) {
+  await hydrateCustomizationWith(customization, (ownerType, items, idExtractor, fields) =>
+    hydrateAndResolveTranslations(db, ownerType, items, idExtractor, fields, fields, locale),
+  )
 }
 
 export async function persistCustomizationTranslations(db: Database, customization: any) {
   if (!customization) return
 
-  if (customization.formFields && customization.formFields.length > 0) {
-    for (const field of customization.formFields) {
-      if (field.label && typeof field.label === 'object' && field.label.vi !== undefined) {
-        await upsertTranslations(db, 'customization_form_field', String(field.id), 'label', field.label)
-        field.label = field.label.vi
-      }
-      if (field.helpText && typeof field.helpText === 'object' && field.helpText.vi !== undefined) {
-        await upsertTranslations(db, 'customization_form_field', String(field.id), 'helpText', field.helpText)
-        field.helpText = field.helpText.vi || null
-      }
-      if (field.placeholder && typeof field.placeholder === 'object' && field.placeholder.vi !== undefined) {
-        await upsertTranslations(db, 'customization_form_field', String(field.id), 'placeholder', field.placeholder)
-        field.placeholder = field.placeholder.vi || null
+  for (const field of customization.formFields ?? []) {
+    if (field.label && typeof field.label === 'object' && field.label.vi !== undefined) {
+      await upsertTranslations(db, 'customization_form_field', String(field.id), 'label', field.label)
+      field.label = field.label.vi
+    }
+    for (const fieldName of ['helpText', 'placeholder'] as const) {
+      const value = field[fieldName]
+      if (value && typeof value === 'object' && value.vi !== undefined) {
+        await upsertTranslations(db, 'customization_form_field', String(field.id), fieldName, value)
+        field[fieldName] = value.vi || null
       }
     }
   }
 
-  if (customization.layers && customization.layers.length > 0) {
-    for (const layer of customization.layers) {
-      if (layer.type === 'text') {
-        if (layer.text.colorPolicy?.mode === 'shopper_selectable') {
-          for (const o of layer.text.colorPolicy.options) {
-            if (o.label && typeof o.label === 'object' && o.label.vi !== undefined) {
-              await upsertTranslations(db, 'customization_layer', `${layer.id}:color:${o.value}`, 'label', o.label)
-              o.label = o.label.vi
-            }
-          }
-        }
-        if (layer.text.fontPolicy?.mode === 'shopper_selectable') {
-          for (const o of layer.text.fontPolicy.options) {
-            if (o.label && typeof o.label === 'object' && o.label.vi !== undefined) {
-              await upsertTranslations(db, 'customization_layer', `${layer.id}:font:${o.value}`, 'label', o.label)
-              o.label = o.label.vi
-            }
-          }
-        }
-      }
-    }
-  }
-}
-
-export async function hydrateAndResolveCustomization(db: Database, customization: any, locale: Locale) {
-  if (!customization) return
-
-  if (customization.formFields && customization.formFields.length > 0) {
-    await hydrateAndResolveTranslations(
-      db,
-      'customization_form_field',
-      customization.formFields,
-      (f: any) => String(f.id),
-      [
-        { fieldName: 'label', objectKey: 'label' },
-        { fieldName: 'helpText', objectKey: 'helpText' },
-        { fieldName: 'placeholder', objectKey: 'placeholder' }
-      ],
-      [
-        { fieldName: 'label', objectKey: 'label' },
-        { fieldName: 'helpText', objectKey: 'helpText' },
-        { fieldName: 'placeholder', objectKey: 'placeholder' }
-      ],
-      locale
-    )
-  }
-
-  if (customization.layers && customization.layers.length > 0) {
-    const allOptions: any[] = []
-    for (const layer of customization.layers) {
-      if (layer.type === 'text') {
-        if (layer.text.colorPolicy?.mode === 'shopper_selectable') {
-          for (const o of layer.text.colorPolicy.options) {
-            o._id = `${layer.id}:color:${o.value}`
-            allOptions.push(o)
-          }
-        }
-        if (layer.text.fontPolicy?.mode === 'shopper_selectable') {
-          for (const o of layer.text.fontPolicy.options) {
-            o._id = `${layer.id}:font:${o.value}`
-            allOptions.push(o)
-          }
-        }
-      }
-    }
-    
-    if (allOptions.length > 0) {
-      await hydrateAndResolveTranslations(
-        db,
-        'customization_layer',
-        allOptions,
-        (o) => String(o._id),
-        [{ fieldName: 'label', objectKey: 'label' }],
-        [{ fieldName: 'label', objectKey: 'label' }],
-        locale
-      )
-      
-      for (const o of allOptions) {
-        delete o._id
-      }
+  for (const { ownerKey, option } of selectableTextOptions(customization)) {
+    if (option.label && typeof option.label === 'object' && option.label.vi !== undefined) {
+      await upsertTranslations(db, 'customization_layer', ownerKey, 'label', option.label)
+      option.label = option.label.vi
     }
   }
 }

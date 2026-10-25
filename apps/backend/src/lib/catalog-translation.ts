@@ -113,8 +113,6 @@ export async function hydrateTranslations<T extends object>(
 ): Promise<T[]> {
   if (items.length === 0) return items;
 
-  if (items.length === 0) return items;
-
   const ownerKeys = items.map(idExtractor);
 
   const rows = await db

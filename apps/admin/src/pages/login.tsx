@@ -1,14 +1,9 @@
 import { useState, type FormEvent } from "react";
 import { useLocation, useNavigate } from "react-router";
-import {
-  Button,
-  Heading,
-  Input,
-  Label,
-  Text,
-} from "@medusajs/ui";
+import { Button, Heading } from "@medusajs/ui";
 import { InlineError } from "../components/ui/medusa/inline-error";
 import { AuthScreenState } from "../components/ui/medusa/auth-screen-state";
+import { UsernamePasswordFields } from "../components/auth/username-password-fields";
 import { useAuth } from "../hooks/use-auth";
 import { validateLogin } from "../lib/validation";
 import type { LoginFormValues, LoginFormErrors } from "../types";
@@ -55,26 +50,12 @@ export function LoginPage() {
         <Heading level="h1" className="text-center">Sign in</Heading>
 
         <form className="space-y-5" onSubmit={handleSubmit} noValidate>
-          <div className="space-y-2">
-            <Label htmlFor="login-username">Username</Label>
-            <Input
-              id="login-username"
-              value={values.username}
-              onChange={(event) => setValues((current) => ({ ...current, username: event.target.value }))}
-            />
-            {errors.username ? <Text size="small" className="text-rose-700">{errors.username}</Text> : null}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="login-password">Password</Label>
-            <Input
-              id="login-password"
-              type="password"
-              value={values.password}
-              onChange={(event) => setValues((current) => ({ ...current, password: event.target.value }))}
-            />
-            {errors.password ? <Text size="small" className="text-rose-700">{errors.password}</Text> : null}
-          </div>
+          <UsernamePasswordFields
+            idPrefix="login"
+            values={values}
+            errors={errors}
+            onChange={setValues}
+          />
 
           {errors.form ? <InlineError message={errors.form} /> : null}
 

@@ -31,6 +31,40 @@ async function requireAdminSession(c: Context<AppEnv>) {
   };
 }
 
+/** Deletes a product asset uploaded by the signed-in admin (also exposed as POST for clients without DELETE). */
+async function deleteOwnedProductAsset(c: Context<AppEnv>) {
+    const session = await requireAdminSession(c);
+    if (!session.ok) {
+      return session.response;
+    }
+
+    const params = parseParams(c, assetParamsSchema);
+    if (!params.success) {
+      return params.response;
+    }
+
+    const db = getDb(c.env);
+    const asset = await db
+      .select()
+      .from(productAssets)
+      .where(
+        and(
+          eq(productAssets.id, params.output.id),
+          eq(productAssets.ownerKey, session.userId),
+        ),
+      )
+      .get();
+
+    if (!asset) {
+      return jsonError(c, 404, "Product asset not found");
+    }
+
+    await c.env.CUSTOMIZATION_ASSETS.delete(asset.objectKey);
+    await db.delete(productAssets).where(eq(productAssets.id, asset.id));
+
+    return c.json({ ok: true }, 200);
+}
+
 export const productAssetsRoute = new Hono<AppEnv>()
   .post("/", async (c) => {
     const session = await requireAdminSession(c);
@@ -129,67 +163,5 @@ export const productAssetsRoute = new Hono<AppEnv>()
       201,
     );
   })
-  .delete("/:id", async (c) => {
-    const session = await requireAdminSession(c);
-    if (!session.ok) {
-      return session.response;
-    }
-
-    const params = parseParams(c, assetParamsSchema);
-    if (!params.success) {
-      return params.response;
-    }
-
-    const db = getDb(c.env);
-    const asset = await db
-      .select()
-      .from(productAssets)
-      .where(
-        and(
-          eq(productAssets.id, params.output.id),
-          eq(productAssets.ownerKey, session.userId),
-        ),
-      )
-      .get();
-
-    if (!asset) {
-      return jsonError(c, 404, "Product asset not found");
-    }
-
-    await c.env.CUSTOMIZATION_ASSETS.delete(asset.objectKey);
-    await db.delete(productAssets).where(eq(productAssets.id, asset.id));
-
-    return c.json({ ok: true }, 200);
-  })
-  .post("/:id/delete", async (c) => {
-    const session = await requireAdminSession(c);
-    if (!session.ok) {
-      return session.response;
-    }
-
-    const params = parseParams(c, assetParamsSchema);
-    if (!params.success) {
-      return params.response;
-    }
-
-    const db = getDb(c.env);
-    const asset = await db
-      .select()
-      .from(productAssets)
-      .where(
-        and(
-          eq(productAssets.id, params.output.id),
-          eq(productAssets.ownerKey, session.userId),
-        ),
-      )
-      .get();
-
-    if (!asset) {
-      return jsonError(c, 404, "Product asset not found");
-    }
-
-    await c.env.CUSTOMIZATION_ASSETS.delete(asset.objectKey);
-    await db.delete(productAssets).where(eq(productAssets.id, asset.id));
-
-    return c.json({ ok: true }, 200);
-  });
+  .delete("/:id", deleteOwnedProductAsset)
+  .post("/:id/delete", deleteOwnedProductAsset);

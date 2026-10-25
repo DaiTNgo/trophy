@@ -1,127 +1,74 @@
 import { and, eq } from "drizzle-orm";
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import { getDb } from "../../db/client";
 import { customizationAssets } from "../../db/schema";
+import { assetParamsSchema, cleanOwnerKey, extensionForMimeType } from "../../lib/asset-utils";
 import {
-  allowedMimeTypes,
-  assetParamsSchema,
-  cleanOwnerKey,
-  extensionForMimeType,
-  MAX_ASSET_BYTES,
-} from "../../lib/asset-utils";
+  customizationAssetResponse,
+  customizationAssetSizeFields,
+  originalAssetMetadata,
+  readCustomizationAssetUpload,
+  validateCustomizationAssetUpload,
+} from "../../lib/customization-asset-upload";
 import type { AppEnv } from "../../lib/env";
-import { readImageDimensions } from "../../lib/image-dimensions";
 import { buildShopperDraftUploadKey } from "../../lib/r2-media-keys";
 import { shopperDraftExpiry } from "../../lib/order-media-transfer";
-import { toAbsoluteAssetUrl } from "../../lib/url";
 import { jsonError, parseParams } from "../../lib/validation";
+
+/** Reads the shopper upload token and the draft/field the asset belongs to. */
+function readShopperDraftOwner(c: Context<AppEnv>) {
+  const ownerKey = cleanOwnerKey(c.req.header("x-upload-token") ?? "");
+  if (!ownerKey) {
+    return { ok: false as const, response: jsonError(c, 401, "X-Upload-Token is required") };
+  }
+
+  const shopperDraftId = cleanOwnerKey(c.req.header("x-shopper-draft-id") ?? "");
+  const shopperFieldId = cleanOwnerKey(c.req.header("x-shopper-field-id") ?? "");
+  if (!shopperDraftId || !shopperFieldId) {
+    return {
+      ok: false as const,
+      response: jsonError(c, 400, "X-Shopper-Draft-Id and X-Shopper-Field-Id are required"),
+    };
+  }
+
+  return { ok: true as const, ownerKey, shopperDraftId, shopperFieldId };
+}
 
 export const customizationAssetsRoute = new Hono<AppEnv>()
   .post("/", async (c) => {
-    const contentType = c.req.header("content-type") ?? "";
-    let mimeType = contentType.split(";")[0]?.trim();
-    const isMultipart = mimeType === "multipart/form-data";
+    const read = await readCustomizationAssetUpload(c);
+    if (!read.ok) return read.response;
 
-    let buffer: ArrayBuffer;
-    let previewBuffer: ArrayBuffer | undefined;
-    let pdfWidth: number | undefined;
-    let pdfHeight: number | undefined;
-    let pdfPageCount: number | undefined;
+    const owner = readShopperDraftOwner(c);
+    if (!owner.ok) return owner.response;
+    const { ownerKey, shopperDraftId, shopperFieldId } = owner;
 
-    if (isMultipart) {
-      const body = await c.req.parseBody();
-      const file = body["file"];
-      if (!(file instanceof File)) {
-        return jsonError(c, 400, "File is missing in multipart request");
-      }
-      buffer = await file.arrayBuffer();
-      mimeType = file.type;
-
-      const thumbnail = body["thumbnail"];
-      if (thumbnail instanceof File) {
-        previewBuffer = await thumbnail.arrayBuffer();
-      }
-
-      const w = body["width"];
-      const h = body["height"];
-      const p = body["pageCount"];
-      if (typeof w === "string" && typeof h === "string") {
-        pdfWidth = Number(w);
-        pdfHeight = Number(h);
-      }
-      if (typeof p === "string") {
-        pdfPageCount = Number(p);
-      }
-    } else {
-      buffer = await c.req.arrayBuffer();
-    }
-
-    if (!allowedMimeTypes.has(mimeType)) {
-      return jsonError(c, 415, "Only PNG, JPEG, WEBP, and PDF customization assets are supported");
-    }
-
-    const ownerKey = cleanOwnerKey(c.req.header("x-upload-token") ?? "");
-    if (!ownerKey) {
-      return jsonError(c, 401, "X-Upload-Token is required");
-    }
-
-    const shopperDraftId = cleanOwnerKey(c.req.header("x-shopper-draft-id") ?? "");
-    const shopperFieldId = cleanOwnerKey(c.req.header("x-shopper-field-id") ?? "");
-    if (!shopperDraftId || !shopperFieldId) {
-      return jsonError(c, 400, "X-Shopper-Draft-Id and X-Shopper-Field-Id are required");
-    }
-
-    if (buffer.byteLength === 0 || buffer.byteLength > MAX_ASSET_BYTES) {
-      return jsonError(c, 413, "Customization asset size is invalid or exceeds the 20 MB limit");
-    }
-
-    const bytes = new Uint8Array(buffer);
-    let dimensions: { width: number; height: number } | null = null;
-    let pageCount: number | undefined;
-
-    if (mimeType === "application/pdf") {
-      if (pdfWidth && pdfHeight) {
-        dimensions = { width: pdfWidth, height: pdfHeight };
-        pageCount = pdfPageCount;
-      } else {
-        return jsonError(c, 422, "Missing PDF dimensions in upload request");
-      }
-    } else {
-      dimensions = readImageDimensions(mimeType, bytes);
-    }
-
-    if (!dimensions || dimensions.width < 1 || dimensions.height < 1) {
-      return jsonError(c, 422, "Asset data is invalid or unsupported");
-    }
+    const validated = validateCustomizationAssetUpload(c, read.body);
+    if (!validated.ok) return validated.response;
+    const { upload } = validated;
 
     const id = crypto.randomUUID();
     const objectKey = buildShopperDraftUploadKey({
       draftId: shopperDraftId,
       fieldId: shopperFieldId,
       assetId: id,
-      extension: extensionForMimeType(mimeType),
+      extension: extensionForMimeType(upload.mimeType),
     });
     let previewObjectKey: string | undefined;
 
-    await c.env.CUSTOMIZATION_ASSETS.put(objectKey, buffer, {
-      httpMetadata: { contentType: mimeType },
-      customMetadata: {
-        assetId: id,
-        ownerKey,
-        widthPx: String(dimensions.width),
-        heightPx: String(dimensions.height),
-        ...(pageCount ? { pageCount: String(pageCount) } : {}),
-      },
+    await c.env.CUSTOMIZATION_ASSETS.put(objectKey, upload.buffer, {
+      httpMetadata: { contentType: upload.mimeType },
+      customMetadata: originalAssetMetadata(id, ownerKey, upload),
     });
 
-    if (previewBuffer) {
+    if (upload.previewBuffer) {
       previewObjectKey = objectKey.replace(/\.source\.[a-z0-9]+$/, ".preview.webp");
-      await c.env.CUSTOMIZATION_ASSETS.put(previewObjectKey, previewBuffer, {
+      await c.env.CUSTOMIZATION_ASSETS.put(previewObjectKey, upload.previewBuffer, {
         httpMetadata: { contentType: "image/webp" },
         customMetadata: {
-        assetId: id,
-        draftId: shopperDraftId,
-        fieldId: shopperFieldId,
+          assetId: id,
+          draftId: shopperDraftId,
+          fieldId: shopperFieldId,
           type: "preview",
         },
       });
@@ -136,30 +83,12 @@ export const customizationAssetsRoute = new Hono<AppEnv>()
       expiresAt: shopperDraftExpiry(new Date()),
       objectKey,
       previewObjectKey,
-      mimeType,
-      ...(mimeType === "application/pdf"
-        ? { widthPt: dimensions.width, heightPt: dimensions.height, pageCount }
-        : { widthPx: dimensions.width, heightPx: dimensions.height }),
-      byteSize: buffer.byteLength,
+      mimeType: upload.mimeType,
+      ...customizationAssetSizeFields(upload),
+      byteSize: upload.buffer.byteLength,
     });
 
-    return c.json(
-      {
-        asset: {
-          id,
-          mimeType,
-          ...(mimeType === "application/pdf"
-            ? { widthPt: dimensions.width, heightPt: dimensions.height, pageCount }
-            : { widthPx: dimensions.width, heightPx: dimensions.height }),
-          byteSize: buffer.byteLength,
-          contentUrl: toAbsoluteAssetUrl(c, `/api/assets/customizations/${id}/content`) as string,
-          ...(previewObjectKey
-            ? { previewUrl: toAbsoluteAssetUrl(c, `/api/assets/customizations/${id}/preview`) as string }
-            : {}),
-        },
-      },
-      201,
-    );
+    return c.json(customizationAssetResponse(c, id, upload, Boolean(previewObjectKey)), 201);
   })
   .delete("/:id", async (c) => {
     const params = parseParams(c, assetParamsSchema);
@@ -167,16 +96,8 @@ export const customizationAssetsRoute = new Hono<AppEnv>()
       return params.response;
     }
 
-    const ownerKey = cleanOwnerKey(c.req.header("x-upload-token") ?? "");
-    if (!ownerKey) {
-      return jsonError(c, 401, "X-Upload-Token is required");
-    }
-
-    const shopperDraftId = cleanOwnerKey(c.req.header("x-shopper-draft-id") ?? "");
-    const shopperFieldId = cleanOwnerKey(c.req.header("x-shopper-field-id") ?? "");
-    if (!shopperDraftId || !shopperFieldId) {
-      return jsonError(c, 400, "X-Shopper-Draft-Id and X-Shopper-Field-Id are required");
-    }
+    const owner = readShopperDraftOwner(c);
+    if (!owner.ok) return owner.response;
 
     const db = getDb(c.env);
     const asset = await db
@@ -185,10 +106,10 @@ export const customizationAssetsRoute = new Hono<AppEnv>()
       .where(
         and(
           eq(customizationAssets.id, params.output.id),
-          eq(customizationAssets.ownerKey, ownerKey),
+          eq(customizationAssets.ownerKey, owner.ownerKey),
           eq(customizationAssets.ownershipType, "shopper_draft"),
-          eq(customizationAssets.shopperDraftId, shopperDraftId),
-          eq(customizationAssets.shopperFieldId, shopperFieldId),
+          eq(customizationAssets.shopperDraftId, owner.shopperDraftId),
+          eq(customizationAssets.shopperFieldId, owner.shopperFieldId),
         ),
       )
       .get();

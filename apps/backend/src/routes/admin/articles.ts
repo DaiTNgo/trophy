@@ -11,6 +11,7 @@ import {
   users,
 } from "../../db/schema";
 import { getAdminSession } from "../../lib/admin-session";
+import { loadArticleCategoryTags, loadArticleCategoryTagsFor } from "../../lib/article-categories";
 import { flipDueScheduledArticles, markRowsPublished } from "../../lib/article-publish";
 import { hydrateTranslations, upsertTranslations } from "../../lib/catalog-translation";
 import type { AppEnv } from "../../lib/env";
@@ -274,25 +275,7 @@ export const adminArticlesRoute = new Hono<AppEnv>()
 
     // Fetch categories for each article
     const articleIds = rows.map((r) => r.article.id);
-    const catLinks = articleIds.length
-      ? await db
-          .select({
-            articleId: articleCategoryLinks.articleId,
-            catId: articleCategories.id,
-            catName: articleCategories.name,
-            catSlug: articleCategories.slug,
-          })
-          .from(articleCategoryLinks)
-          .innerJoin(articleCategories, eq(articleCategoryLinks.categoryId, articleCategories.id))
-          .where(inArray(articleCategoryLinks.articleId, articleIds))
-          .all()
-      : [];
-
-    const catsByArticle = new Map<string, Array<{ id: string; name: string; slug: string }>>();
-    for (const cl of catLinks) {
-      if (!catsByArticle.has(cl.articleId)) catsByArticle.set(cl.articleId, []);
-      catsByArticle.get(cl.articleId)!.push({ id: cl.catId, name: cl.catName, slug: cl.catSlug });
-    }
+    const catsByArticle = await loadArticleCategoryTags(db, articleIds);
 
     const items = rows.map((r) =>
       articleToDto(
@@ -439,17 +422,8 @@ export const adminArticlesRoute = new Hono<AppEnv>()
     );
     markRowsPublished([row], flippedIds);
 
-    const [catLinks, prodLinks] = await Promise.all([
-      db
-        .select({
-          catId: articleCategories.id,
-          catName: articleCategories.name,
-          catSlug: articleCategories.slug,
-        })
-        .from(articleCategoryLinks)
-        .innerJoin(articleCategories, eq(articleCategoryLinks.categoryId, articleCategories.id))
-        .where(eq(articleCategoryLinks.articleId, row.article.id))
-        .all(),
+    const [categoryTags, prodLinks] = await Promise.all([
+      loadArticleCategoryTagsFor(db, row.article.id),
       db
         .select({ productId: articleProductLinks.productId })
         .from(articleProductLinks)
@@ -461,7 +435,7 @@ export const adminArticlesRoute = new Hono<AppEnv>()
     const dto = articleToDto(
       row.article,
       row.authorName ? { name: row.authorName, username: row.authorUsername } : null,
-      catLinks.map((cl) => ({ id: cl.catId, name: cl.catName, slug: cl.catSlug })),
+      categoryTags,
       prodLinks.map((pl) => pl.productId),
     );
     await hydrateArticleTranslations(db, dto as unknown as Record<string, unknown>);
@@ -591,13 +565,8 @@ export const adminArticlesRoute = new Hono<AppEnv>()
 
     if (!updated) return c.json({ error: "Article not found after update" }, 500);
 
-    const [catLinks, prodLinks] = await Promise.all([
-      db
-        .select({ catId: articleCategories.id, catName: articleCategories.name, catSlug: articleCategories.slug })
-        .from(articleCategoryLinks)
-        .innerJoin(articleCategories, eq(articleCategoryLinks.categoryId, articleCategories.id))
-        .where(eq(articleCategoryLinks.articleId, existing.id))
-        .all(),
+    const [categoryTags, prodLinks] = await Promise.all([
+      loadArticleCategoryTagsFor(db, existing.id),
       db
         .select({ productId: articleProductLinks.productId })
         .from(articleProductLinks)
@@ -609,7 +578,7 @@ export const adminArticlesRoute = new Hono<AppEnv>()
     const dto = articleToDto(
       updated.article,
       updated.authorName ? { name: updated.authorName, username: updated.authorUsername } : null,
-      catLinks.map((cl) => ({ id: cl.catId, name: cl.catName, slug: cl.catSlug })),
+      categoryTags,
       prodLinks.map((pl) => pl.productId),
     );
     await hydrateArticleTranslations(db, dto as unknown as Record<string, unknown>);

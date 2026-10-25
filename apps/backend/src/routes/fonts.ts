@@ -1,33 +1,11 @@
 import { Hono } from "hono";
+import { fontResponse } from "../lib/asset-response";
 import type { AppEnv } from "../lib/env";
-import { getStaticFontBytes } from "../lib/static-fonts";
 
 export const fontsRoute = new Hono<AppEnv>()
   .get("/:filename", async (c) => {
+    // Bundled static fonts support aliases like sans-regular, SansBold.ttf, etc.
     const filename = c.req.param("filename");
-
-    // 1. Check bundled static fonts (supports aliases like sans-regular, SansBold.ttf, etc.)
-    const staticBytes = getStaticFontBytes(filename);
-    if (staticBytes) {
-      const headers = new Headers();
-      headers.set("content-type", "font/ttf");
-      headers.set("cache-control", "public, max-age=31536000, immutable");
-      headers.set("x-content-type-options", "nosniff");
-      return new Response(staticBytes, { headers });
-    }
-
-    // 2. Check R2 CUSTOMIZATION_ASSETS storage under fonts/
     const targetFile = filename.includes(".") ? filename : `${filename}.ttf`;
-    const key = `fonts/${targetFile}`;
-    const object = await c.env.CUSTOMIZATION_ASSETS?.get(key);
-    if (object) {
-      const headers = new Headers();
-      object.writeHttpMetadata(headers);
-      headers.set("etag", object.httpEtag);
-      headers.set("cache-control", "public, max-age=31536000, immutable");
-      headers.set("x-content-type-options", "nosniff");
-      return new Response(object.body as unknown as ReadableStream, { headers });
-    }
-
-    return c.json({ error: 'Not found' }, 404);
+    return (await fontResponse(c.env, filename, `fonts/${targetFile}`)) ?? c.json({ error: "Not found" }, 404);
   });

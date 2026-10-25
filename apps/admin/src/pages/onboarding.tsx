@@ -1,14 +1,9 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router";
-import {
-  Button,
-  Heading,
-  Input,
-  Label,
-  Text,
-} from "@medusajs/ui";
+import { Button, Heading } from "@medusajs/ui";
 import { InlineError } from "../components/ui/medusa/inline-error";
 import { SuccessMessage } from "../components/ui/medusa/success-message";
+import { UsernamePasswordFields } from "../components/auth/username-password-fields";
 import { bootstrapFirstAdmin, getOnboardingStatus } from "../lib/auth-client";
 import { validateOnboarding } from "../lib/validation";
 import type { OnboardingFormValues, OnboardingFormErrors } from "../types";
@@ -89,26 +84,12 @@ export function OnboardingPage() {
         {message ? <SuccessMessage message={message} /> : null}
 
         <form className="space-y-5" onSubmit={handleSubmit} noValidate>
-          <div className="space-y-2">
-            <Label htmlFor="onboarding-username">Username</Label>
-            <Input
-              id="onboarding-username"
-              value={values.username}
-              onChange={(event) => setValues((current) => ({ ...current, username: event.target.value }))}
-            />
-            {errors.username ? <Text size="small" className="text-rose-700">{errors.username}</Text> : null}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="onboarding-password">Password</Label>
-            <Input
-              id="onboarding-password"
-              type="password"
-              value={values.password}
-              onChange={(event) => setValues((current) => ({ ...current, password: event.target.value }))}
-            />
-            {errors.password ? <Text size="small" className="text-rose-700">{errors.password}</Text> : null}
-          </div>
+          <UsernamePasswordFields
+            idPrefix="onboarding"
+            values={values}
+            errors={errors}
+            onChange={setValues}
+          />
 
           {errors.form ? <InlineError message={errors.form} /> : null}
 

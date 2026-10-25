@@ -1,74 +1,57 @@
 import { eq } from "drizzle-orm";
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import { getDb } from "../../db/client";
 import { orderItemMediaTransferAssets } from "../../db/schema";
+import { storageObjectResponse } from "../../lib/asset-response";
 import { assetParamsSchema } from "../../lib/asset-utils";
 import type { AppEnv } from "../../lib/env";
 import { jsonError, parseParams } from "../../lib/validation";
 
+async function findOrderAsset(c: Context<AppEnv>) {
+  const params = parseParams(c, assetParamsSchema);
+  if (!params.success) return { ok: false as const, response: params.response };
+
+  const asset = await getDb(c.env)
+    .select()
+    .from(orderItemMediaTransferAssets)
+    .where(eq(orderItemMediaTransferAssets.id, params.output.id))
+    .get();
+  if (!asset) return { ok: false as const, response: jsonError(c, 404, "Order asset not found") };
+
+  return { ok: true as const, asset };
+}
+
+/** Reads the copied order object, falling back to the source while the transfer is pending or failed. */
+async function getTransferredObject(c: Context<AppEnv>, targetKey: string, sourceKey: string | null) {
+  const object = await c.env.CUSTOMIZATION_ASSETS.get(targetKey);
+  if (object || !sourceKey) return object;
+  return c.env.CUSTOMIZATION_ASSETS.get(sourceKey);
+}
+
 export const assetsOrdersRoute = new Hono<AppEnv>()
   .get("/:id/content", async (c) => {
-    const params = parseParams(c, assetParamsSchema);
-    if (!params.success) {
-      return params.response;
-    }
+    const found = await findOrderAsset(c);
+    if (!found.ok) return found.response;
 
-    const asset = await getDb(c.env)
-      .select()
-      .from(orderItemMediaTransferAssets)
-      .where(eq(orderItemMediaTransferAssets.id, params.output.id))
-      .get();
-    if (!asset) {
-      return jsonError(c, 404, "Order asset not found");
-    }
-
-    let object = await c.env.CUSTOMIZATION_ASSETS.get(asset.targetObjectKey);
-    if (!object && asset.sourceObjectKey) {
-      // Graceful fallback to source object if target has not yet been copied or failed
-      object = await c.env.CUSTOMIZATION_ASSETS.get(asset.sourceObjectKey);
-    }
+    const { asset } = found;
+    const object = await getTransferredObject(c, asset.targetObjectKey, asset.sourceObjectKey);
     if (!object) {
       return jsonError(c, 404, "Order asset object not found");
     }
-
-    const headers = new Headers();
-    object.writeHttpMetadata(headers);
-    headers.set("etag", object.httpEtag);
-    headers.set("cache-control", "public, max-age=31536000, immutable");
-    headers.set("x-content-type-options", "nosniff");
-    return new Response(object.body, { headers });
+    return storageObjectResponse(object);
   })
   .get("/:id/preview", async (c) => {
-    const params = parseParams(c, assetParamsSchema);
-    if (!params.success) {
-      return params.response;
-    }
+    const found = await findOrderAsset(c);
+    if (!found.ok) return found.response;
 
-    const asset = await getDb(c.env)
-      .select()
-      .from(orderItemMediaTransferAssets)
-      .where(eq(orderItemMediaTransferAssets.id, params.output.id))
-      .get();
-    if (!asset) {
-      return jsonError(c, 404, "Order asset not found");
-    }
-
-    const targetKey = asset.targetPreviewObjectKey ?? asset.targetObjectKey;
-    let object = await c.env.CUSTOMIZATION_ASSETS.get(targetKey);
-    if (!object) {
-      const sourceKey = asset.sourcePreviewObjectKey ?? asset.sourceObjectKey;
-      if (sourceKey) {
-        object = await c.env.CUSTOMIZATION_ASSETS.get(sourceKey);
-      }
-    }
+    const { asset } = found;
+    const object = await getTransferredObject(
+      c,
+      asset.targetPreviewObjectKey ?? asset.targetObjectKey,
+      asset.sourcePreviewObjectKey ?? asset.sourceObjectKey,
+    );
     if (!object) {
       return jsonError(c, 404, "Order asset preview object not found");
     }
-
-    const headers = new Headers();
-    object.writeHttpMetadata(headers);
-    headers.set("etag", object.httpEtag);
-    headers.set("cache-control", "public, max-age=31536000, immutable");
-    headers.set("x-content-type-options", "nosniff");
-    return new Response(object.body, { headers });
+    return storageObjectResponse(object);
   });

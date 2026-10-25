@@ -19,6 +19,7 @@ import {
 import { hydrateAndResolveTranslations } from "../../lib/catalog-translation";
 import type { AppEnv } from "../../lib/env";
 import { DEFAULT_LOCALE, localeSchema, type Locale } from "../../lib/locale";
+import { loadArticleCategoryTags, loadArticleCategoryTagsFor } from "../../lib/article-categories";
 import { toAbsoluteAssetUrl } from "../../lib/url";
 
 // ─── Validation Schemas ────────────────────────────────────────────────────────
@@ -231,25 +232,7 @@ export const storefrontArticlesRoute = new Hono<AppEnv>()
 
     // Fetch category tags for the listed articles
     const articleIds = rows.map((r) => r.article.id);
-    const catLinks = articleIds.length
-      ? await db
-          .select({
-            articleId: articleCategoryLinks.articleId,
-            catId: articleCategories.id,
-            catName: articleCategories.name,
-            catSlug: articleCategories.slug,
-          })
-          .from(articleCategoryLinks)
-          .innerJoin(articleCategories, eq(articleCategoryLinks.categoryId, articleCategories.id))
-          .where(inArray(articleCategoryLinks.articleId, articleIds))
-          .all()
-      : [];
-
-    const catsByArticle = new Map<string, Array<{ id: string; name: string; slug: string }>>();
-    for (const cl of catLinks) {
-      if (!catsByArticle.has(cl.articleId)) catsByArticle.set(cl.articleId, []);
-      catsByArticle.get(cl.articleId)!.push({ id: cl.catId, name: cl.catName, slug: cl.catSlug });
-    }
+    const catsByArticle = await loadArticleCategoryTags(db, articleIds);
 
     const items: ArticleListItem[] = rows.map((r) => ({
       id: r.article.id,
@@ -359,17 +342,8 @@ export const storefrontArticlesRoute = new Hono<AppEnv>()
     }
 
     // Fetch categories and linked products in parallel
-    const [catLinks, prodLinks] = await Promise.all([
-      db
-        .select({
-          catId: articleCategories.id,
-          catName: articleCategories.name,
-          catSlug: articleCategories.slug,
-        })
-        .from(articleCategoryLinks)
-        .innerJoin(articleCategories, eq(articleCategoryLinks.categoryId, articleCategories.id))
-        .where(eq(articleCategoryLinks.articleId, row.article.id))
-        .all(),
+    const [categoryTags, prodLinks] = await Promise.all([
+      loadArticleCategoryTagsFor(db, row.article.id),
       db
         .select({
           productId: articleProductLinks.productId,
@@ -442,7 +416,7 @@ export const storefrontArticlesRoute = new Hono<AppEnv>()
       canonicalUrl: row.article.canonicalUrl,
       viewCount: row.article.viewCount,
       authorName: row.authorName,
-      categories: catLinks.map((cl) => ({ id: cl.catId, name: cl.catName, slug: cl.catSlug })),
+      categories: categoryTags,
       linkedProducts,
       readingTimeMinutes: 0,
       createdAt: row.article.createdAt.getTime(),

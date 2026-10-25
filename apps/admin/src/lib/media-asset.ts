@@ -1,5 +1,5 @@
 import { getNativeMediaDimensions } from "./image-dimensions";
-import { convertPdfToImageFile } from "./pdf-preview";
+import { convertPdfToImageFile } from "@trophy/customization-react/pdf-preview";
 
 export type MediaDimensions = { widthPx: number; heightPx: number };
 

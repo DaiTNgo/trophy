@@ -24,7 +24,7 @@ export function backendStaticFontUrl(fileName: string) {
   return backendUrl(`/fonts/${encodeURIComponent(fileName)}`);
 }
 
-import { renderPdfBufferToDataUrl } from "./pdf-preview";
+import { renderPdfBufferToDataUrl } from "@trophy/customization-react/pdf-preview";
 
 export type StorefrontCustomizationAsset = {
   id: string;

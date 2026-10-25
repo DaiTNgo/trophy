@@ -8,20 +8,15 @@ import {
   Select,
   ProgressTabs,
 } from "@medusajs/ui";
-import { Upload, X } from "lucide-react";
 import { LocalizedTextField, createEmptyLocalizedText, type AdminLocale, type LocalizedTextValue } from "../../../components/ui/medusa";
 import { backendFetch } from "../../../lib/fetch";
 import { useNavigate } from "react-router";
 import { reorderWithEdge, autoScrollForElements } from "./sortable-list";
 import type { Edge } from "./sortable-list";
 import { RankingList } from "./ranking-list";
-import { uploadProductVariantMedia } from "../../../lib/product-assets-client";
-import { MediaPreview } from "../../../components/ui/media-preview";
-import {
-  ACCEPT_IMAGE_MIME_TYPES,
-  SUPPORTED_IMAGE_TYPES_HINT,
-  validateCategoryOrCollectionMediaFile,
-} from "../../../lib/media-asset";
+import { useImageUploadField } from "../../../hooks/use-image-upload-field";
+import { ImagePicker } from "../../../components/catalog/image-picker";
+import { SUPPORTED_IMAGE_TYPES_HINT } from "../../../lib/media-asset";
 
 type CategoryItem = {
   id: string;
@@ -43,15 +38,12 @@ export function CreateCategoryModal({ open, onOpenChange, categories, onSuccess 
   const [handle, setHandle] = useState("");
   const [description, setDescription] = useState<LocalizedTextValue>(() => createEmptyLocalizedText());
   const [descriptionLocale, setDescriptionLocale] = useState<AdminLocale>("vi");
-  const [imageUrl, setImageUrl] = useState("");
   const [visibility, setVisibility] = useState<"public" | "hidden">("public");
-  const [previewUrl, setPreviewUrl] = useState("");
-  const [file, setFile] = useState<File | null>(null);
-  const [imageError, setImageError] = useState<string | null>(null);
+  const image = useImageUploadField();
+  const resetImage = image.reset;
   const [isSaving, setIsSaving] = useState(false);
   const [orderedItems, setOrderedItems] = useState<CategoryItem[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -62,22 +54,11 @@ export function CreateCategoryModal({ open, onOpenChange, categories, onSuccess 
       setHandle("");
       setDescription(createEmptyLocalizedText());
       setDescriptionLocale("vi");
-      setImageUrl("");
       setVisibility("public");
-      setPreviewUrl("");
-      setFile(null);
-      setImageError(null);
+      resetImage();
       setOrderedItems([...categories]);
     }
-  }, [open, categories]);
-
-  useEffect(() => {
-    return () => {
-      if (previewUrl && previewUrl.startsWith("blob:")) {
-        URL.revokeObjectURL(previewUrl);
-      }
-    };
-  }, [previewUrl]);
+  }, [open, categories, resetImage]);
 
   useEffect(() => {
     if (step === 2 && scrollRef.current) {
@@ -121,55 +102,12 @@ export function CreateCategoryModal({ open, onOpenChange, categories, onSuccess 
     });
   }
 
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0];
-    if (!selectedFile) return;
-
-    setImageError(null);
-    const validationError = validateCategoryOrCollectionMediaFile(selectedFile);
-    if (validationError) {
-      setImageError(validationError);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-      return;
-    }
-
-    try {
-      if (previewUrl && previewUrl.startsWith("blob:")) {
-        URL.revokeObjectURL(previewUrl);
-      }
-
-      setFile(selectedFile);
-      setPreviewUrl(URL.createObjectURL(selectedFile));
-      setImageUrl("");
-    } catch (err) {
-      console.error("Failed to load file preview", err);
-      setImageError(err instanceof Error ? err.message : "Failed to load file preview.");
-    } finally {
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    }
-  };
-
-  const handleRemoveImage = () => {
-    if (previewUrl && previewUrl.startsWith("blob:")) {
-      URL.revokeObjectURL(previewUrl);
-    }
-    setFile(null);
-    setPreviewUrl("");
-    setImageUrl("");
-    setImageError(null);
-  };
-
   const handleSave = async () => {
     if (!title.vi.trim()) return;
     setIsSaving(true);
-    setImageError(null);
+    image.setError(null);
     try {
-      let finalImageUrl = imageUrl;
-
-      if (file) {
-        const media = await uploadProductVariantMedia(file);
-        finalImageUrl = media.contentUrl;
-      }
+      const finalImageUrl = await image.resolveImageUrl();
 
       const res = await backendFetch("/api/admin/product-metadata/categories", {
         method: "POST",
@@ -202,7 +140,7 @@ export function CreateCategoryModal({ open, onOpenChange, categories, onSuccess 
       navigate(`/categories/${newCatId}`);
     } catch (e) {
       console.error(e);
-      setImageError(e instanceof Error ? e.message : "Failed to create category");
+      image.setError(e instanceof Error ? e.message : "Failed to create category");
     } finally {
       setIsSaving(false);
     }
@@ -300,46 +238,7 @@ export function CreateCategoryModal({ open, onOpenChange, categories, onSuccess 
                       {SUPPORTED_IMAGE_TYPES_HINT}
                     </Text>
                   </div>
-                  {previewUrl ? (
-                    <div className="relative h-48 w-48 overflow-hidden rounded-lg border border-ui-border-base bg-ui-bg-subtle">
-                      <MediaPreview
-                        src={previewUrl}
-                        mimeType={file?.type || "image/jpeg"}
-                        className="h-full w-full object-cover"
-                        alt="Category Preview"
-                      />
-                      <button
-                        type="button"
-                        onClick={handleRemoveImage}
-                        className="absolute right-2 top-2 rounded-full bg-ui-bg-overlay p-1 text-ui-fg-on-color shadow transition hover:bg-ui-bg-overlay-hover"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="flex h-48 w-48 flex-col items-center justify-center gap-y-2 rounded-lg border border-dashed border-ui-border-base bg-ui-bg-subtle text-ui-fg-muted transition hover:border-ui-border-strong hover:text-ui-fg-base"
-                    >
-                      <Upload className="h-6 w-6" />
-                      <Text size="small">Upload Image</Text>
-                    </button>
-                  )}
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept={ACCEPT_IMAGE_MIME_TYPES}
-                    className="hidden"
-                    onChange={handleFileSelect}
-                  />
-                  {imageError ? (
-                    <div className="rounded-md border border-ui-border-error bg-ui-bg-error p-3">
-                      <Text size="small" className="text-ui-fg-error">
-                        {imageError}
-                      </Text>
-                    </div>
-                  ) : null}
+                  <ImagePicker field={image} alt="Category Preview" />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">

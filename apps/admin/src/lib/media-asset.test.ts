@@ -5,7 +5,7 @@ const mocks = vi.hoisted(() => ({
   getNativeMediaDimensions: vi.fn(),
 }));
 
-vi.mock("./pdf-preview", () => ({
+vi.mock("@trophy/customization-react/pdf-preview", () => ({
   convertPdfToImageFile: mocks.convertPdfToImageFile,
 }));
 vi.mock("./image-dimensions", () => ({

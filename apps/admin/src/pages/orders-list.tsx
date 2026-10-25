@@ -1,4 +1,4 @@
-import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { Link } from "react-router";
 import { Button, Container, DropdownMenu, Heading, IconButton, Input, Table, Text, StatusBadge, toast } from "@medusajs/ui";
 import { Adjustments, EllipseMiniSolid } from "@medusajs/icons";
@@ -98,6 +98,54 @@ function downloadOrdersCsv(orders: AdminOrderListItem[]) {
   link.click();
   link.remove();
   URL.revokeObjectURL(url);
+}
+
+/** "<Label> is <values>" filter chip with a multi-select dropdown and a remove button. */
+function MultiSelectFilterChip({
+  label,
+  options,
+  selected,
+  onChange,
+  onRemove,
+}: {
+  label: string;
+  options: string[];
+  selected: string[];
+  onChange: Dispatch<SetStateAction<string[]>>;
+  onRemove: () => void;
+}) {
+  return (
+    <div className="flex items-center overflow-hidden rounded-md border border-ui-border-base bg-ui-bg-base text-sm shadow-sm">
+      <div className="border-r border-ui-border-base bg-ui-bg-subtle px-2 py-1 font-medium">{label}</div>
+      <div className="border-r border-ui-border-base px-2 py-1 text-ui-fg-muted">is</div>
+      <DropdownMenu>
+        <DropdownMenu.Trigger className="flex items-center px-2 py-1 outline-none hover:bg-ui-bg-subtle-hover">
+          {selected.length > 0 ? selected.map(normalizeStatus).join(", ") : "Select..."}
+        </DropdownMenu.Trigger>
+        <DropdownMenu.Content align="start">
+          {options.map((option) => (
+            <DropdownMenu.Item
+              key={option}
+              onClick={(event) => {
+                event.preventDefault();
+                onChange((current) =>
+                  current.includes(option) ? current.filter((item) => item !== option) : [...current, option],
+                );
+              }}
+            >
+              <div className="flex items-center gap-2">
+                <Check className={selected.includes(option) ? "h-4 w-4" : "invisible h-4 w-4"} />
+                {normalizeStatus(option)}
+              </div>
+            </DropdownMenu.Item>
+          ))}
+        </DropdownMenu.Content>
+      </DropdownMenu>
+      <button className="border-l border-ui-border-base px-2 py-1 text-ui-fg-muted hover:text-ui-fg-base" onClick={onRemove} type="button">
+        <X className="h-3 w-3" />
+      </button>
+    </div>
+  );
 }
 
 export function OrdersListPage() {
@@ -292,102 +340,33 @@ export function OrdersListPage() {
         <div className="flex flex-col gap-3 px-6 py-4 border-b border-ui-border-base lg:flex-row lg:items-center lg:justify-between">
           <div className="flex flex-wrap items-center gap-2">
             {activeFilters.includes("status") ? (
-              <div className="flex items-center overflow-hidden rounded-md border border-ui-border-base bg-ui-bg-base text-sm shadow-sm">
-                <div className="border-r border-ui-border-base bg-ui-bg-subtle px-2 py-1 font-medium">Status</div>
-                <div className="border-r border-ui-border-base px-2 py-1 text-ui-fg-muted">is</div>
-                <DropdownMenu>
-                  <DropdownMenu.Trigger className="flex items-center px-2 py-1 outline-none hover:bg-ui-bg-subtle-hover">
-                    {statusFilter.length > 0 ? statusFilter.map(normalizeStatus).join(", ") : "Select..."}
-                  </DropdownMenu.Trigger>
-                  <DropdownMenu.Content align="start">
-                    {statusOptions.map((status) => (
-                      <DropdownMenu.Item
-                        key={status}
-                        onClick={(event) => {
-                          event.preventDefault();
-                          setStatusFilter((current) =>
-                            current.includes(status) ? current.filter((item) => item !== status) : [...current, status],
-                          );
-                        }}
-                      >
-                        <div className="flex items-center gap-2">
-                          <Check className={statusFilter.includes(status) ? "h-4 w-4" : "invisible h-4 w-4"} />
-                          {normalizeStatus(status)}
-                        </div>
-                      </DropdownMenu.Item>
-                    ))}
-                  </DropdownMenu.Content>
-                </DropdownMenu>
-                <button className="border-l border-ui-border-base px-2 py-1 text-ui-fg-muted hover:text-ui-fg-base" onClick={() => removeFilter("status")} type="button">
-                  <X className="h-3 w-3" />
-                </button>
-              </div>
+              <MultiSelectFilterChip
+                label="Status"
+                options={statusOptions}
+                selected={statusFilter}
+                onChange={setStatusFilter}
+                onRemove={() => removeFilter("status")}
+              />
             ) : null}
 
             {activeFilters.includes("payment") ? (
-              <div className="flex items-center overflow-hidden rounded-md border border-ui-border-base bg-ui-bg-base text-sm shadow-sm">
-                <div className="border-r border-ui-border-base bg-ui-bg-subtle px-2 py-1 font-medium">Payment</div>
-                <div className="border-r border-ui-border-base px-2 py-1 text-ui-fg-muted">is</div>
-                <DropdownMenu>
-                  <DropdownMenu.Trigger className="flex items-center px-2 py-1 outline-none hover:bg-ui-bg-subtle-hover">
-                    {paymentFilter.length > 0 ? paymentFilter.map(normalizeStatus).join(", ") : "Select..."}
-                  </DropdownMenu.Trigger>
-                  <DropdownMenu.Content align="start">
-                    {paymentOptions.map((status) => (
-                      <DropdownMenu.Item
-                        key={status}
-                        onClick={(event) => {
-                          event.preventDefault();
-                          setPaymentFilter((current) =>
-                            current.includes(status) ? current.filter((item) => item !== status) : [...current, status],
-                          );
-                        }}
-                      >
-                        <div className="flex items-center gap-2">
-                          <Check className={paymentFilter.includes(status) ? "h-4 w-4" : "invisible h-4 w-4"} />
-                          {normalizeStatus(status)}
-                        </div>
-                      </DropdownMenu.Item>
-                    ))}
-                  </DropdownMenu.Content>
-                </DropdownMenu>
-                <button className="border-l border-ui-border-base px-2 py-1 text-ui-fg-muted hover:text-ui-fg-base" onClick={() => removeFilter("payment")} type="button">
-                  <X className="h-3 w-3" />
-                </button>
-              </div>
+              <MultiSelectFilterChip
+                label="Payment"
+                options={paymentOptions}
+                selected={paymentFilter}
+                onChange={setPaymentFilter}
+                onRemove={() => removeFilter("payment")}
+              />
             ) : null}
 
             {activeFilters.includes("fulfillment") ? (
-              <div className="flex items-center overflow-hidden rounded-md border border-ui-border-base bg-ui-bg-base text-sm shadow-sm">
-                <div className="border-r border-ui-border-base bg-ui-bg-subtle px-2 py-1 font-medium">Fulfillment</div>
-                <div className="border-r border-ui-border-base px-2 py-1 text-ui-fg-muted">is</div>
-                <DropdownMenu>
-                  <DropdownMenu.Trigger className="flex items-center px-2 py-1 outline-none hover:bg-ui-bg-subtle-hover">
-                    {fulfillmentFilter.length > 0 ? fulfillmentFilter.map(normalizeStatus).join(", ") : "Select..."}
-                  </DropdownMenu.Trigger>
-                  <DropdownMenu.Content align="start">
-                    {fulfillmentOptions.map((status) => (
-                      <DropdownMenu.Item
-                        key={status}
-                        onClick={(event) => {
-                          event.preventDefault();
-                          setFulfillmentFilter((current) =>
-                            current.includes(status) ? current.filter((item) => item !== status) : [...current, status],
-                          );
-                        }}
-                      >
-                        <div className="flex items-center gap-2">
-                          <Check className={fulfillmentFilter.includes(status) ? "h-4 w-4" : "invisible h-4 w-4"} />
-                          {normalizeStatus(status)}
-                        </div>
-                      </DropdownMenu.Item>
-                    ))}
-                  </DropdownMenu.Content>
-                </DropdownMenu>
-                <button className="border-l border-ui-border-base px-2 py-1 text-ui-fg-muted hover:text-ui-fg-base" onClick={() => removeFilter("fulfillment")} type="button">
-                  <X className="h-3 w-3" />
-                </button>
-              </div>
+              <MultiSelectFilterChip
+                label="Fulfillment"
+                options={fulfillmentOptions}
+                selected={fulfillmentFilter}
+                onChange={setFulfillmentFilter}
+                onRemove={() => removeFilter("fulfillment")}
+              />
             ) : null}
 
             {activeFilters.includes("created") ? (

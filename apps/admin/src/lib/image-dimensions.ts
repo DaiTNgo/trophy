@@ -1,4 +1,4 @@
-import { getPdfDimensions } from "./pdf-preview";
+import { getPdfDimensions } from "@trophy/customization-react/pdf-preview";
 
 export function getImageDimensions(file: File): Promise<{ width: number; height: number }> {
   return new Promise((resolve, reject) => {

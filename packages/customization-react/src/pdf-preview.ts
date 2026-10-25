@@ -12,21 +12,20 @@ async function getPdfjs(): Promise<typeof import("pdfjs-dist")> {
   return pdfjsPromise;
 }
 
-export async function renderPdfBufferToDataUrl(
-  buffer: ArrayBuffer,
-  scale = 1.0,
-  mimeType = "image/jpeg",
-  quality = 0.9
-): Promise<{ width: number; height: number; dataUrl: string; numPages: number }> {
+async function loadFirstPage(data: ArrayBuffer) {
   const pdfjsLib = await getPdfjs();
-  const loadingTask = pdfjsLib.getDocument({ data: buffer });
-  const pdfDocument = await loadingTask.promise;
+  const pdfDocument = await pdfjsLib.getDocument({ data }).promise;
 
   if (pdfDocument.numPages === 0) {
     throw new Error("PDF file contains no pages.");
   }
 
   const page = await pdfDocument.getPage(1);
+  return { page, numPages: pdfDocument.numPages };
+}
+
+async function renderFirstPageToCanvas(data: ArrayBuffer, scale: number) {
+  const { page, numPages } = await loadFirstPage(data);
   const viewport = page.getViewport({ scale });
 
   const canvas = document.createElement("canvas");
@@ -47,51 +46,29 @@ export async function renderPdfBufferToDataUrl(
     background: "rgba(0,0,0,0)",
   } as any).promise;
 
-  const dataUrl = canvas.toDataURL(mimeType, quality);
+  return { canvas, viewport, numPages };
+}
+
+export async function renderPdfBufferToDataUrl(
+  buffer: ArrayBuffer,
+  scale = 1.0,
+  mimeType = "image/jpeg",
+  quality = 0.9,
+): Promise<{ width: number; height: number; dataUrl: string; numPages: number }> {
+  const { canvas, viewport, numPages } = await renderFirstPageToCanvas(buffer, scale);
 
   return {
     width: Math.round(viewport.width),
     height: Math.round(viewport.height),
-    dataUrl,
-    numPages: pdfDocument.numPages,
+    dataUrl: canvas.toDataURL(mimeType, quality),
+    numPages,
   };
 }
 
 export async function convertPdfToImageFile(file: File): Promise<File> {
-  const [pdfjsLib, arrayBuffer] = await Promise.all([
-    getPdfjs(),
-    file.arrayBuffer(),
-  ]);
-  
-  const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
-  const pdfDocument = await loadingTask.promise;
-  
-  if (pdfDocument.numPages === 0) {
-    throw new Error("PDF file contains no pages.");
-  }
-  
   // Use scale 2.0 for higher quality thumbnail images
-  const page = await pdfDocument.getPage(1);
-  const viewport = page.getViewport({ scale: 2.0 });
-  
-  const canvas = document.createElement("canvas");
-  canvas.width = viewport.width;
-  canvas.height = viewport.height;
-  
-  const canvasContext = canvas.getContext("2d");
-  if (!canvasContext) {
-    throw new Error("Unable to create canvas context for PDF preview.");
-  }
-  
-  // Clear default white fill so transparent PDFs stay transparent
-  canvasContext.clearRect(0, 0, canvas.width, canvas.height);
+  const { canvas } = await renderFirstPageToCanvas(await file.arrayBuffer(), 2.0);
 
-  await page.render({
-    canvasContext,
-    viewport,
-    background: "rgba(0,0,0,0)",
-  } as any).promise;
-  
   return new Promise((resolve, reject) => {
     canvas.toBlob((blob) => {
       if (!blob) return reject(new Error("Failed to convert canvas to blob"));
@@ -102,19 +79,7 @@ export async function convertPdfToImageFile(file: File): Promise<File> {
 }
 
 export async function getPdfDimensions(file: File): Promise<{ widthPx: number; heightPx: number }> {
-  const [pdfjsLib, arrayBuffer] = await Promise.all([
-    getPdfjs(),
-    file.arrayBuffer(),
-  ]);
-
-  const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
-  const pdfDocument = await loadingTask.promise;
-
-  if (pdfDocument.numPages === 0) {
-    throw new Error("PDF file contains no pages.");
-  }
-
-  const page = await pdfDocument.getPage(1);
+  const { page } = await loadFirstPage(await file.arrayBuffer());
   const viewport = page.getViewport({ scale: 1.0 });
 
   return {

@@ -2,30 +2,13 @@ import { and, eq, isNull, lte, or } from 'drizzle-orm'
 import { getDb } from '../db/client'
 import { r2CleanupJobs } from '../db/schema'
 import type { AppBindings } from './env'
-
-const RETRY_CAP_MS = 24 * 60 * 60 * 1000
-const BATCH_SIZE = 50
-const LEASE_MS = 5 * 60 * 1000
-
-const nowIso = () => new Date().toISOString()
-
-function retryAt(attempts: number) {
-  const delay = Math.min(RETRY_CAP_MS, 60_000 * 2 ** Math.min(attempts, 10))
-  return new Date(Date.now() + delay).toISOString()
-}
-
-function leaseExpiresAt() {
-  return new Date(Date.now() + LEASE_MS).toISOString()
-}
+import { newOutboxJob, OUTBOX_BATCH_SIZE, outboxLeaseExpiresAt, outboxNow, outboxRetryAt } from './outbox-schedule'
 
 export function r2CleanupJobValues(objectKeys: string[]) {
-  const queuedAt = nowIso()
+  const queuedAt = outboxNow()
   return [...new Set(objectKeys)].map((objectKey) => ({
-    id: crypto.randomUUID(),
+    ...newOutboxJob(queuedAt),
     objectKey,
-    attempts: 0,
-    nextAttemptAt: queuedAt,
-    createdAt: queuedAt,
   }))
 }
 
@@ -36,20 +19,20 @@ export async function processR2CleanupJobs(env: AppBindings) {
     .from(r2CleanupJobs)
     .where(and(
       isNull(r2CleanupJobs.completedAt),
-      lte(r2CleanupJobs.nextAttemptAt, nowIso()),
-      or(isNull(r2CleanupJobs.leaseExpiresAt), lte(r2CleanupJobs.leaseExpiresAt, nowIso())),
+      lte(r2CleanupJobs.nextAttemptAt, outboxNow()),
+      or(isNull(r2CleanupJobs.leaseExpiresAt), lte(r2CleanupJobs.leaseExpiresAt, outboxNow())),
     ))
-    .limit(BATCH_SIZE)
+    .limit(OUTBOX_BATCH_SIZE)
 
   for (const job of jobs) {
     const leaseToken = crypto.randomUUID()
     const claimed = await db
       .update(r2CleanupJobs)
-      .set({ leaseToken, leaseExpiresAt: leaseExpiresAt() })
+      .set({ leaseToken, leaseExpiresAt: outboxLeaseExpiresAt() })
       .where(and(
         eq(r2CleanupJobs.id, job.id),
         isNull(r2CleanupJobs.completedAt),
-        or(isNull(r2CleanupJobs.leaseExpiresAt), lte(r2CleanupJobs.leaseExpiresAt, nowIso())),
+        or(isNull(r2CleanupJobs.leaseExpiresAt), lte(r2CleanupJobs.leaseExpiresAt, outboxNow())),
       ))
       .returning({ id: r2CleanupJobs.id })
       .get()
@@ -59,7 +42,7 @@ export async function processR2CleanupJobs(env: AppBindings) {
       await env.CUSTOMIZATION_ASSETS.delete(job.objectKey)
       await db
         .update(r2CleanupJobs)
-        .set({ completedAt: nowIso(), lastError: null, leaseToken: null, leaseExpiresAt: null })
+        .set({ completedAt: outboxNow(), lastError: null, leaseToken: null, leaseExpiresAt: null })
         .where(and(eq(r2CleanupJobs.id, job.id), eq(r2CleanupJobs.leaseToken, leaseToken)))
     } catch (error) {
       const attempts = job.attempts + 1
@@ -68,7 +51,7 @@ export async function processR2CleanupJobs(env: AppBindings) {
         .update(r2CleanupJobs)
         .set({
           attempts,
-          nextAttemptAt: retryAt(attempts),
+          nextAttemptAt: outboxRetryAt(attempts),
           lastError: error instanceof Error ? error.message : 'R2 cleanup failed',
           leaseToken: null,
           leaseExpiresAt: null,

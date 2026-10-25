@@ -8,7 +8,7 @@ import {
   FONT_FILES,
 } from "@trophy/customization";
 import { useMemo } from "react";
-import { renderPdfBufferToDataUrl } from "../../lib/pdf-preview";
+import { renderPdfBufferToDataUrl } from "@trophy/customization-react/pdf-preview";
 import { BACKEND_URL } from "../../lib/fetch";
 
 export type RailTab = "blocks" | "layers" | "form" | "background";

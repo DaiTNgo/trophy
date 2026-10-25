@@ -424,7 +424,7 @@ describe("admin articles routes", () => {
       });
       // Category links — .all()
       db.selectQueue.push([
-        { catId: "cat-1", catName: "Cẩm nang", catSlug: "cam-nang" },
+        { articleId: "c-article-1", id: "cat-1", name: "Cẩm nang", slug: "cam-nang" },
       ]);
       // Product links — .all()
       db.selectQueue.push([]);
@@ -934,7 +934,7 @@ describe("storefront articles routes", () => {
       });
       // Category links — parallel .all()
       db.selectQueue.push([
-        { catId: "cat-1", catName: "Cẩm nang", catSlug: "cam-nang" },
+        { articleId: "c-article-1", id: "cat-1", name: "Cẩm nang", slug: "cam-nang" },
       ]);
       // Product links — parallel .all()
       db.selectQueue.push([]);
@@ -987,7 +987,7 @@ describe("storefront articles routes", () => {
         authorName: "Admin User",
       });
       db.selectQueue.push([
-        { catId: "cat-1", catName: "Cẩm nang", catSlug: "cam-nang" },
+        { articleId: "c-article-1", id: "cat-1", name: "Cẩm nang", slug: "cam-nang" },
       ]);
       db.selectQueue.push([]);
 
@@ -1023,7 +1023,7 @@ describe("storefront articles routes", () => {
       db.getQueue.push({ count: 1 });
       // Category links for the listed article
       db.selectQueue.push([
-        { articleId: "c-article-1", catId: "cat-1", catName: "Cẩm nang", catSlug: "cam-nang" },
+        { articleId: "c-article-1", id: "cat-1", name: "Cẩm nang", slug: "cam-nang" },
       ]);
 
       const res = await storefrontArticlesRoute.request("/?locale=en", {}, env);

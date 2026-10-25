@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { backendFetch, BACKEND_URL } from "../../lib/fetch";
-import { renderPdfBufferToDataUrl } from "../../lib/pdf-preview";
+import { renderPdfBufferToDataUrl } from "@trophy/customization-react/pdf-preview";
 import { Package, FileText } from "lucide-react";
 
 export type MediaPreviewProps = {

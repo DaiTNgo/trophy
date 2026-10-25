@@ -2,48 +2,23 @@ import {
   validateProductCustomizationDraft,
   type ProductCustomization
 } from '@trophy/customization'
-import { and, eq, sql } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { getDb } from '../../db/client'
 import {
-  catalogTranslations,
   productCategoryLinks,
   productCustomizations,
   products
 } from '../../db/schema'
 import type { AppEnv } from '../../lib/env'
 import { jsonError, parseJson, parseParams } from '../../lib/validation'
-import { prepareCustomizationTranslations } from '../../lib/customization-translation'
+import { customizationTranslationStatements, prepareCustomizationTranslations } from '../../lib/customization-translation'
 import { ensureCustomizationCategory } from '../../lib/customization-category'
 import { readProduct } from './product-reader'
 import { fullCreateCustomizationSchema, idParamsSchema } from './product-schemas'
 import { claimProductRevision, requireProductRevision } from './product-revision'
 
 const nowIso = () => new Date().toISOString()
-
-function translationStatements(db: ReturnType<typeof getDb>, writes: ReturnType<typeof prepareCustomizationTranslations>) {
-  return writes.flatMap((write) => ['vi', 'en'].map((locale) => {
-    const value = write.values[locale]
-    if (value === null) {
-      return db.delete(catalogTranslations).where(and(
-        eq(catalogTranslations.ownerType, write.ownerType),
-        eq(catalogTranslations.ownerKey, write.ownerKey),
-        eq(catalogTranslations.fieldName, write.fieldName),
-        eq(catalogTranslations.locale, locale),
-      ))
-    }
-    return db.insert(catalogTranslations).values({
-      ownerType: write.ownerType,
-      ownerKey: write.ownerKey,
-      fieldName: write.fieldName,
-      locale,
-      value: value ?? '',
-    }).onConflictDoUpdate({
-      target: [catalogTranslations.ownerType, catalogTranslations.ownerKey, catalogTranslations.fieldName, catalogTranslations.locale],
-      set: { value: value ?? '', updatedAt: sql`CURRENT_TIMESTAMP` },
-    })
-  }))
-}
 
 export const productCustomizationRoute = new Hono<AppEnv>()
   .put('/:id/customization', async (c) => {
@@ -88,7 +63,7 @@ export const productCustomizationRoute = new Hono<AppEnv>()
       return jsonError(c, 409, 'Product changed while this form was open. Reload and review the latest state.')
     }
     await db.batch([
-      ...translationStatements(db, translationWrites),
+      ...customizationTranslationStatements(db, translationWrites),
       ...(!linkedCategory ? [db.insert(productCategoryLinks).values({ productId: product.id, categoryId: category.id })] : []),
       db.update(productCustomizations).set({
         layersJson: JSON.stringify(parsed.output.layers),

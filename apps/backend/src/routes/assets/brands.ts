@@ -1,63 +1,16 @@
 import { Hono } from "hono";
+import { fontResponse } from "../../lib/asset-response";
 import type { AppEnv } from "../../lib/env";
-import { getStaticFontBytes } from "../../lib/static-fonts";
 
 export const assetsBrandsRoute = new Hono<AppEnv>()
   .get("/:id/content", async (c) => {
     // For backwards compatibility and to match other asset routes, we stream fonts from here.
-    // The id here is the filename or asset id.
+    // The id here is the filename or asset id; uploads are stored as `fonts/<id>.ttf`.
     const id = c.req.param("id");
-    
-    const staticBytes = getStaticFontBytes(id);
-    if (staticBytes) {
-      const headers = new Headers();
-      headers.set("content-type", "font/ttf");
-      headers.set("cache-control", "public, max-age=31536000, immutable");
-      headers.set("x-content-type-options", "nosniff");
-      return new Response(staticBytes, { headers });
-    }
-
-    // Some assets are uploaded as `font_${id}.ttf`, let's check if the ID has extension
     const filename = id.includes(".") ? id : `${id}.ttf`;
-    const key = `fonts/${filename}`;
-    const object = await c.env.CUSTOMIZATION_ASSETS.get(key);
-    
-    if (!object) {
-      return c.json({ error: 'Not found' }, 404);
-    }
-
-    const headers = new Headers();
-    object.writeHttpMetadata(headers);
-    headers.set("etag", object.httpEtag);
-    headers.set("cache-control", "public, max-age=31536000, immutable");
-    headers.set("x-content-type-options", "nosniff");
-    
-    return new Response(object.body as unknown as ReadableStream, { headers });
+    return (await fontResponse(c.env, id, `fonts/${filename}`)) ?? c.json({ error: "Not found" }, 404);
   })
   .get("/fonts/file/:filename", async (c) => {
     const filename = c.req.param("filename");
-
-    const staticBytes = getStaticFontBytes(filename);
-    if (staticBytes) {
-      const headers = new Headers();
-      headers.set("content-type", "font/ttf");
-      headers.set("cache-control", "public, max-age=31536000, immutable");
-      headers.set("x-content-type-options", "nosniff");
-      return new Response(staticBytes, { headers });
-    }
-
-    const key = `fonts/${filename}`;
-    const object = await c.env.CUSTOMIZATION_ASSETS.get(key);
-    
-    if (!object) {
-      return c.json({ error: 'Not found' }, 404);
-    }
-
-    const headers = new Headers();
-    object.writeHttpMetadata(headers);
-    headers.set("etag", object.httpEtag);
-    headers.set("cache-control", "public, max-age=31536000, immutable");
-    headers.set("x-content-type-options", "nosniff");
-    
-    return new Response(object.body as unknown as ReadableStream, { headers });
+    return (await fontResponse(c.env, filename, `fonts/${filename}`)) ?? c.json({ error: "Not found" }, 404);
   });

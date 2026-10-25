@@ -1,5 +1,6 @@
 import type { DynamicFontFamily } from "@trophy/customization";
 import { ProductCustomizationPreview } from "@trophy/customization-react";
+import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ChevronDown,
@@ -170,6 +171,53 @@ export function ProductDetailLayout({
     ? (mobileHiddenShellHeight ?? undefined)
     : undefined;
 
+  const customizationPurchase = customizationTemplate ? (
+    <ProductCustomizationPurchase
+      template={customizationTemplate}
+      values={customizationValues}
+      dynamicFonts={dynamicFonts as DynamicFontFamily[]}
+      locale={locale}
+      message={message}
+      quantity={quantity}
+      onQuantityChange={setQuantity}
+      onMessageChange={setMessage}
+      onDeleteImage={deleteCustomizationImage}
+      onUploadImage={uploadCustomizationImage}
+      onFieldFocus={setSelectedCustomizationFieldId}
+      onValueChange={(fieldId, value) => {
+        setCustomizationValues((current) => ({
+          ...current,
+          [fieldId]: value,
+        }));
+      }}
+      onInteraction={resetToCustomizationMedia}
+    />
+  ) : null;
+
+  const renderProductInfo = (customizationSection: ReactNode, flatCustomization = false) => (
+    <ProductInfo
+      title={getLocalized(product.title, locale)}
+      price={displayPrice}
+      rating={5}
+      reviewsCount={0}
+      description={shortDescription}
+      variantSelector={
+        visibleOptions.length > 0 ? (
+          <div className="space-y-4">{optionGroups}</div>
+        ) : null
+      }
+      customizationSection={customizationSection}
+      isContactPrice={selectedVariant?.priceAmount === null}
+      contactHref={contactHref}
+      primaryActionLabel={t("btn_add_to_cart")}
+      primaryActionDisabled={addToCartDisabled}
+      primaryActionMessage={addToCartMessage}
+      previewRef={previewSectionRef}
+      onPrimaryAction={handleAddToCart}
+      flatCustomization={flatCustomization}
+    />
+  );
+
   return (
     <div className="bg-white font-body-md text-on-surface">
       <ProductBreadcrumbs
@@ -277,48 +325,7 @@ export function ProductDetailLayout({
                 )}
               </div>
               <div className="mt-6">
-                <ProductInfo
-                  title={getLocalized(product.title, locale)}
-                  price={displayPrice}
-                  rating={5}
-                  reviewsCount={0}
-                  description={shortDescription}
-                  variantSelector={
-                    visibleOptions.length > 0 ? (
-                      <div className="space-y-4">{optionGroups}</div>
-                    ) : null
-                  }
-                  customizationSection={
-                    <ProductCustomizationPurchase
-                      template={customizationTemplate}
-                      values={customizationValues}
-                      dynamicFonts={dynamicFonts as DynamicFontFamily[]}
-                      locale={locale}
-                      message={message}
-                      quantity={quantity}
-                      onQuantityChange={setQuantity}
-                      onMessageChange={setMessage}
-                      onDeleteImage={deleteCustomizationImage}
-                      onUploadImage={uploadCustomizationImage}
-                      onFieldFocus={setSelectedCustomizationFieldId}
-                      onValueChange={(fieldId, value) => {
-                        setCustomizationValues((current) => ({
-                          ...current,
-                          [fieldId]: value,
-                        }));
-                      }}
-                      onInteraction={resetToCustomizationMedia}
-                    />
-                  }
-                  isContactPrice={selectedVariant?.priceAmount === null}
-                  contactHref={contactHref}
-                  primaryActionLabel={t("btn_add_to_cart")}
-                  primaryActionDisabled={addToCartDisabled}
-                  primaryActionMessage={addToCartMessage}
-                  previewRef={previewSectionRef}
-                  onPrimaryAction={handleAddToCart}
-                  flatCustomization
-                />
+                {renderProductInfo(customizationPurchase, true)}
               </div>
             </div>
 
@@ -334,48 +341,7 @@ export function ProductDetailLayout({
                 }
                 thumbnails={galleryThumbnails}
               />
-              <ProductInfo
-                title={getLocalized(product.title, locale)}
-                price={displayPrice}
-                rating={5}
-                reviewsCount={0}
-                description={shortDescription}
-                variantSelector={
-                  visibleOptions.length > 0 ? (
-                    <div className="space-y-4">{optionGroups}</div>
-                  ) : null
-                }
-                customizationSection={
-                  <ProductCustomizationPurchase
-                    template={customizationTemplate}
-                    values={customizationValues}
-                    dynamicFonts={dynamicFonts as DynamicFontFamily[]}
-                    locale={locale}
-                    message={message}
-                    quantity={quantity}
-                    onQuantityChange={setQuantity}
-                    onMessageChange={setMessage}
-                    onDeleteImage={deleteCustomizationImage}
-                    onUploadImage={uploadCustomizationImage}
-                    onFieldFocus={setSelectedCustomizationFieldId}
-                    onValueChange={(fieldId, value) => {
-                      setCustomizationValues((current) => ({
-                        ...current,
-                        [fieldId]: value,
-                      }));
-                    }}
-                    onInteraction={resetToCustomizationMedia}
-                  />
-                }
-                isContactPrice={selectedVariant?.priceAmount === null}
-                contactHref={contactHref}
-                primaryActionLabel={t("btn_add_to_cart")}
-                primaryActionDisabled={addToCartDisabled}
-                primaryActionMessage={addToCartMessage}
-                previewRef={previewSectionRef}
-                onPrimaryAction={handleAddToCart}
-                flatCustomization
-              />
+              {renderProductInfo(customizationPurchase, true)}
             </div>
           </>
         ) : (
@@ -394,34 +360,14 @@ export function ProductDetailLayout({
               mainContent={galleryImageNode}
               thumbnails={galleryThumbnails}
             />
-            <ProductInfo
-              title={getLocalized(product.title, locale)}
-              price={displayPrice}
-              rating={5}
-              reviewsCount={0}
-              description={shortDescription}
-              variantSelector={
-                visibleOptions.length > 0 ? (
-                  <div className="space-y-4">{optionGroups}</div>
-                ) : null
-              }
-              customizationSection={
-                // <QuantityOnlySection quantity={quantity} setQuantity={setQuantity} />
-                <QuantityInput
-                  value={quantity}
-                  min={1}
-                  max={99}
-                  onValueChange={(next) => setQuantity(next)}
-                />
-              }
-              isContactPrice={selectedVariant?.priceAmount === null}
-              contactHref={contactHref}
-              primaryActionLabel={t("btn_add_to_cart")}
-              primaryActionDisabled={addToCartDisabled}
-              primaryActionMessage={addToCartMessage}
-              previewRef={previewSectionRef}
-              onPrimaryAction={handleAddToCart}
-            />
+            {renderProductInfo(
+              <QuantityInput
+                value={quantity}
+                min={1}
+                max={99}
+                onValueChange={(next) => setQuantity(next)}
+              />,
+            )}
           </div>
         )}
         <ProductDetailSections
