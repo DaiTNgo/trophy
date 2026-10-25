@@ -63,19 +63,18 @@ declare module 'drizzle-orm/postgres-js' {
 let client: postgres.Sql | null = null
 let dbInstance: PostgresJsDatabase<typeof schema> | null = null
 
+// Statements arrive pre-built on the root db, so their SQL is re-issued on the
+// transaction connection one by one to keep the batch atomic and ordered.
 const attachBatch = (target: any) => {
   if (!target.batch) {
     target.batch = async (queries: any[]) => {
-      if (typeof target.transaction === 'function') {
-        return target.transaction(async () => {
-          return Promise.all(
-            queries.map((q) => (typeof q?.execute === 'function' ? q.execute() : q))
-          )
-        })
-      }
-      return Promise.all(
-        queries.map((q) => (typeof q?.execute === 'function' ? q.execute() : q))
-      )
+      return target.transaction(async (tx: any) => {
+        const results: any[] = []
+        for (const q of queries) {
+          results.push(typeof q?.getSQL === 'function' ? await tx.execute(q.getSQL()) : await q)
+        }
+        return results
+      })
     }
   }
 }

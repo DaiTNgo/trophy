@@ -111,17 +111,23 @@ export async function hydrateTranslations<T extends object>(
   fieldsToHydrate: Array<{ fieldName: string; objectKey: string }>,
   canonicalFallbacks: Array<{ fieldName: string; objectKey: string }> = []
 ): Promise<T[]> {
-  if (items.length === 0) return items;
+  if (items.length === 0 || fieldsToHydrate.length === 0) return items;
 
   const ownerKeys = items.map(idExtractor);
 
   const rows = await db
-    .select()
+    .select({
+      ownerKey: catalogTranslations.ownerKey,
+      fieldName: catalogTranslations.fieldName,
+      locale: catalogTranslations.locale,
+      value: catalogTranslations.value,
+    })
     .from(catalogTranslations)
     .where(
       and(
         eq(catalogTranslations.ownerType, ownerType),
-        inArray(catalogTranslations.ownerKey, ownerKeys)
+        inArray(catalogTranslations.ownerKey, ownerKeys),
+        inArray(catalogTranslations.fieldName, fieldsToHydrate.map((field) => field.fieldName))
       )
     );
 

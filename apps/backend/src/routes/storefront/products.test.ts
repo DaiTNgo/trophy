@@ -49,10 +49,6 @@ const makeVariant = (overrides: {
   priceAmount: overrides.priceAmount ?? null,
 });
 
-const makeMedia = (assetId: string) => ({
-  assetId,
-});
-
 describe("buildListingItem", () => {
   it("returns lowest non-null variant price", () => {
     const item = buildListingItem({ req: { url: "http://localhost/" } } as any, 
@@ -62,7 +58,6 @@ describe("buildListingItem", () => {
         makeVariant({ id: 1, priceAmount: 5000 }),
         makeVariant({ id: 2, priceAmount: 3000, isDefault: true }),
       ],
-      new Map(),
       false,
     );
 
@@ -78,7 +73,6 @@ describe("buildListingItem", () => {
         makeVariant({ id: 1, priceAmount: null }),
         makeVariant({ id: 2, priceAmount: null }),
       ],
-      new Map(),
       false,
     );
 
@@ -94,7 +88,6 @@ describe("buildListingItem", () => {
         makeVariant({ id: 1, priceAmount: 5000, isDefault: true }),
         makeVariant({ id: 2, priceAmount: 5000 }),
       ],
-      new Map(),
       false,
     );
 
@@ -110,7 +103,6 @@ describe("buildListingItem", () => {
         makeVariant({ id: 1, priceAmount: 5000, isDefault: true }),
         makeVariant({ id: 2, priceAmount: 3000 }),
       ],
-      new Map(),
       false,
     );
 
@@ -118,11 +110,6 @@ describe("buildListingItem", () => {
   });
 
   it("uses default variant first media as thumbnail", () => {
-    const mediaByVariant = new Map([
-      [1, [makeMedia("asset_a")]],
-      [2, [makeMedia("asset_b")]],
-    ]);
-
     const item = buildListingItem({ req: { url: "http://localhost/" } } as any, 
       baseItem,
       [],
@@ -130,7 +117,6 @@ describe("buildListingItem", () => {
         makeVariant({ id: 1, isDefault: true }),
         makeVariant({ id: 2 }),
       ],
-      mediaByVariant,
       false,
     );
 
@@ -143,9 +129,7 @@ describe("buildListingItem", () => {
       baseItem,
       [],
       [makeVariant({ id: 1, isDefault: true })],
-      new Map([[1, [makeMedia("variant-asset")]]]),
       false,
-      new Map(),
       "product-asset",
     );
 
@@ -158,9 +142,7 @@ describe("buildListingItem", () => {
       baseItem,
       [],
       [makeVariant({ id: 1, isDefault: true })],
-      new Map(),
       false,
-      new Map(),
       "default-asset",
       "hover-asset",
     );
@@ -170,10 +152,6 @@ describe("buildListingItem", () => {
   });
 
   it("falls back to first variant with media when default has none", () => {
-    const mediaByVariant = new Map([
-      [2, [makeMedia("asset_b")]],
-    ]);
-
     const item = buildListingItem({ req: { url: "http://localhost/" } } as any, 
       baseItem,
       [],
@@ -181,7 +159,6 @@ describe("buildListingItem", () => {
         makeVariant({ id: 1, isDefault: true }),
         makeVariant({ id: 2 }),
       ],
-      mediaByVariant,
       false,
     );
 
@@ -193,7 +170,6 @@ describe("buildListingItem", () => {
       baseItem,
       [],
       [makeVariant({ id: 1, isDefault: true })],
-      new Map(),
       false,
     );
 
@@ -206,9 +182,7 @@ describe("buildListingItem", () => {
       baseItem,
       [],
       [makeVariant({ id: 1, isDefault: true })],
-      new Map(),
       true,
-      new Map([[1, { assetId: "canvas-asset" }]]),
     );
 
     expect(item.thumbnail).toBeNull();
@@ -220,9 +194,7 @@ describe("buildListingItem", () => {
       baseItem,
       [],
       [makeVariant({ id: 1, isDefault: true })],
-      new Map([[1, [makeMedia("gallery-asset")]]]),
       true,
-      new Map([[1, { assetId: "canvas-asset" }]]),
     );
 
     expect(item.thumbnail).toBeNull();
@@ -233,7 +205,6 @@ describe("buildListingItem", () => {
       baseItem,
       ["Crystal", "Premium"],
       [makeVariant({ id: 1, isDefault: true })],
-      new Map(),
       false,
     );
 
@@ -245,7 +216,6 @@ describe("buildListingItem", () => {
       baseItem,
       [],
       [makeVariant({ id: 1, isDefault: true })],
-      new Map(),
       false,
     );
 
@@ -257,7 +227,6 @@ describe("buildListingItem", () => {
       baseItem,
       [],
       [makeVariant({ id: 1, isDefault: true })],
-      new Map(),
       true,
     );
 
@@ -269,7 +238,6 @@ describe("buildListingItem", () => {
       baseItem,
       [],
       [makeVariant({ id: 1, isDefault: true })],
-      new Map(),
       false,
     );
 

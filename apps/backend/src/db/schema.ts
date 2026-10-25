@@ -185,7 +185,12 @@ export const products = pgTable(
     customizationOperationExpiresAt: text("customization_operation_expires_at"),
     deletedAt: text("deleted_at"),
   },
-  (table) => [uniqueIndex("products_handle_idx").on(table.handle)],
+  (table) => [
+    uniqueIndex("products_handle_idx").on(table.handle),
+    index("products_published_id_idx")
+      .on(table.id.desc())
+      .where(sql`${table.status} = 'published' and ${table.deletedAt} is null`),
+  ],
 );
 
 export const productCollectionLinks = pgTable(
@@ -194,7 +199,10 @@ export const productCollectionLinks = pgTable(
     productId: integer("product_id").notNull(),
     collectionId: integer("collection_id").notNull(),
   },
-  (table) => [primaryKey({ columns: [table.productId, table.collectionId] })],
+  (table) => [
+    primaryKey({ columns: [table.productId, table.collectionId] }),
+    index("product_collection_links_collection_idx").on(table.collectionId, table.productId),
+  ],
 );
 
 export const productCategoryLinks = pgTable(
@@ -203,7 +211,10 @@ export const productCategoryLinks = pgTable(
     productId: integer("product_id").notNull(),
     categoryId: integer("category_id").notNull(),
   },
-  (table) => [primaryKey({ columns: [table.productId, table.categoryId] })],
+  (table) => [
+    primaryKey({ columns: [table.productId, table.categoryId] }),
+    index("product_category_links_category_idx").on(table.categoryId, table.productId),
+  ],
 );
 
 export const productOptions = pgTable("product_options", {
@@ -212,7 +223,7 @@ export const productOptions = pgTable("product_options", {
   title: text("title").notNull(),
   displayType: text("display_type").notNull().default("text"),
   position: integer("position").notNull(),
-});
+}, (table) => [index("product_options_product_idx").on(table.productId)]);
 
 export const productOptionValues = pgTable("product_option_values", {
   id: serial("id").primaryKey(),
@@ -221,7 +232,7 @@ export const productOptionValues = pgTable("product_option_values", {
   colorHex: text("color_hex"),
   swatchAssetId: text("swatch_asset_id"),
   position: integer("position").notNull(),
-});
+}, (table) => [index("product_option_values_option_idx").on(table.optionId)]);
 
 export const productVariants = pgTable(
   "product_variants",
@@ -252,7 +263,10 @@ export const productVariants = pgTable(
       .notNull()
       .default(sql`CURRENT_TIMESTAMP`),
   },
-  (table) => [uniqueIndex("product_variants_write_token_idx").on(table.writeToken)],
+  (table) => [
+    uniqueIndex("product_variants_write_token_idx").on(table.writeToken),
+    index("product_variants_product_idx").on(table.productId),
+  ],
 );
 
 export const productVariantMedia = pgTable(
@@ -317,7 +331,10 @@ export const productVariantOptionValues = pgTable(
     variantId: integer("variant_id").notNull(),
     optionValueId: integer("option_value_id").notNull(),
   },
-  (table) => [primaryKey({ columns: [table.variantId, table.optionValueId] })],
+  (table) => [
+    primaryKey({ columns: [table.variantId, table.optionValueId] }),
+    index("product_variant_option_values_option_value_idx").on(table.optionValueId),
+  ],
 );
 
 export const productVariantAttributes = pgTable(
@@ -331,7 +348,10 @@ export const productVariantAttributes = pgTable(
     unit: text("unit"),
     position: integer("position").notNull(),
   },
-  (table) => [uniqueIndex("product_variant_attributes_write_token_idx").on(table.writeToken)],
+  (table) => [
+    uniqueIndex("product_variant_attributes_write_token_idx").on(table.writeToken),
+    index("product_variant_attributes_variant_idx").on(table.variantId),
+  ],
 );
 
 export const productAttributes = pgTable("product_attributes", {
@@ -341,7 +361,7 @@ export const productAttributes = pgTable("product_attributes", {
   value: text("value").notNull(),
   unit: text("unit"),
   position: integer("position").notNull(),
-});
+}, (table) => [index("product_attributes_product_idx").on(table.productId)]);
 
 export const productMedia = pgTable("product_media", {
   id: serial("id").primaryKey(),
@@ -568,6 +588,7 @@ export const customizationClipartAssets = pgTable(
       .$onUpdate(() => new Date())
       .notNull(),
   },
+  (table) => [index("customization_clipart_assets_category_idx").on(table.categoryId)],
 );
 
 // ─── Orders ────────────────────────────────────────────────────────────────────
@@ -614,7 +635,10 @@ export const orders = pgTable("orders", {
     .defaultNow()
     .$onUpdate(() => new Date())
     .notNull(),
-});
+}, (table) => [
+  uniqueIndex("orders_order_number_idx").on(table.orderNumber),
+  index("orders_created_at_idx").on(table.createdAt.desc()),
+]);
 
 export const orderItems = pgTable("order_items", {
   id: serial("id").primaryKey(),
@@ -639,7 +663,10 @@ export const orderItems = pgTable("order_items", {
   createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
     .defaultNow()
     .notNull(),
-});
+}, (table) => [
+  index("order_items_order_idx").on(table.orderId),
+  index("order_items_product_idx").on(table.productId, table.quantity),
+]);
 
 export const orderItemMediaTransfers = pgTable(
   "order_item_media_transfers",
@@ -684,6 +711,7 @@ export const orderItemMediaTransferAssets = pgTable(
   },
   (table) => [
     index("order_item_media_transfer_assets_transfer_idx").on(table.transferId),
+    index("order_item_media_transfer_assets_source_asset_idx").on(table.sourceAssetId),
     uniqueIndex("order_item_media_transfer_assets_target_idx").on(table.targetObjectKey),
   ],
 );
@@ -810,6 +838,7 @@ export const articleCategoryLinks = pgTable(
   },
   (table) => [
     primaryKey({ columns: [table.articleId, table.categoryId] }),
+    index("article_category_links_category_idx").on(table.categoryId, table.articleId),
   ],
 );
 
@@ -826,6 +855,6 @@ export const articleProductLinks = pgTable(
   },
   (table) => [
     primaryKey({ columns: [table.articleId, table.productId] }),
-    index("article_product_links_article_id_idx").on(table.articleId),
+    index("article_product_links_product_idx").on(table.productId),
   ],
 );
