@@ -9,11 +9,12 @@ import {
   Table,
   Text,
 } from "@medusajs/ui";
-import { ArrowUpDown, MoreHorizontal, Search } from "lucide-react";
+import { ArrowUpDown, Search } from "lucide-react";
 import { backendFetch } from "../../lib/fetch";
 import { useBreadcrumbs } from "../../hooks/use-breadcrumbs";
 import { CreateCollectionModal } from "./components/create-collection-modal";
 import type { LocalizedTextValue } from "../../types";
+import { MoreActionsMenu } from "../../components/ui/medusa/more-actions-menu";
 
 type Collection = {
   id: number;
@@ -166,25 +167,13 @@ export function CollectionsListPage() {
                       </Text>
                     </Table.Cell>
                     <Table.Cell className="pr-6">
-                      <DropdownMenu>
-                        <DropdownMenu.Trigger asChild>
-                          <Button
-                            variant="secondary"
-                            size="small"
-                            className="px-2 flex items-center justify-center h-[28px]"
-                          >
-                            <span className="sr-only">More</span>
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenu.Trigger>
-                        <DropdownMenu.Content align="end">
-                          <DropdownMenu.Item asChild>
-                            <Link to={`/collections/${collection.id}`}>
-                              Edit
-                            </Link>
-                          </DropdownMenu.Item>
-                        </DropdownMenu.Content>
-                      </DropdownMenu>
+                      <MoreActionsMenu>
+                        <DropdownMenu.Item asChild>
+                          <Link to={`/collections/${collection.id}`}>
+                            Edit
+                          </Link>
+                        </DropdownMenu.Item>
+                      </MoreActionsMenu>
                     </Table.Cell>
                   </Table.Row>
                 ))

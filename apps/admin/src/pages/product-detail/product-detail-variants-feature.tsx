@@ -16,7 +16,6 @@ import {
   Boxes,
   DollarSign,
   Image as ImageIcon,
-  MoreHorizontal,
   Pencil,
   RefreshCw,
   Trash,
@@ -33,6 +32,7 @@ import { VariantMediaManager } from "./variant-media-manager";
 import { useAuth } from "../../hooks/use-auth";
 import { isSuperAdmin } from "../../lib/auth-utils";
 import { checkProductMisaLinks } from "../../lib/products-client";
+import { MoreActionsMenu } from "../../components/ui/medusa/more-actions-menu";
 
 type ProductDetailVariantsProps = {
   product: CatalogProduct;
@@ -85,24 +85,16 @@ export function ProductDetailVariants({ product, mutate, updateProduct }: Produc
             Variants
           </Heading>
           <div className="flex flex-wrap items-center gap-2">
-            <DropdownMenu>
-              <DropdownMenu.Trigger asChild>
-                <Button variant="secondary" size="small" className="px-2 flex items-center justify-center h-[28px]">
-                  <span className="sr-only">More</span>
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-              </DropdownMenu.Trigger>
-              <DropdownMenu.Content align="end">
-                <DropdownMenu.Item onClick={openPrices}>
-                  <DollarSign className="mr-2 h-4 w-4" />
-                  Edit prices
-                </DropdownMenu.Item>
-                <DropdownMenu.Item onClick={openStock}>
-                  <Boxes className="mr-2 h-4 w-4" />
-                  Edit stock
-                </DropdownMenu.Item>
-              </DropdownMenu.Content>
-            </DropdownMenu>
+            <MoreActionsMenu>
+              <DropdownMenu.Item onClick={openPrices}>
+                <DollarSign className="mr-2 h-4 w-4" />
+                Edit prices
+              </DropdownMenu.Item>
+              <DropdownMenu.Item onClick={openStock}>
+                <Boxes className="mr-2 h-4 w-4" />
+                Edit stock
+              </DropdownMenu.Item>
+            </MoreActionsMenu>
             <Button variant="secondary" size="small" className="h-[28px]" onClick={openCreateVariant}>
               Create
             </Button>
@@ -197,51 +189,44 @@ export function ProductDetailVariants({ product, mutate, updateProduct }: Produc
                     </Text>
                   </Table.Cell>
                   <Table.Cell className="pr-6">
-                    <DropdownMenu>
-                      <DropdownMenu.Trigger asChild>
-                        <IconButton variant="transparent" size="small">
-                          <MoreHorizontal className="h-4 w-4 text-ui-fg-muted" />
-                        </IconButton>
-                      </DropdownMenu.Trigger>
-                      <DropdownMenu.Content align="end">
-                        <DropdownMenu.Item onClick={() => openVariantEditor(variant)}>
-                          <Pencil className="mr-2 h-4 w-4" />
-                          Edit
+                    <MoreActionsMenu trigger="icon">
+                      <DropdownMenu.Item onClick={() => openVariantEditor(variant)}>
+                        <Pencil className="mr-2 h-4 w-4" />
+                        Edit
+                      </DropdownMenu.Item>
+                      <DropdownMenu.Item onClick={() => setMediaVariantId(variant.id)}>
+                        <ImageIcon className="mr-2 h-4 w-4" />
+                        Manage media
+                      </DropdownMenu.Item>
+                      {product.status === "Published" && isSuperAdmin(user?.role) ? (
+                        <DropdownMenu.Item
+                          onClick={() => void handleSyncVariantToMisa(Number(variant.id))}
+                          disabled={syncingMisaVariantId === Number(variant.id)}
+                        >
+                          <RefreshCw className="mr-2 h-4 w-4" />
+                          {syncingMisaVariantId === Number(variant.id)
+                            ? "Syncing MISA"
+                            : variant.misaSyncStatus === "disconnected"
+                              ? "Connect MISA"
+                              : variant.misaSyncStatus === "failed"
+                                ? "Retry MISA sync"
+                                : "Refresh MISA link"}
                         </DropdownMenu.Item>
-                        <DropdownMenu.Item onClick={() => setMediaVariantId(variant.id)}>
-                          <ImageIcon className="mr-2 h-4 w-4" />
-                          Manage media
+                      ) : null}
+                      {product.status === "Published" && isSuperAdmin(user?.role) && variant.misaSyncStatus !== "disconnected" ? (
+                        <DropdownMenu.Item
+                          onClick={() => void handleDisconnectVariantFromMisa(Number(variant.id))}
+                          disabled={syncingMisaVariantId === Number(variant.id)}
+                        >
+                          Disconnect MISA
                         </DropdownMenu.Item>
-                        {product.status === "Published" && isSuperAdmin(user?.role) ? (
-                          <DropdownMenu.Item
-                            onClick={() => void handleSyncVariantToMisa(Number(variant.id))}
-                            disabled={syncingMisaVariantId === Number(variant.id)}
-                          >
-                            <RefreshCw className="mr-2 h-4 w-4" />
-                            {syncingMisaVariantId === Number(variant.id)
-                              ? "Syncing MISA"
-                              : variant.misaSyncStatus === "disconnected"
-                                ? "Connect MISA"
-                                : variant.misaSyncStatus === "failed"
-                                  ? "Retry MISA sync"
-                                  : "Refresh MISA link"}
-                          </DropdownMenu.Item>
-                        ) : null}
-                        {product.status === "Published" && isSuperAdmin(user?.role) && variant.misaSyncStatus !== "disconnected" ? (
-                          <DropdownMenu.Item
-                            onClick={() => void handleDisconnectVariantFromMisa(Number(variant.id))}
-                            disabled={syncingMisaVariantId === Number(variant.id)}
-                          >
-                            Disconnect MISA
-                          </DropdownMenu.Item>
-                        ) : null}
-                        <DropdownMenu.Separator />
-                        <DropdownMenu.Item onClick={() => void handleDeleteVariant(Number(variant.id))}>
-                          <Trash className="mr-2 h-4 w-4 text-ui-fg-error" />
-                          Delete
-                        </DropdownMenu.Item>
-                      </DropdownMenu.Content>
-                    </DropdownMenu>
+                      ) : null}
+                      <DropdownMenu.Separator />
+                      <DropdownMenu.Item onClick={() => void handleDeleteVariant(Number(variant.id))}>
+                        <Trash className="mr-2 h-4 w-4 text-ui-fg-error" />
+                        Delete
+                      </DropdownMenu.Item>
+                    </MoreActionsMenu>
                   </Table.Cell>
                 </Table.Row>
               ))}

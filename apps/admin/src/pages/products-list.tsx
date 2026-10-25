@@ -10,7 +10,7 @@ import {
   IconButton,
   StatusBadge,
 } from "@medusajs/ui";
-import { Plus, MoreHorizontal, ArrowUpDown, X, Check, Trash2, Pencil } from "lucide-react";
+import { Plus, ArrowUpDown, X, Check, Trash2, Pencil } from "lucide-react";
 import {
   fetchProducts,
   deleteProduct,
@@ -18,6 +18,7 @@ import {
 } from "../lib/products-client";
 import type { CatalogProduct } from "../types";
 import {EllipseMiniSolid} from "@medusajs/icons";
+import { MoreActionsMenu } from "../components/ui/medusa/more-actions-menu";
 
 const PAGE_SIZE = 15;
 
@@ -350,23 +351,16 @@ export function ProductsListPage() {
                         </StatusBadge>
                       </Table.Cell>
                       <Table.Cell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenu.Trigger asChild>
-                            <IconButton variant="transparent" size="small">
-                              <MoreHorizontal className="h-4 w-4 text-ui-fg-muted" />
-                            </IconButton>
-                          </DropdownMenu.Trigger>
-                          <DropdownMenu.Content align="end">
-                            <DropdownMenu.Item onClick={() => navigate(`/products/${product.id}`)}>
-                              <Pencil className="h-4 w-4" />
-                              Edit
-                            </DropdownMenu.Item>
-                            <DropdownMenu.Item className="text-ui-fg-error" disabled={deletingId === product.id} onClick={() => void handleDelete(product)}>
-                              <Trash2 className="h-4 w-4" />
-                              Move to trash
-                            </DropdownMenu.Item>
-                          </DropdownMenu.Content>
-                        </DropdownMenu>
+                        <MoreActionsMenu trigger="icon">
+                          <DropdownMenu.Item onClick={() => navigate(`/products/${product.id}`)}>
+                            <Pencil className="h-4 w-4" />
+                            Edit
+                          </DropdownMenu.Item>
+                          <DropdownMenu.Item className="text-ui-fg-error" disabled={deletingId === product.id} onClick={() => void handleDelete(product)}>
+                            <Trash2 className="h-4 w-4" />
+                            Move to trash
+                          </DropdownMenu.Item>
+                        </MoreActionsMenu>
                       </Table.Cell>
                     </Table.Row>
                   ))}

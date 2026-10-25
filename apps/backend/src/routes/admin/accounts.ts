@@ -1,38 +1,14 @@
 import { and, eq } from "drizzle-orm";
 import { Hono, type Context } from "hono";
-import { validator } from "hono/validator";
 import * as v from "valibot";
 import { getDb } from "../../db/client";
 import { sessions, users } from "../../db/schema";
 import { getAuth } from "../../lib/auth";
 import { getAdminSession } from "../../lib/admin-session";
+import { adminAccountEmail, adminCredentialsSchema, adminPasswordSchema, adminPayloadValidator } from "../../lib/admin-credentials";
 import type { AppEnv } from "../../lib/env";
 
-const createAccountSchema = v.object({
-  username: v.pipe(
-    v.string(),
-    v.trim(),
-    v.nonEmpty("Username is required."),
-    v.minLength(3, "Username must be at least 3 characters."),
-  ),
-  password: v.pipe(
-    v.string(),
-    v.nonEmpty("Password is required."),
-    v.minLength(8, "Password must be at least 8 characters."),
-  ),
-});
-
-const resetPasswordSchema = v.object({
-  password: v.pipe(
-    v.string(),
-    v.nonEmpty("Password is required."),
-    v.minLength(8, "Password must be at least 8 characters."),
-  ),
-});
-
-function buildEmail(username: string) {
-  return `${username.trim().toLowerCase()}@admin.trophy.local`;
-}
+const resetPasswordSchema = v.object({ password: adminPasswordSchema });
 
 async function requireSuperAdmin(c: Context<AppEnv>) {
   const session = await getAdminSession(c.env, c.req.raw.headers);
@@ -76,13 +52,7 @@ export const adminAccountsRoute = new Hono<AppEnv>()
   })
   .post(
     "/create",
-    validator("json", (body, c) => {
-      const result = v.safeParse(createAccountSchema, body);
-      if (!result.success) {
-        return c.json({ message: "Invalid payload.", issues: result.issues }, 400);
-      }
-      return result.output;
-    }),
+    adminPayloadValidator(adminCredentialsSchema),
     async (c) => {
     if (!(await requireSuperAdmin(c))) {
       return c.json({ message: "Forbidden" }, 403);
@@ -95,7 +65,7 @@ export const adminAccountsRoute = new Hono<AppEnv>()
     // @ts-ignore Better Auth exposes admin APIs at runtime for server-side use.
     const created = await auth.api.createUser({
       body: {
-        email: buildEmail(parsed.username),
+        email: adminAccountEmail(parsed.username),
         name: parsed.username,
         password: parsed.password,
         role: "admin",
@@ -160,13 +130,7 @@ export const adminAccountsRoute = new Hono<AppEnv>()
   })
   .post(
     "/:userId/password",
-    validator("json", (body, c) => {
-      const result = v.safeParse(resetPasswordSchema, body);
-      if (!result.success) {
-        return c.json({ message: "Invalid payload.", issues: result.issues }, 400);
-      }
-      return result.output;
-    }),
+    adminPayloadValidator(resetPasswordSchema),
     async (c) => {
     if (!(await requireSuperAdmin(c))) {
       return c.json({ message: "Forbidden" }, 403);

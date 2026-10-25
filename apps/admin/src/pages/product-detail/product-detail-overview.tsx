@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { Container, Heading, Text, Drawer, Button, Input, StatusBadge, DropdownMenu, IconButton, Select, Label, toast } from "@medusajs/ui";
-import { MoreHorizontal } from "lucide-react";
+import { Container, Heading, Text, Drawer, Button, Input, StatusBadge, DropdownMenu, Select, Label, toast } from "@medusajs/ui";
 import type { CatalogProduct } from "../../types";
 import { updateProductOverview, publishProduct, archiveProduct } from "../../lib/products-client";
 import { validateProductTitle } from "../../lib/product-utils";
 import { LocalizedTextField } from "../../components/ui/medusa";
 import type { AdminLocale } from "../../types";
+import { MoreActionsMenu } from "../../components/ui/medusa/more-actions-menu";
 
 type ProductDetailOverviewProps = {
   product: CatalogProduct;
@@ -86,21 +86,14 @@ export function ProductDetailOverview({ product, mutate }: ProductDetailOverview
             <StatusBadge color={product.status === "Published" ? "green" : "grey"}>
               {product.status}
             </StatusBadge>
-            <DropdownMenu>
-              <DropdownMenu.Trigger asChild>
-                <IconButton variant="transparent" size="small">
-                  <MoreHorizontal className="h-4 w-4 text-ui-fg-muted" />
-                </IconButton>
-              </DropdownMenu.Trigger>
-              <DropdownMenu.Content align="end">
-                <DropdownMenu.Item onClick={() => handleOpen(true)}>
-                  Edit
-                </DropdownMenu.Item>
-                <DropdownMenu.Item className="text-ui-fg-error">
-                  Delete
-                </DropdownMenu.Item>
-              </DropdownMenu.Content>
-            </DropdownMenu>
+            <MoreActionsMenu trigger="icon">
+              <DropdownMenu.Item onClick={() => handleOpen(true)}>
+                Edit
+              </DropdownMenu.Item>
+              <DropdownMenu.Item className="text-ui-fg-error">
+                Delete
+              </DropdownMenu.Item>
+            </MoreActionsMenu>
           </div>
         </div>
 

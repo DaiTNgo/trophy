@@ -12,6 +12,7 @@ import {
 import { validateProductOptionDraft } from "../../lib/product-utils";
 import { ProductOptionEditor } from "../../components/product/ProductOptionEditor";
 import type { CatalogProduct, AdminLocale, OptionDraft } from "../../types";
+import { MoreActionsMenu } from "../../components/ui/medusa/more-actions-menu";
 
 type ProductDetailOptionsProps = {
   product: CatalogProduct;
@@ -139,16 +140,9 @@ export function ProductDetailOptions({ product, mutate }: ProductDetailOptionsPr
           <Heading level="h2" className="text-xl font-semibold">
             Options
           </Heading>
-          <DropdownMenu>
-            <DropdownMenu.Trigger asChild>
-              <IconButton variant="transparent" size="small">
-                <MoreHorizontal className="h-4 w-4 text-ui-fg-muted" />
-              </IconButton>
-            </DropdownMenu.Trigger>
-            <DropdownMenu.Content align="end">
-              <DropdownMenu.Item onClick={openAddOption}>Add Option</DropdownMenu.Item>
-            </DropdownMenu.Content>
-          </DropdownMenu>
+          <MoreActionsMenu trigger="icon">
+            <DropdownMenu.Item onClick={openAddOption}>Add Option</DropdownMenu.Item>
+          </MoreActionsMenu>
         </div>
 
         {product.optionDefinitions.length === 0 ? (

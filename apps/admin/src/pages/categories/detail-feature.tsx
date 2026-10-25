@@ -32,7 +32,8 @@ import {
   type AdminLocale,
   type LocalizedTextValue,
 } from "../../components/ui/medusa";
-import { MoreHorizontal, Pencil, Trash, Info } from "lucide-react";
+import { Pencil, Trash, Info } from "lucide-react";
+import { MoreActionsMenu } from "../../components/ui/medusa/more-actions-menu";
 
 export function CategoryDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -243,35 +244,23 @@ export function CategoryDetailPage() {
                 >
                   {visibility === "hidden" ? "Hidden" : "Public"}
                 </StatusBadge>
-                <DropdownMenu>
-                  <DropdownMenu.Trigger asChild>
-                    <Button
-                      variant="secondary"
-                      size="small"
-                      className="px-2 flex items-center justify-center h-[28px]"
-                    >
-                      <span className="sr-only">More</span>
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenu.Trigger>
-                  <DropdownMenu.Content align="end">
+                <MoreActionsMenu>
+                  <DropdownMenu.Item
+                    onClick={() => setIsEditDrawerOpen(true)}
+                  >
+                    <Pencil className="mr-2 h-4 w-4" />
+                    Edit Category
+                  </DropdownMenu.Item>
+                  {!isSystem ? (
                     <DropdownMenu.Item
-                      onClick={() => setIsEditDrawerOpen(true)}
+                      onClick={handleDelete}
+                      className="text-ui-fg-danger"
                     >
-                      <Pencil className="mr-2 h-4 w-4" />
-                      Edit Category
+                      <Trash className="mr-2 h-4 w-4" />
+                      Delete Category
                     </DropdownMenu.Item>
-                    {!isSystem ? (
-                      <DropdownMenu.Item
-                        onClick={handleDelete}
-                        className="text-ui-fg-danger"
-                      >
-                        <Trash className="mr-2 h-4 w-4" />
-                        Delete Category
-                      </DropdownMenu.Item>
-                    ) : null}
-                  </DropdownMenu.Content>
-                </DropdownMenu>
+                  ) : null}
+                </MoreActionsMenu>
               </div>
             </div>
             <div className="flex flex-col border-t border-ui-border-base">
@@ -304,26 +293,14 @@ export function CategoryDetailPage() {
               <Heading level="h2" className="text-xl font-semibold">
                 Organize
               </Heading>
-              <DropdownMenu>
-                <DropdownMenu.Trigger asChild>
-                  <Button
-                    variant="secondary"
-                    size="small"
-                    className="px-2 flex items-center justify-center h-[28px]"
-                  >
-                    <span className="sr-only">More</span>
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
-                </DropdownMenu.Trigger>
-                <DropdownMenu.Content align="end">
-                  <DropdownMenu.Item
-                    onClick={() => setIsRankingModalOpen(true)}
-                  >
-                    <Pencil className="mr-2 h-4 w-4" />
-                    Edit ranking
-                  </DropdownMenu.Item>
-                </DropdownMenu.Content>
-              </DropdownMenu>
+              <MoreActionsMenu>
+                <DropdownMenu.Item
+                  onClick={() => setIsRankingModalOpen(true)}
+                >
+                  <Pencil className="mr-2 h-4 w-4" />
+                  Edit ranking
+                </DropdownMenu.Item>
+              </MoreActionsMenu>
             </div>
             <div className="flex flex-col border-t border-ui-border-base">
               <div className="grid grid-cols-2 items-center px-6 py-4">

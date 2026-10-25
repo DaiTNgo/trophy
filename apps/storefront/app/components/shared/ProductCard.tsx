@@ -27,6 +27,31 @@ interface ProductCardProps {
   variant?: "default" | "featured" | "listing";
 }
 
+const GRID_CARD_STYLES = {
+  listing: {
+    media: "mb-4 px-3",
+    sizes: "(min-width: 1024px) 249px, (min-width: 640px) calc((100vw - 64px) / 3), calc((100vw - 48px) / 2)",
+    placeholder: "bg-surface-subtle",
+    placeholderIcon: "text-text-muted",
+    titleHover: "group-hover:line-clamp-none",
+    rating: "mb-2 gap-1.5",
+    icon: "h-3.5 w-3.5",
+    reviewsCount: "text-[10px] leading-none",
+    priceLeading: "leading-5",
+  },
+  featured: {
+    media: "mb-5",
+    sizes: "(min-width: 1280px) 267px, (min-width: 1024px) calc((100vw - 160px) / 4), (min-width: 768px) calc((100vw - 96px) / 4), calc((100vw - 48px) / 2)",
+    placeholder: "bg-surface-container-low",
+    placeholderIcon: "text-on-surface-variant",
+    titleHover: "hover:line-clamp-none",
+    rating: "mb-3 gap-2",
+    icon: "h-4 w-4",
+    reviewsCount: "text-xs",
+    priceLeading: "leading-6",
+  },
+};
+
 export function ProductCard({
   handle,
   categoryHandle,
@@ -68,98 +93,48 @@ export function ProductCard({
     from,
   });
 
-  if (variant === "listing") {
+  if (variant === "listing" || variant === "featured") {
+    const style = GRID_CARD_STYLES[variant];
     return (
       <div className="group flex h-full flex-col rounded-lg p-3 transition-shadow duration-300 hover:shadow-[0_0_10px_rgba(36,65,89,0.18)]">
         <Link
           to={productHref}
-          className="relative mb-4 flex aspect-square w-full items-center justify-center overflow-hidden bg-surface-base px-3"
+          className={`relative ${style.media} flex aspect-square w-full items-center justify-center overflow-hidden bg-surface-base`}
         >
           {imgSrc ? (
-            <CardImages src={imgSrc} hoverImage={hoverImage} alt={imageAlt} className="group-hover:scale-[1.08]" sizes="(min-width: 1024px) 249px, (min-width: 640px) calc((100vw - 64px) / 3), calc((100vw - 48px) / 2)" />
+            <CardImages src={imgSrc} hoverImage={hoverImage} alt={imageAlt} className="group-hover:scale-[1.08]" sizes={style.sizes} />
           ) : (
-            <div className="absolute inset-0 flex items-center justify-center bg-surface-subtle">
-              <Image className="h-10 w-10 text-text-muted" />
+            <div className={`absolute inset-0 flex items-center justify-center ${style.placeholder}`}>
+              <Image className={`h-10 w-10 ${style.placeholderIcon}`} />
             </div>
           )}
         </Link>
 
         <div className="flex w-full flex-1 flex-col items-center text-center px-1">
           <Link to={productHref} className="mb-1 flex w-full justify-center text-center">
-            <h3 className="min-h-[24px] max-w-[260px] mx-auto text-center font-body-md text-[16px] font-semibold leading-[24px] text-text-base transition-colors line-clamp-1 group-hover:line-clamp-none">
+            <h3 className={`min-h-[24px] max-w-[260px] mx-auto text-center font-body-md text-[16px] font-semibold leading-[24px] text-text-base transition-colors line-clamp-1 ${style.titleHover}`}>
               {title}
             </h3>
           </Link>
 
           {(rating > 0 || reviewsCount > 0) && (
-            <div className="mb-2 flex items-center justify-center gap-1.5">
+            <div className={`${style.rating} flex items-center justify-center`}>
               <div className="flex text-indicator-rating">
                 {Array.from({ length: fullStars }).map((_, i) => (
-                  <Star key={`full-${i}`} className="h-3.5 w-3.5" fill="currentColor" />
+                  <Star key={`full-${i}`} className={style.icon} fill="currentColor" />
                 ))}
-                {hasHalfStar && <StarHalf className="h-3.5 w-3.5" fill="currentColor" />}
+                {hasHalfStar && <StarHalf className={style.icon} fill="currentColor" />}
               </div>
               {reviewsCount > 0 && (
-                <span className="text-[10px] leading-none text-text-muted">({reviewsCount})</span>
+                <span className={`${style.reviewsCount} text-text-muted`}>({reviewsCount})</span>
               )}
             </div>
           )}
 
-          <span className="font-body-md text-[16px] font-semibold leading-5 text-brand-accent">
+          <span className={`font-body-md text-[16px] font-semibold ${style.priceLeading} text-brand-accent`}>
             {isContactPrice ? (
               <span className="text-action-support">
-                <Headset className="inline h-3.5 w-3.5 align-text-bottom" /> {t("contact_short", "Liên Hệ")}
-              </span>
-            ) : (
-              <>{priceFrom ? `${t("price_from", "Từ")} ` : ""}{displayPrice}</>
-            )}
-          </span>
-        </div>
-      </div>
-    );
-  }
-
-  if (variant === "featured") {
-    return (
-      <div className="group flex h-full flex-col rounded-lg p-3 transition-shadow duration-300 hover:shadow-[0_0_10px_rgba(36,65,89,0.18)]">
-        <Link
-          to={productHref}
-          className="relative mb-5 flex aspect-square w-full items-center justify-center overflow-hidden bg-surface-base"
-        >
-          {imgSrc ? (
-            <CardImages src={imgSrc} hoverImage={hoverImage} alt={imageAlt} className="group-hover:scale-[1.08]" sizes="(min-width: 1280px) 267px, (min-width: 1024px) calc((100vw - 160px) / 4), (min-width: 768px) calc((100vw - 96px) / 4), calc((100vw - 48px) / 2)" />
-          ) : (
-            <div className="absolute inset-0 flex items-center justify-center bg-surface-container-low">
-              <Image className="h-10 w-10 text-on-surface-variant" />
-            </div>
-          )}
-        </Link>
-
-        <div className="flex w-full flex-1 flex-col items-center text-center px-1">
-          <Link to={productHref} className="mb-1 flex w-full justify-center text-center">
-            <h3 className="min-h-[24px] max-w-[260px] mx-auto text-center font-body-md text-[16px] font-semibold leading-[24px] text-text-base transition-colors line-clamp-1 hover:line-clamp-none">
-              {title}
-            </h3>
-          </Link>
-
-          {(rating > 0 || reviewsCount > 0) && (
-            <div className="mb-3 flex items-center justify-center gap-2">
-              <div className="flex text-indicator-rating">
-                {Array.from({ length: fullStars }).map((_, i) => (
-                  <Star key={`full-${i}`} className="h-4 w-4" fill="currentColor" />
-                ))}
-                {hasHalfStar && <StarHalf className="h-4 w-4" fill="currentColor" />}
-              </div>
-              {reviewsCount > 0 && (
-                <span className="text-xs text-text-muted">({reviewsCount})</span>
-              )}
-            </div>
-          )}
-
-          <span className="font-body-md text-[16px] font-semibold leading-6 text-brand-accent">
-            {isContactPrice ? (
-              <span className="text-action-support">
-                <Headset className="inline h-4 w-4 align-text-bottom" /> {t("contact_short", "Liên Hệ")}
+                <Headset className={`inline ${style.icon} align-text-bottom`} /> {t("contact_short", "Liên Hệ")}
               </span>
             ) : (
               <>{priceFrom ? `${t("price_from", "Từ")} ` : ""}{displayPrice}</>

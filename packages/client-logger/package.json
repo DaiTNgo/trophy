@@ -1,0 +1,17 @@
+{
+  "name": "@trophy/client-logger",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "pino": "^10.4.0"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2"
+  }
+}

@@ -10,12 +10,13 @@ import {
   Text,
   StatusBadge,
 } from "@medusajs/ui";
-import { MoreHorizontal, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import { backendFetch } from "../../lib/fetch";
 import { EditRankingModal } from "./components/edit-ranking-modal";
 import { CreateCategoryModal } from "./components/create-category-modal";
 import { useBreadcrumbs } from "../../hooks/use-breadcrumbs";
 import type { LocalizedTextValue } from "../../types";
+import { MoreActionsMenu } from "../../components/ui/medusa/more-actions-menu";
 
 type Category = {
   id: number;
@@ -136,19 +137,11 @@ export function CategoriesListPage() {
                       </StatusBadge>
                     </Table.Cell>
                     <Table.Cell className="pr-6">
-                      <DropdownMenu>
-                        <DropdownMenu.Trigger asChild>
-                          <Button variant="secondary" size="small" className="px-2 flex items-center justify-center h-[28px]">
-                            <span className="sr-only">More</span>
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenu.Trigger>
-                        <DropdownMenu.Content align="end">
-                          <DropdownMenu.Item asChild>
-                            <Link to={`/categories/${category.id}`}>Edit</Link>
-                          </DropdownMenu.Item>
-                        </DropdownMenu.Content>
-                      </DropdownMenu>
+                      <MoreActionsMenu>
+                        <DropdownMenu.Item asChild>
+                          <Link to={`/categories/${category.id}`}>Edit</Link>
+                        </DropdownMenu.Item>
+                      </MoreActionsMenu>
                     </Table.Cell>
                   </Table.Row>
                 ))

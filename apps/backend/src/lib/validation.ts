@@ -32,24 +32,10 @@ const formatIssues = (issues: unknown[]) =>
     }
   })
 
-export const jsonError = (c: Context, status: number, error: string) =>
-  c.json({ error }, status as 400 | 404 | 409 | 422)
-
-export const parseJson = async <TOutput>(
+const validationResult = <TOutput>(
   c: Context,
-  schema: v.BaseSchema<unknown, TOutput, v.BaseIssue<unknown>>
+  result: v.SafeParseResult<v.BaseSchema<unknown, TOutput, v.BaseIssue<unknown>>>
 ) => {
-  const payload = await c.req.json().catch(() => undefined)
-
-  if (payload === undefined) {
-    return {
-      success: false as const,
-      response: c.json({ error: 'Invalid JSON body' }, 400)
-    }
-  }
-
-  const result = v.safeParse(schema, payload)
-
   if (!result.success) {
     return {
       success: false as const,
@@ -69,27 +55,28 @@ export const parseJson = async <TOutput>(
   }
 }
 
+export const jsonError = (c: Context, status: number, error: string) =>
+  c.json({ error }, status as 400 | 404 | 409 | 422)
+
+export const parseJson = async <TOutput>(
+  c: Context,
+  schema: v.BaseSchema<unknown, TOutput, v.BaseIssue<unknown>>
+) => {
+  const payload = await c.req.json().catch(() => undefined)
+
+  if (payload === undefined) {
+    return {
+      success: false as const,
+      response: c.json({ error: 'Invalid JSON body' }, 400)
+    }
+  }
+
+  return validationResult(c, v.safeParse(schema, payload))
+}
+
 export const parseParams = <TOutput>(
   c: Context,
   schema: v.BaseSchema<unknown, TOutput, v.BaseIssue<unknown>>
 ) => {
-  const result = v.safeParse(schema, c.req.param())
-
-  if (!result.success) {
-    return {
-      success: false as const,
-      response: c.json(
-        {
-          error: 'Validation failed',
-          issues: formatIssues(result.issues)
-        },
-        400
-      )
-    }
-  }
-
-  return {
-    success: true as const,
-    output: result.output
-  }
+  return validationResult(c, v.safeParse(schema, c.req.param()))
 }

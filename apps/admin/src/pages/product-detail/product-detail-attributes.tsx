@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { Button, Container, Heading, Text, Drawer, DropdownMenu, IconButton, toast } from "@medusajs/ui";
-import { MoreHorizontal } from "lucide-react";
+import { Button, Container, Heading, Text, Drawer, DropdownMenu, toast } from "@medusajs/ui";
 import { updateProductAttributes } from "../../lib/products-client";
 import { validateProductAttributes, isAttributeRowActive } from "../../lib/product-utils";
 import type { CatalogProduct, ProductAttribute, AdminLocale } from "../../types";
 import { ProductAttributesEditor } from "../../components/products/product-attributes-editor";
+import { MoreActionsMenu } from "../../components/ui/medusa/more-actions-menu";
 
 type ProductDetailAttributesProps = {
   product: CatalogProduct;
@@ -61,18 +61,11 @@ export function ProductDetailAttributes({ product, mutate }: ProductDetailAttrib
       <div className="flex flex-col">
         <div className="flex items-center justify-between px-6 py-4">
           <Heading level="h2" className="text-xl font-semibold">Attributes</Heading>
-          <DropdownMenu>
-            <DropdownMenu.Trigger asChild>
-              <IconButton variant="transparent" size="small">
-                <MoreHorizontal className="h-4 w-4 text-ui-fg-muted" />
-              </IconButton>
-            </DropdownMenu.Trigger>
-            <DropdownMenu.Content align="end">
-              <DropdownMenu.Item onClick={() => setOpen(true)}>
-                Edit
-              </DropdownMenu.Item>
-            </DropdownMenu.Content>
-          </DropdownMenu>
+          <MoreActionsMenu trigger="icon">
+            <DropdownMenu.Item onClick={() => setOpen(true)}>
+              Edit
+            </DropdownMenu.Item>
+          </MoreActionsMenu>
         </div>
 
         <Drawer open={open} onOpenChange={handleOpen}>

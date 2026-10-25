@@ -8,12 +8,10 @@ import {
   Table,
   Text,
   DropdownMenu,
-  IconButton,
   StatusBadge,
 } from "@medusajs/ui";
 import {
   Plus,
-  MoreHorizontal,
   Check,
   X,
   Pencil,
@@ -27,6 +25,7 @@ import {
   type ArticleCategory,
   type ArticleListParams,
 } from "../lib/articles-client";
+import { MoreActionsMenu } from "../components/ui/medusa/more-actions-menu";
 
 const PAGE_SIZE = 15;
 
@@ -35,6 +34,55 @@ const STATUS_META: Record<Article["status"], { label: string; color: "green" | "
   draft: { label: "Draft", color: "grey" },
   scheduled: { label: "Scheduled", color: "orange" },
 };
+
+/** "<label> is <value>" filter pill with a single-choice dropdown and a clear button. */
+function SingleSelectFilterChip<T extends string>({
+  label,
+  value,
+  options,
+  onChange,
+  onClear,
+}: {
+  label: string;
+  value: T;
+  options: Array<{ value: T; label: string }>;
+  onChange: (value: T) => void;
+  onClear: () => void;
+}) {
+  return (
+    <div className="flex items-center rounded-md border border-ui-border-base shadow-sm text-sm overflow-hidden bg-ui-bg-base">
+      <div className="px-2 py-1 font-medium bg-ui-bg-subtle border-r border-ui-border-base">{label}</div>
+      <div className="px-2 py-1 text-ui-fg-muted border-r border-ui-border-base">is</div>
+      <DropdownMenu>
+        <DropdownMenu.Trigger className="px-2 py-1 hover:bg-ui-bg-subtle-hover flex items-center gap-x-1 outline-none text-ui-fg-base cursor-pointer">
+          <span>{options.find((option) => option.value === value)?.label ?? value}</span>
+        </DropdownMenu.Trigger>
+        <DropdownMenu.Content align="start">
+          {options.map((option) => (
+            <DropdownMenu.Item
+              key={option.value}
+              onClick={(e) => {
+                e.preventDefault();
+                onChange(option.value);
+              }}
+            >
+              <div className="flex items-center gap-x-2">
+                <Check className={value === option.value ? "visible h-4 w-4" : "invisible h-4 w-4"} />
+                <span>{option.label}</span>
+              </div>
+            </DropdownMenu.Item>
+          ))}
+        </DropdownMenu.Content>
+      </DropdownMenu>
+      <button
+        className="px-2 py-1 hover:bg-ui-bg-subtle-hover text-ui-fg-muted hover:text-ui-fg-base border-l border-ui-border-base transition-colors"
+        onClick={onClear}
+      >
+        <X className="h-3 w-3" />
+      </button>
+    </div>
+  );
+}
 
 export function ArticlesListPage() {
   const navigate = useNavigate();
@@ -141,71 +189,23 @@ export function ArticlesListPage() {
         <div className="flex items-center justify-between px-6 py-4">
           <div className="flex items-center gap-x-2 flex-wrap">
             {statusFilter && (
-              <div className="flex items-center rounded-md border border-ui-border-base shadow-sm text-sm overflow-hidden bg-ui-bg-base">
-                <div className="px-2 py-1 font-medium bg-ui-bg-subtle border-r border-ui-border-base">Status</div>
-                <div className="px-2 py-1 text-ui-fg-muted border-r border-ui-border-base">is</div>
-                <DropdownMenu>
-                  <DropdownMenu.Trigger className="px-2 py-1 hover:bg-ui-bg-subtle-hover flex items-center gap-x-1 outline-none text-ui-fg-base cursor-pointer">
-                    <span>{STATUS_META[statusFilter].label}</span>
-                  </DropdownMenu.Trigger>
-                  <DropdownMenu.Content align="start">
-                    {(["draft", "published", "scheduled"] as const).map((s) => (
-                      <DropdownMenu.Item
-                        key={s}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          setStatusFilter(s);
-                        }}
-                      >
-                        <div className="flex items-center gap-x-2">
-                          <Check className={statusFilter === s ? "visible h-4 w-4" : "invisible h-4 w-4"} />
-                          <span>{STATUS_META[s].label}</span>
-                        </div>
-                      </DropdownMenu.Item>
-                    ))}
-                  </DropdownMenu.Content>
-                </DropdownMenu>
-                <button
-                  className="px-2 py-1 hover:bg-ui-bg-subtle-hover text-ui-fg-muted hover:text-ui-fg-base border-l border-ui-border-base transition-colors"
-                  onClick={() => setStatusFilter("")}
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </div>
+              <SingleSelectFilterChip
+                label="Status"
+                value={statusFilter}
+                options={(["draft", "published", "scheduled"] as const).map((s) => ({ value: s, label: STATUS_META[s].label }))}
+                onChange={setStatusFilter}
+                onClear={() => setStatusFilter("")}
+              />
             )}
 
             {categoryFilter && (
-              <div className="flex items-center rounded-md border border-ui-border-base shadow-sm text-sm overflow-hidden bg-ui-bg-base">
-                <div className="px-2 py-1 font-medium bg-ui-bg-subtle border-r border-ui-border-base">Category</div>
-                <div className="px-2 py-1 text-ui-fg-muted border-r border-ui-border-base">is</div>
-                <DropdownMenu>
-                  <DropdownMenu.Trigger className="px-2 py-1 hover:bg-ui-bg-subtle-hover flex items-center gap-x-1 outline-none text-ui-fg-base cursor-pointer">
-                    <span>{categories.find((c) => c.slug === categoryFilter)?.name ?? categoryFilter}</span>
-                  </DropdownMenu.Trigger>
-                  <DropdownMenu.Content align="start">
-                    {categories.map((c) => (
-                      <DropdownMenu.Item
-                        key={c.id}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          setCategoryFilter(c.slug);
-                        }}
-                      >
-                        <div className="flex items-center gap-x-2">
-                          <Check className={categoryFilter === c.slug ? "visible h-4 w-4" : "invisible h-4 w-4"} />
-                          <span>{c.name}</span>
-                        </div>
-                      </DropdownMenu.Item>
-                    ))}
-                  </DropdownMenu.Content>
-                </DropdownMenu>
-                <button
-                  className="px-2 py-1 hover:bg-ui-bg-subtle-hover text-ui-fg-muted hover:text-ui-fg-base border-l border-ui-border-base transition-colors"
-                  onClick={() => setCategoryFilter("")}
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </div>
+              <SingleSelectFilterChip
+                label="Category"
+                value={categoryFilter}
+                options={categories.map((c) => ({ value: c.slug, label: c.name }))}
+                onChange={setCategoryFilter}
+                onClear={() => setCategoryFilter("")}
+              />
             )}
 
             {!statusFilter && !categoryFilter && (
@@ -308,27 +308,20 @@ export function ArticlesListPage() {
                           </Text>
                         </Table.Cell>
                         <Table.Cell className="text-right">
-                          <DropdownMenu>
-                            <DropdownMenu.Trigger asChild>
-                              <IconButton variant="transparent" size="small">
-                                <MoreHorizontal className="h-4 w-4 text-ui-fg-muted" />
-                              </IconButton>
-                            </DropdownMenu.Trigger>
-                            <DropdownMenu.Content align="end">
-                              <DropdownMenu.Item onClick={() => navigate(`/articles/${article.id}`)}>
-                                <Pencil className="h-4 w-4" />
-                                Edit
-                              </DropdownMenu.Item>
-                              <DropdownMenu.Item
-                                className="text-ui-fg-error"
-                                disabled={deletingId === article.id}
-                                onClick={() => void handleDelete(article)}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                                Delete
-                              </DropdownMenu.Item>
-                            </DropdownMenu.Content>
-                          </DropdownMenu>
+                          <MoreActionsMenu trigger="icon">
+                            <DropdownMenu.Item onClick={() => navigate(`/articles/${article.id}`)}>
+                              <Pencil className="h-4 w-4" />
+                              Edit
+                            </DropdownMenu.Item>
+                            <DropdownMenu.Item
+                              className="text-ui-fg-error"
+                              disabled={deletingId === article.id}
+                              onClick={() => void handleDelete(article)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              Delete
+                            </DropdownMenu.Item>
+                          </MoreActionsMenu>
                         </Table.Cell>
                       </Table.Row>
                     );

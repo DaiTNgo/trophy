@@ -1,3 +1,53 @@
+import { createContext, useContext, useState, type ReactNode, type RefObject } from "react";
+import {
+  DragHandle as BaseDragHandle,
+  SortableHandleContext,
+  SortableIndicator,
+  useSortableItem,
+  reorderWithEdge,
+  type Edge,
+} from "../sortable";
+import {
+  ArrowDown,
+  ArrowUp,
+  CircleDashed,
+  Eye,
+  EyeOff,
+  Hexagon,
+  Lock,
+  Shapes,
+  Trash2,
+  Type,
+  Unlock,
+} from "lucide-react";
+import {
+  type CustomizationFormField,
+  type CustomizationTemplate,
+  type LocalizedTextInput,
+  type ShapeType,
+  resolveLocalizedInput,
+} from "@trophy/customization";
+import { Heading, Text } from "@medusajs/ui";
+import { LocalizedTextField } from "../ui/medusa/localized-field";
+import type { LocalizedTextValue } from "../../types";
+import { BackgroundUpload, shapeLabel } from "./customization-template-ui";
+
+function toLocalizedValue(
+  value: string | LocalizedTextInput | undefined | null,
+): LocalizedTextValue {
+  if (typeof value === "string") return { vi: value, en: "" };
+  return { vi: value?.vi ?? "", en: value?.en ?? "" };
+}
+
+const SHAPES: ShapeType[] = [
+  "rectangle",
+  "circle",
+  "rounded_rectangle",
+];
+type SortableListKind = "layers" | "form";
+
+export { SortableScrollContainerContext };
+
 export function BlocksPanel({
   template,
   onAddText,
@@ -409,90 +459,21 @@ function SortablePanelItem({
     closestEdge: Edge | null,
   ) => void;
 }) {
-  const elementRef = useRef<HTMLDivElement | null>(null);
-  const dragHandleRef = useRef<HTMLButtonElement | null>(null);
   const scrollContainerRef = useContext(SortableScrollContainerContext);
-  const [isDragging, setIsDragging] = useState(false);
-  const [closestEdge, setClosestEdge] = useState<Edge | null>(null);
-
-  useEffect(() => {
-    const element = elementRef.current;
-    const dragHandle = dragHandleRef.current;
-    const scrollContainer = scrollContainerRef?.current;
-    if (!element || !dragHandle) return;
-    const data = { kind, itemId: id };
-
-    function onChange({ source, self }: any) {
-      if (source.data.kind !== kind || typeof source.data.itemId !== "string") return;
-
-      const edge = extractClosestEdge(self.data);
-      if (!edge) return;
-
-      const sourceIndex = items.findIndex((item) => item.id === source.data.itemId);
-      const index = items.findIndex((item) => item.id === id);
-
-      const isItemBeforeSource = index === sourceIndex - 1;
-      const isItemAfterSource = index === sourceIndex + 1;
-
-      const isDropIndicatorHidden =
-        (isItemBeforeSource && edge === "bottom") ||
-        (isItemAfterSource && edge === "top");
-
-      if (isDropIndicatorHidden) {
-        setClosestEdge(null);
-        return;
-      }
-
-      setClosestEdge(edge);
-    }
-
-    return combine(
-      scrollContainer
-        ? autoScrollForElements({
-            element: scrollContainer,
-            canScroll: ({ source }: any) => source.data.kind === kind,
-            getAllowedAxis: () => "vertical",
-          })
-        : () => {},
-      draggable({
-        element,
-        dragHandle,
-        getInitialData: () => data,
-        onDragStart: () => setIsDragging(true),
-        onDrop: () => setIsDragging(false),
-      }),
-      dropTargetForElements({
-        element,
-        canDrop: ({ source }) =>
-          source.data.kind === kind && source.data.itemId !== id,
-        getData: ({ input }) =>
-          attachClosestEdge(data, {
-            element,
-            input,
-            allowedEdges: ["top", "bottom"],
-          }),
-        onDragEnter: onChange,
-        onDrag: onChange,
-        onDragLeave: () => setClosestEdge(null),
-        onDrop: ({ self, source }) => {
-          setClosestEdge(null);
-          if (
-            source.data.kind !== kind ||
-            typeof source.data.itemId !== "string"
-          )
-            return;
-          onReorder(source.data.itemId, id, extractClosestEdge(self.data));
-        },
-      }),
-    );
-  }, [id, kind, items, onReorder]);
+  const { elementRef, dragHandleRef, isDragging, closestEdge } = useSortableItem({
+    id,
+    kind,
+    items,
+    onReorder,
+    scrollContainer: scrollContainerRef,
+  });
 
   return (
     <div
       ref={elementRef}
       className={`relative rounded-md border p-3 transition-colors duration-500 ${isSelected ? "border-ui-fg-interactive" : "border-ui-border-base"} ${isMuted ? "opacity-50" : ""} ${isDragging ? "opacity-40" : ""} ${isFlashing ? "bg-ui-fg-interactive/10" : ""}`}
     >
-      {closestEdge ? <SortableIndicator edge={closestEdge} /> : null}
+      {closestEdge ? <SortableIndicator edge={closestEdge} offsetClassName={INDICATOR_OFFSET} /> : null}
       <div className="space-y-2">
         <SortableHandleContext.Provider value={dragHandleRef}>
           {children}
@@ -502,36 +483,18 @@ function SortablePanelItem({
   );
 }
 
-const SortableHandleContext =
-  createContext<RefObject<HTMLButtonElement | null> | null>(null);
 const SortableScrollContainerContext =
   createContext<RefObject<HTMLDivElement | null> | null>(null);
 
-function DragHandle({ label }: { label: string }) {
-  const handleRef = useContext(SortableHandleContext);
-  return (
-    <button
-      ref={handleRef}
-      type="button"
-      aria-label={label}
-      className="mt-0.5 cursor-grab rounded border border-ui-border-base p-1 text-ui-fg-muted active:cursor-grabbing"
-    >
-      <GripVertical className="size-3" />
-    </button>
-  );
-}
+const INDICATOR_OFFSET = { top: "-top-2", bottom: "-bottom-2" };
 
-function SortableIndicator({ edge }: { edge: Edge }) {
-  const isTop = edge === "top";
+function DragHandle({ label }: { label: string }) {
   return (
-    <div
-      className={`pointer-events-none absolute left-0 right-0 z-50 flex items-center ${
-        isTop ? "-top-2 -translate-y-1/2" : "-bottom-2 translate-y-1/2"
-      }`}
-    >
-      <div className="absolute -left-1 size-2 rounded-full border-[1.5px] border-ui-fg-interactive bg-ui-bg-base" />
-      <div className="h-0.5 w-full bg-ui-fg-interactive" />
-    </div>
+    <BaseDragHandle
+      label={label}
+      className="mt-0.5 cursor-grab rounded border border-ui-border-base p-1 text-ui-fg-muted active:cursor-grabbing"
+      iconClassName="size-3"
+    />
   );
 }
 
@@ -648,65 +611,3 @@ export function EmbeddedBackgroundPanel({
     </div>
   );
 }
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useRef,
-  useState,
-  type ReactNode,
-  type RefObject,
-} from "react";
-import { combine } from "@atlaskit/pragmatic-drag-and-drop/combine";
-import {
-  draggable,
-  dropTargetForElements,
-} from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
-import {
-  attachClosestEdge,
-  extractClosestEdge,
-  type Edge,
-} from "@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge";
-import { reorderWithEdge } from "@atlaskit/pragmatic-drag-and-drop-hitbox/util/reorder-with-edge";
-import { autoScrollForElements } from "@atlaskit/pragmatic-drag-and-drop-auto-scroll/element";
-import {
-  ArrowDown,
-  ArrowUp,
-  CircleDashed,
-  Eye,
-  EyeOff,
-  GripVertical,
-  Hexagon,
-  Lock,
-  Shapes,
-  Trash2,
-  Type,
-  Unlock,
-} from "lucide-react";
-import {
-  type CustomizationFormField,
-  type CustomizationTemplate,
-  type LocalizedTextInput,
-  type ShapeType,
-  resolveLocalizedInput,
-} from "@trophy/customization";
-import { Heading, Text } from "@medusajs/ui";
-import { LocalizedTextField } from "../ui/medusa/localized-field";
-import type { LocalizedTextValue } from "../../types";
-import { BackgroundUpload, shapeLabel } from "./customization-template-ui";
-
-function toLocalizedValue(
-  value: string | LocalizedTextInput | undefined | null,
-): LocalizedTextValue {
-  if (typeof value === "string") return { vi: value, en: "" };
-  return { vi: value?.vi ?? "", en: value?.en ?? "" };
-}
-
-const SHAPES: ShapeType[] = [
-  "rectangle",
-  "circle",
-  "rounded_rectangle",
-];
-type SortableListKind = "layers" | "form";
-
-export { SortableScrollContainerContext };

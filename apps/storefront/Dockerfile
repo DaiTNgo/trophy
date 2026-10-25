@@ -8,6 +8,7 @@ FROM base AS deps
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc* ./
 COPY packages/customization/package.json ./packages/customization/
 COPY packages/customization-react/package.json ./packages/customization-react/
+COPY packages/client-logger/package.json ./packages/client-logger/
 COPY apps/storefront/package.json ./apps/storefront/
 RUN pnpm install --frozen-lockfile
 
