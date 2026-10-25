@@ -4,7 +4,7 @@ import { fetchStorefrontArticle, fetchStorefrontArticles } from "../lib/api";
 import { getLocale } from "../i18n.server";
 import { withStorefrontLoaderLog } from "../lib/observability";
 import { getBackendServiceFetch } from "../lib/backend-fetch.server";
-import { scanTocFromHtml, type TocEntry } from "../lib/article-toc";
+import { scanTocFromHtml } from "../lib/article-toc";
 import Container from "../components/container";
 import { StickyTableOfContents } from "../components/news/sticky-table-of-contents";
 import { SocialShareButtons } from "../components/news/social-share-buttons";
@@ -37,11 +37,10 @@ export async function loader({ params, context, request }: Route.LoaderArgs) {
 }
 
 export function meta({ loaderData }: Route.MetaArgs) {
-  const { article, locale } = loaderData ?? {};
+  const { article } = loaderData ?? {};
   if (!article) {
     return [{ title: "Article Not Found | TROPHY PRESTIGE" }];
   }
-  const _ = locale;
 
   const title = article.metaTitle || article.title;
   const description = article.metaDescription || article.excerpt || "";

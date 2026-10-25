@@ -53,7 +53,7 @@ export const hasEmbeddedCustomizationDraft = (draft: EmbeddedCustomizationDraft)
   draft.layers.length > 0 ||
   draft.formFields.length > 0;
 
-export const toPreviewBackgroundAsset = (asset: ProductVariantMedia): BackgroundAsset => ({
+const toPreviewBackgroundAsset = (asset: ProductVariantMedia): BackgroundAsset => ({
   assetId: asset.id,
   previewUrl: asset.previewUrl ?? asset.contentUrl,
   contentUrl: asset.contentUrl,

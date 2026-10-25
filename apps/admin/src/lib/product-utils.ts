@@ -2,16 +2,14 @@ import * as v from "valibot";
 import type {
   CatalogProduct,
   CreateProductFormValues,
-  CreateProductSubmission,
   LocalizedTextValue,
   ProductAttribute,
   ProductOptionDefinition,
   ProductOptionValueDefinition,
-  ProductStatus,
   ProductVariant,
   VariantOptionValue,
 } from "../types";
-import { createDraftId, slugify, splitCommaValues, buildSku } from "./utils";
+import { createDraftId, slugify, splitCommaValues } from "./utils";
 
 export const DEFAULT_PRODUCT_OPTION_TITLE = "Default option";
 export const DEFAULT_PRODUCT_OPTION_VALUE = "Default option value";
@@ -123,7 +121,7 @@ function buildOptionCombinations(optionPairs: Array<{ name: string; values: stri
   );
 }
 
-export function buildVariantBlueprints(
+function buildVariantBlueprints(
   values: CreateProductFormValues,
   optionDefinitions?: ProductOptionDefinition[],
 ) {
@@ -357,7 +355,7 @@ export function validateCreateProduct({
   return nextErrors;
 }
 
-export function buildVariantPreview(values: CreateProductFormValues) {
+function buildVariantPreview(values: CreateProductFormValues) {
   const basePrice = Number(values.basePrice || 0);
   const inventory = Number(values.inventory || 0);
   const normalizedInventory = Number.isFinite(inventory) ? inventory : 0;
@@ -425,139 +423,6 @@ export function isPublishReady(
   };
 }
 
-export function createMockProduct(existingProducts: CatalogProduct[], input: CreateProductSubmission): CatalogProduct {
-  const handle = ensureUniqueHandle(input.values.handle || input.values.title.vi, existingProducts);
-  const today = "2026-06-21";
-  const optionDefinitions = getEffectiveOptionDefinitions(input.values, input.optionDefinitions);
-  const variantRows = getEffectiveVariantRows(input.values, input.variantRows, input.optionDefinitions);
-  const attributes = input.attributes.filter(isAttributeRowActive);
-  const highestInventory = variantRows.reduce((total, variant) => total + variant.inventory, 0);
-  const leadPrice = variantRows[0]?.price ?? 0;
-  const status = input.mode === "draft" ? "Draft" : "Published";
-
-  const variants = variantRows.map((variant, index) => ({
-    ...variant,
-    id: `${handle}-variant-${index + 1}`,
-    sku: variant.sku.trim() || buildSku(handle, index),
-    title: variant.title.trim() || "Default variant",
-  }));
-
-  return {
-    id: `prod_${handle}`,
-    title: input.values.title,
-    handle,
-    subtitle: input.values.subtitle,
-    description: input.values.description,
-    whyThisProductHtml: input.values.whyThisProductHtml,
-    specificationsHtml: input.values.specificationsHtml,
-    shippingHtml: input.values.shippingHtml,
-    status,
-    inventory: highestInventory,
-    price: leadPrice,
-    category: input.values.categories[0] ?? "Unassigned",
-    collection: input.values.collection,
-    collectionId: null,
-    collections: input.values.collection ? [input.values.collection] : [],
-    collectionIds: [],
-    categories: input.values.categories,
-    categoryIds: [],
-    media: [],
-    attributes,
-    optionDefinitions,
-    variants,
-    updatedAt: today,
-  };
-}
-
-export function buildUpdatedProduct(current: CatalogProduct, input: CreateProductSubmission): CatalogProduct {
-  const optionDefinitions = getEffectiveOptionDefinitions(input.values, input.optionDefinitions);
-  const variantRows = getEffectiveVariantRows(input.values, input.variantRows, input.optionDefinitions);
-  const totalInventory = variantRows.reduce((total, variant) => total + variant.inventory, 0);
-  const leadPrice = variantRows[0]?.price ?? 0;
-  const status = input.mode === "draft" ? "Draft" : "Published";
-
-  return {
-    ...current,
-    title: input.values.title,
-    handle: slugify(input.values.handle || input.values.title.vi || current.handle),
-    subtitle: input.values.subtitle,
-    description: input.values.description,
-    status,
-    inventory: totalInventory,
-    price: leadPrice,
-    category: input.values.categories[0] ?? "Unassigned",
-    collection: input.values.collection,
-    categories: input.values.categories,
-    media: [],
-    attributes: input.attributes.filter(isAttributeRowActive),
-    optionDefinitions,
-    variants: variantRows.map((variant, index) => ({
-      ...variant,
-      id: `${current.id}-variant-${index + 1}`,
-      sku: variant.sku.trim() || buildSku(input.values.handle || input.values.title.vi || current.handle, index),
-      title: variant.title.trim() || "Default variant",
-    })),
-    updatedAt: "2026-06-21",
-  };
-}
-
-export function productToFormValues(product: CatalogProduct): CreateProductFormValues {
-  const groupedOptions = product.optionDefinitions.length > 0
-    ? new Map(product.optionDefinitions.map((option) => [option.title, option.values.map((value) => value.value)]))
-    : product.variants.reduce<Map<string, string[]>>((accumulator, variant) => {
-    for (const option of variant.options) {
-      const existingValues = accumulator.get(option.option) ?? [];
-      if (!existingValues.includes(option.value)) {
-        existingValues.push(option.value);
-      }
-      accumulator.set(option.option, existingValues);
-    }
-    return accumulator;
-  }, new Map());
-
-  const orderedOptions = Array.from(groupedOptions.entries());
-
-  return {
-    title: product.title,
-    handle: product.handle,
-    subtitle: product.subtitle,
-    description: product.description,
-    whyThisProductHtml: product.whyThisProductHtml,
-    specificationsHtml: product.specificationsHtml,
-    shippingHtml: product.shippingHtml,
-    customizationEnabled: false,
-    collection: product.collection,
-    categories: product.categories,
-    media: product.media.join("\n"),
-    hasVariants: product.optionDefinitions.length > 0,
-    basePrice: String(product.price),
-    inventory: String(product.inventory),
-    optionNameOne: orderedOptions[0]?.[0] ?? "",
-    optionValuesOne: orderedOptions[0]?.[1].join(", ") ?? "",
-    optionNameTwo: orderedOptions[1]?.[0] ?? "",
-    optionValuesTwo: orderedOptions[1]?.[1].join(", ") ?? "",
-  };
-}
-
-export function derivePublishedStatus(): ProductStatus {
-  return "Published";
-}
-
-function ensureUniqueHandle(seed: string, existingProducts: CatalogProduct[]) {
-  const base = slugify(seed || "new-product");
-  const handles = new Set(existingProducts.map((product) => product.handle));
-
-  if (!handles.has(base)) {
-    return base;
-  }
-
-  let suffix = 2;
-  while (handles.has(`${base}-${suffix}`)) {
-    suffix += 1;
-  }
-
-  return `${base}-${suffix}`;
-}
 export type RichTextSectionKey = "whyThisProductHtml" | "specificationsHtml" | "shippingHtml";
 
 export const RICH_TEXT_SECTIONS: Array<{

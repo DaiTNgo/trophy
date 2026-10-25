@@ -64,7 +64,7 @@ function reasonLabel(
 export default function Cart() {
   const loaderData = useLoaderData<typeof loader>();
   const { t, i18n } = useTranslation("cart");
-  const { lines, isReady, updateQuantity, removeLine, itemCount } = useCart();
+  const { lines, isReady, updateQuantity, removeLine } = useCart();
   const [searchParams] = useSearchParams();
   const locale = (searchParams.get("locale") || loaderData?.locale || i18n.language || "vi") as "vi" | "en";
   const [resolved, setResolved] = useState<StorefrontResolvedCartLine[]>([]);

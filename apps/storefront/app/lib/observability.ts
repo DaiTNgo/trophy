@@ -41,11 +41,11 @@ function writeStorefrontLog(level: "log" | "warn" | "error", event: string, deta
   console[level]("[storefront]", JSON.stringify(payload));
 }
 
-export function logStorefront(event: string, details?: LogDetails) {
+function logStorefront(event: string, details?: LogDetails) {
   writeStorefrontLog("log", event, details);
 }
 
-export function logStorefrontError(event: string, error: unknown, details?: LogDetails) {
+function logStorefrontError(event: string, error: unknown, details?: LogDetails) {
   const serializedError = serializeError(error);
   writeStorefrontLog("error", event, {
     ...details,

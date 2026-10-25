@@ -25,13 +25,13 @@ type BearerAdminSession = {
 
 export type AdminSession = AuthSession | BearerAdminSession;
 
-export function extractBearerToken(headers: Headers) {
+function extractBearerToken(headers: Headers) {
   const authorization = headers.get("Authorization");
   const match = authorization?.match(/^Bearer\s+(.+)$/i);
   return match?.[1]?.trim() || null;
 }
 
-export function hasAdminSessionAccess(session: AdminSession | null | undefined) {
+function hasAdminSessionAccess(session: AdminSession | null | undefined) {
   const user = session?.user as Record<string, any> | undefined;
   const role = user?.role as string | null | undefined;
   return Boolean(role && ADMIN_ROLES.has(role) && !user?.banned);

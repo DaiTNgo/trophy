@@ -4,11 +4,11 @@ import { productCategories } from '../db/schema'
 import { upsertTranslations } from './catalog-translation'
 
 export const CUSTOMIZATION_CATEGORY_HANDLE = 'customization'
-export const CUSTOMIZATION_CATEGORY_LABEL = { vi: 'Tùy chỉnh', en: 'Custom' } as const
+const CUSTOMIZATION_CATEGORY_LABEL = { vi: 'Tùy chỉnh', en: 'Custom' } as const
 export const OTHER_PRODUCTS_CATEGORY_HANDLE = 'other-products'
-export const OTHER_PRODUCTS_CATEGORY_LABEL = { vi: 'Other products', en: 'Other products' } as const
+const OTHER_PRODUCTS_CATEGORY_LABEL = { vi: 'Other products', en: 'Other products' } as const
 
-export const isCustomizationCategory = (handle: string | null | undefined) =>
+const isCustomizationCategory = (handle: string | null | undefined) =>
   handle === CUSTOMIZATION_CATEGORY_HANDLE
 
 export const isSystemProductCategory = (handle: string | null | undefined) =>

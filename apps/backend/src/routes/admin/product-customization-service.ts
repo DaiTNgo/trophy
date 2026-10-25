@@ -21,7 +21,7 @@ type ProductAsset = {
   heightPx: number | null
 }
 
-export function deriveCustomizationCanvas(
+function deriveCustomizationCanvas(
   submittedVariants: SubmittedVariant[],
   assetsById: Map<string, ProductAsset>,
   customization?: { canvasWidthPx?: number | null; canvasHeightPx?: number | null } | null

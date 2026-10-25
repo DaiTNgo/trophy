@@ -47,7 +47,7 @@ function stableStringify(value: unknown): string {
   return JSON.stringify(value);
 }
 
-export function buildCartLineSignature(
+function buildCartLineSignature(
   line: Pick<CartLine, "productId" | "variantId" | "customizationValues">,
 ) {
   return `${line.productId}:${line.variantId}:${stableStringify(line.customizationValues ?? null)}`;

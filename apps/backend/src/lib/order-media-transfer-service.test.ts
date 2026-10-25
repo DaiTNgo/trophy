@@ -4,7 +4,7 @@ vi.mock("../db/client", () => ({
   getDb: vi.fn(),
 }));
 
-import { transferOrderItemMedia, isAssetReferencedByOrders } from "./order-media-transfer-service";
+import { transferOrderItemMedia } from "./order-media-transfer-service";
 
 describe("order-media-transfer-service", () => {
   let db: any;

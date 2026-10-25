@@ -424,7 +424,7 @@ export async function findMisaContactsByCodes(
     : [];
 }
 
-export async function findMisaCustomersByCodes(
+async function findMisaCustomersByCodes(
   bindings: AppBindings,
   codes: string[],
 ) {
@@ -442,7 +442,7 @@ export async function findMisaCustomersByCodes(
     : [];
 }
 
-export async function findMisaSaleOrdersByCodes(
+async function findMisaSaleOrdersByCodes(
   bindings: AppBindings,
   codes: string[],
 ) {
@@ -570,20 +570,6 @@ export async function deleteMisaSaleOrders(
     method: "DELETE",
     body: JSON.stringify(ids),
   });
-}
-
-export async function deleteMisaProductsByCodes(
-  bindings: AppBindings,
-  codes: string[],
-) {
-  const existing = await findMisaProductsByCodes(bindings, codes);
-  const ids = existing
-    .map((product) => Number(product.id))
-    .filter((id) => Number.isInteger(id) && id > 0);
-  if (ids.length !== existing.length)
-    throw new Error("MISA did not return numeric IDs for all product codes");
-  await deleteMisaProducts(bindings, ids);
-  return { deleted: existing.map((product) => product.product_code) };
 }
 
 function localized(value: unknown) {

@@ -14,7 +14,7 @@ type ProductOrganizeEditorProps = {
   isCustomizationEnabled?: boolean;
 };
 
-export function OptionalFormLabel({ children }: { children: ReactNode }) {
+function OptionalFormLabel({ children }: { children: ReactNode }) {
   return (
     <Label className="flex items-center gap-x-1">
       {children}
@@ -25,7 +25,7 @@ export function OptionalFormLabel({ children }: { children: ReactNode }) {
   );
 }
 
-export function LoadingPlaceholder() {
+function LoadingPlaceholder() {
   return (
     <div className="rounded-md border border-ui-border-base bg-ui-bg-base px-3 py-2 text-sm text-ui-fg-muted">
       Loading…

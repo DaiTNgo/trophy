@@ -2,7 +2,7 @@ import pdfjsWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 
 let pdfjsPromise: Promise<typeof import("pdfjs-dist")> | null = null;
 
-export async function getPdfjs(): Promise<typeof import("pdfjs-dist")> {
+async function getPdfjs(): Promise<typeof import("pdfjs-dist")> {
   if (!pdfjsPromise) {
     pdfjsPromise = import("pdfjs-dist").then((pdfjs) => {
       pdfjs.GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl;

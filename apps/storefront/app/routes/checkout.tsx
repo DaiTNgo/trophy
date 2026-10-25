@@ -224,7 +224,6 @@ export default function Checkout() {
   const [vatChecked, setVatChecked] = useState(false);
   const [vatErrors, setVatErrors] = useState<Partial<Record<"name" | "taxId" | "email" | "address", string>>>({});
   const [showMobileSummary, setShowMobileSummary] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState("bank_transfer");
   const [paymentInstructions, setPaymentInstructions] = useState<StorefrontPaymentInstructionsResponse["order"] | null>(null);
   const [paymentInstructionsError, setPaymentInstructionsError] = useState("");
   const [agreementChecked, setAgreementChecked] = useState(false);

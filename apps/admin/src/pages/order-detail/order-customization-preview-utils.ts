@@ -51,7 +51,7 @@ export function sanitizeFilenamePart(value: string) {
   );
 }
 
-export function extensionFromContentType(contentType: string) {
+function extensionFromContentType(contentType: string) {
   if (contentType.includes("png")) return "png";
   if (contentType.includes("jpeg") || contentType.includes("jpg")) return "jpg";
   if (contentType.includes("webp")) return "webp";

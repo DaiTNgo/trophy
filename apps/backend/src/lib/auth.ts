@@ -29,7 +29,7 @@ type AuthSettings = {
   secret: string
 }
 
-export function getAuthSettings(bindings: Partial<AppBindings>): AuthSettings {
+function getAuthSettings(bindings: Partial<AppBindings>): AuthSettings {
   return {
     baseUrl: bindings.BETTER_AUTH_URL
       ? bindings.BETTER_AUTH_URL

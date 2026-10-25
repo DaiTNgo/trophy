@@ -56,7 +56,7 @@ export type CreateProductStep =
   | "variants"
   | "customization";
 
-export const defaultCreateProductValues: CreateProductFormValues = {
+const defaultCreateProductValues: CreateProductFormValues = {
   title: { vi: "", en: "" },
   handle: "",
   subtitle: { vi: "", en: "" },

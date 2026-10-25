@@ -12,7 +12,7 @@ export function getCartLineRevisionPath(productHandle: string, cartLineId: strin
   return `${getGenericProductPath(productHandle)}?${searchParams.toString()}`;
 }
 
-export function getCartLineRevision(
+function getCartLineRevision(
   lines: CartLine[],
   cartLineId: string | null,
   productId: number,

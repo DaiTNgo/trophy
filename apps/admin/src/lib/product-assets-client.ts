@@ -15,8 +15,6 @@ type ProductAssetResponse = {
   error?: string;
 };
 
-
-
 import { getImageDimensions } from "./image-dimensions";
 
 export async function uploadProductVariantMedia(file: File, widthPx?: number, heightPx?: number): Promise<ProductVariantMedia> {
@@ -61,14 +59,3 @@ export async function uploadProductVariantMedia(file: File, widthPx?: number, he
   };
 }
 
-export async function deleteProductVariantMedia(assetId: string) {
-  const response = await backendFetch(`/api/admin/products/assets/${assetId}/delete`, {
-    method: "POST",
-
-  });
-
-  const body = (await response.json().catch(() => null)) as { error?: string } | null;
-  if (!response.ok) {
-    throw new Error(body?.error || "Unable to delete variant media.");
-  }
-}

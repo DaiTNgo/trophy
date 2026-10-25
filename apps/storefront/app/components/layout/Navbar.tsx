@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Link, useLocation } from "react-router";
+import { useState } from "react";
+import { Link } from "react-router";
 import { useTranslation } from "react-i18next";
 import { ChevronDown, Menu, ShoppingCart } from "lucide-react";
 import { useNavbarScroll } from "@/hooks/useNavbarScroll";
@@ -12,20 +12,9 @@ import { NavbarCategoryStrip } from "./navbar/category-strip";
 import { DesktopSearch } from "./navbar/DesktopSearch";
 import { NavbarSearchDialog } from "./navbar/search-dialog";
 import { NavbarMoreDropdown } from "./navbar/more-dropdown";
-import {
-  Carousel,
-  CarouselContent,
-  CarouselItem,
-  CarouselPrevious,
-  CarouselNext,
-  type CarouselApi,
-} from "@/components/ui/carousel";
 import { LanguageSwitcher } from "./language-switcher";
 import type { StorefrontCategory, StorefrontCollection } from "@/lib/api";
-import {
-  getActiveCategoryHandle,
-  getCategoryPath,
-} from "@/lib/storefront-paths";
+import { getCategoryPath } from "@/lib/storefront-paths";
 import { getLocalized } from "@/lib/translation";
 
 interface NavbarProps {
@@ -44,10 +33,8 @@ export function Navbar({
   disableStickyOnMobile = false,
 }: NavbarProps) {
   const { t } = useTranslation("layout");
-  const { pathname } = useLocation();
   const { itemCount } = useCart();
   const { isSticky, slideIn } = useNavbarScroll();
-  const activeCategoryHandle = getActiveCategoryHandle(pathname);
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<
@@ -62,25 +49,6 @@ export function Navbar({
         !!target.closest("[data-nav-dropdown-trigger]"),
     },
   );
-
-  const [catApi, setCatApi] = useState<CarouselApi>();
-  const [catCanScrollPrev, setCatCanScrollPrev] = useState(false);
-  const [catCanScrollNext, setCatCanScrollNext] = useState(false);
-
-  useEffect(() => {
-    if (!catApi) return;
-    const check = () => {
-      setCatCanScrollPrev(catApi.canScrollPrev());
-      setCatCanScrollNext(catApi.canScrollNext());
-    };
-    check();
-    catApi.on("reInit", check);
-    catApi.on("select", check);
-    return () => {
-      catApi.off("reInit", check);
-      catApi.off("select", check);
-    };
-  }, [catApi]);
 
   const productMenuItems = categories.map((cat) => ({
     title: getLocalized(cat.name, locale),

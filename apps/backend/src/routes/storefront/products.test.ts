@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { DEFAULT_TEMPLATE, type ProductCustomization } from "@trophy/customization";
 
 vi.mock("../../db/client", () => ({

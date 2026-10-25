@@ -8,10 +8,8 @@ import { QuoteTicker } from "../components/home/QuoteTicker";
 import { CustomizationFeatureSection } from "../components/home/ManufacturerSection";
 import { NewsletterSection } from "../components/home/NewsletterSection";
 import { PartnerLogosSection } from "../components/home/PartnerLogosSection";
-import { ProofRow } from "../components/home/ProofRow";
 import { ReviewsSection } from "../components/home/ReviewsSection";
 import { SeoIntroSection } from "../components/home/SeoIntroSection";
-import { ShopByOccasionSection } from "../components/home/ShopByOccasionSection";
 import { useScrollReveal } from "../hooks/useScrollReveal";
 import {
     fetchStorefrontCategories,

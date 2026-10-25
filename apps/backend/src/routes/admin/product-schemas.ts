@@ -37,7 +37,7 @@ export const nullableLocalizedPatch = (value: v.InferOutput<ReturnType<typeof op
 
 const RICH_TEXT_MAX_LENGTH = 300_000
 const optionalLocalizedRichText = () => v.optional(v.nullable(localizedNullableText(RICH_TEXT_MAX_LENGTH)))
-export const productRichTextFields = {
+const productRichTextFields = {
   whyThisProductHtml: optionalLocalizedRichText(),
   specificationsHtml: optionalLocalizedRichText(),
   shippingHtml: optionalLocalizedRichText(),
@@ -57,9 +57,9 @@ export const organizeSchema = v.object({
 export const attributesSchema = v.object({ items: v.array(v.object({ name: localizedString(1, 120), value: localizedString(1, 255), unit: nullableText(50) })) })
 const variantAttributesSchema = v.array(v.object({ name: localizedString(1, 120), value: localizedString(1, 255), unit: nullableText(50) }))
 
-export const optionDisplayTypeSchema = v.optional(v.union([v.literal('text'), v.literal('color'), v.literal('image')]))
-export const optionColorHexSchema = v.optional(v.nullable(v.pipe(v.string(), v.trim(), v.maxLength(50))))
-export const optionSwatchAssetIdSchema = v.optional(v.nullable(v.pipe(v.string(), v.trim(), v.maxLength(120))))
+const optionDisplayTypeSchema = v.optional(v.union([v.literal('text'), v.literal('color'), v.literal('image')]))
+const optionColorHexSchema = v.optional(v.nullable(v.pipe(v.string(), v.trim(), v.maxLength(50))))
+const optionSwatchAssetIdSchema = v.optional(v.nullable(v.pipe(v.string(), v.trim(), v.maxLength(120))))
 
 const uniqueLocalizedValues = <T extends { value: { vi: string } }>(values: T[]) => new Set(values.map((value) => value.value.vi.toLowerCase())).size === values.length
 export const optionsSchema = v.object({
@@ -134,7 +134,6 @@ export const productListingMediaSchema = v.pipe(
 
 export const fullCreateCustomizationSchema = v.object({ enabled: v.boolean(), canvasWidthPx: v.optional(v.nullable(v.pipe(v.number(), v.integer(), v.minValue(1)))), canvasHeightPx: v.optional(v.nullable(v.pipe(v.number(), v.integer(), v.minValue(1)))), layers: v.pipe(v.array(v.unknown()), v.maxLength(200)), formFields: v.pipe(v.array(v.unknown()), v.maxLength(200)) })
 export const customizationTemplateSchema = v.object({ layers: v.pipe(v.array(v.unknown()), v.maxLength(200)), formFields: v.pipe(v.array(v.unknown()), v.maxLength(200)) })
-export const customizationRepairSchema = v.object({ variantIds: v.array(v.pipe(v.number(), v.integer(), v.minValue(1))) })
 const fullCreateOrganizationSchema = v.object({
   collectionIds: v.optional(v.array(v.pipe(v.number(), v.integer(), v.minValue(1)))),
   categoryIds: v.optional(v.array(v.pipe(v.number(), v.integer(), v.minValue(1))))

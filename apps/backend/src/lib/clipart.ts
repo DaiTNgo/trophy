@@ -2,7 +2,7 @@ import * as v from "valibot";
 import { readImageDimensions } from "./image-dimensions";
 
 export const CLIPART_ASSET_OWNER_KEY = "clipart_asset";
-export const clipartMimeTypes = new Set(["image/svg+xml", "image/png", "image/webp"]);
+const clipartMimeTypes = new Set(["image/svg+xml", "image/png", "image/webp"]);
 
 export const clipartIdParamsSchema = v.object({
   id: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(255)),

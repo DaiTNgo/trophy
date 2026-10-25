@@ -4,7 +4,7 @@ export type TocEntry = {
   level: 2 | 3;
 };
 
-export function slugifyHeading(text: string): string {
+function slugifyHeading(text: string): string {
   const base = text
     .toLowerCase()
     .normalize("NFD")

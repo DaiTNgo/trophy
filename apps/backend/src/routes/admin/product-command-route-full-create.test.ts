@@ -10,7 +10,6 @@ vi.mock('../../lib/customization-category', () => ({
 vi.mock('./product-misa-sync', () => ({ enqueueMisaProductSync: vi.fn(), syncMisaProductVariants: vi.fn() }))
 vi.mock('./product-mutations', () => ({ replaceAttributes: vi.fn(async () => undefined), replaceOptions: vi.fn(async () => null) }))
 vi.mock('./product-reader', () => ({ readProduct: vi.fn() }))
-vi.mock('./product-variant-mutations', () => ({ replaceVariants: vi.fn(async () => null) }))
 vi.mock('./product-full-create-multipart', () => ({
   parseFullCreateMultipart: vi.fn(),
   extensionForMimeType: vi.fn(() => 'png'),

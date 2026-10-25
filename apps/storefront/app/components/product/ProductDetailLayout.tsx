@@ -46,7 +46,6 @@ export function ProductDetailLayout({
     handleAddToCart,
     isOptionValueAvailable,
     isAtPageTop,
-    isMobilePreviewAutoRestoreArmed,
     isMobilePreviewHidden,
     isMobilePreviewSticky,
     locale,
@@ -425,16 +424,6 @@ export function ProductDetailLayout({
             />
           </div>
         )}
-        {/*
-
-        <ProductMobileActionBar
-          price={displayPrice}
-          label="Add to Cart"
-          disabled={addToCartDisabled}
-          onClick={handleAddToCart}
-          contactHref={selectedVariant?.priceAmount === null ? contactHref : undefined}
-        />
-          */}
         <ProductDetailSections
           description={getLocalized(product.description, locale) || ""}
           specs={specs}

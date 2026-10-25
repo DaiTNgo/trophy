@@ -6,7 +6,6 @@ import {
   Star,
   StarHalf,
   Truck,
-  Zap,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link } from "react-router";

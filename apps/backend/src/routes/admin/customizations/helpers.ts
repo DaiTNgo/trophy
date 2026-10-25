@@ -1,7 +1,6 @@
 import {
   buildDesignFromForm,
   validateCustomizationValues,
-  validateProductCustomizationDraft,
   validateTemplateForPublish,
   type CustomizationDesign,
   type ProductCustomization,
@@ -33,41 +32,6 @@ export const parseStoredEditorModel = (value: string): StoredEditorModel => {
     layers: Array.isArray(parsed.layers) ? parsed.layers : [],
     formFields: Array.isArray(parsed.formFields) ? parsed.formFields : [],
   };
-};
-
-export const serializeStoredProductCustomizationModel = (
-  customization: StoredProductCustomizationModel,
-) =>
-  JSON.stringify({
-    canvasWidthPx: customization.canvasWidthPx,
-    canvasHeightPx: customization.canvasHeightPx,
-    layers: customization.layers,
-    formFields: customization.formFields,
-  } satisfies StoredProductCustomizationModel);
-
-export const parseStoredProductCustomizationModel = (
-  value: string,
-): StoredProductCustomizationModel => {
-  const parsed = JSON.parse(value) as Partial<StoredProductCustomizationModel>;
-  const draftModel = {
-    canvasWidthPx:
-      typeof parsed.canvasWidthPx === "number" ? parsed.canvasWidthPx : null,
-    canvasHeightPx:
-      typeof parsed.canvasHeightPx === "number" ? parsed.canvasHeightPx : null,
-    layers: Array.isArray(parsed.layers) ? parsed.layers : [],
-    formFields: Array.isArray(parsed.formFields) ? parsed.formFields : [],
-  } satisfies StoredProductCustomizationModel;
-
-  const validated = validateProductCustomizationDraft(draftModel);
-
-  return validated.valid
-    ? draftModel
-    : {
-        canvasWidthPx: draftModel.canvasWidthPx,
-        canvasHeightPx: draftModel.canvasHeightPx,
-        layers: [],
-        formFields: [],
-      };
 };
 
 export const buildTemplate = ({

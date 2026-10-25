@@ -30,10 +30,6 @@ export function getAuthErrorMessage(
   return fallback;
 }
 
-export function buildAdminEmail(username: string) {
-  return `${username.trim().toLowerCase()}@admin.trophy.local`;
-}
-
 export function normalizeUsername(username: string) {
   return username.trim().toLowerCase();
 }

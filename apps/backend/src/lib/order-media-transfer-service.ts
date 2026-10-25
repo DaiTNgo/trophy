@@ -1,11 +1,10 @@
-import { eq, like } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import type { Context } from "hono";
 import type { getDb } from "../db/client";
 import {
   customizationAssets,
   orderItemMediaTransferAssets,
   orderItemMediaTransfers,
-  orderItems,
   productAssets,
 } from "../db/schema";
 import { extensionForMimeType } from "./asset-utils";
@@ -17,27 +16,6 @@ import {
   buildOrderUploadKey,
 } from "./r2-media-keys";
 import { toAbsoluteAssetUrl } from "./url";
-
-export async function isAssetReferencedByOrders(
-  db: ReturnType<typeof getDb>,
-  assetId: string,
-): Promise<boolean> {
-  const transferRef = await db
-    .select({ id: orderItemMediaTransferAssets.id })
-    .from(orderItemMediaTransferAssets)
-    .where(eq(orderItemMediaTransferAssets.sourceAssetId, assetId))
-    .get();
-
-  if (transferRef) return true;
-
-  const orderRef = await db
-    .select({ id: orderItems.id })
-    .from(orderItems)
-    .where(like(orderItems.backgroundSnapshotJson, `%"assetId":"${assetId}"%`))
-    .get();
-
-  return Boolean(orderRef);
-}
 
 export async function transferOrderItemMedia(
   c: Context<AppEnv>,

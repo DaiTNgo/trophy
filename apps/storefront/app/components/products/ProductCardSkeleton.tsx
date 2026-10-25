@@ -1,4 +1,4 @@
-export function ProductCardSkeleton() {
+function ProductCardSkeleton() {
   return (
     <div
       aria-hidden="true"

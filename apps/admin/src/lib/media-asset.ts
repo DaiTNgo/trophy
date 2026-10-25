@@ -4,7 +4,7 @@ import { convertPdfToImageFile } from "./pdf-preview";
 export type MediaDimensions = { widthPx: number; heightPx: number };
 
 export const MAX_METADATA_IMAGE_BYTES = 20 * 1024 * 1024; // 20 MB
-export const ALLOWED_IMAGE_MIME_TYPES = new Set([
+const ALLOWED_IMAGE_MIME_TYPES = new Set([
   "image/png",
   "image/jpeg",
   "image/webp",

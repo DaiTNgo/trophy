@@ -6,7 +6,7 @@ const BACKEND_URL =
   (import.meta.env.VITE_BACKEND_URL as string | undefined)?.replace(/\/$/, "") ??
   "http://localhost:8787";
 
-export function backendUrl(path: string) {
+function backendUrl(path: string) {
   return `${BACKEND_URL}${path.startsWith("/") ? path : `/${path}`}`;
 }
 

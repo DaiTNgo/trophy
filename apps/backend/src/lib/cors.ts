@@ -1,7 +1,7 @@
 import type { Context, Next } from "hono";
 import type { AppEnv } from "./env";
 
-export const LOCAL_APP_ORIGINS = [
+const LOCAL_APP_ORIGINS = [
   "http://localhost:5173",
   "http://127.0.0.1:5173",
   "http://localhost:4173",
@@ -35,20 +35,6 @@ export const CUSTOMIZATION_CORS_POLICY: CorsPolicy = {
     "X-Shopper-Field-Id",
   ],
   allowMethods: ["GET", "POST", "OPTIONS"],
-  exposeHeaders: ["Content-Length", "ETag"],
-};
-
-export const PRODUCTS_CORS_POLICY: CorsPolicy = {
-  allowHeaders: ["Content-Type", "Authorization"],
-  allowMethods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
-  credentials: true,
-  exposeHeaders: ["Content-Length"],
-};
-
-export const PRODUCT_ASSET_CORS_POLICY: CorsPolicy = {
-  allowHeaders: ["Content-Type", "Authorization"],
-  allowMethods: ["GET", "POST", "DELETE", "OPTIONS"],
-  credentials: true,
   exposeHeaders: ["Content-Length", "ETag"],
 };
 

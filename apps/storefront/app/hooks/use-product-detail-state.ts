@@ -447,7 +447,6 @@ export function useProductDetailState({
     return candidates[0] ?? null;
   }
 
-  const mainMedia = selectedMedia;
   const galleryThumbnails = selectedVariantMedia.map((media, index) => ({
     id: media.id,
     src: media.contentUrl,

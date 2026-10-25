@@ -57,7 +57,6 @@ export function ProductCard({
       : formatCurrency(Number(price) || 0);
   const imgSrc = imageSrc || thumbnail || "";
   const isContactPrice = (priceAmount === undefined ? (typeof price === "string" ? false : price === null) : priceAmount === null);
-  const metaLine = categorySummary || category || subtitle;
 
   const fullStars = Math.floor(rating); // rating UI, commented out
   const hasHalfStar = rating % 1 !== 0; // rating UI, commented out

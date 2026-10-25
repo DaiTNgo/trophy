@@ -1,7 +1,7 @@
 import { FONT_FILES } from "@trophy/customization";
 import { BACKEND_URL } from "./fetch";
 
-export const fontFiles: Record<string, string> = {
+const fontFiles: Record<string, string> = {
   ...FONT_FILES,
   "sans": "SansBold.ttf",
   "sans-regular": "SansBold.ttf",
@@ -54,18 +54,3 @@ export async function loadFontBytes(variantId: string): Promise<Uint8Array | nul
   return bytes;
 }
 
-
-// ─── CSS font-face URL (for SVG-based fallback if ever needed) ────────────────
-
-const fontCssUrlCache = new Map<string, string>();
-
-export async function getFontCssUrl(fontId: string): Promise<string | null> {
-  if (fontCssUrlCache.has(fontId)) return fontCssUrlCache.get(fontId)!;
-  const bytes = await loadFontBytes(fontId);
-  if (!bytes) return null;
-  const blob = new Blob([bytes.buffer as ArrayBuffer], { type: "font/ttf" });
-
-  const url = URL.createObjectURL(blob);
-  fontCssUrlCache.set(fontId, url);
-  return url;
-}

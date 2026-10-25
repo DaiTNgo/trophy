@@ -1,5 +1,5 @@
 export const RECENTLY_VIEWED_STORAGE_KEY = "trophy:recently-viewed-products";
-export const MAX_RECENTLY_VIEWED_PRODUCTS = 8;
+const MAX_RECENTLY_VIEWED_PRODUCTS = 8;
 
 export type RecentlyViewedProduct = {
   productId: number;

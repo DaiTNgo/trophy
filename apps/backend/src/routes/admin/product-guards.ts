@@ -6,7 +6,6 @@ import {
   productVariants,
   products
 } from '../../db/schema'
-import { loadProductAssetsById } from './product-media'
 
 export async function ensureProductExists(
   db: ReturnType<typeof getDb>,
@@ -67,22 +66,6 @@ export async function updateProductTimestamp(
     .update(products)
     .set({ updatedAt: new Date().toISOString() })
     .where(eq(products.id, productId))
-}
-
-export async function ensureVariantAssetIdsExist(
-  db: ReturnType<typeof getDb>,
-  assetIds: string[]
-) {
-  if (assetIds.length === 0) {
-    return null
-  }
-
-  const assetsById = await loadProductAssetsById(db, assetIds)
-  if (assetsById.size !== assetIds.length) {
-    return { error: 'One or more variant media assets were not found', status: 404 as const }
-  }
-
-  return null
 }
 
 export async function validateOptionTitleUniquenessForProduct(

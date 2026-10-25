@@ -1,7 +1,6 @@
 import { Link } from "react-router";
 import { useTranslation } from "react-i18next";
 import { Search, Sparkles } from "lucide-react";
-import { cn } from "@/lib/utils";
 import type { SearchResults as SearchResultsType } from "@/hooks/useSearch";
 import type {
   SearchProduct,

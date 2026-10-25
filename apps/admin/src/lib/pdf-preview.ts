@@ -2,7 +2,7 @@ import pdfjsWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 
 let pdfjsPromise: Promise<typeof import("pdfjs-dist")> | null = null;
 
-export async function getPdfjs(): Promise<typeof import("pdfjs-dist")> {
+async function getPdfjs(): Promise<typeof import("pdfjs-dist")> {
   if (!pdfjsPromise) {
     pdfjsPromise = import("pdfjs-dist").then((pdfjs) => {
       pdfjs.GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl;
@@ -54,16 +54,6 @@ export async function renderPdfBufferToDataUrl(
     height: Math.round(viewport.height),
     dataUrl,
     numPages: pdfDocument.numPages,
-  };
-}
-
-export async function extractPdfPreview(file: File): Promise<{ width: number; height: number; dataUrl: string }> {
-  const arrayBuffer = await file.arrayBuffer();
-  const result = await renderPdfBufferToDataUrl(arrayBuffer, 1.0, "image/jpeg", 0.9);
-  return {
-    width: result.width,
-    height: result.height,
-    dataUrl: result.dataUrl,
   };
 }
 

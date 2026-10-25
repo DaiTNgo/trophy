@@ -147,5 +147,5 @@ function SortableIndicator({ edge }: { edge: Edge }) {
   );
 }
 
-export { SortableItem, DragHandle, SortableIndicator, reorderWithEdge, autoScrollForElements };
+export { SortableItem, DragHandle, reorderWithEdge, autoScrollForElements };
 export type { Edge };

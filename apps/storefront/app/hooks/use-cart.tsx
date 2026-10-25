@@ -9,7 +9,6 @@ import {
   updateCartLineQuantity,
   type AddCartLineOptions,
   type AddCartLineInput,
-  type CartCustomizationSummary,
   type CartLine,
 } from "../lib/cart";
 

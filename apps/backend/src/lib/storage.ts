@@ -56,7 +56,7 @@ export interface StorageAdapter {
   delete(key: string | string[]): Promise<void>
 }
 
-export class LocalStorageAdapter implements StorageAdapter {
+class LocalStorageAdapter implements StorageAdapter {
   private baseDir: string
 
   constructor(baseDir?: string) {

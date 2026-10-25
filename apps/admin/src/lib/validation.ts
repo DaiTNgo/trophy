@@ -10,23 +10,23 @@ import type {
   OnboardingFormErrors,
 } from "../types";
 
-export const loginSchema = v.object({
+const loginSchema = v.object({
   username: v.pipe(v.string(), v.trim(), v.nonEmpty("Username is required."), v.minLength(3, "Username must be at least 3 characters.")),
   password: v.pipe(v.string(), v.nonEmpty("Password is required."), v.minLength(8, "Password must be at least 8 characters.")),
 });
 
-export const changePasswordSchema = v.object({
+const changePasswordSchema = v.object({
   currentPassword: v.pipe(v.string(), v.nonEmpty("Current password is required.")),
   newPassword: v.pipe(v.string(), v.nonEmpty("New password is required."), v.minLength(8, "Password must be at least 8 characters.")),
   confirmPassword: v.pipe(v.string(), v.nonEmpty("Confirm your new password.")),
 });
 
-export const teamInviteSchema = v.object({
+const teamInviteSchema = v.object({
   username: v.pipe(v.string(), v.trim(), v.nonEmpty("Username is required."), v.minLength(3, "Username must be at least 3 characters.")),
   password: v.pipe(v.string(), v.nonEmpty("Temporary password is required."), v.minLength(8, "Password must be at least 8 characters.")),
 });
 
-export const onboardingSchema = v.object({
+const onboardingSchema = v.object({
   username: v.pipe(
     v.string(),
     v.trim(),
