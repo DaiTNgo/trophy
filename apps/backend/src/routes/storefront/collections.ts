@@ -19,10 +19,7 @@ import {
   productCollections,
   productCollectionLinks,
   productCustomizations,
-  productMedia,
   orderItems,
-  productVariantMedia,
-  productVariantCustomizationMedia,
   productVariants,
   products,
 } from "../../db/schema";
@@ -105,14 +102,7 @@ export async function loadListingPage(
 
   const productIds = items.map((item) => item.id);
 
-  const [
-    categoryRows,
-    productMediaRows,
-    variantRows,
-    variantMediaRows,
-    variantCustomizationMediaRows,
-    customizationRows,
-  ] = await Promise.all([
+  const [categoryRows, variantRows, customizationRows] = await Promise.all([
     productIds.length > 0
       ? db
           .select({
@@ -137,72 +127,17 @@ export async function loadListingPage(
     productIds.length > 0
       ? db
           .select({
-            productId: productMedia.productId,
-            assetId: productMedia.assetId,
-            position: productMedia.position,
+            productId: productVariants.productId,
+            isDefault: productVariants.isDefault,
+            priceAmount: productVariants.priceAmount,
           })
-          .from(productMedia)
-          .where(inArray(productMedia.productId, productIds))
-          .orderBy(
-            asc(productMedia.productId),
-            asc(productMedia.position),
-            asc(productMedia.id),
-          )
-      : Promise.resolve(
-          [] as Array<{ productId: number; assetId: string; position: number }>,
-        ),
-    productIds.length > 0
-      ? db
-          .select()
           .from(productVariants)
           .where(inArray(productVariants.productId, productIds))
-          .orderBy(asc(productVariants.position), asc(productVariants.id))
-      : Promise.resolve([] as Array<typeof productVariants.$inferSelect>),
-    productIds.length > 0
-      ? db
-          .select({
-            variantId: productVariantMedia.variantId,
-            assetId: productVariantMedia.assetId,
-            position: productVariantMedia.position,
-            productId: productVariants.productId,
-          })
-          .from(productVariantMedia)
-          .innerJoin(
-            productVariants,
-            eq(productVariantMedia.variantId, productVariants.id),
-          )
-          .where(inArray(productVariants.productId, productIds))
-          .orderBy(
-            asc(productVariantMedia.variantId),
-            asc(productVariantMedia.position),
-            asc(productVariantMedia.assetId),
-          )
       : Promise.resolve(
           [] as Array<{
-            variantId: number;
-            assetId: string;
-            position: number;
             productId: number;
-          }>,
-        ),
-    productIds.length > 0
-      ? db
-          .select({
-            variantId: productVariantCustomizationMedia.variantId,
-            assetId: productVariantCustomizationMedia.assetId,
-            productId: productVariants.productId,
-          })
-          .from(productVariantCustomizationMedia)
-          .innerJoin(
-            productVariants,
-            eq(productVariantCustomizationMedia.variantId, productVariants.id),
-          )
-          .where(inArray(productVariants.productId, productIds))
-      : Promise.resolve(
-          [] as Array<{
-            variantId: number;
-            assetId: string;
-            productId: number;
+            isDefault: boolean;
+            priceAmount: number | null;
           }>,
         ),
     productIds.length > 0
@@ -216,28 +151,30 @@ export async function loadListingPage(
       : Promise.resolve([] as Array<{ productId: number; enabled: boolean }>),
   ]);
 
-  const resolvedItems = await hydrateTranslations(
-    db,
-    "product",
-    items,
-    (i) => String(i.id),
-    [
-      { fieldName: "title", objectKey: "title" },
-      { fieldName: "subtitle", objectKey: "subtitle" },
-    ],
-    [
-      { fieldName: "title", objectKey: "title" },
-      { fieldName: "subtitle", objectKey: "subtitle" },
-    ],
-  );
-  const resolvedCategories = await hydrateTranslations(
-    db,
-    "product_category",
-    categoryRows,
-    (c) => String(c.categoryId),
-    [{ fieldName: "name", objectKey: "name" }],
-    [{ fieldName: "name", objectKey: "name" }],
-  );
+  const [resolvedItems, resolvedCategories] = await Promise.all([
+    hydrateTranslations(
+      db,
+      "product",
+      items,
+      (i) => String(i.id),
+      [
+        { fieldName: "title", objectKey: "title" },
+        { fieldName: "subtitle", objectKey: "subtitle" },
+      ],
+      [
+        { fieldName: "title", objectKey: "title" },
+        { fieldName: "subtitle", objectKey: "subtitle" },
+      ],
+    ),
+    hydrateTranslations(
+      db,
+      "product_category",
+      categoryRows,
+      (c) => String(c.categoryId),
+      [{ fieldName: "name", objectKey: "name" }],
+      [{ fieldName: "name", objectKey: "name" }],
+    ),
+  ]);
 
   const categoriesByProductId = new Map<number, string[]>();
   for (const row of resolvedCategories) {
@@ -253,34 +190,6 @@ export async function loadListingPage(
     variantsByProductId.set(row.productId, current);
   }
 
-  const productMediaByProductId = new Map<
-    number,
-    Array<{ assetId: string; position: number }>
-  >();
-  for (const row of productMediaRows) {
-    const current = productMediaByProductId.get(row.productId) ?? [];
-    current.push(row);
-    productMediaByProductId.set(row.productId, current);
-  }
-
-  const variantMediaByVariantId = new Map<
-    number,
-    (typeof variantMediaRows)[number][]
-  >();
-  for (const row of variantMediaRows) {
-    const current = variantMediaByVariantId.get(row.variantId) ?? [];
-    current.push(row);
-    variantMediaByVariantId.set(row.variantId, current);
-  }
-
-  const variantCustomizationMediaByVariantId = new Map<
-    number,
-    { assetId: string }
-  >();
-  for (const row of variantCustomizationMediaRows) {
-    variantCustomizationMediaByVariantId.set(row.variantId, row);
-  }
-
   const customizationByProductId = new Map(
     customizationRows.map((row) => [row.productId, row]),
   );
@@ -291,9 +200,7 @@ export async function loadListingPage(
       item,
       categoriesByProductId.get(item.id) ?? [],
       variantsByProductId.get(item.id) ?? [],
-      variantMediaByVariantId,
       customizationByProductId.get(item.id)?.enabled ?? false,
-      variantCustomizationMediaByVariantId,
       item.thumbnailAssetId ?? null,
       item.hoverAssetId ?? null,
     ),

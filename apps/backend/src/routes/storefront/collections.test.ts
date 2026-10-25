@@ -242,7 +242,6 @@ describe("GET /api/storefront/collections/:handle/products", () => {
       ],
       { total: 3 },
       [],
-      [],
       [
         {
           id: 71,
@@ -266,8 +265,6 @@ describe("GET /api/storefront/collections/:handle/products", () => {
           position: 0,
         },
       ],
-      [],
-      [],
       [
         { productId: 7, enabled: true },
         { productId: 9, enabled: true },
@@ -293,7 +290,7 @@ describe("GET /api/storefront/collections/:handle/products", () => {
     expect(body).toMatchObject({ page: 1, limit: 3, total: 3 });
   });
 
-  it("uses the first product media as the best-seller thumbnail", async () => {
+  it("leaves the best-seller thumbnail empty without an explicit Product Thumbnail", async () => {
     const queuedDb = createQueuedDb([
       undefined,
       [{ id: 10 }],
@@ -311,13 +308,6 @@ describe("GET /api/storefront/collections/:handle/products", () => {
       [],
       [
         {
-          productId: 10,
-          url: "/api/assets/products/product-media/content",
-          position: 0,
-        },
-      ],
-      [
-        {
           id: 101,
           productId: 10,
           isDefault: true,
@@ -325,8 +315,6 @@ describe("GET /api/storefront/collections/:handle/products", () => {
           position: 0,
         },
       ],
-      [],
-      [],
       [],
     ]);
     (dbClient.getDb as any).mockReturnValue(queuedDb);
@@ -363,8 +351,6 @@ describe("GET /api/storefront/collections/:handle/products", () => {
       { total: 1 },
       // categoryRows
       [{ productId: 101, categoryId: 1, name: "Cúp" }],
-      // productMediaRows
-      [],
       // variantRows
       [
         {
@@ -375,10 +361,6 @@ describe("GET /api/storefront/collections/:handle/products", () => {
           position: 0,
         },
       ],
-      // variantMediaRows
-      [],
-      // variantCustomizationMediaRows
-      [],
       // customizationRows
       [],
     ]);

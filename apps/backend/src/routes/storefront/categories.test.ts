@@ -121,7 +121,6 @@ describe("GET /api/storefront/categories/:handle/products", () => {
     ];
     const totalCount = { total: 1 };
     const categoryLinks: unknown[] = [];
-    const productMediaList: unknown[] = [];
     const variantList = [
       {
         id: 501,
@@ -131,8 +130,6 @@ describe("GET /api/storefront/categories/:handle/products", () => {
         position: 0,
       },
     ];
-    const variantMediaList: unknown[] = [];
-    const variantCustomizationMediaList: unknown[] = [];
     const customizationList = [{ productId: 101, enabled: true }];
 
     const queuedDb = createQueuedDb([
@@ -141,10 +138,7 @@ describe("GET /api/storefront/categories/:handle/products", () => {
       items, // products list
       totalCount, // total count
       categoryLinks, // category rows
-      productMediaList, // media rows
       variantList, // variant rows
-      variantMediaList, // variant media rows
-      variantCustomizationMediaList, // variant customization media
       customizationList, // customization rows
     ]);
     (dbClient.getDb as any).mockReturnValue(queuedDb);

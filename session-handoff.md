@@ -1,3 +1,5 @@
+- 2026-10-25: **Backend query performance, priority-1 fixes.** Added missing indexes in `apps/backend/src/db/schema.ts`, made `db.batch` run statements sequentially on the transaction connection, filtered `hydrateTranslations` by field name, and removed unused media queries from storefront product/collection listings. Backend check and build pass; tests 344/347 with 3 pre-existing `toAbsoluteAssetUrl` failures. No migration generated yet; next step is `db:push` (local) or a generated migration for Docker, then the remaining items from the performance review (create-order N+1, best-sellers subquery, admin order list pagination, search, bulk translation upserts, cleanup jobs).
+
 - 2026-10-04: **Architectural Review: Docker Compose, Monorepo Build & Database Migration Strategy.**
   - Executed `/grill-with-docs` interview session focusing on Docker Compose and the Monorepo deployment architecture.
   - Decided to pivot to a Zero-Downtime Deployment model by executing database migrations independently of the application startup.
