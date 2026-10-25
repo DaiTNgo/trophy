@@ -67,14 +67,10 @@ export async function readCustomizationAssetUpload(c: Context<AppEnv>) {
 }
 
 /**
- * Checks size and resolves dimensions. PDFs always need client-measured dimensions;
- * images are measured from their bytes unless `trustClientImageDimensions` is set.
+ * Checks size and resolves dimensions. PDFs need client-measured dimensions;
+ * images are always measured from their bytes.
  */
-export function validateCustomizationAssetUpload(
-  c: Context<AppEnv>,
-  body: UploadBody,
-  { trustClientImageDimensions = false } = {},
-) {
+export function validateCustomizationAssetUpload(c: Context<AppEnv>, body: UploadBody) {
   const { buffer, mimeType, clientWidth, clientHeight, clientPageCount } = body;
   if (buffer.byteLength === 0 || buffer.byteLength > MAX_ASSET_BYTES) {
     return {
@@ -83,15 +79,15 @@ export function validateCustomizationAssetUpload(
     };
   }
 
-  const hasClientDimensions = Boolean(clientWidth && clientHeight);
   let dimensions: { width: number; height: number } | null;
   let pageCount: number | undefined;
 
-  if (hasClientDimensions && (mimeType === "application/pdf" || trustClientImageDimensions)) {
-    dimensions = { width: clientWidth!, height: clientHeight! };
+  if (mimeType === "application/pdf") {
+    if (!clientWidth || !clientHeight) {
+      return { ok: false as const, response: jsonError(c, 422, "Missing PDF dimensions in upload request") };
+    }
+    dimensions = { width: clientWidth, height: clientHeight };
     pageCount = clientPageCount;
-  } else if (mimeType === "application/pdf") {
-    return { ok: false as const, response: jsonError(c, 422, "Missing PDF dimensions in upload request") };
   } else {
     dimensions = readImageDimensions(mimeType, new Uint8Array(buffer));
   }

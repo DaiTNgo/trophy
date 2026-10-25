@@ -8,7 +8,6 @@ import { adminArticleCategoriesRoute } from "./article-categories";
 import { adminBootstrapRoute } from "./bootstrap";
 import { adminBrandAssetsRoute } from "./brand-assets";
 import { adminClipartRoute } from "./clipart";
-import { customizationAssetsRoute as adminCustomizationAssetsRoute } from "./customization-assets";
 import { customizationsRoute as adminCustomizationsRoute } from "./customizations/index";
 import { adminOrdersRoute } from "./orders";
 import { adminMisaRoute } from "./misa";
@@ -49,7 +48,6 @@ export const adminRoute = new Hono<AppEnv>()
   .route("/super-admin", superAdminRoute)
   .route("/brand-assets", adminBrandAssetsRoute)
   .route("/customization/clipart", adminClipartRoute)
-  .route("/customizations/assets", adminCustomizationAssetsRoute)
   .route("/customizations", adminCustomizationsRoute)
   .route("/orders", adminOrdersRoute)
   .route("/misa", adminMisaRoute)
