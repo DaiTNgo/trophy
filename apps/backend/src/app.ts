@@ -10,50 +10,27 @@ import {
 } from "./lib/cors";
 import { adminRoute } from "./routes/admin";
 import { storefrontRoute } from "./routes/storefront";
+import { logsRoute } from "./routes/logs";
+import { logger } from "./lib/logger";
+import { logger as honoPino } from "hono-pino";
 
 const app = new Hono<AppEnv>();
+
+app.use(
+  "*",
+  honoPino({
+    pino: logger,
+  })
+);
 
 app.use("*", async (c, next) => {
   (c as any).env = getAppBindings(c.env);
   await next();
 });
 
-app.use("/api/storefront/*", async (c, next) => {
-  const startedAt = Date.now();
-  const url = new URL(c.req.url);
-
-  console.log(
-    "[backend]",
-    JSON.stringify({
-      event: "storefront.request",
-      timestamp: new Date().toISOString(),
-      method: c.req.method,
-      path: url.pathname,
-      search: url.search || null,
-      origin: c.req.header("origin") ?? null,
-      cfRay: c.req.header("cf-ray") ?? null,
-    }),
-  );
-
-  try {
-    await next();
-  } finally {
-    console.log(
-      "[backend]",
-      JSON.stringify({
-        event: "storefront.response",
-        timestamp: new Date().toISOString(),
-        method: c.req.method,
-        path: url.pathname,
-        status: c.res.status,
-        durationMs: Date.now() - startedAt,
-      }),
-    );
-  }
-});
-
 app.use("/api/admin/*", createCorsMiddleware(SESSION_CORS_POLICY));
 app.use("/api/storefront/*", createCorsMiddleware(STOREFRONT_CORS_POLICY));
+app.use("/api/logs/*", createCorsMiddleware(STOREFRONT_CORS_POLICY));
 
 app.get("/", (c) => {
   return c.json(
@@ -70,16 +47,15 @@ app.on(["GET", "POST"], `${AUTH_BASE_PATH}/*`, (c) => {
 });
 
 app.onError((err, c) => {
-  console.error(
-    "[backend error]",
-    JSON.stringify({
+  logger.error(
+    {
       event: "unhandled.error",
-      timestamp: new Date().toISOString(),
       path: c.req.path,
       method: c.req.method,
       message: err.message,
       stack: err.stack,
-    }),
+    },
+    "[backend error]",
   );
 
   const requestOrigin = c.req.header("origin");
@@ -119,7 +95,8 @@ export const routes = app
   .basePath("/api")
   .get("/health", (c) => c.json({ ok: true }, 200))
   .route("/admin", adminRoute)
-  .route("/storefront", storefrontRoute);
+  .route("/storefront", storefrontRoute)
+  .route("/logs", logsRoute);
 
 export type AppType = typeof routes;
 

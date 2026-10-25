@@ -1,4 +1,5 @@
 import { serve } from '@hono/node-server'
+import { logger } from './lib/logger'
 import { app } from './app'
 import { PUBLIC_ASSET_CORS_POLICY, createCorsMiddleware } from './lib/cors'
 import { processR2CleanupJobs } from './lib/r2-cleanup-outbox'
@@ -27,7 +28,7 @@ const runScheduledTasks = async () => {
       processScheduledArticlePublishing(env),
     ])
   } catch (err) {
-    console.error('[cron] Error running scheduled tasks:', err)
+    logger.error({ err }, '[cron] Error running scheduled tasks')
   }
 }
 
@@ -46,7 +47,7 @@ if (process.env.NODE_ENV !== 'test') {
       port,
     },
     (info) => {
-      console.log(`Backend server is running on http://localhost:${info.port}`)
+      logger.info(`Backend server is running on http://localhost:${info.port}`)
     }
   )
 }

@@ -9,7 +9,49 @@ env:
   REGISTRY: ghcr.io
 
 jobs:
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+      infra: ${{ steps.filter.outputs.infra }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'apps/backend/**'
+              - 'packages/**'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+            storefront:
+              - 'apps/storefront/**'
+              - 'packages/**'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+            admin:
+              - 'apps/admin/**'
+              - 'packages/**'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+            infra:
+              - 'docker-compose.yml'
+              - 'docker/**'
+              - '.github/workflows/deploy.yml'
+
+      - id: set-matrix
+        run: |
+          SERVICES=()
+          if [ "${{ steps.filter.outputs.backend }}" == "true" ]; then SERVICES+=('"backend"'); fi
+          if [ "${{ steps.filter.outputs.storefront }}" == "true" ]; then SERVICES+=('"storefront"'); fi
+          if [ "${{ steps.filter.outputs.admin }}" == "true" ]; then SERVICES+=('"admin"'); fi
+          echo "matrix=[$(IFS=,; echo "${SERVICES[*]}")]" >> $GITHUB_OUTPUT
+
   build-and-push:
+    needs: changes
+    if: ${{ needs.changes.outputs.matrix != '[]' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -17,7 +59,7 @@ jobs:
 
     strategy:
       matrix:
-        service: [backend, storefront, admin]
+        service: ${{ fromJSON(needs.changes.outputs.matrix) }}
 
     steps:
       - name: Prepare lowercase image prefix
@@ -45,13 +87,13 @@ jobs:
             type=raw,value=latest
             type=sha,format=short
 
-      - name: Generate frontend .env.production
+      - name: Generate frontend .env
         if: matrix.service == 'admin' || matrix.service == 'storefront'
         run: |
           if [ "${{ matrix.service }}" == "admin" ]; then
-            echo "VITE_BACKEND_URL=${{ secrets.VITE_BACKEND_URL }}" > apps/admin/.env.production
+            echo "VITE_BACKEND_URL=${{ secrets.VITE_BACKEND_URL }}" > apps/admin/.env
           elif [ "${{ matrix.service }}" == "storefront" ]; then
-            echo "VITE_API_URL=${{ secrets.VITE_API_URL }}" > apps/storefront/.env.production
+            echo "VITE_API_URL=${{ secrets.VITE_API_URL }}" > apps/storefront/.env
           fi
 
       - name: Build and push Docker image
@@ -77,7 +119,11 @@ jobs:
 
   deploy:
     runs-on: ubuntu-latest
-    needs: build-and-push
+    needs: [changes, build-and-push]
+    if: |
+      always() && 
+      (needs.changes.outputs.matrix != '[]' || needs.changes.outputs.infra == 'true') &&
+      (needs.build-and-push.result == 'success' || needs.build-and-push.result == 'skipped')
     steps:
       - name: Prepare lowercase image prefix
         run: echo "IMAGE_NAME_PREFIX=$(echo '${{ github.repository_owner }}/trophy' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
@@ -109,10 +155,11 @@ jobs:
           script: |
             cd /opt/trophy
 
-            # Tạo file .env.production cho Backend runtime
-            cat <<EOT > /opt/trophy/.env.production
+            # Tạo file .env cho Docker runtime
+            cat <<EOT > /opt/trophy/.env
             ADMIN_APP_ORIGIN=${{ secrets.ADMIN_APP_ORIGIN }}
             STOREFRONT_APP_ORIGIN=${{ secrets.STOREFRONT_APP_ORIGIN }}
+            BACKEND_PUBLIC_URL=${{ secrets.BACKEND_PUBLIC_URL }}
             BETTER_AUTH_SECRET=${{ secrets.BETTER_AUTH_SECRET }}
             BETTER_AUTH_URL=${{ secrets.BETTER_AUTH_URL }}
             JETPAY_ID=${{ secrets.JETPAY_ID }}
@@ -121,7 +168,7 @@ jobs:
             MISA_CLIENT_SECRET=${{ secrets.MISA_CLIENT_SECRET }}
             MISA_API_BASE_URL=${{ secrets.MISA_API_BASE_URL }}
             EOT
-            chmod 600 /opt/trophy/.env.production
+            chmod 600 /opt/trophy/.env
 
             # Khai báo image dùng để pull
             export IMAGE_BACKEND=${REGISTRY}/${PREFIX}-backend:latest
@@ -147,7 +194,7 @@ jobs:
             IMAGE_BACKEND=$IMAGE_BACKEND \
             IMAGE_STOREFRONT=$IMAGE_STOREFRONT \
             IMAGE_ADMIN=$IMAGE_ADMIN \
-            docker compose --env-file .env.production up -d backend storefront admin
+            docker compose up -d backend storefront admin
 
             # 4. Dọn dẹp các image cũ để giải phóng ổ cứng VPS
             docker image prune -af
