@@ -13,7 +13,7 @@ import type { Route } from "./+types/news";
 export async function loader({ request, context }: Route.LoaderArgs) {
   return withStorefrontLoaderLog("news", request, async () => {
     const locale = getLocale(context);
-    const backendFetch = getBackendServiceFetch(context);
+    const backendFetch = getBackendServiceFetch();
     const url = new URL(request.url);
     const currentPage = Number(url.searchParams.get("page")) || 1;
     const category = url.searchParams.get("category") || undefined;

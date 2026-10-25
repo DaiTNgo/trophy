@@ -1,23 +1,6 @@
-import { createContext } from "react-router";
 import type { BackendFetch } from "./observability";
 
-export const cloudflareContext = createContext<{
-  env?: any;
-  ctx?: any;
-}>();
-
-export function getBackendServiceFetch(
-  context?: any,
-): BackendFetch {
-  try {
-    const cf = context?.get ? context.get(cloudflareContext) : null;
-    if (cf?.env?.BACKEND?.fetch) {
-      return (input, init) => cf.env.BACKEND.fetch(input, init);
-    }
-  } catch {
-    // ignore if context not registered
-  }
-
+export function getBackendServiceFetch(): BackendFetch {
   const backendBaseUrlStr =
     process.env.BACKEND_INTERNAL_URL ||
     process.env.BACKEND_URL ||

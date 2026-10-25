@@ -36,7 +36,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
 export async function loader({ request, context }: Route.LoaderArgs) {
   return withStorefrontLoaderLog("home", request, async () => {
     const locale = getLocale(context);
-    const backendFetch = getBackendServiceFetch(context);
+    const backendFetch = getBackendServiceFetch();
     const [categories, customizableBestSellersData, standardBestSellersData] = await Promise.all([
       fetchStorefrontCategories(locale, backendFetch).catch(() => []),
       fetchStorefrontCollectionProducts("best-sellers", {

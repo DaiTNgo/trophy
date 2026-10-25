@@ -1,14 +1,13 @@
 ## Backend scaffold
 
-This app is set up as a Cloudflare Worker using:
+This app is a Node.js server (`@hono/node-server`) using:
 
 - `Hono` for HTTP routing
 - `Hono RPC` for type-safe client inference
-- `Drizzle ORM` for database access
-- `Cloudflare D1` as the SQLite database
-- `Wrangler` for local dev, migrations, and deploys
+- `Drizzle ORM` with PostgreSQL
+- A local filesystem volume for object storage (`src/lib/storage.ts`)
 
-Local Vite dev runs on `http://localhost:8787` and preview runs on `http://localhost:8788`.
+Local dev runs on `http://localhost:8787`.
 
 ## Commands
 
@@ -18,35 +17,14 @@ pnpm --filter backend build
 pnpm --filter backend check
 ```
 
-Generate Worker binding types if you want Wrangler-managed binding interfaces:
-
-```txt
-pnpm --filter backend cf-typegen
-```
-
-Generate and apply D1 migrations:
+Generate and apply database migrations (requires `DATABASE_URL`):
 
 ```txt
 pnpm --filter backend db:generate
-pnpm --filter backend db:migrate:local
-pnpm --filter backend db:migrate:remote
+pnpm --filter backend db:migrate
 ```
 
-## Troubleshooting
-
-### `Cannot add a NOT NULL column with default value NULL`
-
-SQLite/D1 cannot add a required column to a populated table when existing rows
-have no value for it. Do not rename `product_media.url` to `asset_id`: a legacy
-URL is not a product asset ID. The Product Media migration rebuilds the table
-without legacy URL rows, which is the intended development-mode data reset.
-
-If migration generation emits `ALTER TABLE product_media ADD asset_id text NOT
-NULL`, replace that sequence with a table rebuild before applying it. Then run:
-
-```txt
-pnpm --filter backend db:migrate:local
-```
+## First admin
 
 Create the first super-admin account via the admin UI at `/onboarding`. Alternatively, POST to the bootstrap endpoint directly:
 
@@ -58,20 +36,9 @@ curl -X POST http://localhost:8787/api/admin/bootstrap \
 
 The admin UI signs in with `username + password`, not email.
 
-## D1 binding
-
-Create a real D1 database, then replace the placeholder IDs in [`wrangler.jsonc`](/Users/dnt/workspace/trophy/apps/backend/wrangler.jsonc).
-
 ## MISA integration
 
-Copy `.dev.vars.example` to `.dev.vars` for local development and set the real `MISA_CLIENT_ID` and `MISA_CLIENT_SECRET`. Do not commit `.dev.vars` or put MISA secrets in `wrangler.jsonc`.
-
-Production secrets are configured with Wrangler:
-
-```bash
-pnpm --filter backend exec wrangler secret put MISA_CLIENT_ID
-pnpm --filter backend exec wrangler secret put MISA_CLIENT_SECRET
-```
+Set `MISA_CLIENT_ID`, `MISA_CLIENT_SECRET` and `MISA_API_BASE_URL` in the root `.env` (see `.env.example`). Do not commit real MISA secrets.
 
 MISA publish and checkout flows call the backend MISA client directly. The admin proxy at `/api/admin/misa/products` is intended for authenticated debugging and lookup; it never returns the MISA bearer token.
 
@@ -98,23 +65,9 @@ Authorization: Bearer {{admin_session_token}}
 
 The publish request is the business flow: Admin calls Trophy and the backend calls MISA directly. The MISA proxy is only for explicit admin lookup/debug operations.
 
-```txt
-pnpm --filter backend exec wrangler d1 create backend
-```
-
-Staging and production D1 bindings are intentionally not declared yet. Add the
-real environment-specific database IDs before deploying with `--env staging` or
-`--env production`; Wrangler bindings are environment-specific.
-
 ## Customization asset storage
 
-The `CUSTOMIZATION_ASSETS` R2 binding uses these buckets:
-
-- local: `trophy-customization-assets-local`
-- staging: `trophy-customization-assets-staging`
-- production: `trophy-customization-assets-production`
-
-Create the buckets before starting the corresponding environment. Image uploads
+Uploaded assets are stored under `STORAGE_DIR` (default `./storage`). Image uploads
 are private and are served through `/api/customizations/assets/:id/content`.
 
 ## Client type sharing

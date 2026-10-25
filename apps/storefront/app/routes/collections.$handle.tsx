@@ -10,7 +10,7 @@ import type { Route } from "./+types/collections.$handle";
 export async function loader({ params, request, context }: Route.LoaderArgs) {
   return withStorefrontLoaderLog("collection", request, async () => {
     const locale = getLocale(context);
-    const backendFetch = getBackendServiceFetch(context);
+    const backendFetch = getBackendServiceFetch();
     const url = new URL(request.url);
     const currentPage = Number(url.searchParams.get("page")) || 1;
     const currentCategory = url.searchParams.get("category") || "";

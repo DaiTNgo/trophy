@@ -19,7 +19,7 @@ import { TrustBar } from "../home/TrustBar";
 export async function loader({ request, context }: { request: Request; context: RouterContextProvider }) {
   return withStorefrontLoaderLog("storefront-layout", request, async () => {
     const locale = getLocale(context);
-    const backendFetch = getBackendServiceFetch(context);
+    const backendFetch = getBackendServiceFetch();
     const [categories, collections] = await Promise.all([
       fetchStorefrontCategories(locale, backendFetch).catch(() => [] as StorefrontCategory[]),
       fetchStorefrontCollections(locale, backendFetch).catch(() => [] as StorefrontCollection[]),

@@ -23,7 +23,7 @@ import type { Route } from "./+types/product.$handle";
 export async function loader({ params, request, context }: Route.LoaderArgs) {
   return withStorefrontLoaderLog("product-detail", request, async () => {
     const locale = getLocale(context);
-    const backendFetch = getBackendServiceFetch(context);
+    const backendFetch = getBackendServiceFetch();
     const product = await fetchStorefrontProduct(params.handle, locale, backendFetch);
 
     const url = new URL(request.url);

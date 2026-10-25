@@ -11,7 +11,7 @@ import type { Route } from "./+types/products";
 export async function loader({ request, context }: Route.LoaderArgs) {
   return withStorefrontLoaderLog("products", request, async () => {
     const locale = getLocale(context);
-    const backendFetch = getBackendServiceFetch(context);
+    const backendFetch = getBackendServiceFetch();
     const url = new URL(request.url);
     const activeCategory = url.searchParams.get("category") || "";
     const currentPage = Number(url.searchParams.get("page")) || 1;

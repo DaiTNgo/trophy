@@ -23,7 +23,7 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
       }
 
       const locale = getLocale(context);
-      const backendFetch = getBackendServiceFetch(context);
+      const backendFetch = getBackendServiceFetch();
       const currentPage = Number(url.searchParams.get("page")) || 1;
       const activeCollection = url.searchParams.get("collection") || "";
 

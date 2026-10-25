@@ -12,7 +12,7 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
     const product = await fetchStorefrontProduct(
       params.productHandle,
       locale,
-      getBackendServiceFetch(context),
+      getBackendServiceFetch(),
     );
     throw redirect(`${getGenericProductPath(product.handle)}${new URL(request.url).search}`);
   }, { categoryHandle: params.categoryHandle, productHandle: params.productHandle });

@@ -52,25 +52,13 @@ npm run build
 
 ## Deployment
 
-Deployment is done using the Wrangler CLI.
-
-To build and deploy directly to production:
+The storefront runs as a Node.js container (`react-router-serve`) behind the Nginx gateway. Build and start the full stack from the repository root:
 
 ```sh
-npm run deploy
+docker compose up -d --build
 ```
 
-To deploy a preview URL:
-
-```sh
-npx wrangler versions upload
-```
-
-You can then promote a version to production after verification or roll it out progressively.
-
-```sh
-npx wrangler versions deploy
-```
+Set `BACKEND_INTERNAL_URL` so SSR loaders reach the backend over the internal Docker network.
 
 ## Styling
 
@@ -84,18 +72,15 @@ To support multiple languages (e.g., Vietnamese and English) in the storefront, 
    - `i18next`: The core translation framework.
    - `react-i18next`: React bindings for i18next.
    - `i18next-browser-languagedetector`: For detecting user language.
-   - `remix-i18next` / `i18next-http-backend`: Useful for integrating i18next with Remix/React Router SSR data loaders.
+   - `remix-i18next`: Useful for integrating i18next with Remix/React Router SSR data loaders.
 
 2. **Setup Steps**:
-   - Install the necessary dependencies: `pnpm --filter router-cf add i18next react-i18next i18next-browser-languagedetector remix-i18next i18next-http-backend`
+   - Install the necessary dependencies: `pnpm --filter router-cf add i18next react-i18next i18next-browser-languagedetector remix-i18next`
    - Create an `i18n.ts` configuration file to define supported languages (e.g., `['en', 'vi']`), the fallback language, and namespaces.
    - Initialize `i18next` on both the client (via `entry.client.tsx`) and the server (via `entry.server.tsx`).
    - Create translation files (e.g., `public/locales/vi/common.json` and `public/locales/en/common.json`).
    - Use the `useTranslation` hook in your React components to translate text.
    - For SEO and better user experience, consider handling language switching via route params (e.g., `/:lang/products`) or utilizing HTTP cookies to remember user preferences.
-
-3. **Cloudflare Workers Consideration**:
-   - When running on Cloudflare Workers, if you use `i18next-http-backend`, ensure the translations can be fetched properly. An alternative for server-side rendering on edge is to directly import the translation JSON files into your server bundle to avoid internal network requests, which speeds up the SSR process.
 
 ---
 

@@ -5,7 +5,7 @@ import type { Route } from "./+types/sitemap-articles.xml";
 const STATIC_ROUTES = ["/", "/products", "/news", "/contact", "/about"];
 
 export async function loader({ context, request }: Route.LoaderArgs) {
-  const backendFetch = getBackendServiceFetch(context);
+  const backendFetch = getBackendServiceFetch();
   const origin = new URL(request.url).origin;
 
   let articleSlugs: string[] = [];

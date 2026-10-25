@@ -36,7 +36,6 @@
     "vietnam-divisions-js": "^3.0.0"
   },
   "devDependencies": {
-    "@cloudflare/vite-plugin": "^1.62.5",
     "@react-router/dev": "8.4.0",
     "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^26.6.4",
@@ -45,8 +44,7 @@
     "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2",
     "vite": "^8.3.2",
-    "vitest": "^5.0.3",
-    "wrangler": "^4.147.0"
+    "vitest": "^5.0.3"
   },
   "packageManager": "pnpm@12.9.1"
 }

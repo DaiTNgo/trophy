@@ -10,7 +10,6 @@
     "test": "vitest run --config vitest.config.ts",
     "lint": "vp lint .",
     "analyze": "ANALYZE_BUNDLE=1 vp build",
-    "deploy": "vp build && npx wrangler pages deploy dist --project-name trophy-admin --branch main",
     "preview": "vp preview"
   },
   "dependencies": {
@@ -60,8 +59,7 @@
     "tailwindcss": "^3.4.17",
     "typescript": "~7.0.2",
     "vite": "^8.3.2",
-    "vitest": "^5.0.3",
-    "wrangler": "^4.147.0"
+    "vitest": "^5.0.3"
   },
   "packageManager": "pnpm@12.9.1"
 }

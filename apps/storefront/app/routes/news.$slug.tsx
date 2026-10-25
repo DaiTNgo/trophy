@@ -14,7 +14,7 @@ import type { Route } from "./+types/news.$slug";
 export async function loader({ params, context, request }: Route.LoaderArgs) {
   return withStorefrontLoaderLog("news.$slug", request, async () => {
     const locale = getLocale(context);
-    const backendFetch = getBackendServiceFetch(context);
+    const backendFetch = getBackendServiceFetch();
     const article = await fetchStorefrontArticle(params.slug, locale, backendFetch);
 
     // Related articles: same first category when present, else latest published

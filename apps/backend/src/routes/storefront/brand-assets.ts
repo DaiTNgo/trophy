@@ -24,7 +24,7 @@ export const storefrontBrandAssetsRoute = new Hono<AppEnv>()
       headers.set("content-type", "font/ttf");
       headers.set("cache-control", "public, max-age=31536000, immutable");
       headers.set("x-content-type-options", "nosniff");
-      return new Response(staticBytes as unknown as BodyInit, { headers });
+      return new Response(staticBytes, { headers });
     }
 
     const key = `fonts/${assetId}.ttf`;
