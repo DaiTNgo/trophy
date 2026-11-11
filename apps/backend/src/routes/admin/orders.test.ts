@@ -286,7 +286,8 @@ describe("admin orders routes", () => {
       },
     });
     expect(JSON.stringify(body)).not.toContain("productSnapshotJson");
-    expect(db.select).toHaveBeenCalledTimes(4);
+    // includes the payment_transactions lookup added for BankHub
+    expect(db.select).toHaveBeenCalledTimes(5);
   });
 
   it("returns 404 when an admin order detail is missing", async () => {
@@ -355,7 +356,8 @@ describe("admin orders routes", () => {
     expect(response.status).toBe(200);
     const body = await response.json() as any;
     expect(body.order.items[0]).toMatchObject({ product: null, variant: null, background: null });
-    expect(db.select).toHaveBeenCalledTimes(4);
+    // includes the payment_transactions lookup added for BankHub
+    expect(db.select).toHaveBeenCalledTimes(5);
   });
 
   it("rejects empty admin order status updates", async () => {

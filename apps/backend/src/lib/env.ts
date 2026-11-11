@@ -14,6 +14,11 @@ export type AppBindings = {
   MISA_CLIENT_ID?: string;
   MISA_CLIENT_SECRET?: string;
   MISA_API_BASE_URL?: string;
+  JETPAY_AUTH_URL?: string;
+  JETPAY_BANKHUB_URL?: string;
+  JETPAY_CLIENT_ID?: string;
+  JETPAY_CLIENT_SECRET?: string;
+  JETPAY_WEBHOOK_KEY?: string;
 };
 
 export type AppEnv = {
@@ -37,6 +42,11 @@ export function getAppBindings(base: Partial<AppBindings> = {}): AppBindings {
     MISA_CLIENT_ID: base.MISA_CLIENT_ID || process.env.MISA_CLIENT_ID,
     MISA_CLIENT_SECRET: base.MISA_CLIENT_SECRET || process.env.MISA_CLIENT_SECRET,
     MISA_API_BASE_URL: base.MISA_API_BASE_URL || process.env.MISA_API_BASE_URL,
+    JETPAY_AUTH_URL: base.JETPAY_AUTH_URL || process.env.JETPAY_AUTH_URL,
+    JETPAY_BANKHUB_URL: base.JETPAY_BANKHUB_URL || process.env.JETPAY_BANKHUB_URL,
+    JETPAY_CLIENT_ID: base.JETPAY_CLIENT_ID || process.env.JETPAY_CLIENT_ID,
+    JETPAY_CLIENT_SECRET: base.JETPAY_CLIENT_SECRET || process.env.JETPAY_CLIENT_SECRET,
+    JETPAY_WEBHOOK_KEY: base.JETPAY_WEBHOOK_KEY || process.env.JETPAY_WEBHOOK_KEY,
     CUSTOMIZATION_ASSETS: base.CUSTOMIZATION_ASSETS || getStorage(storageDir),
   };
 }

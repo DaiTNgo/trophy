@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
-import { CheckCircle2, Copy } from "lucide-react";
 import type { Route } from "./+types/checkout";
 import {
   createStorefrontOrder,
@@ -17,6 +16,7 @@ import { formatCurrency } from "../lib/utils";
 import { Button } from "../components/ui/button";
 import { Container } from "../components/container";
 import { CheckoutForm } from "../components/checkout/CheckoutForm";
+import { PaymentInstructions } from "../components/checkout/PaymentInstructions";
 import type {
   CheckoutItem,
   CheckoutLocale,
@@ -126,90 +126,6 @@ function EmptyCheckoutState() {
   );
 }
 
-function PaymentInstructionsState({
-  order,
-}: {
-  order: StorefrontPaymentInstructionsResponse["order"];
-}) {
-  const [copied, setCopied] = useState<"account" | "reference" | null>(null);
-  const transferReference = order.paymentReference;
-
-  async function copy(value: string, kind: "account" | "reference") {
-    await navigator.clipboard.writeText(value);
-    setCopied(kind);
-    window.setTimeout(() => setCopied(null), 1500);
-  }
-
-  const isBankTransfer = order.paymentMethod === "bank_transfer";
-  return (
-    <div className="flex min-h-screen flex-col bg-white text-on-background">
-      <CheckoutHeader showCartLink={false} />
-      <main className="flex-grow py-8 sm:py-12">
-        <Container className="max-w-3xl">
-          <section className="border border-[#DEDEDE] bg-white px-5 py-8 sm:px-10 sm:py-12">
-            <CheckCircle2 className="size-10 text-action-positive" aria-hidden="true" />
-            <p className="mt-5 text-sm font-semibold uppercase tracking-[0.08em] text-on-surface-variant">
-              Đơn hàng đã được ghi nhận
-            </p>
-            <h1 className="mt-2 font-heading text-[34px] uppercase leading-none tracking-[0.03em] text-brand-strong">
-              {order.orderNumber}
-            </h1>
-            <p className="mt-5 text-lg text-on-surface">
-              Tổng thanh toán: <strong>{formatCurrency(order.totalAmount)}</strong>
-            </p>
-
-            {isBankTransfer ? (
-              <div className="mt-8 border-y border-[#DEDEDE] py-7">
-                <h2 className="font-heading text-2xl uppercase text-brand-strong">Thông tin chuyển khoản</h2>
-                <dl className="mt-5 space-y-4 text-on-surface">
-                  <div>
-                    <dt className="text-sm text-on-surface-variant">Ngân hàng</dt>
-                    <dd className="mt-1 font-semibold">Vietcombank</dd>
-                  </div>
-                  <div>
-                    <dt className="text-sm text-on-surface-variant">Chủ tài khoản</dt>
-                    <dd className="mt-1 font-semibold">Nguyen Tuan Thanh</dd>
-                  </div>
-                  <div>
-                    <dt className="text-sm text-on-surface-variant">Số tài khoản</dt>
-                    <dd className="mt-1 flex flex-wrap items-center gap-3 font-semibold">
-                      9987996745
-                      <Button type="button" variant="outline" size="sm" onClick={() => void copy("9987996745", "account")}>
-                        <Copy className="size-4" aria-hidden="true" />
-                        {copied === "account" ? "Đã sao chép" : "Sao chép"}
-                      </Button>
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-sm text-on-surface-variant">Nội dung chuyển khoản</dt>
-                    <dd className="mt-1 flex flex-wrap items-center gap-3 font-semibold">
-                      {transferReference}
-                      <Button type="button" variant="outline" size="sm" onClick={() => void copy(transferReference, "reference")}>
-                        <Copy className="size-4" aria-hidden="true" />
-                        {copied === "reference" ? "Đã sao chép" : "Sao chép"}
-                      </Button>
-                    </dd>
-                  </div>
-                </dl>
-                <p className="mt-6 text-sm text-on-surface-variant">
-                  Đơn hàng sẽ được xác nhận sau khi chúng tôi đối soát khoản chuyển.
-                </p>
-              </div>
-            ) : (
-              <p className="mt-8 border-y border-[#DEDEDE] py-7 text-on-surface-variant">
-                Bạn thanh toán khi nhận hàng. Đội ngũ Phùng Thị sẽ liên hệ xác nhận đơn hàng.
-              </p>
-            )}
-            <Link className="mt-8 inline-flex text-sm font-semibold text-primary underline underline-offset-4" to="/products">
-              Tiếp tục mua sắm
-            </Link>
-          </section>
-        </Container>
-      </main>
-    </div>
-  );
-}
-
 export default function Checkout() {
   const { lines, isReady, clearCart } = useCart();
   const [searchParams] = useSearchParams();
@@ -224,26 +140,35 @@ export default function Checkout() {
   const [vatChecked, setVatChecked] = useState(false);
   const [vatErrors, setVatErrors] = useState<Partial<Record<"name" | "taxId" | "email" | "address", string>>>({});
   const [showMobileSummary, setShowMobileSummary] = useState(false);
-  const [paymentInstructions, setPaymentInstructions] = useState<StorefrontPaymentInstructionsResponse["order"] | null>(null);
+  const [paymentInstructions, setPaymentInstructions] = useState<StorefrontPaymentInstructionsResponse | null>(null);
+  const [paymentInstructionsReload, setPaymentInstructionsReload] = useState(0);
+  const [paymentInstructionsLoading, setPaymentInstructionsLoading] = useState(false);
   const [paymentInstructionsError, setPaymentInstructionsError] = useState("");
   const [agreementChecked, setAgreementChecked] = useState(false);
 
   useEffect(() => {
     if (!paymentOrderNumber || !paymentAccessToken) return;
     let cancelled = false;
+    setPaymentInstructionsLoading(true);
     fetchStorefrontPaymentInstructions({ orderNumber: paymentOrderNumber, accessToken: paymentAccessToken })
       .then((response) => {
-        if (!cancelled) setPaymentInstructions(response.order);
+        if (!cancelled) {
+          setPaymentInstructions(response);
+          setPaymentInstructionsError("");
+        }
       })
       .catch((reason) => {
         if (!cancelled) {
           setPaymentInstructionsError(reason instanceof Error ? reason.message : "Không thể tải hướng dẫn thanh toán.");
         }
+      })
+      .finally(() => {
+        if (!cancelled) setPaymentInstructionsLoading(false);
       });
     return () => {
       cancelled = true;
     };
-  }, [paymentAccessToken, paymentOrderNumber]);
+  }, [paymentAccessToken, paymentOrderNumber, paymentInstructionsReload]);
 
   useEffect(() => {
     if (!isReady || lines.length === 0) {
@@ -363,7 +288,19 @@ export default function Checkout() {
   }
 
   if (paymentOrderNumber && paymentAccessToken) {
-    if (paymentInstructions) return <PaymentInstructionsState order={paymentInstructions} />;
+    if (paymentInstructions) {
+      return (
+        <div className="flex min-h-screen flex-col bg-white text-on-background">
+          <CheckoutHeader showCartLink={false} />
+          <PaymentInstructions
+            instructions={paymentInstructions}
+            accessToken={paymentAccessToken}
+            onRetry={() => setPaymentInstructionsReload((current) => current + 1)}
+            retrying={paymentInstructionsLoading}
+          />
+        </div>
+      );
+    }
     return (
       <div className="flex min-h-screen flex-col bg-white text-on-background">
         <CheckoutHeader showCartLink={false} />

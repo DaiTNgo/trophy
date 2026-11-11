@@ -1,3 +1,4 @@
+import { backendClient } from "./backend-client";
 import { backendFetch } from "./fetch";
 import type {
   CustomizationFormField,
@@ -16,6 +17,39 @@ export type AdminOrderListItem = {
   currencyCode: string;
   itemCount: number;
   createdAt: string;
+};
+
+export type AdminBankhubStatus = "pending" | "initialized" | "failed" | "not_configured";
+
+export type AdminPaymentTransaction = {
+  id: number;
+  transId: string;
+  bankTransId: string | null;
+  amount: number;
+  description: string | null;
+  transTime: string | null;
+  confirmType: number | null;
+  matchStatus: string;
+  createdAt: string;
+};
+
+export type AdminOrderPayment = {
+  bankhubStatus: AdminBankhubStatus | string;
+  bankhubLastError: string | null;
+  bankhubInitializedAt: string | null;
+  paymentDescription: string | null;
+  vietQrUrl: string | null;
+  bank: {
+    bankCode: string;
+    bankName: string;
+    bankAccountNumber: string;
+    bankAccountName: string;
+    branchName: string | null;
+    bankLogoUrl: string | null;
+  } | null;
+  paidAmount: number;
+  paidAt: string | null;
+  transactions: AdminPaymentTransaction[];
 };
 
 export type AdminOrderDetail = {
@@ -65,6 +99,7 @@ export type AdminOrderDetail = {
     attemptCount: number;
     syncedAt: string | null;
   };
+  payment: AdminOrderPayment;
   totals: {
     subtotalAmount: number;
     totalAmount: number;
@@ -203,6 +238,18 @@ export async function runAdminOrderMisaAction(
   }
   const body = await readJson<{ order: AdminOrderDetail }>(response);
   return body.order;
+}
+
+export async function initializeAdminOrderBankhub(orderNumber: string) {
+  const response = await backendClient.api.admin.orders[":orderNumber"].bankhub.initialize.$post({
+    param: { orderNumber },
+  });
+  if (!response.ok) {
+    const body = (await response.json().catch(() => null)) as { error?: string; message?: string } | null;
+    throw new Error(body?.error ?? body?.message ?? "Failed to initialize BankHub transaction");
+  }
+  const body = await response.json();
+  return (body as unknown as { order: AdminOrderDetail }).order;
 }
 
 export async function checkAdminOrderMisaLink(orderNumber: string) {

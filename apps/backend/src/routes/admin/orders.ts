@@ -3,6 +3,12 @@ import { Hono, type Context } from "hono";
 import * as v from "valibot";
 import { getDb } from "../../db/client";
 import {
+  initializeBankhubForOrder,
+  listOrderPaymentTransactions,
+  parseBankhubBank,
+  type PaymentTransactionRow,
+} from "../../lib/bankhub-payments";
+import {
   orderItems,
   orderItemMediaTransferAssets,
   orderItemMediaTransfers,
@@ -61,9 +67,34 @@ type OrderStatusUpdateInput = v.InferOutput<typeof orderStatusUpdateSchema>;
 type OrderRow = typeof orders.$inferSelect;
 type OrderItemRow = typeof orderItems.$inferSelect;
 
+function serializeAdminPayment(orderRow: OrderRow, transactionRows: PaymentTransactionRow[]) {
+  return {
+    bankhubStatus: orderRow.bankhubStatus,
+    bankhubLastError: orderRow.bankhubLastError,
+    bankhubInitializedAt: orderRow.bankhubInitializedAt?.toISOString() ?? null,
+    paymentDescription: orderRow.paymentDescription,
+    vietQrUrl: orderRow.vietQrUrl,
+    bank: parseBankhubBank(orderRow.bankhubBankJson),
+    paidAmount: orderRow.paidAmount,
+    paidAt: orderRow.paidAt?.toISOString() ?? null,
+    transactions: transactionRows.map((row) => ({
+      id: row.id,
+      transId: row.transId,
+      bankTransId: row.bankTransId,
+      amount: row.amount,
+      description: row.description,
+      transTime: row.transTime?.toISOString() ?? null,
+      confirmType: row.confirmType,
+      matchStatus: row.matchStatus,
+      createdAt: row.createdAt.toISOString(),
+    })),
+  };
+}
+
 function serializeAdminOrderDetail(
   orderRow: OrderRow,
   itemRows: OrderItemRow[],
+  transactionRows: PaymentTransactionRow[] = [],
 ) {
   const primaryAddress = parseOrderAddress(orderRow.primaryAddressJson);
   const shippingAddress = parseDifferentShippingAddress(orderRow.shippingAddressJson);
@@ -93,6 +124,7 @@ function serializeAdminOrderDetail(
       attemptCount: orderRow.misaAttemptCount,
       syncedAt: orderRow.misaSyncedAt?.toISOString() ?? null,
     },
+    payment: serializeAdminPayment(orderRow, transactionRows),
     totals: {
       subtotalAmount: orderRow.subtotalAmount,
       totalAmount: orderRow.totalAmount,
@@ -153,8 +185,9 @@ async function getOrderDetail(db: ReturnType<typeof getDb>, orderNumber: string)
     .from(orderItems)
     .where(eq(orderItems.orderId, orderRow.id))
     .orderBy(orderItems.id);
+  const transactionRows = await listOrderPaymentTransactions(db, orderRow.id);
 
-  return serializeAdminOrderDetail(orderRow, itemRows);
+  return serializeAdminOrderDetail(orderRow, itemRows, transactionRows);
 }
 
 function hasStatusUpdate(input: OrderStatusUpdateInput) {
@@ -260,6 +293,26 @@ export const adminOrdersRoute = new Hono<AppEnv>()
       return c.json({ error: "Order not found" }, 404);
     }
 
+    return c.json({ order }, 200);
+  })
+  .post("/:orderNumber/bankhub/initialize", async (c) => {
+    const parsed = parseParams(c, orderNumberParamsSchema);
+    if (!parsed.success) return parsed.response;
+
+    const db = getDb(c.env);
+    const existingOrder = await db.select().from(orders)
+      .where(eq(orders.orderNumber, parsed.output.orderNumber)).get();
+    if (!existingOrder) return c.json({ error: "Order not found" }, 404);
+    if (existingOrder.paymentMethod !== "bank_transfer") {
+      return c.json({ error: "Only bank-transfer orders use BankHub" }, 409);
+    }
+    if (existingOrder.status === "cancelled" || existingOrder.paymentStatus !== "pending") {
+      return c.json({ error: "BankHub can only be initialized for unpaid, active orders" }, 409);
+    }
+
+    await initializeBankhubForOrder(db, c.env, existingOrder);
+    const order = await getOrderDetail(db, parsed.output.orderNumber);
+    if (!order) return c.json({ error: "Order not found" }, 404);
     return c.json({ order }, 200);
   })
   .post("/:orderNumber/misa/connect", async (c) => {

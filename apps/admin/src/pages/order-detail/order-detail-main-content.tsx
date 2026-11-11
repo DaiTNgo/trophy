@@ -1,5 +1,6 @@
 import { getPaidAmount, getOutstandingAmount, getFulfillmentNotice, getFulfillmentTitle } from "./order-detail-utils";
 import { OrderSummarySection, OrderPaymentsSection, OrderFulfillmentSection } from "./order-detail-sections";
+import { OrderBankhubSection } from "./order-detail-bankhub-section";
 import {
   type AdminOrderDetail,
   type AdminOrderStatusUpdate,
@@ -13,6 +14,7 @@ export function OrderDetailMainContent({
   onPreviewItemChange,
   onMarkItemReady,
   onMarkItemPendingReview,
+  onInitializeBankhub,
 }: {
   order: AdminOrderDetail;
   updatingAction: string | null;
@@ -24,6 +26,7 @@ export function OrderDetailMainContent({
   onPreviewItemChange: (item: OrderDetailItem) => void;
   onMarkItemReady: (itemId: number, actionId: string) => Promise<void>;
   onMarkItemPendingReview: (itemId: number, actionId: string) => Promise<void>;
+  onInitializeBankhub: () => Promise<void>;
 }) {
   const paidAmount = getPaidAmount(order);
   const outstandingAmount = getOutstandingAmount(order);
@@ -47,6 +50,11 @@ export function OrderDetailMainContent({
         outstandingAmount={outstandingAmount}
         updatingAction={updatingAction}
         onUpdateStatus={onUpdateStatus}
+      />
+      <OrderBankhubSection
+        order={order}
+        updatingAction={updatingAction}
+        onInitialize={onInitializeBankhub}
       />
       <OrderFulfillmentSection
         order={order}

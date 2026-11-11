@@ -44,8 +44,11 @@ export function renderAddress(address: AdminOrderDetail["primaryAddress"]) {
     .join(", ");
 }
 
+/** Sum of matched BankHub transfers; a manually marked paid order counts as fully paid. */
 export function getPaidAmount(order: AdminOrderDetail) {
-  return order.paymentStatus === "paid" ? order.totals.totalAmount : 0;
+  return order.paymentStatus === "paid"
+    ? Math.max(order.payment.paidAmount, order.totals.totalAmount)
+    : order.payment.paidAmount;
 }
 
 export function getOutstandingAmount(order: AdminOrderDetail) {
@@ -57,7 +60,7 @@ export function getOutstandingAmount(order: AdminOrderDetail) {
     return 0;
   }
 
-  return order.totals.totalAmount;
+  return Math.max(order.totals.totalAmount - order.payment.paidAmount, 0);
 }
 
 export function getPaymentNotice(order: AdminOrderDetail) {
@@ -75,6 +78,12 @@ export function getPaymentNotice(order: AdminOrderDetail) {
 
   if (order.paymentStatus === "cancelled") {
     return "Payment collection was cancelled with the order.";
+  }
+
+  if (order.paymentMethod === "bank_transfer" && order.payment.bankhubStatus === "initialized") {
+    return order.payment.paidAmount > 0
+      ? "Partial bank transfer received; waiting for the remaining amount via BankHub."
+      : "Waiting for the bank transfer to be confirmed by JETPAY BankHub.";
   }
 
   return "Manual payment is pending operator follow-up.";

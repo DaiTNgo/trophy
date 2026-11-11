@@ -11,6 +11,7 @@ import {
 import { adminRoute } from "./routes/admin";
 import { storefrontRoute } from "./routes/storefront";
 import { logsRoute } from "./routes/logs";
+import { webhooksRoute } from "./routes/webhooks";
 import { logger } from "./lib/logger";
 import { logger as honoPino } from "hono-pino";
 
@@ -96,7 +97,8 @@ export const routes = app
   .get("/health", (c) => c.json({ ok: true }, 200))
   .route("/admin", adminRoute)
   .route("/storefront", storefrontRoute)
-  .route("/logs", logsRoute);
+  .route("/logs", logsRoute)
+  .route("/webhooks", webhooksRoute);
 
 export type AppType = typeof routes;
 

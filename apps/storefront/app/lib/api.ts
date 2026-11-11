@@ -494,7 +494,6 @@ export type StorefrontOrderResponse = {
   order: {
     id: number;
     orderNumber: string;
-    paymentReference: string;
     status: string;
     paymentStatus: string;
     fulfillmentStatus: string;
@@ -517,16 +516,38 @@ export class StorefrontOrderError extends Error {
   }
 }
 
+export type StorefrontBankhubStatus = "pending" | "initialized" | "failed" | "not_configured";
+
+export type StorefrontPaymentBank = {
+  bankCode: string;
+  bankName: string;
+  bankAccountNumber: string;
+  bankAccountName: string;
+  branchName: string | null;
+  bankLogoUrl: string | null;
+};
+
 export type StorefrontPaymentInstructionsResponse = {
   order: {
     orderNumber: string;
-    paymentReference: string;
     totalAmount: number;
+    paidAmount: number;
     currencyCode: string;
     paymentMethod: "bank_transfer" | "cash_on_delivery" | string;
     paymentStatus: string;
     createdAt: string;
+    bankhubStatus: StorefrontBankhubStatus;
+    paymentDescription: string | null;
+    vietQrUrl: string | null;
   };
+  bank: StorefrontPaymentBank | null;
+};
+
+export type StorefrontPaymentStatusResponse = {
+  paymentStatus: string;
+  paidAmount: number;
+  totalAmount: number;
+  paidAt: string | null;
 };
 
 export type StorefrontResolvedCartLine = {
@@ -654,6 +675,65 @@ export async function fetchStorefrontPaymentInstructions(payload: {
   if (!res.ok) {
     const body = await res.json().catch(() => null) as { error?: string } | null;
     throw new Error(body?.error ?? "Không thể tải hướng dẫn thanh toán.");
+  }
+  return res.json();
+}
+
+export async function fetchStorefrontPaymentStatus(payload: {
+  orderNumber: string;
+  accessToken: string;
+}): Promise<StorefrontPaymentStatusResponse> {
+  const search = new URLSearchParams({
+    orderNumber: payload.orderNumber,
+    accessToken: payload.accessToken,
+  });
+  const res = await fetchBackendWithLog(
+    "fetchStorefrontPaymentStatus",
+    backendUrl(`/api/storefront/orders/payment-status?${search}`),
+  );
+  if (!res.ok) {
+    const body = await res.json().catch(() => null) as { error?: string } | null;
+    throw new Error(body?.error ?? "Không thể kiểm tra trạng thái thanh toán.");
+  }
+  return res.json();
+}
+
+export type StorefrontBankApp = {
+  bankAppCode: string;
+  appName: string;
+  bankShortName: string;
+  logoSmall: string | null;
+  isDeepLinkSupport: boolean;
+};
+
+export async function fetchStorefrontBankApps(): Promise<StorefrontBankApp[]> {
+  const res = await fetchBackendWithLog(
+    "fetchStorefrontBankApps",
+    backendUrl("/api/storefront/payments/bank-apps"),
+  );
+  if (!res.ok) throw new Error("Không thể tải danh sách ngân hàng.");
+  const body = (await res.json()) as { apps: StorefrontBankApp[] };
+  return body.apps;
+}
+
+export async function createStorefrontPaymentDeeplink(payload: {
+  orderNumber: string;
+  accessToken: string;
+  bankAppCode: string;
+  redirectUrl: string;
+}): Promise<{ deepLinkUrl: string | null; qrCodeData: string | null }> {
+  const res = await fetchBackendWithLog(
+    "createStorefrontPaymentDeeplink",
+    backendUrl("/api/storefront/payments/deeplink"),
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    },
+  );
+  if (!res.ok) {
+    const body = await res.json().catch(() => null) as { error?: string } | null;
+    throw new Error(body?.error ?? "Không thể mở ứng dụng ngân hàng.");
   }
   return res.json();
 }

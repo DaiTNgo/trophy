@@ -3,6 +3,7 @@ import { toast } from "@medusajs/ui";
 
 import {
   fetchAdminOrderDetail,
+  initializeAdminOrderBankhub,
   checkAdminOrderMisaLink,
   purgeAdminOrder,
   runAdminOrderMisaAction,
@@ -153,6 +154,24 @@ export function useOrderDetail(orderNumber: string | undefined) {
     }
   }, [order]);
 
+  const initializeBankhub = useCallback(async () => {
+    if (!order) return;
+    setUpdatingAction("bankhub-initialize");
+    try {
+      const nextOrder = await initializeAdminOrderBankhub(order.orderNumber);
+      setOrder(nextOrder);
+      if (nextOrder.payment.bankhubStatus === "initialized") {
+        toast.success("BankHub transaction initialized");
+      } else {
+        toast.error(nextOrder.payment.bankhubLastError ?? "BankHub is not configured");
+      }
+    } catch (bankhubError) {
+      toast.error(bankhubError instanceof Error ? bankhubError.message : "Failed to initialize BankHub transaction");
+    } finally {
+      setUpdatingAction(null);
+    }
+  }, [order]);
+
   const markItemPendingReview = useCallback(
     async (itemId: number, actionId: string) => {
       if (!order) return;
@@ -188,6 +207,7 @@ export function useOrderDetail(orderNumber: string | undefined) {
     updateOrderStatus,
     purgeOrder,
     runMisaAction,
+    initializeBankhub,
     markItemReadyForProduction,
     markItemPendingReview,
   };

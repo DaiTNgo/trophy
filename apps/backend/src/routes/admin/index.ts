@@ -15,6 +15,7 @@ import { adminOnboardingRoute } from "./onboarding";
 import { productAssetsRoute as adminProductAssetsRoute } from "./product-assets";
 import { productMetadataRoute as adminProductMetadataRoute } from "./product-metadata";
 import { productsRoute as adminProductsRoute } from "./products";
+import { adminSettingsRoute } from "./settings";
 import { superAdminRoute } from "./super-admin";
 
 export const adminRoute = new Hono<AppEnv>()
@@ -51,6 +52,7 @@ export const adminRoute = new Hono<AppEnv>()
   .route("/customizations", adminCustomizationsRoute)
   .route("/orders", adminOrdersRoute)
   .route("/misa", adminMisaRoute)
+  .route("/settings", adminSettingsRoute)
   .route("/products/assets", adminProductAssetsRoute)
   .route("/product-metadata", adminProductMetadataRoute)
   .route("/products", adminProductsRoute)

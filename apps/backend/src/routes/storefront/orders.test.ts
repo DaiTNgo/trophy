@@ -14,7 +14,17 @@ vi.mock("../../lib/misa", () => ({
   },
 }));
 
+vi.mock("../../lib/bankhub-payments", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../lib/bankhub-payments")>()),
+  initializeBankhubForOrder: vi.fn(async (_db: unknown, _env: unknown, order: unknown) => order),
+  initializeBankhubForOrderId: vi.fn(async () => null),
+}));
+
 import { getDb } from "../../db/client";
+import {
+  initializeBankhubForOrder,
+  initializeBankhubForOrderId,
+} from "../../lib/bankhub-payments";
 import {
   isMisaConfigured,
   MisaRequestError,
@@ -95,6 +105,10 @@ describe("storefront orders route", () => {
     vi.mocked(isMisaConfigured).mockReturnValue(false);
     vi.mocked(syncMisaOrder).mockReset();
     vi.mocked(validateMisaCheckoutCustomer).mockReset();
+    vi.mocked(initializeBankhubForOrder)
+      .mockReset()
+      .mockImplementation(async (_db, _env, order) => order);
+    vi.mocked(initializeBankhubForOrderId).mockReset().mockResolvedValue(null);
   });
 
   const validPayload = {
@@ -153,8 +167,9 @@ describe("storefront orders route", () => {
     expect(res.status).toBe(201);
     const body = (await res.json()) as any;
     expect(body.order.orderNumber).toBe("123");
-    expect(body.order.paymentReference).toBe("PT-123");
+    expect(body.order).not.toHaveProperty("paymentReference");
     expect(body.order.paymentStatus).toBe("pending");
+    expect(vi.mocked(initializeBankhubForOrderId).mock.calls[0]?.[2]).toBe(123);
 
     expect(db.valuesCalls[0]).toMatchObject({
       paymentMethod: "bank_transfer",
@@ -167,6 +182,28 @@ describe("storefront orders route", () => {
       /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/,
     );
     expect(body.order.checkoutAccessExpiresAt).toBeTruthy();
+  });
+
+  it("still creates the order when BankHub initialization throws", async () => {
+    db.getQueue.push(
+      { id: 1, title: "Champion Cup", handle: "champion-cup", status: "published" },
+      { id: 10, productId: 1, title: "Gold", sku: "SKU-1", priceAmount: 5000 },
+      { assetId: "asset-1", position: 0 },
+      null,
+    );
+    db.returningQueue.push([{ id: 125, createdAt: new Date("2026-07-05T00:00:00.000Z") }]);
+    vi.mocked(initializeBankhubForOrderId).mockRejectedValue(new Error("connection reset"));
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    const res = await storefrontOrdersRoute.request("/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(validPayload),
+    });
+
+    expect(res.status).toBe(201);
+    expect(((await res.json()) as any).order.orderNumber).toBe("125");
+    consoleError.mockRestore();
   });
 
   it("creates an order with a two-level administrative address preserving province and ward/city in primaryAddressJson", async () => {
@@ -209,38 +246,133 @@ describe("storefront orders route", () => {
     });
   });
 
-  it("returns payment instructions only with a valid signed checkout token", async () => {
-    const orderNumber = "ORD-ABC-1234";
-    const bindings = { BETTER_AUTH_SECRET: "test-secret" } as never;
-    const { token } = await createCheckoutAccessToken(bindings, orderNumber);
-    db.getQueue.push({
+  const bankSnapshot = {
+    bankCode: "VCB",
+    bankName: "Ngân hàng TMCP Ngoại thương Việt Nam",
+    bankAccountNumber: "9987996745",
+    bankAccountName: "CTCP PHUNG THI",
+    branchName: null,
+    bankLogoUrl: "https://bankhub.test/vcb.svg",
+  };
+
+  function pendingOrder(overrides: Record<string, unknown> = {}) {
+    return {
       id: 123,
-      orderNumber,
+      orderNumber: "ORD-ABC-1234",
+      status: "pending",
       totalAmount: 10000,
+      paidAmount: 0,
       currencyCode: "VND",
       paymentMethod: "bank_transfer",
       paymentStatus: "pending",
+      bankhubStatus: "initialized",
+      paymentDescription: "DH123",
+      vietQrUrl: "https://qr.test/123.png",
+      bankhubBankJson: JSON.stringify(bankSnapshot),
       createdAt: new Date("2026-08-09T00:00:00.000Z"),
-    });
+      ...overrides,
+    };
+  }
 
-    const res = await storefrontOrdersRoute.request(
-      `/payment-instructions?orderNumber=${orderNumber}&accessToken=${encodeURIComponent(token)}`,
+  async function paymentQuery(path: string) {
+    const orderNumber = "ORD-ABC-1234";
+    const bindings = { BETTER_AUTH_SECRET: "test-secret" } as never;
+    const { token } = await createCheckoutAccessToken(bindings, orderNumber);
+    return storefrontOrdersRoute.request(
+      `${path}?orderNumber=${orderNumber}&accessToken=${encodeURIComponent(token)}`,
       undefined,
       bindings,
     );
+  }
+
+  it("returns BankHub payment instructions only with a valid signed checkout token", async () => {
+    db.getQueue.push(pendingOrder());
+
+    const res = await paymentQuery("/payment-instructions");
 
     expect(res.status).toBe(200);
     await expect(res.json()).resolves.toEqual({
       order: {
-        orderNumber,
-        paymentReference: "PT-123",
+        orderNumber: "ORD-ABC-1234",
         totalAmount: 10000,
+        paidAmount: 0,
         currencyCode: "VND",
         paymentMethod: "bank_transfer",
         paymentStatus: "pending",
         createdAt: "2026-08-09T00:00:00.000Z",
+        bankhubStatus: "initialized",
+        paymentDescription: "DH123",
+        vietQrUrl: "https://qr.test/123.png",
       },
+      bank: bankSnapshot,
     });
+    expect(initializeBankhubForOrder).not.toHaveBeenCalled();
+  });
+
+  it("retries BankHub initialization once when the order was not initialized", async () => {
+    db.getQueue.push(
+      pendingOrder({ bankhubStatus: "failed", paymentDescription: null, vietQrUrl: null, bankhubBankJson: null }),
+    );
+    vi.mocked(initializeBankhubForOrder).mockImplementation(async (_db, _env, order) => ({
+      ...order,
+      bankhubStatus: "initialized",
+      paymentDescription: "DH123",
+      vietQrUrl: "https://qr.test/123.png",
+      bankhubBankJson: JSON.stringify(bankSnapshot),
+    }));
+
+    const res = await paymentQuery("/payment-instructions");
+    const body = (await res.json()) as any;
+
+    expect(initializeBankhubForOrder).toHaveBeenCalledTimes(1);
+    expect(body.order.bankhubStatus).toBe("initialized");
+    expect(body.bank.bankAccountNumber).toBe("9987996745");
+  });
+
+  it("hides bank details while BankHub is still unavailable", async () => {
+    db.getQueue.push(pendingOrder({ bankhubStatus: "failed" }));
+    vi.mocked(initializeBankhubForOrder).mockImplementation(async (_db, _env, order) => order);
+
+    const res = await paymentQuery("/payment-instructions");
+    const body = (await res.json()) as any;
+
+    expect(body.order).toMatchObject({ bankhubStatus: "failed", paymentDescription: null, vietQrUrl: null });
+    expect(body.bank).toBeNull();
+  });
+
+  it("does not re-initialize BankHub for a paid order", async () => {
+    db.getQueue.push(pendingOrder({ bankhubStatus: "failed", paymentStatus: "paid" }));
+
+    await paymentQuery("/payment-instructions");
+
+    expect(initializeBankhubForOrder).not.toHaveBeenCalled();
+  });
+
+  it("reports payment status for polling", async () => {
+    db.getQueue.push({
+      paymentStatus: "paid",
+      paidAmount: 10000,
+      totalAmount: 10000,
+      paidAt: new Date("2026-08-09T00:05:00.000Z"),
+    });
+
+    const res = await paymentQuery("/payment-status");
+
+    expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toEqual({
+      paymentStatus: "paid",
+      paidAmount: 10000,
+      totalAmount: 10000,
+      paidAt: "2026-08-09T00:05:00.000Z",
+    });
+  });
+
+  it("rejects payment status with an invalid checkout token", async () => {
+    const res = await storefrontOrdersRoute.request(
+      "/payment-status?orderNumber=ORD-ABC-1234&accessToken=invalid.token",
+    );
+
+    expect(res.status).toBe(404);
   });
 
   it("rejects payment instructions with an invalid checkout token", async () => {

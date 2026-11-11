@@ -1,5 +1,5 @@
 import type { ComponentType } from "react";
-import { Boxes, Newspaper, Package, Palette, Settings, ShoppingCart, Tag, Type, Users } from "lucide-react";
+import { Boxes, Landmark, Newspaper, Package, Palette, Settings, ShieldCheck, ShoppingCart, Tag, Type, Users } from "lucide-react";
 
 export type SidebarNavItem = {
   label: string;
@@ -87,6 +87,20 @@ export const bottomSidebarItems: SidebarNavItem[] = [
     to: "/settings",
     icon: Settings,
     prefixes: ["/settings"],
+    children: [
+      {
+        label: "Security",
+        to: "/settings/security",
+        icon: ShieldCheck,
+        prefixes: ["/settings/security"],
+      },
+      {
+        label: "Payments",
+        to: "/settings/payments",
+        icon: Landmark,
+        prefixes: ["/settings/payments"],
+      },
+    ],
   },
 ];
 

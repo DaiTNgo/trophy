@@ -628,6 +628,18 @@ export const orders = pgTable("orders", {
   misaLastError: text("misa_last_error"),
   misaAttemptCount: integer("misa_attempt_count").notNull().default(0),
   misaSyncedAt: timestamp("misa_synced_at", { withTimezone: true, mode: "date" }),
+  // JETPAY BankHub transfer initialization: 'pending' | 'initialized' | 'failed' | 'not_configured'
+  bankhubStatus: text("bankhub_status").notNull().default("pending"),
+  bankhubLastError: text("bankhub_last_error"),
+  bankhubInitializedAt: timestamp("bankhub_initialized_at", { withTimezone: true, mode: "date" }),
+  // transfer description (syntax) and VietQR returned by BankHub
+  paymentDescription: text("payment_description"),
+  vietQrUrl: text("viet_qr_url"),
+  // beneficiary bank snapshot returned by BankHub (JSON)
+  bankhubBankJson: text("bankhub_bank_json"),
+  // sum of matched incoming transfers (smallest currency unit)
+  paidAmount: integer("paid_amount").notNull().default(0),
+  paidAt: timestamp("paid_at", { withTimezone: true, mode: "date" }),
   createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
     .defaultNow()
     .notNull(),
@@ -639,6 +651,50 @@ export const orders = pgTable("orders", {
   uniqueIndex("orders_order_number_idx").on(table.orderNumber),
   index("orders_created_at_idx").on(table.createdAt.desc()),
 ]);
+
+// ─── Payments (JETPAY BankHub) ─────────────────────────────────────────────────
+
+// Every incoming bank transaction pushed by the JETPAY webhook, keyed by transId for idempotency.
+export const paymentTransactions = pgTable("payment_transactions", {
+  id: serial("id").primaryKey(),
+  provider: text("provider").notNull().default("jetpay_bankhub"),
+  transId: text("trans_id").notNull(),
+  bankTransId: text("bank_trans_id"),
+  orderId: integer("order_id"),
+  // raw orderId sent by JETPAY (our orderNumber)
+  orderRef: text("order_ref"),
+  amount: integer("amount").notNull(),
+  description: text("description"),
+  transTime: timestamp("trans_time", { withTimezone: true, mode: "date" }),
+  confirmType: integer("confirm_type"),
+  // 'matched' | 'unmatched' | 'order_not_payable'
+  matchStatus: text("match_status").notNull(),
+  webhookMsgId: text("webhook_msg_id"),
+  // record-level response returned to JETPAY (replayed on duplicate delivery)
+  responseJson: text("response_json").notNull(),
+  rawRecordJson: text("raw_record_json").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
+    .defaultNow()
+    .notNull(),
+}, (table) => [
+  uniqueIndex("payment_transactions_trans_id_idx").on(table.transId),
+  index("payment_transactions_order_idx").on(table.orderId),
+]);
+
+// Singleton (id = 1) BankHub business settings edited by super-admin. Domains/secrets stay in env.
+export const bankhubSettings = pgTable("bankhub_settings", {
+  id: integer("id").primaryKey(),
+  enabled: boolean("enabled").notNull().default(false),
+  orgTaxNo: text("org_tax_no"),
+  bankCode: text("bank_code"),
+  bankAccountNumber: text("bank_account_number"),
+  domainWebsite: text("domain_website"),
+  updatedBy: text("updated_by"),
+  updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" })
+    .defaultNow()
+    .$onUpdate(() => new Date())
+    .notNull(),
+});
 
 export const orderItems = pgTable("order_items", {
   id: serial("id").primaryKey(),

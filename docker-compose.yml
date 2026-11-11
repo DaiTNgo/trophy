@@ -69,6 +69,11 @@ services:
       MISA_CLIENT_ID: ${MISA_CLIENT_ID:-}
       MISA_CLIENT_SECRET: ${MISA_CLIENT_SECRET:-}
       MISA_API_BASE_URL: ${MISA_API_BASE_URL:-https://crmconnect.misa.vn/api/v2}
+      JETPAY_AUTH_URL: ${JETPAY_AUTH_URL:-}
+      JETPAY_BANKHUB_URL: ${JETPAY_BANKHUB_URL:-}
+      JETPAY_CLIENT_ID: ${JETPAY_CLIENT_ID:-}
+      JETPAY_CLIENT_SECRET: ${JETPAY_CLIENT_SECRET:-}
+      JETPAY_WEBHOOK_KEY: ${JETPAY_WEBHOOK_KEY:-}
     volumes:
       - ./storage:/app/storage
     ports:

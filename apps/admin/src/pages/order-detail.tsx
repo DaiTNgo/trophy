@@ -33,6 +33,7 @@ export function OrderDetailPage() {
     updateOrderStatus,
     purgeOrder,
     runMisaAction,
+    initializeBankhub,
     markItemReadyForProduction,
     markItemPendingReview,
   } = useOrderDetail(orderNumber);
@@ -113,6 +114,7 @@ export function OrderDetailPage() {
             onPreviewItemChange={setPreviewItem}
             onMarkItemReady={markItemReadyForProduction}
             onMarkItemPendingReview={markItemPendingReview}
+            onInitializeBankhub={initializeBankhub}
           />
         </div>
 

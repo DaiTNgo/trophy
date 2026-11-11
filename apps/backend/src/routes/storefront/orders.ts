@@ -47,6 +47,11 @@ import {
   validateMisaCheckoutCustomer,
 } from "../../lib/misa";
 import { transferOrderItemMedia } from "../../lib/order-media-transfer-service";
+import {
+  initializeBankhubForOrder,
+  initializeBankhubForOrderId,
+  serializeShopperPayment,
+} from "../../lib/bankhub-payments";
 
 type OrderStatus = "pending" | "confirmed" | "cancelled";
 type PaymentStatus = "pending" | "paid" | "failed" | "refunded";
@@ -635,10 +640,6 @@ async function validateAndBuildItemSnapshot(
   };
 }
 
-function paymentReferenceForOrderId(orderId: number) {
-  return `PT-${orderId}`;
-}
-
 function toBase64Url(value: string) {
   return btoa(value)
     .replaceAll("+", "-")
@@ -698,7 +699,7 @@ export async function createCheckoutAccessToken(
   };
 }
 
-async function verifyCheckoutAccessToken(
+export async function verifyCheckoutAccessToken(
   bindings: AppEnv["Bindings"] | undefined,
   orderNumber: string,
   token: string,
@@ -847,6 +848,26 @@ function buildLookupOrderResponse(order: OrderRow, items: OrderItemRow[]) {
   };
 }
 
+async function verifyPaymentAccessQuery(c: Context<AppEnv>) {
+  const parsed = v.safeParse(paymentInstructionsQuerySchema, {
+    orderNumber: c.req.query("orderNumber"),
+    accessToken: c.req.query("accessToken"),
+  });
+  if (!parsed.success) {
+    return { ok: false as const, response: jsonError(c, 400, "Invalid payment access") };
+  }
+  if (
+    !(await verifyCheckoutAccessToken(
+      c.env,
+      parsed.output.orderNumber,
+      parsed.output.accessToken,
+    ))
+  ) {
+    return { ok: false as const, response: jsonError(c, 404, "Order not found") };
+  }
+  return { ok: true as const, orderNumber: parsed.output.orderNumber };
+}
+
 export const storefrontOrdersRoute = new Hono<AppEnv>()
   .post("/resolve", async (c) => {
     const parsed = await parseJson(c, resolveCartLinesSchema);
@@ -989,40 +1010,69 @@ export const storefrontOrdersRoute = new Hono<AppEnv>()
     return c.json(buildLookupOrderResponse(loaded.order, loaded.items), 200);
   })
   .get("/payment-instructions", async (c) => {
-    const parsed = v.safeParse(paymentInstructionsQuerySchema, {
-      orderNumber: c.req.query("orderNumber"),
-      accessToken: c.req.query("accessToken"),
-    });
-    if (!parsed.success)
-      return jsonError(c, 400, "Invalid payment instruction access");
-    if (
-      !(await verifyCheckoutAccessToken(
-        c.env,
-        parsed.output.orderNumber,
-        parsed.output.accessToken,
-      ))
-    ) {
-      return jsonError(c, 404, "Payment instructions not found");
-    }
+    const access = await verifyPaymentAccessQuery(c);
+    if (!access.ok) return access.response;
 
-    const order = await getDb(c.env)
+    const db = getDb(c.env);
+    let order = await db
       .select()
       .from(orders)
-      .where(eq(orders.orderNumber, parsed.output.orderNumber))
+      .where(eq(orders.orderNumber, access.orderNumber))
       .get();
     if (!order) return jsonError(c, 404, "Payment instructions not found");
 
+    // Lazy retry: a failed / not-yet-configured BankHub init is attempted once per request.
+    if (
+      order.paymentMethod === "bank_transfer" &&
+      order.paymentStatus === "pending" &&
+      order.status !== "cancelled" &&
+      order.bankhubStatus !== "initialized"
+    ) {
+      order = await initializeBankhubForOrder(db, c.env, order);
+    }
+
+    const payment = serializeShopperPayment(order);
     return c.json(
       {
         order: {
           orderNumber: order.orderNumber,
-          paymentReference: paymentReferenceForOrderId(order.id),
           totalAmount: order.totalAmount,
+          paidAmount: order.paidAmount,
           currencyCode: order.currencyCode,
           paymentMethod: order.paymentMethod,
           paymentStatus: order.paymentStatus,
           createdAt: order.createdAt.toISOString(),
+          bankhubStatus: payment.bankhubStatus,
+          paymentDescription: payment.paymentDescription,
+          vietQrUrl: payment.vietQrUrl,
         },
+        bank: payment.bank,
+      },
+      200,
+    );
+  })
+  .get("/payment-status", async (c) => {
+    const access = await verifyPaymentAccessQuery(c);
+    if (!access.ok) return access.response;
+
+    const order = await getDb(c.env)
+      .select({
+        paymentStatus: orders.paymentStatus,
+        paidAmount: orders.paidAmount,
+        totalAmount: orders.totalAmount,
+        paidAt: orders.paidAt,
+      })
+      .from(orders)
+      .where(eq(orders.orderNumber, access.orderNumber))
+      .get();
+    if (!order) return jsonError(c, 404, "Payment status not found");
+
+    return c.json(
+      {
+        paymentStatus: order.paymentStatus,
+        paidAmount: order.paidAmount,
+        totalAmount: order.totalAmount,
+        paidAt: order.paidAt?.toISOString() ?? null,
       },
       200,
     );
@@ -1290,13 +1340,24 @@ export const storefrontOrdersRoute = new Hono<AppEnv>()
       }
     }
 
+    if (input.payment.method === "bank_transfer") {
+      try {
+        await initializeBankhubForOrderId(db, c.env, insertedOrder.id);
+      } catch (error) {
+        // BankHub must never block checkout; payment-instructions retries lazily.
+        console.error("BankHub initialization failed", {
+          orderId: insertedOrder.id,
+          message: error instanceof Error ? error.message : "Unknown error",
+        });
+      }
+    }
+
     const checkoutAccess = await createCheckoutAccessToken(c.env, orderNumber);
     return c.json(
       {
         order: {
           id: insertedOrder.id,
           orderNumber,
-          paymentReference: paymentReferenceForOrderId(insertedOrder.id),
           status: "pending" satisfies OrderStatus,
           paymentStatus: "pending" satisfies PaymentStatus,
           fulfillmentStatus: "unfulfilled" satisfies FulfillmentStatus,
