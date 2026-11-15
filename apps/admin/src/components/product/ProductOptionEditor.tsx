@@ -96,8 +96,8 @@ export function ProductOptionEditor({
               </Select.Trigger>
               <Select.Content>
                 <Select.Item value="text">Text button (Default)</Select.Item>
-                <Select.Item value="color">Color swatch (Màu sắc)</Select.Item>
-                <Select.Item value="image">Image swatch (Mẫu vân / Icon)</Select.Item>
+                <Select.Item value="color">Color swatch</Select.Item>
+                <Select.Item value="image">Image swatch</Select.Item>
               </Select.Content>
             </Select>
             <Text size="xsmall" className="text-ui-fg-muted">

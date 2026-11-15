@@ -121,7 +121,7 @@ export function ProductsListPage() {
             <div className="flex flex-col gap-y-1">
               <Heading level="h2">Catalog control</Heading>
               <Text size="base" className="text-ui-fg-subtle">
-                Track publish state, inventory pressure, and pricing across the
+                Track publish state and pricing across the
                 current assortment.
               </Text>
             </div>

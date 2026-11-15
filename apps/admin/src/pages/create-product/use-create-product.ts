@@ -70,7 +70,6 @@ const defaultCreateProductValues: CreateProductFormValues = {
   media: "",
   hasVariants: false,
   basePrice: "",
-  inventory: "",
   optionNameOne: "",
   optionValuesOne: "",
   optionNameTwo: "",
@@ -186,10 +185,8 @@ export function useCreateProduct() {
   const [showColumns, setShowColumns] = useState({
     sku: true,
     media: true,
-    backorder: true,
     price: true,
     referencePrice: true,
-    inventory: true,
   });
 
   const stepOrder: readonly CreateProductStep[] = values.customizationEnabled
@@ -305,7 +302,7 @@ export function useCreateProduct() {
     setVariantRows((current) =>
       reconcileVariantRows(current, values, optionDefinitions),
     );
-  }, [optionDefinitions, values.hasVariants, values.inventory]);
+  }, [optionDefinitions, values.hasVariants]);
 
   useEffect(() => {
     if (!values.customizationEnabled && activeStep === "customization") {
@@ -600,10 +597,6 @@ export function useCreateProduct() {
             Number.isFinite(variant.referencePrice) && variant.referencePrice > 0
               ? variant.referencePrice
               : null,
-          inventoryQuantity: Number.isFinite(variant.inventory)
-            ? variant.inventory
-            : 0,
-          allowBackorder: variant.allowBackorder,
           isDefault: index === 0,
           optionValues: variant.options.map((option) => ({
             optionTitle: option.option,

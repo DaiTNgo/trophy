@@ -17,8 +17,6 @@ describe('Atomic Variant Creation multipart parser', () => {
       title: { vi: 'Blue', en: 'Blue' },
       sku: null,
       priceAmount: 100000,
-      inventoryQuantity: 0,
-      allowBackorder: false,
       optionValueIds: [3],
       attributes: [],
       galleryMedia: [{ mediaId: 'gallery_1' }],
@@ -41,7 +39,7 @@ describe('Atomic Variant Creation multipart parser', () => {
     const form = new FormData()
     form.append('payload', JSON.stringify({
       title: { vi: 'Blue', en: 'Blue' }, sku: null, priceAmount: 100000,
-      inventoryQuantity: 0, allowBackorder: false, optionValueIds: [], attributes: [],
+      optionValueIds: [], attributes: [],
       galleryMedia: [], customizationMedia: null
     }))
     form.append('unexpected', png())

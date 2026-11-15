@@ -68,8 +68,6 @@ type ApiProduct = {
     misaLastError: string | null;
     priceAmount: number | null;
     referencePriceAmount: number | null;
-    inventoryQuantity: number;
-    allowBackorder: boolean;
     attributes?: Array<{ name: LocalizedInput; value: LocalizedInput; unit?: string | null }>;
     media: Array<{
       id: string;
@@ -160,8 +158,6 @@ export type CreateFullProductPayload = {
     sku: string | null;
     priceAmount: number | null;
     referencePriceAmount: number | null;
-    inventoryQuantity: number;
-    allowBackorder: boolean;
     isDefault?: boolean;
     optionValues: Array<{ optionTitle: string; value: string }>;
     attributes?: Array<{ name: LocalizedInput; value: LocalizedInput; unit?: string | null }>;
@@ -430,7 +426,6 @@ export async function updateProductVariantDetails(
   payload: {
     title: LocalizedInput;
     sku: string | null;
-    allowBackorder: boolean;
     optionValueIds?: number[];
     attributes?: Array<{ name: LocalizedInput; value: LocalizedInput; unit?: string | null }>;
   },
@@ -507,24 +502,6 @@ export async function updateProductVariantPrices(
   if (!response.ok) {
     const err = await response.json().catch(() => null);
     throw new Error(err?.error || "Failed to update variant prices.");
-  }
-  const body = await response.json();
-  return body.item as ApiProduct;
-}
-
-export async function updateProductVariantStock(
-  id: string,
-  items: Array<{ id: number; inventoryQuantity: number }>,
-) {
-  const response = await backendFetch(`/api/admin/products/${id}/variants/stock`, {
-    method: "PATCH",
-
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ items }),
-  });
-  if (!response.ok) {
-    const err = await response.json().catch(() => null);
-    throw new Error(err?.error || "Failed to update variant stock.");
   }
   const body = await response.json();
   return body.item as ApiProduct;
@@ -697,8 +674,6 @@ export async function atomicCreateVariant(
     sku: string | null;
     priceAmount: number | null;
     referencePriceAmount: number | null;
-    inventoryQuantity: number;
-    allowBackorder: boolean;
     optionValueIds: number[];
     attributes?: Array<{ name: LocalizedInput; value: LocalizedInput; unit?: string | null }>;
     galleryMedia: Array<{ mediaId: string; file: File }>;
@@ -713,8 +688,6 @@ export async function atomicCreateVariant(
       sku: payload.sku,
       priceAmount: payload.priceAmount,
       referencePriceAmount: payload.referencePriceAmount,
-      inventoryQuantity: payload.inventoryQuantity,
-      allowBackorder: payload.allowBackorder,
       optionValueIds: payload.optionValueIds,
       attributes: payload.attributes ?? [],
       galleryMedia: payload.galleryMedia.map(({ mediaId }) => ({ mediaId })),
@@ -817,7 +790,6 @@ export function mapApiProductToCatalogProduct(product: Partial<ApiProduct> & Pic
     misaLastError: variant.misaLastError,
     price: variant.priceAmount ?? 0,
     referencePrice: variant.referencePriceAmount ?? 0,
-    inventory: variant.inventoryQuantity,
     options: (variant.optionValueIds || []).map((id) => {
       let optionTitle = "Unknown";
       let optionValue = "Unknown";
@@ -834,7 +806,6 @@ export function mapApiProductToCatalogProduct(product: Partial<ApiProduct> & Pic
       key: toLocalized(attribute.name),
       value: toLocalized(attribute.value),
     })),
-    allowBackorder: variant.allowBackorder,
     media: (variant.media || []).map((asset) => ({
       id: asset.id,
       fileName: asset.fileName,
@@ -870,7 +841,6 @@ export function mapApiProductToCatalogProduct(product: Partial<ApiProduct> & Pic
     specificationsHtml: toLocalized(product.specificationsHtml),
     shippingHtml: toLocalized(product.shippingHtml),
     status: mapApiProductStatus(product.status),
-    inventory: 0,
     price: leadPrice,
     category: toLocalized(product.categories?.[0]?.name).vi,
     collection: toLocalized(product.collection?.title).vi,

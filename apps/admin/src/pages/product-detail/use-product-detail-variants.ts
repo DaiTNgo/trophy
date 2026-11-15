@@ -8,7 +8,6 @@ import {
   syncProductVariantToMisa,
   updateProductVariantDetails,
   updateProductVariantPrices,
-  updateProductVariantStock,
   mapApiProductToCatalogProduct,
   ProductCommandError,
 } from "../../lib/products-client";
@@ -27,8 +26,6 @@ export type VariantFormState = {
   sku: string;
   priceAmount: string;
   referencePriceAmount: string;
-  inventoryQuantity: string;
-  allowBackorder: boolean;
   optionSelections: Record<string, string>;
   attributes: ProductAttribute[];
   galleryMedia: File[];
@@ -60,8 +57,6 @@ function buildVariantForm(product: CatalogProduct, variant?: CatalogProduct["var
     sku: variant?.sku ?? "",
     priceAmount: variant && variant.price > 0 ? String(variant.price) : "",
     referencePriceAmount: variant && variant.referencePrice > 0 ? String(variant.referencePrice) : "",
-    inventoryQuantity: variant ? String(variant.inventory) : "0",
-    allowBackorder: variant?.allowBackorder ?? false,
     optionSelections,
     attributes,
     galleryMedia: [],
@@ -71,18 +66,15 @@ function buildVariantForm(product: CatalogProduct, variant?: CatalogProduct["var
 
 export function useProductDetailVariants({ product, mutate, updateProduct }: ProductDetailVariantsProps) {
   const [priceOpen, setPriceOpen] = useState(false);
-  const [stockOpen, setStockOpen] = useState(false);
   const [variantOpen, setVariantOpen] = useState(false);
 
   const [priceRows, setPriceRows] = useState<Array<{ id: number; title: string; priceAmount: string }>>([]);
-  const [stockRows, setStockRows] = useState<Array<{ id: number; title: string; inventoryQuantity: string }>>([]);
   const [variantForm, setVariantForm] = useState<VariantFormState>(() => buildVariantForm(product));
   const [variantTitleLocale, setVariantTitleLocale] = useState<AdminLocale>("vi");
   const [variantAttributeLocale, setVariantAttributeLocale] = useState<AdminLocale>("vi");
 
 
   const [isSavingPrices, setIsSavingPrices] = useState(false);
-  const [isSavingStock, setIsSavingStock] = useState(false);
   const [isSavingVariant, setIsSavingVariant] = useState(false);
   const [syncingMisaVariantId, setSyncingMisaVariantId] = useState<number | null>(null);
 
@@ -96,17 +88,6 @@ export function useProductDetailVariants({ product, mutate, updateProduct }: Pro
       })),
     );
     setPriceOpen(true);
-  }
-
-  function openStock() {
-    setStockRows(
-      product.variants.map((variant) => ({
-        id: Number(variant.id),
-        title: variant.title,
-        inventoryQuantity: String(variant.inventory),
-      })),
-    );
-    setStockOpen(true);
   }
 
   function openVariantEditor(variant?: CatalogProduct["variants"][number]) {
@@ -154,29 +135,6 @@ export function useProductDetailVariants({ product, mutate, updateProduct }: Pro
     }
   }
 
-  async function saveStock() {
-    setIsSavingStock(true);
-
-    try {
-      await updateProductVariantStock(
-        product.id,
-        stockRows.map((row) => ({
-          id: row.id,
-          inventoryQuantity: Number(row.inventoryQuantity || 0),
-        })),
-      );
-      await mutate();
-      setStockOpen(false);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to save stock changes.";
-      toast.error("Variant stock could not be saved", {
-        description: `${message} Enter a whole number greater than or equal to zero for each variant, then try again.`,
-      });
-    } finally {
-      setIsSavingStock(false);
-    }
-  }
-
   async function saveVariant() {
     setIsSavingVariant(true);
 
@@ -217,7 +175,6 @@ export function useProductDetailVariants({ product, mutate, updateProduct }: Pro
       }
 
       const priceAmount = variantForm.priceAmount.trim() === "" ? null : Number(variantForm.priceAmount);
-      const inventoryQuantity = Number(variantForm.inventoryQuantity || 0);
 
       if (priceAmount !== null && (!Number.isFinite(priceAmount) || priceAmount < 0)) {
         throw new Error("Enter a valid variant price.");
@@ -232,10 +189,6 @@ export function useProductDetailVariants({ product, mutate, updateProduct }: Pro
         throw new Error("Enter a valid reference price.");
       }
 
-      if (!Number.isInteger(inventoryQuantity) || inventoryQuantity < 0) {
-        throw new Error("Enter a valid inventory quantity.");
-      }
-
       let productWasPatched = false;
       if (variantForm.id) {
         await updateProductVariantDetails(product.id, variantForm.id, {
@@ -244,12 +197,10 @@ export function useProductDetailVariants({ product, mutate, updateProduct }: Pro
             en: variantForm.titleTranslations.en.trim(),
           },
           sku: variantForm.sku.trim() || null,
-          allowBackorder: variantForm.allowBackorder,
           optionValueIds,
           attributes: normalizedAttributes,
         });
         await updateProductVariantPrices(product.id, [{ id: variantForm.id, priceAmount, referencePriceAmount }]);
-        await updateProductVariantStock(product.id, [{ id: variantForm.id, inventoryQuantity }]);
       } else {
         const galleryMedia = await Promise.all(
           variantForm.galleryMedia.map(toPreviewImageFile),
@@ -279,8 +230,6 @@ export function useProductDetailVariants({ product, mutate, updateProduct }: Pro
           sku: variantForm.sku.trim() || null,
           priceAmount,
           referencePriceAmount,
-          inventoryQuantity,
-          allowBackorder: variantForm.allowBackorder,
           optionValueIds,
           attributes: normalizedAttributes,
           galleryMedia: galleryMedia.map((file) => ({
@@ -308,7 +257,7 @@ export function useProductDetailVariants({ product, mutate, updateProduct }: Pro
       if (error instanceof ProductCommandError && error.status === 409) await mutate();
       const message = error instanceof Error ? error.message : "Failed to save variant details.";
       toast.error("Variant details could not be saved", {
-        description: `${message} Complete the variant title, option values, attributes, price, and inventory fields, then try again.`,
+        description: `${message} Complete the variant title, option values, attributes, and price fields, then try again.`,
       });
     } finally {
       setIsSavingVariant(false);
@@ -366,12 +315,12 @@ export function useProductDetailVariants({ product, mutate, updateProduct }: Pro
   }
 
   return {
-    priceOpen, setPriceOpen, stockOpen, setStockOpen, variantOpen, setVariantOpen,
-    priceRows, setPriceRows, stockRows, setStockRows, variantForm, setVariantForm,
+    priceOpen, setPriceOpen, variantOpen, setVariantOpen,
+    priceRows, setPriceRows, variantForm, setVariantForm,
     variantTitleLocale, setVariantTitleLocale, variantAttributeLocale, setVariantAttributeLocale,
-    isSavingPrices, isSavingStock, isSavingVariant, syncingMisaVariantId,
-    openPrices, openStock,
-    openVariantEditor, updateVariantAttribute, savePrices, saveStock, saveVariant,
+    isSavingPrices, isSavingVariant, syncingMisaVariantId,
+    openPrices,
+    openVariantEditor, updateVariantAttribute, savePrices, saveVariant,
     handleDeleteVariant, handleSyncVariantToMisa, handleDisconnectVariantFromMisa,
   };
 }

@@ -25,8 +25,8 @@ The rule that a variant with Contact Price remains a valid storefront selection 
 _Avoid_: unselectable quote variant, skip contact-price variant
 
 **Contact Price CTA Precedence**:
-The storefront rule that Contact Price determines the primary call to action before inventory and backorder states. A selected Contact Price variant shows the contact/inquiry action labeled "Contact for price" as primary even if inventory is zero; stock context may be shown separately.
-_Avoid_: out-of-stock quote CTA, add-to-cart contact price
+The storefront rule that Contact Price determines the primary call to action over any purchase action. A selected Contact Price variant shows the contact/inquiry action labeled "Contact for price" as primary.
+_Avoid_: add-to-cart contact price
 
 **Contact Price Inquiry**:
 A shopper contact flow for products or variants without a public price. Clicking "Contact for price" opens this inquiry flow and captures the selected product, variant, option labels/values, any customization values the shopper has entered, and shopper contact details. It does not create a cart line, checkout item, order, or order draft because an order requires a price snapshot and total, and it does not require checkout-ready customization.
@@ -113,16 +113,8 @@ A shopper-facing option value in the current selection context that remains visi
 _Avoid_: hidden unavailable option, broken option click
 
 **Storefront Purchase Availability**:
-The shopper-facing state that determines whether the selected valid variant can be purchased immediately. Inventory and backorder settings affect the call to action, but they do not make an existing option combination invalid or unselectable.
-_Avoid_: disable option by stock, hide out-of-stock variant
-
-**Out of Stock CTA**:
-The storefront call to action for a selected valid variant with zero inventory and backorders disabled. The option combination remains selected, but the purchase button is disabled and labeled "Out of stock".
-_Avoid_: unavailable option, missing variant
-
-**Backorder CTA**:
-The storefront call to action for a selected valid variant with zero inventory and backorders enabled. The variant remains purchasable; until a dedicated backorder flow exists, the primary button remains "Add to cart" with backorder context shown separately.
-_Avoid_: out-of-stock backorder, disable backorder purchase
+The shopper-facing state that determines whether the selected valid variant can be purchased immediately. The system does not track inventory or backorders; every valid variant is purchasable.
+_Avoid_: disable option by stock
 
 **Storefront Variant Auto-Reselection**:
 The storefront behavior that moves the shopper to the first valid purchasable variant when the current option selection does not resolve to a valid variant, including initial product load and selection changes that invalidate the previous combination. "First" is determined by variant position, then variant ID as a stable tie-breaker.
@@ -137,7 +129,7 @@ The storefront behavior for a product whose only selectable option path is "Defa
 _Avoid_: hidden default option, required default click
 
 **Product Variant**:
-A purchasable product row representing one concrete option selection, with its own title, SKU, price, inventory, backorder setting, and variant media.
+A purchasable product row representing one concrete option selection, with its own title, SKU, price, and variant media.
 _Avoid_: generated option combination, Medusa variant model
 
 **MISA Product Record**:
@@ -166,7 +158,7 @@ _Avoid_: pending variant sync, remote-delete request
 _Avoid_: post-delete order check, local-first MISA deletion
 
 **Variant Management Action**:
-An explicit operator action that changes one part of variant-related data, such as option values, variant details, prices, stock, or media, without replacing unrelated variant state.
+An explicit operator action that changes one part of variant-related data, such as option values, variant details, prices, or media, without replacing unrelated variant state.
 _Avoid_: full variant replace, regenerate variants
 
 **Variant Media Management**:

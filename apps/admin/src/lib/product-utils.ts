@@ -170,8 +170,6 @@ export function reconcileVariantRows(
 ) {
   const blueprints = buildVariantBlueprints(values, optionDefinitions);
   const currentBySignature = new Map(currentRows.map((row) => [buildVariantSignature(row.options), row]));
-  const fallbackInventory = Number(values.inventory || 0);
-  const normalizedInventory = Number.isFinite(fallbackInventory) ? fallbackInventory : 0;
 
   return blueprints.map((blueprint, index) => {
     const signature = buildVariantSignature(blueprint.options);
@@ -183,10 +181,8 @@ export function reconcileVariantRows(
       sku: current?.sku ?? "",
       price: current?.price ?? 0,
       referencePrice: current?.referencePrice ?? 0,
-      inventory: current?.inventory ?? normalizedInventory,
       options: blueprint.options,
       attributes: current?.attributes ?? [],
-      allowBackorder: current?.allowBackorder ?? false,
       media: current?.media ?? [],
       customizationMedia: current?.customizationMedia ?? null,
       shouldCreate: current?.shouldCreate ?? true,
@@ -203,14 +199,10 @@ function getEffectiveVariantRows(
     return reconcileVariantRows(variantRows, values, optionDefinitions);
   }
 
-  const fallbackInventory = Number(values.inventory || 0);
-  const normalizedInventory = Number.isFinite(fallbackInventory) ? fallbackInventory : 0;
 
   return buildVariantPreview(values).map((variant) => ({
     ...variant,
-    inventory: normalizedInventory,
     attributes: variant.attributes ?? [],
-    allowBackorder: false,
     customizationMedia: variant.customizationMedia ?? null,
     shouldCreate: true,
   }));
@@ -354,8 +346,6 @@ export function validateCreateProduct({
 
 function buildVariantPreview(values: CreateProductFormValues) {
   const basePrice = Number(values.basePrice || 0);
-  const inventory = Number(values.inventory || 0);
-  const normalizedInventory = Number.isFinite(inventory) ? inventory : 0;
   const optionPairs = [
     { name: values.optionNameOne.trim(), values: splitCommaValues(values.optionValuesOne) },
     { name: values.optionNameTwo.trim(), values: splitCommaValues(values.optionValuesTwo) },
@@ -369,10 +359,8 @@ function buildVariantPreview(values: CreateProductFormValues) {
         sku: "",
         price: Number.isFinite(basePrice) ? basePrice : 0,
         referencePrice: 0,
-        inventory: normalizedInventory,
         options: [],
         attributes: [],
-        allowBackorder: false,
         media: [],
         customizationMedia: null,
         shouldCreate: true,
@@ -387,10 +375,8 @@ function buildVariantPreview(values: CreateProductFormValues) {
     sku: "",
     price: Number.isFinite(basePrice) ? basePrice : 0,
     referencePrice: 0,
-    inventory: normalizedInventory,
     options: combination,
     attributes: [],
-    allowBackorder: false,
     media: [],
     customizationMedia: null,
     shouldCreate: true,

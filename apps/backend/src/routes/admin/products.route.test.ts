@@ -114,8 +114,6 @@ function queueReadProduct(
       sku: string | null;
       priceAmount: number | null;
       referencePriceAmount?: number | null;
-      inventoryQuantity: number;
-      allowBackorder: boolean;
       isDefault: boolean;
       position: number;
       createdAt: string;
@@ -234,8 +232,6 @@ describe("admin products operation-specific routes", () => {
       title: "Gold",
       sku: "SKU-1",
       priceAmount: 5000,
-      inventoryQuantity: 8,
-      allowBackorder: false,
       isDefault: true,
       position: 0,
       createdAt: "2026-07-04T00:00:00.000Z",
@@ -263,8 +259,6 @@ describe("admin products operation-specific routes", () => {
       title: "Gold",
       sku: null,
       priceAmount: 5000,
-      inventoryQuantity: 8,
-      allowBackorder: false,
       isDefault: true,
       position: 0,
       createdAt: "2026-07-04T00:00:00.000Z",
@@ -291,8 +285,6 @@ describe("admin products operation-specific routes", () => {
       title: "Gold",
       sku: null,
       priceAmount: 5000,
-      inventoryQuantity: 8,
-      allowBackorder: false,
       isDefault: true,
       position: 0,
       createdAt: "2026-07-04T00:00:00.000Z",
@@ -365,8 +357,6 @@ describe("admin products operation-specific routes", () => {
       misaLastError: null,
       misaSyncedAt: null,
       priceAmount: 5000,
-      inventoryQuantity: 8,
-      allowBackorder: false,
       isDefault: true,
       position: 0,
       createdAt: "2026-07-04T00:00:00.000Z",
@@ -449,8 +439,6 @@ describe("admin products operation-specific routes", () => {
       title: "Gold",
       sku: null,
       priceAmount: 5000,
-      inventoryQuantity: 8,
-      allowBackorder: false,
       isDefault: true,
       position: 0,
       createdAt: "2026-07-04T00:00:00.000Z",
@@ -543,8 +531,6 @@ describe("admin products operation-specific routes", () => {
         misaSyncStatus: "synced",
         misaLastError: null,
         priceAmount: 5000,
-        inventoryQuantity: 8,
-        allowBackorder: false,
         isDefault: true,
         position: 0,
         createdAt: "2026-07-04T00:00:00.000Z",
@@ -611,8 +597,6 @@ describe("admin products operation-specific routes", () => {
             title: "Default",
             sku: "SKU-1",
             priceAmount: 5000,
-            inventoryQuantity: 8,
-            allowBackorder: false,
             isDefault: true,
             position: 0,
             createdAt: "2026-07-04T00:00:00.000Z",
@@ -713,8 +697,6 @@ describe("admin products operation-specific routes", () => {
         title: "Crystal",
         sku: "CRY-1",
         priceAmount: null,
-        inventoryQuantity: 0,
-        allowBackorder: true,
         optionValueIds: [100],
         media: [],
       }),
@@ -745,8 +727,6 @@ describe("admin products operation-specific routes", () => {
         title: "Default variant",
         sku: "SKU-22",
         priceAmount: 5000,
-        inventoryQuantity: 2,
-        allowBackorder: false,
         optionValueIds: [],
         attributes: [
           {
@@ -808,8 +788,6 @@ describe("admin products operation-specific routes", () => {
         title: "Crystal copy",
         sku: "CRY-2",
         priceAmount: 5000,
-        inventoryQuantity: 3,
-        allowBackorder: false,
         optionValueIds: [100],
         media: [],
       }),
@@ -831,8 +809,6 @@ describe("admin products operation-specific routes", () => {
             title: "Default",
             sku: "SKU-1",
             priceAmount: 5000,
-            inventoryQuantity: 8,
-            allowBackorder: false,
             isDefault: true,
             position: 0,
             createdAt: "2026-07-04T00:00:00.000Z",
@@ -854,8 +830,6 @@ describe("admin products operation-specific routes", () => {
             title: "Default",
             sku: "SKU-1",
             priceAmount: 7000,
-            inventoryQuantity: 8,
-            allowBackorder: false,
             isDefault: true,
             position: 0,
             createdAt: "2026-07-04T00:00:00.000Z",
@@ -879,8 +853,6 @@ describe("admin products operation-specific routes", () => {
         entry.kind === "update" && entry.set && "priceAmount" in (entry.set as any),
     );
     expect(updateRecord?.set).toMatchObject({ priceAmount: 7000 });
-    expect((updateRecord?.set as any).inventoryQuantity).toBeUndefined();
-    expect((updateRecord?.set as any).allowBackorder).toBeUndefined();
   });
 
   it("stores a variant reference price alongside the selling price", async () => {
@@ -897,8 +869,6 @@ describe("admin products operation-specific routes", () => {
             sku: "SKU-1",
             priceAmount: 5000,
             referencePriceAmount: null,
-            inventoryQuantity: 8,
-            allowBackorder: false,
             isDefault: true,
             position: 0,
             createdAt: "2026-07-04T00:00:00.000Z",
@@ -921,8 +891,6 @@ describe("admin products operation-specific routes", () => {
             sku: "SKU-1",
             priceAmount: null,
             referencePriceAmount: 200000,
-            inventoryQuantity: 8,
-            allowBackorder: false,
             isDefault: true,
             position: 0,
             createdAt: "2026-07-04T00:00:00.000Z",
@@ -962,8 +930,6 @@ describe("admin products operation-specific routes", () => {
             sku: "SKU-1",
             priceAmount: 5000,
             referencePriceAmount: 200000,
-            inventoryQuantity: 8,
-            allowBackorder: false,
             isDefault: true,
             position: 0,
             createdAt: "2026-07-04T00:00:00.000Z",
@@ -1008,8 +974,6 @@ describe("admin products operation-specific routes", () => {
       title: "Default",
       sku: "SKU-1",
       priceAmount: 5000,
-      inventoryQuantity: 8,
-      allowBackorder: false,
       isDefault: true,
       position: 0,
       createdAt: "2026-07-04T00:00:00.000Z",
@@ -1028,8 +992,6 @@ describe("admin products operation-specific routes", () => {
             title: "Default",
             sku: "SKU-1",
             priceAmount: 5000,
-            inventoryQuantity: 8,
-            allowBackorder: false,
             isDefault: true,
             position: 0,
             createdAt: "2026-07-04T00:00:00.000Z",
@@ -1077,53 +1039,6 @@ describe("admin products operation-specific routes", () => {
     ).toBe(true);
   });
 
-  it("updates stock without overwriting non-stock fields", async () => {
-    db.getQueue.push({
-      id: 1,
-      title: "Champion Cup",
-      status: "draft",
-          });
-    db.selectQueue.push([{ id: 20 }]);
-    queueReadProduct(
-      db,
-      { id: 1,  status: "draft" },
-      {
-        optionRows: [],
-        variantRows: [
-          {
-            id: 20,
-            productId: 1,
-            title: "Default",
-            sku: "SKU-1",
-            priceAmount: 5000,
-            inventoryQuantity: 12,
-            allowBackorder: false,
-            isDefault: true,
-            position: 0,
-            createdAt: "2026-07-04T00:00:00.000Z",
-            updatedAt: "2026-07-04T00:00:00.000Z",
-          },
-        ],
-      },
-    );
-
-    const res = await productsRoute.request("/1/variants/stock", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        items: [{ id: 20, inventoryQuantity: 12 }],
-      }),
-    });
-
-    expect(res.status).toBe(200);
-    const updateRecord = db.mutations.find(
-      (entry: MutationRecord) =>
-        entry.kind === "update" && entry.set && "inventoryQuantity" in (entry.set as any),
-    );
-    expect(updateRecord?.set).toMatchObject({ inventoryQuantity: 12 });
-    expect((updateRecord?.set as any).priceAmount).toBeUndefined();
-  });
-
   it("rejects media changes that would break customization publish readiness", async () => {
     queueReadProduct(
       db,
@@ -1148,8 +1063,6 @@ describe("admin products operation-specific routes", () => {
             title: "Default",
             sku: "SKU-1",
             priceAmount: 5000,
-            inventoryQuantity: 8,
-            allowBackorder: false,
             isDefault: true,
             position: 0,
             createdAt: "2026-07-04T00:00:00.000Z",
@@ -1213,8 +1126,6 @@ describe("admin products operation-specific routes", () => {
             title: "Default",
             sku: "SKU-1",
             priceAmount: 5000,
-            inventoryQuantity: 8,
-            allowBackorder: false,
             isDefault: true,
             position: 0,
             createdAt: "2026-07-04T00:00:00.000Z",
@@ -1249,8 +1160,6 @@ describe("admin products operation-specific routes", () => {
       title: "Default",
       sku: "SKU-1",
       priceAmount: 5000,
-      inventoryQuantity: 8,
-      allowBackorder: false,
       isDefault: true,
       position: 0,
       createdAt: "2026-07-04T00:00:00.000Z",

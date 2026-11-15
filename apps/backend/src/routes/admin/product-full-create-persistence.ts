@@ -135,8 +135,6 @@ export async function insertFullCreateVariants(
     sku?: string | null
     priceAmount?: number | null
     referencePriceAmount?: number | null
-    inventoryQuantity?: number
-    allowBackorder?: boolean
     isDefault?: boolean
     optionValueIds?: number[]
     attributes?: Array<{ name: LocalizedInput; value: LocalizedInput; unit?: string | null }>
@@ -149,8 +147,6 @@ export async function insertFullCreateVariants(
     sku: item.sku ?? null,
     priceAmount: item.priceAmount ?? null,
     referencePriceAmount: item.referencePriceAmount ?? null,
-    inventoryQuantity: item.inventoryQuantity ?? 0,
-    allowBackorder: item.allowBackorder ?? false,
     isDefault: item.isDefault ?? false,
     position,
     optionValueIds: item.optionValueIds ?? [],
@@ -169,8 +165,6 @@ export async function insertFullCreateVariants(
     sku: item.sku,
     priceAmount: item.priceAmount,
     referencePriceAmount: item.referencePriceAmount,
-    inventoryQuantity: item.inventoryQuantity,
-    allowBackorder: item.allowBackorder,
     isDefault: item.isDefault,
     position: item.position,
     updatedAt: new Date().toISOString(),

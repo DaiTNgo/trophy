@@ -1,4 +1,4 @@
-import { Button, DropdownMenu, Input, Switch, Table, Text } from "@medusajs/ui";
+import { Button, DropdownMenu, Input, Table, Text } from "@medusajs/ui";
 import { Adjustments } from "@medusajs/icons";
 import { ExternalLink, Loader2, Trash2, Upload } from "lucide-react";
 import { MediaPreview } from "../../components/ui/media-preview";
@@ -31,10 +31,8 @@ export function CreateProductVariants({ state }: CreateProductVariantsProps) {
   const variantViewColumns = [
     { id: "sku", label: "SKU" },
     { id: "media", label: "Media" },
-    { id: "backorder", label: "Allow backorder" },
     { id: "price", label: "Price" },
     { id: "referencePrice", label: "Reference price" },
-    { id: "inventory", label: "Inventory quantity" },
   ] as const;
 
   return (
@@ -93,17 +91,11 @@ export function CreateProductVariants({ state }: CreateProductVariantsProps) {
                 {showColumns.media ? (
                   <Table.HeaderCell>Media</Table.HeaderCell>
                 ) : null}
-                {showColumns.backorder ? (
-                  <Table.HeaderCell>Allow backorder</Table.HeaderCell>
-                ) : null}
                 {showColumns.price ? (
                   <Table.HeaderCell>Price</Table.HeaderCell>
                 ) : null}
                 {showColumns.referencePrice ? (
                   <Table.HeaderCell>Reference price</Table.HeaderCell>
-                ) : null}
-                {showColumns.inventory ? (
-                  <Table.HeaderCell>Inventory quantity</Table.HeaderCell>
                 ) : null}
               </Table.Row>
             </Table.Header>
@@ -368,22 +360,6 @@ export function CreateProductVariants({ state }: CreateProductVariantsProps) {
                           </div>
                         </Table.Cell>
                       ) : null}
-                      {showColumns.backorder ? (
-                        <Table.Cell className="py-4">
-                          <div className="flex justify-center pt-1">
-                            <Switch
-                              checked={variant.allowBackorder}
-                              onCheckedChange={(checked) =>
-                                updateVariantRow(
-                                  originalIndex,
-                                  "allowBackorder",
-                                  checked,
-                                )
-                              }
-                            />
-                          </div>
-                        </Table.Cell>
-                      ) : null}
                       {showColumns.price ? (
                         <Table.Cell className="py-4">
                           <div className="flex min-w-[140px] items-center rounded-md border border-ui-border-base bg-ui-bg-field px-2 shadow-buttons-neutral">
@@ -439,22 +415,6 @@ export function CreateProductVariants({ state }: CreateProductVariantsProps) {
                               placeholder="Optional"
                             />
                           </div>
-                        </Table.Cell>
-                      ) : null}
-                      {showColumns.inventory ? (
-                        <Table.Cell className="py-4">
-                          <Input
-                            value={String(variant.inventory)}
-                            onChange={(event) =>
-                              updateVariantRow(
-                                originalIndex,
-                                "inventory",
-                                Number(event.target.value || 0),
-                              )
-                            }
-                            type="number"
-                            placeholder="0"
-                          />
                         </Table.Cell>
                       ) : null}
                     </Table.Row>

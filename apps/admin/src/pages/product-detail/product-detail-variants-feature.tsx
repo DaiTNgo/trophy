@@ -13,7 +13,6 @@ import {
   Text,
 } from "@medusajs/ui";
 import {
-  Boxes,
   DollarSign,
   Image as ImageIcon,
   Pencil,
@@ -59,11 +58,11 @@ export function ProductDetailVariants({ product, mutate, updateProduct }: Produc
   }).catch(() => undefined); }, [product.id]);
   const state = useProductDetailVariants({ product, mutate, updateProduct });
   const {
-    priceOpen, setPriceOpen, stockOpen, setStockOpen, variantOpen, setVariantOpen,
-    priceRows, setPriceRows, stockRows, setStockRows, variantForm, setVariantForm,
+    priceOpen, setPriceOpen, variantOpen, setVariantOpen,
+    priceRows, setPriceRows, variantForm, setVariantForm,
     variantTitleLocale, setVariantTitleLocale,
-    isSavingPrices, isSavingStock, isSavingVariant, openPrices, openStock,
-    openVariantEditor, savePrices, saveStock, saveVariant,
+    isSavingPrices, isSavingVariant, openPrices,
+    openVariantEditor, savePrices, saveVariant,
     handleDeleteVariant,
     handleSyncVariantToMisa, handleDisconnectVariantFromMisa, syncingMisaVariantId,
   } = state;
@@ -90,10 +89,6 @@ export function ProductDetailVariants({ product, mutate, updateProduct }: Produc
                 <DollarSign className="mr-2 h-4 w-4" />
                 Edit prices
               </DropdownMenu.Item>
-              <DropdownMenu.Item onClick={openStock}>
-                <Boxes className="mr-2 h-4 w-4" />
-                Edit stock
-              </DropdownMenu.Item>
             </MoreActionsMenu>
             <Button variant="secondary" size="small" className="h-[28px]" onClick={openCreateVariant}>
               Create
@@ -113,7 +108,6 @@ export function ProductDetailVariants({ product, mutate, updateProduct }: Produc
                 {product.optionDefinitions.map((opt) => (
                   <Table.HeaderCell key={opt.id}>{opt.title}</Table.HeaderCell>
                 ))}
-                <Table.HeaderCell>Inventory</Table.HeaderCell>
                 <Table.HeaderCell className="w-12 pr-6" />
               </Table.Row>
             </Table.Header>
@@ -183,11 +177,6 @@ export function ProductDetailVariants({ product, mutate, updateProduct }: Produc
                       </Table.Cell>
                     );
                   })}
-                  <Table.Cell>
-                    <Text size="small" className="text-ui-fg-subtle">
-                      {variant.inventory} available
-                    </Text>
-                  </Table.Cell>
                   <Table.Cell className="pr-6">
                     <MoreActionsMenu trigger="icon">
                       <DropdownMenu.Item onClick={() => openVariantEditor(variant)}>
@@ -248,20 +237,6 @@ export function ProductDetailVariants({ product, mutate, updateProduct }: Produc
           setPriceRows(rows.map(({ id, title, value }) => ({ id, title, priceAmount: value })))
         }
         onSave={() => void savePrices()}
-      />
-
-      <VariantBatchDrawer
-        open={stockOpen}
-        title="Edit stock"
-        rows={stockRows.map((row) => ({ ...row, value: row.inventoryQuantity }))}
-        inputType="number"
-        submitLabel="Save stock"
-        isSaving={isSavingStock}
-        onOpenChange={setStockOpen}
-        onRowsChange={(rows) =>
-          setStockRows(rows.map(({ id, title, value }) => ({ id, title, inventoryQuantity: value })))
-        }
-        onSave={() => void saveStock()}
       />
 
       <FocusModal open={variantOpen} onOpenChange={setVariantOpen}>

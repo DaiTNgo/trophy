@@ -107,8 +107,6 @@ function queueFullCreate(variants: VariantInput[]) {
         ...variant,
         sku: null,
         priceAmount: null,
-        inventoryQuantity: 0,
-        allowBackorder: false,
         isDefault: index === 0,
         optionValues: [],
         attributes: [],

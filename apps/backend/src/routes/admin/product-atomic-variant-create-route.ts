@@ -181,8 +181,6 @@ export const productAtomicVariantCreateRoute = new Hono<AppEnv>().post('/:id/var
         sku: input.sku ?? null,
         priceAmount: input.priceAmount ?? null,
         referencePriceAmount: input.referencePriceAmount ?? null,
-        inventoryQuantity: input.inventoryQuantity ?? 0,
-        allowBackorder: input.allowBackorder ?? false,
         isDefault: false,
         position: product.variants.length,
         updatedAt: nowIso(),

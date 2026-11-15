@@ -249,10 +249,6 @@ export const productVariants = pgTable(
     misaSyncedAt: timestamp("misa_synced_at", { withTimezone: true, mode: "date" }),
     priceAmount: integer("price_amount"),
     referencePriceAmount: integer("reference_price_amount"),
-    inventoryQuantity: integer("inventory_quantity").notNull().default(0),
-    allowBackorder: boolean("allow_backorder")
-      .notNull()
-      .default(false),
     isDefault: boolean("is_default")
       .notNull()
       .default(false),

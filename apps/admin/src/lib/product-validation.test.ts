@@ -219,7 +219,6 @@ describe("Unified product validation (vi & en)", () => {
       media: "",
       hasVariants: false,
       basePrice: "100000",
-      inventory: "10",
       optionNameOne: "",
       optionValuesOne: "",
       optionNameTwo: "",

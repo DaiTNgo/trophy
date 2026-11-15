@@ -283,8 +283,6 @@ export const productCommandRoute = new Hono<AppEnv>()
         title: defaultVariantTitle,
         sku: null,
         priceAmount: parsed.output.priceAmount ?? null,
-        inventoryQuantity: 0,
-        allowBackorder: false,
         isDefault: true,
         position: 0,
         updatedAt: nowIso()
@@ -452,8 +450,6 @@ export const productCommandRoute = new Hono<AppEnv>()
       sku?: string | null
       priceAmount?: number | null
       referencePriceAmount?: number | null
-      inventoryQuantity?: number
-      allowBackorder?: boolean
       isDefault?: boolean
       optionValueIds?: number[]
       attributes?: Array<{
@@ -493,8 +489,6 @@ export const productCommandRoute = new Hono<AppEnv>()
         sku: variant.sku ?? null,
         priceAmount: variant.priceAmount ?? null,
         referencePriceAmount: variant.referencePriceAmount ?? null,
-        inventoryQuantity: variant.inventoryQuantity ?? 0,
-        allowBackorder: variant.allowBackorder ?? false,
         isDefault: variant.isDefault,
         optionValueIds,
         attributes: variant.attributes ?? []

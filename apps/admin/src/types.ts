@@ -55,7 +55,6 @@ export type CatalogProduct = {
   specificationsHtml: LocalizedTextValue;
   shippingHtml: LocalizedTextValue;
   status: ProductStatus;
-  inventory: number;
   price: number;
   category: string;
   collection: string;
@@ -116,10 +115,8 @@ export type ProductVariant = {
   misaLastError?: string | null;
   price: number;
   referencePrice: number;
-  inventory: number;
   options: VariantOptionValue[];
   attributes: ProductAttribute[];
-  allowBackorder: boolean;
   media: ProductVariantMedia[];
   customizationMedia: ProductVariantMedia | null;
   shouldCreate: boolean;
@@ -180,7 +177,6 @@ export type CreateProductFormValues = {
   media: string;
   hasVariants: boolean;
   basePrice: string;
-  inventory: string;
   optionNameOne: string;
   optionValuesOne: string;
   optionNameTwo: string;

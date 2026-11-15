@@ -58,7 +58,6 @@ export const productVariantDetailRoute = new Hono<AppEnv>()
       .set({
         title: nextVariantTitle,
         sku: parsed.output.sku ?? null,
-        allowBackorder: parsed.output.allowBackorder ?? variant.allowBackorder,
         updatedAt: new Date().toISOString()
       })
       .where(eq(productVariants.id, variant.id))
