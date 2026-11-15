@@ -1,4 +1,4 @@
-import { defineConfig } from "vite";
+import { defineConfig, lazyPlugins } from "vite-plus";
 import react from "@vitejs/plugin-react";
 import { visualizer } from "rollup-plugin-visualizer";
 
@@ -15,7 +15,7 @@ export default defineConfig({
     port: 4174,
     strictPort: true,
   },
-  plugins: [
+  plugins: lazyPlugins(() => [
     react(),
     process.env.ANALYZE_BUNDLE === "1"
       ? visualizer({
@@ -26,5 +26,5 @@ export default defineConfig({
           open: false,
         })
       : null,
-  ],
+  ]),
 });

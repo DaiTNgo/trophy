@@ -6,10 +6,10 @@
     "./client": "./src/client.ts"
   },
   "scripts": {
-    "dev": "tsx watch src/index.ts",
-    "build": "vite build",
+    "dev": "vpx --watch src/index.ts",
+    "build": "vp build",
     "check": "tsc --noEmit",
-    "test": "vitest run --config vitest.config.ts",
+    "test": "vp test run --config vitest.config.ts",
     "start": "node dist/backend/index.js",
     "studio": "drizzle-kit studio",
     "db:generate": "drizzle-kit generate",
@@ -33,7 +33,7 @@
     "drizzle-kit": "^0.31.11",
     "pino-pretty": "^13.2.0",
     "tsx": "^4.23.15",
-    "vite": "^8.3.2",
-    "vitest": "^5.0.3"
+    "vite": "catalog:",
+    "vite-plus": "catalog:"
   }
 }

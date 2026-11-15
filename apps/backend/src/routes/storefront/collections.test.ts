@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { describe, expect, it, vi, beforeEach } from "vite-plus/test";
 import { storefrontCollectionsRoute } from "./collections";
 import * as dbClient from "../../db/client";
 import { hydrateAndResolveTranslations } from "../../lib/catalog-translation";

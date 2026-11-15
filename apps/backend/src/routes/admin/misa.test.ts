@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vite-plus/test";
 
 vi.mock("../../lib/misa", () => ({
   createMisaProducts: vi.fn(async (_bindings, products) => ({ created: products, existing: [] })),

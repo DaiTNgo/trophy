@@ -11,9 +11,10 @@
     "dockhand:down": "docker compose -f docker-compose.dockhand.yml down"
   },
   "devDependencies": {
-    "prettier": "^3.9.6",
-    "turbo": "^2.10.12",
-    "typescript": "6.0.3"
+    "prettier": "^3.10.1",
+    "turbo": "^2.11.11",
+    "typescript": "6.0.3",
+    "vite-plus": "catalog:"
   },
   "packageManager": "pnpm@11.18.0",
   "engines": {

@@ -1,5 +1,5 @@
 import { DEFAULT_TEMPLATE } from "@trophy/customization";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { productAssets } from "../../db/schema";
 import { validatePublishable } from "./product-publishability";
 import {

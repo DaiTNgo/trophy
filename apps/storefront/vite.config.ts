@@ -1,6 +1,6 @@
 import { reactRouter } from "@react-router/dev/vite";
 import tailwindcss from "@tailwindcss/vite";
-import { defineConfig, searchForWorkspaceRoot } from "vite";
+import { defineConfig, searchForWorkspaceRoot, lazyPlugins } from "vite-plus";
 
 const appRoot = import.meta.dirname;
 
@@ -17,7 +17,7 @@ export default defineConfig({
     port: 4173,
     strictPort: true,
   },
-  plugins: [tailwindcss(), reactRouter()],
+  plugins: lazyPlugins(() => [tailwindcss(), reactRouter()]),
   resolve: {
     tsconfigPaths: true,
   },

@@ -1,4 +1,4 @@
-import { defineConfig } from "vite";
+import { defineConfig, lazyPlugins } from "vite-plus";
 import { visualizer } from "rollup-plugin-visualizer";
 
 export default defineConfig({
@@ -17,7 +17,7 @@ export default defineConfig({
       },
     },
   },
-  plugins: [
+  plugins: lazyPlugins(() => [
     process.env.ANALYZE_BUNDLE === "1"
       ? visualizer({
           filename: "dist/bundle-report.html",
@@ -27,5 +27,5 @@ export default defineConfig({
           open: false,
         })
       : null,
-  ],
+  ]),
 });

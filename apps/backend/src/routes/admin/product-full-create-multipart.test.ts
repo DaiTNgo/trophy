@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vite-plus/test'
 import { parseFullCreateMultipart } from './product-full-create-multipart'
 
 const png = new Uint8Array([

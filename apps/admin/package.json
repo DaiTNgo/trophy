@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "vp dev",
     "build": "tsc -b && vp build",
-    "build:docker": "tsc -b && vite build",
-    "test": "vitest run --config vitest.config.ts",
+    "build:docker": "tsc -b && vp build",
+    "test": "vp test run --config vitest.config.ts",
     "lint": "vp lint .",
     "analyze": "ANALYZE_BUNDLE=1 vp build",
     "preview": "vp preview"
@@ -57,8 +57,8 @@
     "rollup-plugin-visualizer": "^7.1.1",
     "tailwindcss": "^3.4.17",
     "typescript": "~7.0.2",
-    "vite": "^8.3.2",
-    "vitest": "^5.0.3"
+    "vite": "catalog:",
+    "vite-plus": "catalog:"
   },
   "packageManager": "pnpm@12.9.1"
 }

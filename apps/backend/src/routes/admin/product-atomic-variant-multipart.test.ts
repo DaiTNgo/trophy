@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vite-plus/test'
 import { parseAtomicVariantMultipart } from './product-atomic-variant-multipart'
 
 function png(width = 1200, height = 900) {

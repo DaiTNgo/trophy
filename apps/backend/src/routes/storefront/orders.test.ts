@@ -1,5 +1,5 @@
 import { DEFAULT_TEMPLATE } from "@trophy/customization";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 vi.mock("../../db/client", () => ({
   getDb: vi.fn(),

@@ -68,7 +68,7 @@ function renderHook<T>(hookFn: () => T) {
     throw e;
   }
 }
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { getProductCustomizationPublishIssue } from "./product-customization-publish";
 
 describe("getProductCustomizationPublishIssue", () => {
