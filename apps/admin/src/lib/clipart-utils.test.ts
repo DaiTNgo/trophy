@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import {
   ACCEPT_CLIPART_MIME_TYPES,
   SUPPORTED_CLIPART_TYPES_HINT,
@@ -24,14 +24,22 @@ describe("clipart-utils", () => {
 
   describe("inferClipartMimeType", () => {
     it("recognizes svg, png, and webp files", () => {
-      expect(inferClipartMimeType(new File([], "badge.svg", { type: "image/svg+xml" }))).toBe("image/svg+xml");
+      expect(inferClipartMimeType(new File([], "badge.svg", { type: "image/svg+xml" }))).toBe(
+        "image/svg+xml",
+      );
       expect(inferClipartMimeType(new File([], "badge.svg", { type: "" }))).toBe("image/svg+xml");
-      expect(inferClipartMimeType(new File([], "badge.png", { type: "image/png" }))).toBe("image/png");
-      expect(inferClipartMimeType(new File([], "badge.webp", { type: "image/webp" }))).toBe("image/webp");
+      expect(inferClipartMimeType(new File([], "badge.png", { type: "image/png" }))).toBe(
+        "image/png",
+      );
+      expect(inferClipartMimeType(new File([], "badge.webp", { type: "image/webp" }))).toBe(
+        "image/webp",
+      );
     });
 
     it("does not recognize pdf or unsupported types as valid clipart mime type", () => {
-      expect(inferClipartMimeType(new File([], "doc.pdf", { type: "application/pdf" }))).toBe("application/pdf");
+      expect(inferClipartMimeType(new File([], "doc.pdf", { type: "application/pdf" }))).toBe(
+        "application/pdf",
+      );
       expect(inferClipartMimeType(new File([], "doc.pdf", { type: "" }))).toBe("");
     });
   });

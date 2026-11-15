@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 const mocks = vi.hoisted(() => ({
   convertPdfToImageFile: vi.fn(),
@@ -75,20 +75,50 @@ describe("media asset reading", () => {
 
   describe("validateCategoryOrCollectionMediaFile", () => {
     it("accepts valid image types (PNG, JPEG, WebP)", () => {
-      expect(validateCategoryOrCollectionMediaFile(new File(["data"], "test.png", { type: "image/png" }))).toBeNull();
-      expect(validateCategoryOrCollectionMediaFile(new File(["data"], "test.jpg", { type: "image/jpeg" }))).toBeNull();
-      expect(validateCategoryOrCollectionMediaFile(new File(["data"], "test.webp", { type: "image/webp" }))).toBeNull();
+      expect(
+        validateCategoryOrCollectionMediaFile(
+          new File(["data"], "test.png", { type: "image/png" }),
+        ),
+      ).toBeNull();
+      expect(
+        validateCategoryOrCollectionMediaFile(
+          new File(["data"], "test.jpg", { type: "image/jpeg" }),
+        ),
+      ).toBeNull();
+      expect(
+        validateCategoryOrCollectionMediaFile(
+          new File(["data"], "test.webp", { type: "image/webp" }),
+        ),
+      ).toBeNull();
     });
 
     it("rejects unsupported types like PDF, SVG, GIF, txt", () => {
-      expect(validateCategoryOrCollectionMediaFile(new File(["data"], "test.pdf", { type: "application/pdf" }))).toMatch(/Unsupported file type/);
-      expect(validateCategoryOrCollectionMediaFile(new File(["data"], "test.svg", { type: "image/svg+xml" }))).toMatch(/Unsupported file type/);
-      expect(validateCategoryOrCollectionMediaFile(new File(["data"], "test.gif", { type: "image/gif" }))).toMatch(/Unsupported file type/);
-      expect(validateCategoryOrCollectionMediaFile(new File(["data"], "test.txt", { type: "text/plain" }))).toMatch(/Unsupported file type/);
+      expect(
+        validateCategoryOrCollectionMediaFile(
+          new File(["data"], "test.pdf", { type: "application/pdf" }),
+        ),
+      ).toMatch(/Unsupported file type/);
+      expect(
+        validateCategoryOrCollectionMediaFile(
+          new File(["data"], "test.svg", { type: "image/svg+xml" }),
+        ),
+      ).toMatch(/Unsupported file type/);
+      expect(
+        validateCategoryOrCollectionMediaFile(
+          new File(["data"], "test.gif", { type: "image/gif" }),
+        ),
+      ).toMatch(/Unsupported file type/);
+      expect(
+        validateCategoryOrCollectionMediaFile(
+          new File(["data"], "test.txt", { type: "text/plain" }),
+        ),
+      ).toMatch(/Unsupported file type/);
     });
 
     it("rejects empty files", () => {
-      expect(validateCategoryOrCollectionMediaFile(new File([], "test.png", { type: "image/png" }))).toMatch(/File is empty/);
+      expect(
+        validateCategoryOrCollectionMediaFile(new File([], "test.png", { type: "image/png" })),
+      ).toMatch(/File is empty/);
     });
 
     it("rejects files exceeding 20MB", () => {

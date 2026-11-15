@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 const rpc = vi.hoisted(() => ({
   listTrash: vi.fn(),
@@ -47,23 +47,29 @@ describe("product trash client", () => {
   });
 
   it("maps the Hono Product Trash response for the admin table", async () => {
-    rpc.listTrash.mockResolvedValue(jsonResponse({
-      items: [{
-        id: 7,
+    rpc.listTrash.mockResolvedValue(
+      jsonResponse({
+        items: [
+          {
+            id: 7,
+            title: { vi: "Cúp vô địch", en: "Champion cup" },
+            handle: "champion-cup",
+            status: "published",
+            deletedAt: "2026-08-07T00:00:00.000Z",
+          },
+        ],
+      }),
+    );
+
+    await expect(fetchTrashedProducts()).resolves.toEqual([
+      {
+        id: "7",
         title: { vi: "Cúp vô địch", en: "Champion cup" },
         handle: "champion-cup",
         status: "published",
         deletedAt: "2026-08-07T00:00:00.000Z",
-      }],
-    }));
-
-    await expect(fetchTrashedProducts()).resolves.toEqual([{
-      id: "7",
-      title: { vi: "Cúp vô địch", en: "Champion cup" },
-      handle: "champion-cup",
-      status: "published",
-      deletedAt: "2026-08-07T00:00:00.000Z",
-    }]);
+      },
+    ]);
     expect(rpc.listTrash).toHaveBeenCalledOnce();
   });
 

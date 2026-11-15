@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import {
   validateProductTitle,
   isAttributeRowActive,
@@ -15,9 +15,7 @@ describe("Unified product validation (vi & en)", () => {
     });
 
     it("accepts title with both Vietnamese and English text", () => {
-      expect(
-        validateProductTitle({ vi: "Cúp pha lê", en: "Crystal Trophy" }),
-      ).toBeNull();
+      expect(validateProductTitle({ vi: "Cúp pha lê", en: "Crystal Trophy" })).toBeNull();
     });
 
     it("rejects title when Vietnamese is empty, even if English is provided", () => {
@@ -33,9 +31,7 @@ describe("Unified product validation (vi & en)", () => {
       expect(validateProductTitle({ vi: "", en: "" })).toBe(
         "Vietnamese product title is required.",
       );
-      expect(validateProductTitle(null)).toBe(
-        "Vietnamese product title is required.",
-      );
+      expect(validateProductTitle(null)).toBe("Vietnamese product title is required.");
     });
   });
 
@@ -278,9 +274,7 @@ describe("Unified product validation (vi & en)", () => {
           },
         ],
       });
-      expect(errors.optionDefinitions).toBe(
-        "Each option value requires a Vietnamese name.",
-      );
+      expect(errors.optionDefinitions).toBe("Each option value requires a Vietnamese name.");
     });
 
     it("fails when variants option has duplicate Vietnamese values", () => {
@@ -309,9 +303,7 @@ describe("Unified product validation (vi & en)", () => {
           },
         ],
       });
-      expect(errors.optionDefinitions).toBe(
-        "Values within the same option must be unique.",
-      );
+      expect(errors.optionDefinitions).toBe("Values within the same option must be unique.");
     });
   });
 });

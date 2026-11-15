@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 const backendFetchMock = vi.fn();
 
@@ -55,19 +55,21 @@ describe("mapApiProductToCatalogProduct", () => {
   it("preserves each variant's MISA synchronization state", () => {
     const product = mapApiProductToCatalogProduct({
       ...apiProduct,
-      variants: [{
-        id: 7,
-        title: "Gold",
-        sku: null,
-        misaProductId: null,
-        misaSyncStatus: "failed",
-        misaLastError: "MISA integration is not configured",
-        priceAmount: 1000,
-        referencePriceAmount: 200000,
-        media: [],
-        customizationMedia: null,
-        optionValueIds: [],
-      }],
+      variants: [
+        {
+          id: 7,
+          title: "Gold",
+          sku: null,
+          misaProductId: null,
+          misaSyncStatus: "failed",
+          misaLastError: "MISA integration is not configured",
+          priceAmount: 1000,
+          referencePriceAmount: 200000,
+          media: [],
+          customizationMedia: null,
+          optionValueIds: [],
+        },
+      ],
     });
 
     expect(product.variants[0]).toMatchObject({
@@ -85,10 +87,7 @@ describe("mapApiProductToCatalogProduct", () => {
 
     await createProductOption("10", {
       title: { vi: "Mau sac", en: "" },
-      values: [
-        { value: { vi: "Do", en: "" } },
-        { value: { vi: "Xanh", en: "" } },
-      ],
+      values: [{ value: { vi: "Do", en: "" } }, { value: { vi: "Xanh", en: "" } }],
     });
 
     expect(backendFetchMock).toHaveBeenCalledWith(
@@ -97,10 +96,7 @@ describe("mapApiProductToCatalogProduct", () => {
         method: "POST",
         body: JSON.stringify({
           title: { vi: "Mau sac", en: "" },
-          values: [
-            { value: { vi: "Do", en: "" } },
-            { value: { vi: "Xanh", en: "" } },
-          ],
+          values: [{ value: { vi: "Do", en: "" } }, { value: { vi: "Xanh", en: "" } }],
         }),
       }),
     );
@@ -130,14 +126,30 @@ describe("mapApiProductToCatalogProduct", () => {
     backendFetchMock.mockResolvedValue({ ok: true, json: async () => ({ item: apiProduct }) });
     const file = new File(["image"], "cup.png", { type: "image/png" });
     await createFullProduct({
-      mode: "draft", details: { title: { vi: "Cup", en: "" }, handle: null }, organization: {}, attributes: [], options: [],
-      variants: [{ title: "Default", sku: null, priceAmount: null, referencePriceAmount: null, optionValues: [], media: [{ mediaId: "11111111-1111-4111-8111-111111111111", file }], customizationMedia: null }],
+      mode: "draft",
+      details: { title: { vi: "Cup", en: "" }, handle: null },
+      organization: {},
+      attributes: [],
+      options: [],
+      variants: [
+        {
+          title: "Default",
+          sku: null,
+          priceAmount: null,
+          referencePriceAmount: null,
+          optionValues: [],
+          media: [{ mediaId: "11111111-1111-4111-8111-111111111111", file }],
+          customizationMedia: null,
+        },
+      ],
     });
     const options = backendFetchMock.mock.calls[0][1];
     expect(options.body).toBeInstanceOf(FormData);
     const form = options.body as FormData;
     expect(form.get("11111111-1111-4111-8111-111111111111")).toBe(file);
-    expect(JSON.parse(form.get("payload") as string).variants[0].media).toEqual([{ mediaId: "11111111-1111-4111-8111-111111111111" }]);
+    expect(JSON.parse(form.get("payload") as string).variants[0].media).toEqual([
+      { mediaId: "11111111-1111-4111-8111-111111111111" },
+    ]);
   });
 
   it("maps customizationMedia widthPx and heightPx into multipart full-create request payload", async () => {
@@ -145,12 +157,35 @@ describe("mapApiProductToCatalogProduct", () => {
     const pdfFile = new File(["pdf"], "doc.pdf", { type: "application/pdf" });
     const previewFile = new File(["webp"], "doc.webp", { type: "image/webp" });
     await createFullProduct({
-      mode: "publish", details: { title: { vi: "Cup", en: "" }, handle: null }, organization: {}, attributes: [], options: [],
-      variants: [{
-        title: "Default", sku: null, priceAmount: null, referencePriceAmount: null, optionValues: [], media: [],
-        customizationMedia: { mediaId: "custom_media_1", file: pdfFile, previewFile, widthPx: 1190, heightPx: 1683 }
-      }],
-      customization: { enabled: true, canvasWidthPx: 1190, canvasHeightPx: 1683, layers: [], formFields: [] }
+      mode: "publish",
+      details: { title: { vi: "Cup", en: "" }, handle: null },
+      organization: {},
+      attributes: [],
+      options: [],
+      variants: [
+        {
+          title: "Default",
+          sku: null,
+          priceAmount: null,
+          referencePriceAmount: null,
+          optionValues: [],
+          media: [],
+          customizationMedia: {
+            mediaId: "custom_media_1",
+            file: pdfFile,
+            previewFile,
+            widthPx: 1190,
+            heightPx: 1683,
+          },
+        },
+      ],
+      customization: {
+        enabled: true,
+        canvasWidthPx: 1190,
+        canvasHeightPx: 1683,
+        layers: [],
+        formFields: [],
+      },
     });
     const options = backendFetchMock.mock.calls[0][1];
     const form = options.body as FormData;
@@ -160,7 +195,7 @@ describe("mapApiProductToCatalogProduct", () => {
     expect(payloadObj.variants[0].customizationMedia).toEqual({
       mediaId: "custom_media_1",
       widthPx: 1190,
-      heightPx: 1683
+      heightPx: 1683,
     });
     expect(payloadObj.customization.canvasWidthPx).toBe(1190);
     expect(payloadObj.customization.canvasHeightPx).toBe(1683);
@@ -172,14 +207,22 @@ describe("mapApiProductToCatalogProduct", () => {
     const second = new File(["image"], "second.png", { type: "image/png" });
 
     await activateCustomization("10", "2026-08-09T00:00:00.000Z", {
-      layers: [], formFields: [],
-      backgrounds: [{ variantId: "1", file: first, widthPx: 1200, heightPx: 900 }, { variantId: "2", file: second, widthPx: 1200, heightPx: 900 }],
+      layers: [],
+      formFields: [],
+      backgrounds: [
+        { variantId: "1", file: first, widthPx: 1200, heightPx: 900 },
+        { variantId: "2", file: second, widthPx: 1200, heightPx: 900 },
+      ],
     });
 
     const [path, options] = backendFetchMock.mock.calls[0];
     expect(path).toBe("/api/admin/products/10/customization/activate");
     const form = (options as RequestInit).body as FormData;
-    expect(JSON.parse(form.get("payload") as string)).toEqual({ layers: [], formFields: [], backgrounds: { 1: { widthPx: 1200, heightPx: 900 }, 2: { widthPx: 1200, heightPx: 900 } } });
+    expect(JSON.parse(form.get("payload") as string)).toEqual({
+      layers: [],
+      formFields: [],
+      backgrounds: { 1: { widthPx: 1200, heightPx: 900 }, 2: { widthPx: 1200, heightPx: 900 } },
+    });
     expect(form.get("1")).toBe(first);
     expect(form.get("2")).toBe(second);
     expect((options as RequestInit).headers).toEqual({ "If-Match": "2026-08-09T00:00:00.000Z" });
@@ -195,15 +238,28 @@ describe("mapApiProductToCatalogProduct", () => {
     });
     const repairForm = (backendFetchMock.mock.calls[0][1] as RequestInit).body as FormData;
     expect(repairForm.get("7")).toBe(repair);
-    expect(JSON.parse(repairForm.get("payload") as string)).toEqual({ layers: [], formFields: [], backgrounds: { 7: { widthPx: 1200, heightPx: 900 } } });
+    expect(JSON.parse(repairForm.get("payload") as string)).toEqual({
+      layers: [],
+      formFields: [],
+      backgrounds: { 7: { widthPx: 1200, heightPx: 900 } },
+    });
 
     const gallery = new File(["image"], "gallery.png", { type: "image/png" });
     const background = new File(["image"], "background.png", { type: "image/png" });
     await atomicCreateVariant("10", "2026-08-09T00:00:00.000Z", {
-      title: { vi: "Blue", en: "Blue" }, sku: null, priceAmount: 1000, referencePriceAmount: 200000,
-      optionValueIds: [], attributes: [],
+      title: { vi: "Blue", en: "Blue" },
+      sku: null,
+      priceAmount: 1000,
+      referencePriceAmount: 200000,
+      optionValueIds: [],
+      attributes: [],
       galleryMedia: [{ mediaId: "gallery_1", file: gallery }],
-      customizationMedia: { mediaId: "background_1", file: background, widthPx: 1200, heightPx: 900 },
+      customizationMedia: {
+        mediaId: "background_1",
+        file: background,
+        widthPx: 1200,
+        heightPx: 900,
+      },
     });
     const atomicForm = (backendFetchMock.mock.calls[1][1] as RequestInit).body as FormData;
     expect(atomicForm.get("gallery_1")).toBe(gallery);
@@ -213,8 +269,12 @@ describe("mapApiProductToCatalogProduct", () => {
       galleryMedia: [{ mediaId: "gallery_1" }],
       customizationMedia: { mediaId: "background_1", widthPx: 1200, heightPx: 900 },
     });
-    expect((backendFetchMock.mock.calls[0][1] as RequestInit).headers).toEqual({ "If-Match": "2026-08-09T00:00:00.000Z" });
-    expect((backendFetchMock.mock.calls[1][1] as RequestInit).headers).toEqual({ "If-Match": "2026-08-09T00:00:00.000Z" });
+    expect((backendFetchMock.mock.calls[0][1] as RequestInit).headers).toEqual({
+      "If-Match": "2026-08-09T00:00:00.000Z",
+    });
+    expect((backendFetchMock.mock.calls[1][1] as RequestInit).headers).toEqual({
+      "If-Match": "2026-08-09T00:00:00.000Z",
+    });
   });
 
   it("sends the Product revision for direct lifecycle and variant deletion commands", async () => {

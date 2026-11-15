@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
-FROM node:22-alpine AS base
-RUN corepack enable && corepack prepare pnpm@11.18.0 --activate
+FROM node:26-alpine AS base
+RUN npm install -g pnpm@11.18.0
 WORKDIR /app
 
 # 1. Dependency stage with layer caching
@@ -27,7 +27,7 @@ RUN pnpm --filter router-cf --prod --legacy deploy /prod/storefront
 RUN cp -r /app/apps/storefront/build /prod/storefront/build
 
 # 3. Production runtime stage
-FROM node:22-alpine AS runner
+FROM node:26-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 RUN apk add --no-cache dumb-init
