@@ -2,6 +2,14 @@
 
 ## Current Session
 
+- 2026-11-15: **TODO: storefront build size (investigation only, nothing changed).**
+  - Finding: `apps/storefront/build/client` ≈ 25 MB. Images ≈ 19 MB (`build/client/images`, 93 files copied raw from `public/images`; gallery 10 MB, home 3.4 MB, about 3.4 MB; many JPGs 430–730 KB). JS/CSS ≈ 5.9 MB; server ≈ 1.3 MB.
+  - Large chunks: `v3-*.js` 2.5 MB + `vietnam-*.js` 663 KB (both from `vietnam-divisions-js`, imported in `app/components/checkout/CheckoutForm.tsx`, loaded on checkout); `pdf-*.js` 430 KB + `pdf.worker.min.mjs` 1.2 MB (`pdfjs-dist` via `packages/customization-react/src/pdf-preview.ts`, dynamic import); `entry.client` 269 KB; `root.css` 122 KB.
+  - [ ] Compress/resize images, convert to WebP/AVIF (est. −15 MB).
+  - [ ] Replace `vietnam-divisions-js` in checkout: serve provinces/wards from backend API (preferred, Hono RPC) or split data per province.
+  - [ ] Confirm `v3`/`pdf` chunks only load lazily (Network tab).
+  - [ ] Run `rollup-plugin-visualizer` to size `entry.client` and `root.css` precisely (i18n libs and CSS imports are suspects).
+
 - 2026-11-05: **Variant reference price + optional selling price.**
   - Context: automated pricing parameters (reference price × zone coefficient × season) from the business spreadsheets; this step only stores the reference price.
   - Backend: `product_variants.reference_price_amount` (nullable int) in `schema.ts`; accepted by full-create variants, atomic variant create, and `PATCH /:id/variants/prices` (`referencePriceAmount` optional, omitted leaves it unchanged). Not added to any storefront response.
