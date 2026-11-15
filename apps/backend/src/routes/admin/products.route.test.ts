@@ -113,6 +113,7 @@ function queueReadProduct(
       title: string;
       sku: string | null;
       priceAmount: number | null;
+      referencePriceAmount?: number | null;
       inventoryQuantity: number;
       allowBackorder: boolean;
       isDefault: boolean;
@@ -880,6 +881,123 @@ describe("admin products operation-specific routes", () => {
     expect(updateRecord?.set).toMatchObject({ priceAmount: 7000 });
     expect((updateRecord?.set as any).inventoryQuantity).toBeUndefined();
     expect((updateRecord?.set as any).allowBackorder).toBeUndefined();
+  });
+
+  it("stores a variant reference price alongside the selling price", async () => {
+    queueReadProduct(
+      db,
+      { id: 1,  status: "published" },
+      {
+        optionRows: [],
+        variantRows: [
+          {
+            id: 20,
+            productId: 1,
+            title: "Default",
+            sku: "SKU-1",
+            priceAmount: 5000,
+            referencePriceAmount: null,
+            inventoryQuantity: 8,
+            allowBackorder: false,
+            isDefault: true,
+            position: 0,
+            createdAt: "2026-07-04T00:00:00.000Z",
+            updatedAt: "2026-07-04T00:00:00.000Z",
+          },
+        ],
+      },
+    );
+    db.selectQueue.push([{ id: 20 }]);
+    queueReadProduct(
+      db,
+      { id: 1,  status: "published" },
+      {
+        optionRows: [],
+        variantRows: [
+          {
+            id: 20,
+            productId: 1,
+            title: "Default",
+            sku: "SKU-1",
+            priceAmount: null,
+            referencePriceAmount: 200000,
+            inventoryQuantity: 8,
+            allowBackorder: false,
+            isDefault: true,
+            position: 0,
+            createdAt: "2026-07-04T00:00:00.000Z",
+            updatedAt: "2026-07-04T00:00:00.000Z",
+          },
+        ],
+      },
+    );
+
+    const res = await productsRoute.request("/1/variants/prices", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        items: [{ id: 20, priceAmount: null, referencePriceAmount: 200000 }],
+      }),
+    });
+
+    expect(res.status).toBe(200);
+    const updateRecord = db.mutations.find(
+      (entry: MutationRecord) =>
+        entry.kind === "update" && entry.set && "priceAmount" in (entry.set as any),
+    );
+    expect(updateRecord?.set).toMatchObject({ priceAmount: null, referencePriceAmount: 200000 });
+  });
+
+  it("keeps the stored reference price when a price update omits it", async () => {
+    queueReadProduct(
+      db,
+      { id: 1,  status: "draft" },
+      {
+        optionRows: [],
+        variantRows: [
+          {
+            id: 20,
+            productId: 1,
+            title: "Default",
+            sku: "SKU-1",
+            priceAmount: 5000,
+            referencePriceAmount: 200000,
+            inventoryQuantity: 8,
+            allowBackorder: false,
+            isDefault: true,
+            position: 0,
+            createdAt: "2026-07-04T00:00:00.000Z",
+            updatedAt: "2026-07-04T00:00:00.000Z",
+          },
+        ],
+      },
+    );
+    db.selectQueue.push([{ id: 20 }]);
+    queueReadProduct(db, { id: 1,  status: "draft" }, { optionRows: [], variantRows: [] });
+
+    const res = await productsRoute.request("/1/variants/prices", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ items: [{ id: 20, priceAmount: 6000 }] }),
+    });
+
+    expect(res.status).toBe(200);
+    const updateRecord = db.mutations.find(
+      (entry: MutationRecord) =>
+        entry.kind === "update" && entry.set && "priceAmount" in (entry.set as any),
+    );
+    expect(updateRecord?.set).toMatchObject({ priceAmount: 6000 });
+    expect("referencePriceAmount" in (updateRecord?.set as any)).toBe(false);
+  });
+
+  it("rejects a negative reference price", async () => {
+    const res = await productsRoute.request("/1/variants/prices", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ items: [{ id: 20, priceAmount: 5000, referencePriceAmount: -1 }] }),
+    });
+
+    expect(res.status).toBe(400);
   });
 
   it("updates variant attribute overrides without touching shared product attributes", async () => {

@@ -396,6 +396,35 @@ export function ProductDetailVariants({ product, mutate, updateProduct }: Produc
                   />
                 </div>
               </section>
+
+              <section className="space-y-4">
+                <div>
+                  <Heading level="h3" className="text-base font-medium">
+                    Reference price
+                  </Heading>
+                  <Text size="small" className="text-ui-fg-subtle">
+                    Optional. Internal base price for automated pricing; not shown to shoppers.
+                  </Text>
+                </div>
+                <div className="flex max-w-[240px] items-center rounded-md border border-ui-border-base bg-ui-bg-field px-2 shadow-buttons-neutral">
+                  <Text size="small" className="px-1 text-ui-fg-muted">
+                    $
+                  </Text>
+                  <Input
+                    value={variantForm.referencePriceAmount}
+                    onChange={(event) =>
+                      setVariantForm((current) => ({
+                        ...current,
+                        referencePriceAmount: event.target.value,
+                      }))
+                    }
+                    type="number"
+                    min="0"
+                    className="border-0 bg-transparent shadow-none"
+                    placeholder="Optional"
+                  />
+                </div>
+              </section>
               </> : (
                 <section className="space-y-5">
                   <div>

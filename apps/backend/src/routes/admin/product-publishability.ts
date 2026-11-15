@@ -16,7 +16,6 @@ type ProductForPublish = {
     [key: string]: unknown
   }>
   variants: Array<{
-    priceAmount: number | null
     isDefault: boolean
     optionValueIds: number[]
     attributes?: Array<{ name: unknown; value: unknown; [key: string]: unknown }>
@@ -83,7 +82,6 @@ export function validatePublishable(product: ProductForPublish) {
     if (variant.title !== undefined && !hasVietnameseCatalogText(variant.title)) {
       return 'Every variant requires a title with Vietnamese text before publish'
     }
-    if (variant.priceAmount === null) return 'Every variant must have a price before publish'
     for (const attribute of variant.attributes ?? []) {
       if (!hasVietnameseCatalogText(attribute.name) || !hasVietnameseCatalogText(attribute.value)) {
         return 'All variant attributes require Vietnamese names and values before publish'

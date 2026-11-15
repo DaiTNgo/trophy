@@ -182,6 +182,7 @@ export function reconcileVariantRows(
       title: current?.title || blueprint.title || "Default variant",
       sku: current?.sku ?? "",
       price: current?.price ?? 0,
+      referencePrice: current?.referencePrice ?? 0,
       inventory: current?.inventory ?? normalizedInventory,
       options: blueprint.options,
       attributes: current?.attributes ?? [],
@@ -343,12 +344,8 @@ export function validateCreateProduct({
       nextErrors.variants = "At least one valid variant is required to publish.";
     }
 
-    if (effectiveVariantRows.some((variant) => Number(variant.price || 0) <= 0)) {
-      nextErrors.variants = "Every variant must have a positive price before publishing.";
-    }
-
     if (!isPublishReady(values, effectiveVariantRows, optionDefinitions).ready) {
-      nextErrors.publish = "Publish requires a title, valid product options, and publishable variant pricing.";
+      nextErrors.publish = "Publish requires a title and valid product options.";
     }
   }
 
@@ -371,6 +368,7 @@ function buildVariantPreview(values: CreateProductFormValues) {
         title: "Default variant",
         sku: "",
         price: Number.isFinite(basePrice) ? basePrice : 0,
+        referencePrice: 0,
         inventory: normalizedInventory,
         options: [],
         attributes: [],
@@ -388,6 +386,7 @@ function buildVariantPreview(values: CreateProductFormValues) {
     title: combination.map((item) => item.value).join(" / "),
     sku: "",
     price: Number.isFinite(basePrice) ? basePrice : 0,
+    referencePrice: 0,
     inventory: normalizedInventory,
     options: combination,
     attributes: [],
@@ -415,10 +414,8 @@ export function isPublishReady(
           option.values.every((value) => (value.valueTranslations?.vi ?? value.value).trim() !== "")
       )) &&
     effectiveVariantRows.length > 0;
-  const variantPricingValid = effectiveVariantRows.every((variant) => Number(variant.price || 0) > 0);
-
   return {
-    ready: values.title.vi.trim() !== "" && variantStructureValid && variantPricingValid,
+    ready: values.title.vi.trim() !== "" && variantStructureValid,
     variantStructureValid,
   };
 }

@@ -451,6 +451,7 @@ export const productCommandRoute = new Hono<AppEnv>()
       title: string | { vi: string; en?: string | null }
       sku?: string | null
       priceAmount?: number | null
+      referencePriceAmount?: number | null
       inventoryQuantity?: number
       allowBackorder?: boolean
       isDefault?: boolean
@@ -491,6 +492,7 @@ export const productCommandRoute = new Hono<AppEnv>()
         title: variant.title,
         sku: variant.sku ?? null,
         priceAmount: variant.priceAmount ?? null,
+        referencePriceAmount: variant.referencePriceAmount ?? null,
         inventoryQuantity: variant.inventoryQuantity ?? 0,
         allowBackorder: variant.allowBackorder ?? false,
         isDefault: variant.isDefault,

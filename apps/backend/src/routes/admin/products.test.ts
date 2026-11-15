@@ -443,6 +443,16 @@ describe("product full-create helpers", () => {
     expect(publishable).toBeNull();
   });
 
+  it("allows publish when a variant has no selling price or reference price (Contact Price)", () => {
+    const product = buildPublishableProduct({ vi: "Cúp vô địch", en: "" });
+    product.variants = product.variants.map((variant) => ({
+      ...variant,
+      priceAmount: null,
+      referencePriceAmount: null,
+    }));
+    expect(validatePublishable(product)).toBeNull();
+  });
+
   it("allows publish when product title has Vietnamese but no English translation", () => {
     expect(validatePublishable(buildPublishableProduct({ vi: "Cúp vô địch", en: "" }))).toBeNull();
   });

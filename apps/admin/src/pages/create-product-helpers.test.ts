@@ -22,6 +22,7 @@ const buildVariant = ({
   title: "Default",
   sku: "SKU-1",
   price: 100,
+  referencePrice: 0,
   inventory: 10,
   options: [],
   attributes: [],

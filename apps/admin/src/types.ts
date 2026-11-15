@@ -115,6 +115,7 @@ export type ProductVariant = {
   misaSyncStatus?: "pending" | "synced" | "failed" | "disconnected" | "missing";
   misaLastError?: string | null;
   price: number;
+  referencePrice: number;
   inventory: number;
   options: VariantOptionValue[];
   attributes: ProductAttribute[];

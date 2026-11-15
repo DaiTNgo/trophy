@@ -63,6 +63,7 @@ describe("mapApiProductToCatalogProduct", () => {
         misaSyncStatus: "failed",
         misaLastError: "MISA integration is not configured",
         priceAmount: 1000,
+        referencePriceAmount: 200000,
         inventoryQuantity: 2,
         allowBackorder: false,
         media: [],
@@ -74,6 +75,7 @@ describe("mapApiProductToCatalogProduct", () => {
     expect(product.variants[0]).toMatchObject({
       misaSyncStatus: "failed",
       misaLastError: "MISA integration is not configured",
+      referencePrice: 200000,
     });
   });
 
@@ -131,7 +133,7 @@ describe("mapApiProductToCatalogProduct", () => {
     const file = new File(["image"], "cup.png", { type: "image/png" });
     await createFullProduct({
       mode: "draft", details: { title: { vi: "Cup", en: "" }, handle: null }, organization: {}, attributes: [], options: [],
-      variants: [{ title: "Default", sku: null, priceAmount: null, inventoryQuantity: 0, allowBackorder: false, optionValues: [], media: [{ mediaId: "11111111-1111-4111-8111-111111111111", file }], customizationMedia: null }],
+      variants: [{ title: "Default", sku: null, priceAmount: null, referencePriceAmount: null, inventoryQuantity: 0, allowBackorder: false, optionValues: [], media: [{ mediaId: "11111111-1111-4111-8111-111111111111", file }], customizationMedia: null }],
     });
     const options = backendFetchMock.mock.calls[0][1];
     expect(options.body).toBeInstanceOf(FormData);
@@ -147,7 +149,7 @@ describe("mapApiProductToCatalogProduct", () => {
     await createFullProduct({
       mode: "publish", details: { title: { vi: "Cup", en: "" }, handle: null }, organization: {}, attributes: [], options: [],
       variants: [{
-        title: "Default", sku: null, priceAmount: null, inventoryQuantity: 0, allowBackorder: false, optionValues: [], media: [],
+        title: "Default", sku: null, priceAmount: null, referencePriceAmount: null, inventoryQuantity: 0, allowBackorder: false, optionValues: [], media: [],
         customizationMedia: { mediaId: "custom_media_1", file: pdfFile, previewFile, widthPx: 1190, heightPx: 1683 }
       }],
       customization: { enabled: true, canvasWidthPx: 1190, canvasHeightPx: 1683, layers: [], formFields: [] }
@@ -200,7 +202,7 @@ describe("mapApiProductToCatalogProduct", () => {
     const gallery = new File(["image"], "gallery.png", { type: "image/png" });
     const background = new File(["image"], "background.png", { type: "image/png" });
     await atomicCreateVariant("10", "2026-08-09T00:00:00.000Z", {
-      title: { vi: "Blue", en: "Blue" }, sku: null, priceAmount: 1000,
+      title: { vi: "Blue", en: "Blue" }, sku: null, priceAmount: 1000, referencePriceAmount: 200000,
       inventoryQuantity: 0, allowBackorder: false, optionValueIds: [], attributes: [],
       galleryMedia: [{ mediaId: "gallery_1", file: gallery }],
       customizationMedia: { mediaId: "background_1", file: background, widthPx: 1200, heightPx: 900 },
@@ -209,6 +211,7 @@ describe("mapApiProductToCatalogProduct", () => {
     expect(atomicForm.get("gallery_1")).toBe(gallery);
     expect(atomicForm.get("background_1")).toBe(background);
     expect(JSON.parse(atomicForm.get("payload") as string)).toMatchObject({
+      referencePriceAmount: 200000,
       galleryMedia: [{ mediaId: "gallery_1" }],
       customizationMedia: { mediaId: "background_1", widthPx: 1200, heightPx: 900 },
     });

@@ -2,6 +2,15 @@
 
 ## Current Session
 
+- 2026-11-05: **Variant reference price + optional selling price.**
+  - Context: automated pricing parameters (reference price × zone coefficient × season) from the business spreadsheets; this step only stores the reference price.
+  - Backend: `product_variants.reference_price_amount` (nullable int) in `schema.ts`; accepted by full-create variants, atomic variant create, and `PATCH /:id/variants/prices` (`referencePriceAmount` optional, omitted leaves it unchanged). Not added to any storefront response.
+  - Publish no longer requires a selling price: removed the check from `validatePublishable`, atomic variant create and the price batch route. Admin `validateCreateProductForm` / `isPublishReady` no longer require positive prices. Storefront still shows Contact Price when `priceAmount` is null (user decision).
+  - Admin: "Reference price" column in the create-product variants table, and a "Reference price" field in the product-detail variant editor.
+  - Tests: publish allowed without price; price route stores reference price, leaves it untouched when omitted, rejects negative values; admin client sends/maps the field.
+  - Verification: `pnpm --filter backend test` 350/350, `check`, `build` pass; admin `tsc -b` and `test` (76/76) pass. `pnpm --filter admin build` fails at `vp build` with a vite-plus alias error that reproduces on the base commit (environment issue, not this change).
+  - Next: run `pnpm --filter backend db:push` against the dev DB (no migration generated per dev-mode rule); Docker DB needs a generated migration if deployed. Automated pricing flow (zone table from xã/phường list, coefficient table) is not started.
+
 - 2026-10-25: **Backend query performance, priority-1 fixes.**
   - `apps/backend/src/db/schema.ts`: added indexes for hot filters/joins: `orders.order_number` (unique), `orders.created_at desc`, `order_items(order_id)`, `order_items(product_id, quantity)`, `product_variants(product_id)`, `product_options(product_id)`, `product_option_values(option_id)`, `product_attributes(product_id)`, `product_variant_attributes(variant_id)`, `product_variant_option_values(option_value_id)`, `product_category_links(category_id, product_id)`, `product_collection_links(collection_id, product_id)`, `article_category_links(category_id, article_id)`, `article_product_links(product_id)` (replaces the redundant `article_id` index that duplicated the PK prefix), `customization_clipart_assets(category_id)`, `order_item_media_transfer_assets(source_asset_id)`, and partial `products(id desc) where status='published' and deleted_at is null`.
   - `apps/backend/src/db/client.ts`: `db.batch` previously ran pre-built statements on the root pool via `Promise.all` while an empty transaction held a connection, so batches were neither atomic nor ordered. It now re-issues each statement's SQL with `tx.execute(q.getSQL())` sequentially inside the transaction.

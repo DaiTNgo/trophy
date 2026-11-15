@@ -134,6 +134,7 @@ export async function insertFullCreateVariants(
     title: LocalizedInput
     sku?: string | null
     priceAmount?: number | null
+    referencePriceAmount?: number | null
     inventoryQuantity?: number
     allowBackorder?: boolean
     isDefault?: boolean
@@ -147,6 +148,7 @@ export async function insertFullCreateVariants(
     ...item,
     sku: item.sku ?? null,
     priceAmount: item.priceAmount ?? null,
+    referencePriceAmount: item.referencePriceAmount ?? null,
     inventoryQuantity: item.inventoryQuantity ?? 0,
     allowBackorder: item.allowBackorder ?? false,
     isDefault: item.isDefault ?? false,
@@ -166,6 +168,7 @@ export async function insertFullCreateVariants(
     title: canonicalValue(item.title),
     sku: item.sku,
     priceAmount: item.priceAmount,
+    referencePriceAmount: item.referencePriceAmount,
     inventoryQuantity: item.inventoryQuantity,
     allowBackorder: item.allowBackorder,
     isDefault: item.isDefault,

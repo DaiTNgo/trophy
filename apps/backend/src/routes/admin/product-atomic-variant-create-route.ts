@@ -104,10 +104,6 @@ export const productAtomicVariantCreateRoute = new Hono<AppEnv>().post('/:id/var
     }
   }
 
-  if (product.status === 'published' && input.priceAmount === null) {
-    return jsonError(c, 409, 'Every variant must have a price before publish')
-  }
-
   if (!await claimProductRevision(db, product.id, product.updatedAt)) {
     return jsonError(c, 409, 'Product changed while this form was open. Reload and review the latest state.')
   }
@@ -184,6 +180,7 @@ export const productAtomicVariantCreateRoute = new Hono<AppEnv>().post('/:id/var
         title: localizedInputValue(input.title),
         sku: input.sku ?? null,
         priceAmount: input.priceAmount ?? null,
+        referencePriceAmount: input.referencePriceAmount ?? null,
         inventoryQuantity: input.inventoryQuantity ?? 0,
         allowBackorder: input.allowBackorder ?? false,
         isDefault: false,

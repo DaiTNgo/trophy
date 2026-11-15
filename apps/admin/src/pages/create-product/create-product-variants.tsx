@@ -33,6 +33,7 @@ export function CreateProductVariants({ state }: CreateProductVariantsProps) {
     { id: "media", label: "Media" },
     { id: "backorder", label: "Allow backorder" },
     { id: "price", label: "Price" },
+    { id: "referencePrice", label: "Reference price" },
     { id: "inventory", label: "Inventory quantity" },
   ] as const;
 
@@ -97,6 +98,9 @@ export function CreateProductVariants({ state }: CreateProductVariantsProps) {
                 ) : null}
                 {showColumns.price ? (
                   <Table.HeaderCell>Price</Table.HeaderCell>
+                ) : null}
+                {showColumns.referencePrice ? (
+                  <Table.HeaderCell>Reference price</Table.HeaderCell>
                 ) : null}
                 {showColumns.inventory ? (
                   <Table.HeaderCell>Inventory quantity</Table.HeaderCell>
@@ -403,6 +407,36 @@ export function CreateProductVariants({ state }: CreateProductVariantsProps) {
                               type="number"
                               className="border-0 bg-transparent shadow-none"
                               placeholder="0"
+                            />
+                          </div>
+                        </Table.Cell>
+                      ) : null}
+                      {showColumns.referencePrice ? (
+                        <Table.Cell className="py-4">
+                          <div className="flex min-w-[140px] items-center rounded-md border border-ui-border-base bg-ui-bg-field px-2 shadow-buttons-neutral">
+                            <Text
+                              size="small"
+                              className="px-1 text-ui-fg-muted"
+                            >
+                              $
+                            </Text>
+                            <Input
+                              value={
+                                variant.referencePrice === 0
+                                  ? ""
+                                  : String(variant.referencePrice)
+                              }
+                              onChange={(event) =>
+                                updateVariantRow(
+                                  originalIndex,
+                                  "referencePrice",
+                                  Number(event.target.value || 0),
+                                )
+                              }
+                              type="number"
+                              min="0"
+                              className="border-0 bg-transparent shadow-none"
+                              placeholder="Optional"
                             />
                           </div>
                         </Table.Cell>

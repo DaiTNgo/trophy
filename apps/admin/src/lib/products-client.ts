@@ -67,6 +67,7 @@ type ApiProduct = {
     misaSyncStatus: "pending" | "synced" | "failed" | "disconnected" | "missing";
     misaLastError: string | null;
     priceAmount: number | null;
+    referencePriceAmount: number | null;
     inventoryQuantity: number;
     allowBackorder: boolean;
     attributes?: Array<{ name: LocalizedInput; value: LocalizedInput; unit?: string | null }>;
@@ -158,6 +159,7 @@ export type CreateFullProductPayload = {
     title: LocalizedInput;
     sku: string | null;
     priceAmount: number | null;
+    referencePriceAmount: number | null;
     inventoryQuantity: number;
     allowBackorder: boolean;
     isDefault?: boolean;
@@ -494,7 +496,7 @@ export async function checkProductMisaLinks(id: string) {
 
 export async function updateProductVariantPrices(
   id: string,
-  items: Array<{ id: number; priceAmount: number | null }>,
+  items: Array<{ id: number; priceAmount: number | null; referencePriceAmount?: number | null }>,
 ) {
   const response = await backendFetch(`/api/admin/products/${id}/variants/prices`, {
     method: "PATCH",
@@ -694,6 +696,7 @@ export async function atomicCreateVariant(
     title: LocalizedInput;
     sku: string | null;
     priceAmount: number | null;
+    referencePriceAmount: number | null;
     inventoryQuantity: number;
     allowBackorder: boolean;
     optionValueIds: number[];
@@ -709,6 +712,7 @@ export async function atomicCreateVariant(
       title: payload.title,
       sku: payload.sku,
       priceAmount: payload.priceAmount,
+      referencePriceAmount: payload.referencePriceAmount,
       inventoryQuantity: payload.inventoryQuantity,
       allowBackorder: payload.allowBackorder,
       optionValueIds: payload.optionValueIds,
@@ -812,6 +816,7 @@ export function mapApiProductToCatalogProduct(product: Partial<ApiProduct> & Pic
     misaSyncStatus: variant.misaSyncStatus,
     misaLastError: variant.misaLastError,
     price: variant.priceAmount ?? 0,
+    referencePrice: variant.referencePriceAmount ?? 0,
     inventory: variant.inventoryQuantity,
     options: (variant.optionValueIds || []).map((id) => {
       let optionTitle = "Unknown";

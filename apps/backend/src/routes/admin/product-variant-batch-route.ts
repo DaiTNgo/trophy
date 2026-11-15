@@ -34,9 +34,6 @@ export const productVariantBatchRoute = new Hono<AppEnv>()
     if (new Set(variantIds).size !== variantIds.length) {
       return jsonError(c, 409, 'Variant ids in a price update must be unique')
     }
-    if (product.status === 'published' && parsed.output.items.some((item) => item.priceAmount === null)) {
-      return jsonError(c, 409, 'Every variant must have a price before publish')
-    }
     const knownVariantIds = await existingVariantIds(db, product.id)
     if (variantIds.some((variantId) => !knownVariantIds.has(variantId))) {
       return jsonError(c, 404, 'One or more variants were not found')
@@ -45,7 +42,11 @@ export const productVariantBatchRoute = new Hono<AppEnv>()
     for (const item of parsed.output.items) {
       await db
         .update(productVariants)
-        .set({ priceAmount: item.priceAmount, updatedAt: new Date().toISOString() })
+        .set({
+          priceAmount: item.priceAmount,
+          ...(item.referencePriceAmount !== undefined ? { referencePriceAmount: item.referencePriceAmount } : {}),
+          updatedAt: new Date().toISOString()
+        })
         .where(and(eq(productVariants.id, item.id), eq(productVariants.productId, product.id)))
     }
     await updateProductTimestamp(db, product.id)

@@ -26,6 +26,7 @@ export type VariantFormState = {
   titleTranslations: LocalizedTextValue;
   sku: string;
   priceAmount: string;
+  referencePriceAmount: string;
   inventoryQuantity: string;
   allowBackorder: boolean;
   optionSelections: Record<string, string>;
@@ -58,6 +59,7 @@ function buildVariantForm(product: CatalogProduct, variant?: CatalogProduct["var
     titleTranslations: variant?.titleTranslations ?? createLocalizedText(variant?.title ?? ""),
     sku: variant?.sku ?? "",
     priceAmount: variant && variant.price > 0 ? String(variant.price) : "",
+    referencePriceAmount: variant && variant.referencePrice > 0 ? String(variant.referencePrice) : "",
     inventoryQuantity: variant ? String(variant.inventory) : "0",
     allowBackorder: variant?.allowBackorder ?? false,
     optionSelections,
@@ -221,6 +223,15 @@ export function useProductDetailVariants({ product, mutate, updateProduct }: Pro
         throw new Error("Enter a valid variant price.");
       }
 
+      const referencePriceAmount =
+        variantForm.referencePriceAmount.trim() === "" ? null : Number(variantForm.referencePriceAmount);
+      if (
+        referencePriceAmount !== null &&
+        (!Number.isInteger(referencePriceAmount) || referencePriceAmount < 0)
+      ) {
+        throw new Error("Enter a valid reference price.");
+      }
+
       if (!Number.isInteger(inventoryQuantity) || inventoryQuantity < 0) {
         throw new Error("Enter a valid inventory quantity.");
       }
@@ -237,7 +248,7 @@ export function useProductDetailVariants({ product, mutate, updateProduct }: Pro
           optionValueIds,
           attributes: normalizedAttributes,
         });
-        await updateProductVariantPrices(product.id, [{ id: variantForm.id, priceAmount }]);
+        await updateProductVariantPrices(product.id, [{ id: variantForm.id, priceAmount, referencePriceAmount }]);
         await updateProductVariantStock(product.id, [{ id: variantForm.id, inventoryQuantity }]);
       } else {
         const galleryMedia = await Promise.all(
@@ -267,6 +278,7 @@ export function useProductDetailVariants({ product, mutate, updateProduct }: Pro
           },
           sku: variantForm.sku.trim() || null,
           priceAmount,
+          referencePriceAmount,
           inventoryQuantity,
           allowBackorder: variantForm.allowBackorder,
           optionValueIds,

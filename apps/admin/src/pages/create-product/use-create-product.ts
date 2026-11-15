@@ -99,7 +99,7 @@ const validationErrorGuidance: Partial<
   variants:
     "Open Variants, select at least one variant to create, and fix the variant values shown in the table.",
   publish:
-    "Open Variants and make sure every created variant has a positive price and valid options before publishing.",
+    "Open Variants and make sure every created variant has valid options before publishing.",
   form: "Review the current step for missing required information.",
 };
 
@@ -188,6 +188,7 @@ export function useCreateProduct() {
     media: true,
     backorder: true,
     price: true,
+    referencePrice: true,
     inventory: true,
   });
 
@@ -594,6 +595,10 @@ export function useCreateProduct() {
           priceAmount:
             Number.isFinite(variant.price) && variant.price > 0
               ? variant.price
+              : null,
+          referencePriceAmount:
+            Number.isFinite(variant.referencePrice) && variant.referencePrice > 0
+              ? variant.referencePrice
               : null,
           inventoryQuantity: Number.isFinite(variant.inventory)
             ? variant.inventory
