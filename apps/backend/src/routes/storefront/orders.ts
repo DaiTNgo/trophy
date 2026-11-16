@@ -47,6 +47,7 @@ import {
   validateMisaCheckoutCustomer,
 } from "../../lib/misa";
 import { transferOrderItemMedia } from "../../lib/order-media-transfer-service";
+import { bankhubLogger } from "../../lib/bankhub";
 import {
   initializeBankhubForOrder,
   initializeBankhubForOrderId,
@@ -1028,7 +1029,7 @@ export const storefrontOrdersRoute = new Hono<AppEnv>()
       order.status !== "cancelled" &&
       order.bankhubStatus !== "initialized"
     ) {
-      order = await initializeBankhubForOrder(db, c.env, order);
+      order = await initializeBankhubForOrder(db, c.env, order, undefined, "payment_instructions");
     }
 
     const payment = serializeShopperPayment(order);
@@ -1345,7 +1346,8 @@ export const storefrontOrdersRoute = new Hono<AppEnv>()
         await initializeBankhubForOrderId(db, c.env, insertedOrder.id);
       } catch (error) {
         // BankHub must never block checkout; payment-instructions retries lazily.
-        console.error("BankHub initialization failed", {
+bankhubLogger.error({
+          event: "bankhub.init.unexpected_error",
           orderId: insertedOrder.id,
           message: error instanceof Error ? error.message : "Unknown error",
         });

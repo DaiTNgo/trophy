@@ -2,6 +2,7 @@ import { and, desc, eq, inArray } from "drizzle-orm";
 import { Hono, type Context } from "hono";
 import * as v from "valibot";
 import { getDb } from "../../db/client";
+import { bankhubLogger } from "../../lib/bankhub";
 import {
   initializeBankhubForOrder,
   listOrderPaymentTransactions,
@@ -310,7 +311,14 @@ export const adminOrdersRoute = new Hono<AppEnv>()
       return c.json({ error: "BankHub can only be initialized for unpaid, active orders" }, 409);
     }
 
-    await initializeBankhubForOrder(db, c.env, existingOrder);
+    const session = await getAdminSession(c.env, c.req.raw.headers);
+    bankhubLogger.info({
+      event: "bankhub.admin.reinitialize",
+      orderNumber: existingOrder.orderNumber,
+      previousStatus: existingOrder.bankhubStatus,
+      userId: session?.user.id ?? null,
+    });
+    await initializeBankhubForOrder(db, c.env, existingOrder, undefined, "admin");
     const order = await getOrderDetail(db, parsed.output.orderNumber);
     if (!order) return c.json({ error: "Order not found" }, 404);
     return c.json({ order }, 200);

@@ -3,6 +3,7 @@ import type { Database } from "../db/client";
 import { orders, paymentTransactions } from "../db/schema";
 import {
   BankhubRequestError,
+  bankhubLogger,
   createBankhubTransaction,
   type BankhubBankSnapshot,
   type BankhubConfig,
@@ -85,12 +86,28 @@ export async function initializeBankhubForOrder(
   bindings: AppBindings,
   order: OrderRow,
   config?: BankhubConfig | null,
+  trigger: "checkout" | "payment_instructions" | "admin" = "checkout",
 ): Promise<OrderRow> {
   const resolved = config === undefined ? await loadBankhubConfig(db, bindings) : config;
+  const logContext = {
+    orderId: order.id,
+    orderNumber: order.orderNumber,
+    amount: order.totalAmount,
+    previousStatus: order.bankhubStatus,
+    trigger,
+  };
   let update: Partial<OrderRow>;
   if (!resolved) {
+    bankhubLogger.warn({ event: "bankhub.init.not_configured", ...logContext });
     update = { bankhubStatus: "not_configured", bankhubLastError: null };
   } else {
+    bankhubLogger.info({
+      event: "bankhub.init.start",
+      ...logContext,
+      bankCode: resolved.bankCode,
+      bankAccountLast4: resolved.bankAccountNumber.slice(-4),
+      domainWebsite: resolved.domainWebsite,
+    });
     try {
       const result = await createBankhubTransaction(resolved, {
         orderId: order.orderNumber,
@@ -106,7 +123,21 @@ export async function initializeBankhubForOrder(
         vietQrUrl: result.order.vietQrUrl,
         bankhubBankJson: JSON.stringify(result.bank),
       };
+      bankhubLogger.info({
+        event: "bankhub.init.success",
+        ...logContext,
+        paymentDescription: result.order.description,
+        hasVietQr: Boolean(result.order.vietQrUrl),
+        beneficiaryBank: result.bank.bankCode,
+      });
     } catch (error) {
+      bankhubLogger.error({
+        event: "bankhub.init.failed",
+        ...logContext,
+        message: error instanceof Error ? error.message : String(error),
+        status: error instanceof BankhubRequestError ? error.status : null,
+        code: error instanceof BankhubRequestError ? error.code : null,
+      });
       update = {
         bankhubStatus: "failed",
         bankhubLastError:
@@ -127,7 +158,11 @@ export async function initializeBankhubForOrderId(
   orderId: number,
 ): Promise<OrderRow | null> {
   const [order] = await db.select().from(orders).where(eq(orders.id, orderId)).limit(1);
-  return order ? initializeBankhubForOrder(db, bindings, order) : null;
+  if (!order) {
+    bankhubLogger.error({ event: "bankhub.init.order_missing", orderId });
+    return null;
+  }
+  return initializeBankhubForOrder(db, bindings, order, undefined, "checkout");
 }
 
 // ─── Webhook records ───────────────────────────────────────────────────────────
@@ -176,7 +211,18 @@ export async function processBankhubWebhookRecord(
       .from(paymentTransactions)
       .where(eq(paymentTransactions.transId, record.transId))
       .limit(1);
-    if (existing[0]) return JSON.parse(existing[0].responseJson) as BankhubWebhookRecordResponse;
+    if (existing[0]) {
+      const replay = JSON.parse(existing[0].responseJson) as BankhubWebhookRecordResponse;
+      bankhubLogger.info({
+        event: "bankhub.webhook.record.duplicate",
+        msgId,
+        transId: record.transId,
+        orderRef: record.orderId,
+        amount: record.amount,
+        replayedError: replay.error,
+      });
+      return replay;
+    }
 
     const [order] = await tx
       .select()
@@ -236,6 +282,7 @@ export async function processBankhubWebhookRecord(
 
     if (inserted.length === 0) {
       // Lost a race with a concurrent delivery of the same transId.
+      bankhubLogger.warn({ event: "bankhub.webhook.record.race", msgId, transId: record.transId });
       const [stored] = await tx
         .select({ responseJson: paymentTransactions.responseJson })
         .from(paymentTransactions)
@@ -244,11 +291,46 @@ export async function processBankhubWebhookRecord(
       return stored ? (JSON.parse(stored.responseJson) as BankhubWebhookRecordResponse) : response;
     }
 
-    if (order && matchStatus === "matched") {
-      await tx
-        .update(orders)
-        .set(applyIncomingPayment(order, record.amount, now))
-        .where(eq(orders.id, order.id));
+    const applied = order && matchStatus === "matched"
+      ? applyIncomingPayment(order, record.amount, now)
+      : null;
+    if (order && applied) {
+      await tx.update(orders).set(applied).where(eq(orders.id, order.id));
+    }
+
+    const recordLog = {
+      event: "bankhub.webhook.record",
+      msgId,
+      transId: record.transId,
+      bankTransId: record.bankTransId ?? null,
+      orderRef: record.orderId,
+      orderId: order?.id ?? null,
+      amount: record.amount,
+      description: record.description ?? null,
+      confirmType: record.orderConfirmType ?? null,
+      matchStatus,
+      error: response.error,
+      ...(order
+        ? {
+            orderTotal: order.totalAmount,
+            paidBefore: order.paidAmount,
+            paidAfter: applied?.paidAmount ?? order.paidAmount,
+            paymentStatusBefore: order.paymentStatus,
+            paymentStatusAfter: applied?.paymentStatus ?? order.paymentStatus,
+          }
+        : {}),
+    };
+    if (matchStatus === "matched") bankhubLogger.info(recordLog);
+    else bankhubLogger.warn(recordLog);
+    if (order && applied && applied.paymentStatus === "paid" && order.paymentStatus !== "paid") {
+      bankhubLogger.info({
+        event: "bankhub.order.paid",
+        orderId: order.id,
+        orderNumber: order.orderNumber,
+        paidAmount: applied.paidAmount,
+        totalAmount: order.totalAmount,
+        transId: record.transId,
+      });
     }
     return response;
   });

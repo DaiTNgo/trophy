@@ -13,6 +13,7 @@ import { parseBankhubBank } from "../../lib/bankhub-payments";
 import { loadBankhubConfig } from "../../lib/bankhub-settings";
 import { getAppCorsOrigins } from "../../lib/cors";
 import type { AppEnv } from "../../lib/env";
+import { logger } from "../../lib/logger";
 import { jsonError, parseJson } from "../../lib/validation";
 import { verifyCheckoutAccessToken } from "./orders";
 
@@ -22,6 +23,22 @@ const deeplinkSchema = v.object({
   bankAppCode: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(50)),
   redirectUrl: v.pipe(v.string(), v.url(), v.maxLength(2048)),
 });
+
+/**
+ * Logs the real JETPAY failure and answers 503: a 502 from the origin is replaced by
+ * Cloudflare's own "error code: 502" page, which hides the message from shoppers and operators.
+ */
+function bankhubFailure(event: string, error: unknown) {
+  const message = error instanceof Error ? error.message : "BankHub request failed";
+  logger.error({
+    module: "bankhub",
+    event,
+    message,
+    status: error instanceof BankhubRequestError ? error.status : null,
+    code: error instanceof BankhubRequestError ? error.code : null,
+  });
+  return { error: message };
+}
 
 function isAllowedRedirect(redirectUrl: string, allowedOrigins: string[]) {
   try {
@@ -51,7 +68,7 @@ export const storefrontPaymentsRoute = new Hono<AppEnv>()
         200,
       );
     } catch (error) {
-      return c.json({ error: error instanceof Error ? error.message : "BankHub request failed" }, 502);
+      return c.json(bankhubFailure("bankhub.bank_apps.failed", error), 503);
     }
   })
   .post("/deeplink", async (c) => {
@@ -92,9 +109,16 @@ export const storefrontPaymentsRoute = new Hono<AppEnv>()
         amount: Math.max(order.totalAmount - order.paidAmount, 0),
         description: order.paymentDescription,
       });
+      logger.info({
+        module: "bankhub",
+        event: "bankhub.deeplink.generated",
+        orderNumber: order.orderNumber,
+        bankAppCode: input.bankAppCode,
+        hasDeepLink: Boolean(result.deepLinkUrl),
+      });
       return c.json(result, 200);
     } catch (error) {
-      const status = error instanceof BankhubRequestError && error.status === 400 ? 400 : 502;
-      return c.json({ error: error instanceof Error ? error.message : "BankHub request failed" }, status);
+      const status = error instanceof BankhubRequestError && error.status === 400 ? 400 : 503;
+      return c.json(bankhubFailure("bankhub.deeplink.failed", error), status);
     }
   });

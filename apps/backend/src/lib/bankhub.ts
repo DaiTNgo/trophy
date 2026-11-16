@@ -1,5 +1,6 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import type { AppBindings } from "./env";
+import { logger } from "./logger";
 
 /**
  * JETPAY BankHub client.
@@ -156,6 +157,65 @@ async function toRequestError(response: Response, resource: string) {
   );
 }
 
+// ─── Logging ───────────────────────────────────────────────────────────────────
+
+/** Shared child logger for the whole BankHub flow; filter with `module=bankhub`. */
+export const bankhubLogger = logger.child({ module: "bankhub" });
+
+const LOG_BODY_LIMIT = 4000;
+
+function truncate(text: string) {
+  return text.length > LOG_BODY_LIMIT ? `${text.slice(0, LOG_BODY_LIMIT)}…[truncated]` : text;
+}
+
+/**
+ * fetch + one structured log line per JETPAY call (`event: bankhub.http`).
+ * Response bodies are logged on failure (warn) or at LOG_LEVEL=debug. Callers pass a
+ * `logRequestBody` that never contains secrets; tokens/Authorization are never logged.
+ */
+async function loggedFetch(
+  resource: string,
+  url: string,
+  init: RequestInit,
+  logRequestBody?: unknown,
+  logResponseBody = true,
+) {
+  const startedAt = Date.now();
+  let response: Response;
+  try {
+    response = await fetch(url, init);
+  } catch (error) {
+    bankhubLogger.error({
+      event: "bankhub.http",
+      resource,
+      method: init.method,
+      url,
+      durationMs: Date.now() - startedAt,
+      message: error instanceof Error ? error.message : String(error),
+      requestBody: logRequestBody,
+    });
+    throw error;
+  }
+  const durationMs = Date.now() - startedAt;
+  const debug = bankhubLogger.isLevelEnabled("debug");
+  const responseBody =
+    (!response.ok || debug) && logResponseBody
+      ? truncate(await response.clone().text().catch(() => ""))
+      : undefined;
+  const entry = {
+    event: "bankhub.http",
+    resource,
+    method: init.method,
+    url,
+    status: response.status,
+    durationMs,
+    ...(debug || !response.ok ? { requestBody: logRequestBody, responseBody } : {}),
+  };
+  if (response.ok) bankhubLogger.info(entry);
+  else bankhubLogger.warn(entry);
+  return response;
+}
+
 // ─── Token (3.2.1) ─────────────────────────────────────────────────────────────
 
 const TOKEN_REFRESH_MARGIN_MS = 60_000;
@@ -170,22 +230,30 @@ async function getAccessToken(env: BankhubEnvConfig, now = Date.now()) {
   const cached = tokenCache.get(cacheKey);
   if (cached && cached.expiresAt > now) return cached.token;
 
-  const response = await fetch(joinUrl(env.authUrl, "/connect/token"), {
-    method: "POST",
-    // The integration doc says "application/xxx-form-urlencoded"; the real type is x-www-form-urlencoded.
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      client_id: env.clientId,
-      client_secret: env.clientSecret,
-      grant_type: "client_credentials",
-    }).toString(),
-  });
+  const response = await loggedFetch(
+    "token",
+    joinUrl(env.authUrl, "/connect/token"),
+    {
+      method: "POST",
+      // The integration doc says "application/xxx-form-urlencoded"; the real type is x-www-form-urlencoded.
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        client_id: env.clientId,
+        client_secret: env.clientSecret,
+        grant_type: "client_credentials",
+      }).toString(),
+    },
+    { client_id: env.clientId, grant_type: "client_credentials" },
+    false, // response carries access_token
+  );
   if (!response.ok) throw await toRequestError(response, "token");
 
+  // Never log the token body (access_token); only its lifetime.
   const body = asRecord(await response.json().catch(() => null));
   const token = asString(body?.access_token);
   if (!token) throw new BankhubRequestError("BankHub token response did not contain access_token", 502);
   const expiresIn = typeof body?.expires_in === "number" ? body.expires_in : 3600;
+  bankhubLogger.info({ event: "bankhub.token.issued", clientId: env.clientId, expiresIn });
   tokenCache.set(cacheKey, {
     token,
     expiresAt: now + expiresIn * 1000 - TOKEN_REFRESH_MARGIN_MS,
@@ -201,17 +269,23 @@ async function bankhubFetch(
   retryOnUnauthorized = true,
 ): Promise<unknown> {
   const token = await getAccessToken(env);
-  const response = await fetch(joinUrl(env.bankhubUrl, path), {
-    method: init.method,
-    headers: {
-      Authorization: `Bearer ${token}`,
-      Accept: "application/json",
-      ...(init.body === undefined ? {} : { "Content-Type": "application/json" }),
+  const response = await loggedFetch(
+    resource,
+    joinUrl(env.bankhubUrl, path),
+    {
+      method: init.method,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/json",
+        ...(init.body === undefined ? {} : { "Content-Type": "application/json" }),
+      },
+      body: init.body === undefined ? undefined : JSON.stringify(init.body),
     },
-    body: init.body === undefined ? undefined : JSON.stringify(init.body),
-  });
+    init.body,
+  );
 
   if (response.status === 401 && retryOnUnauthorized) {
+    bankhubLogger.warn({ event: "bankhub.token.rejected", resource, retry: true });
     tokenCache.delete(`${env.authUrl}|${env.clientId}`);
     return bankhubFetch(env, resource, path, init, false);
   }

@@ -2,7 +2,7 @@ import { Hono, type Context } from "hono";
 import * as v from "valibot";
 import { getDb } from "../../db/client";
 import { getAdminSession } from "../../lib/admin-session";
-import { BANKHUB_BANK_CODES, getBankhubEnvStatus, readBankhubEnv, resolveBankhubConfig } from "../../lib/bankhub";
+import { BANKHUB_BANK_CODES, bankhubLogger, getBankhubEnvStatus, readBankhubEnv, resolveBankhubConfig } from "../../lib/bankhub";
 import {
   loadBankhubSettings,
   saveBankhubSettings,
@@ -90,5 +90,14 @@ export const adminSettingsRoute = new Hono<AppEnv>()
     const parsed = await parseJson(c, bankhubSettingsSchema);
     if (!parsed.success) return parsed.response;
     const settings = await saveBankhubSettings(getDb(c.env), parsed.output, userId);
+    bankhubLogger.info({
+      event: "bankhub.settings.updated",
+      userId,
+      enabled: settings.enabled,
+      bankCode: settings.bankCode,
+      bankAccountLast4: settings.bankAccountNumber?.slice(-4) ?? null,
+      domainWebsite: settings.domainWebsite,
+      configured: resolveBankhubConfig(readBankhubEnv(c.env), settings) !== null,
+    });
     return c.json(serializeSettings(c, settings), 200);
   });

@@ -9,7 +9,7 @@ vi.mock("../../lib/bankhub", async (importOriginal) => ({
 vi.mock("../../lib/bankhub-settings", () => ({ loadBankhubConfig: vi.fn() }));
 
 import { getDb } from "../../db/client";
-import { generateBankhubDeeplink, listBankhubBankApps } from "../../lib/bankhub";
+import { BankhubRequestError, generateBankhubDeeplink, listBankhubBankApps } from "../../lib/bankhub";
 import { loadBankhubConfig } from "../../lib/bankhub-settings";
 import { createCheckoutAccessToken } from "./orders";
 import { storefrontPaymentsRoute } from "./payments";
@@ -116,6 +116,17 @@ describe("storefront BankHub deeplink", () => {
         },
       ],
     });
+  });
+
+  it("answers 503 with the JETPAY reason when BankHub rejects the request", async () => {
+    vi.mocked(listBankhubBankApps).mockRejectedValue(
+      new BankhubRequestError("BankHub bank-apps failed (HTTP 401)", 401),
+    );
+
+    const res = await storefrontPaymentsRoute.request("/bank-apps", {}, env);
+
+    expect(res.status).toBe(503);
+    await expect(res.json()).resolves.toEqual({ error: "BankHub bank-apps failed (HTTP 401)" });
   });
 
   it("returns 503 for bank apps when BankHub env is missing", async () => {

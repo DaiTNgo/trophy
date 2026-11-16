@@ -3,13 +3,13 @@ import { Hono } from "hono";
 import * as v from "valibot";
 import { getDb } from "../../db/client";
 import {
+  bankhubLogger,
   readBankhubWebhookKey,
   signWebhookResponse,
   verifyWebhookSignature,
 } from "../../lib/bankhub";
 import { processBankhubWebhookRecord } from "../../lib/bankhub-payments";
 import type { AppEnv } from "../../lib/env";
-import { logger } from "../../lib/logger";
 
 // JETPAY may send ids as numbers; normalize to trimmed strings.
 const idString = v.pipe(
@@ -55,24 +55,52 @@ function readHeader(body: unknown) {
  * Any non-200 answer is treated by JETPAY as "not delivered".
  */
 export const jetpayBankhubWebhookRoute = new Hono<AppEnv>().post("/", async (c) => {
+  const startedAt = Date.now();
+  const sourceIp =
+    c.req.header("x-real-ip") ?? c.req.header("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
   const key = readBankhubWebhookKey(c.env);
-  if (!key) return c.json({ error: "BankHub webhook is not configured" }, 503);
+  if (!key) {
+    bankhubLogger.error({ event: "bankhub.webhook.not_configured", sourceIp });
+    return c.json({ error: "BankHub webhook is not configured" }, 503);
+  }
 
+  const rawBody = await c.req.text();
+  bankhubLogger.debug({ event: "bankhub.webhook.raw", sourceIp, body: rawBody.slice(0, 8000) });
   let body: unknown;
   try {
-    body = await c.req.json();
+    body = JSON.parse(rawBody);
   } catch {
+    bankhubLogger.warn({ event: "bankhub.webhook.invalid_json", sourceIp, bodyLength: rawBody.length });
     return c.json({ error: "Invalid JSON body" }, 400);
   }
 
   const header = readHeader(body);
+  const recordCount = Array.isArray((body as { data?: { records?: unknown } })?.data?.records)
+    ? ((body as { data: { records: unknown[] } }).data.records.length)
+    : null;
+  bankhubLogger.info({ event: "bankhub.webhook.received", sourceIp, msgId: header?.msgId ?? null, recordCount });
+
   if (!header || !verifyWebhookSignature(key, header.msgId, header.signature)) {
-    logger.warn({ event: "bankhub.webhook.invalid_signature", msgId: header?.msgId ?? null });
+    bankhubLogger.warn({
+      event: "bankhub.webhook.invalid_signature",
+      sourceIp,
+      msgId: header?.msgId ?? null,
+      reason: header ? "signature_mismatch" : "missing_header",
+    });
     return c.json({ error: "Invalid signature" }, 401);
   }
 
   const parsed = v.safeParse(webhookBodySchema, body);
   if (!parsed.success) {
+    bankhubLogger.warn({
+      event: "bankhub.webhook.invalid_payload",
+      sourceIp,
+      msgId: header.msgId,
+      issues: parsed.issues.slice(0, 10).map((issue) => ({
+        message: issue.message,
+        path: issue.path?.map((item) => item.key).join("."),
+      })),
+    });
     return c.json({ error: "Invalid webhook payload" }, 400);
   }
 
@@ -83,13 +111,15 @@ export const jetpayBankhubWebhookRoute = new Hono<AppEnv>().post("/", async (c) 
     records.push(await processBankhubWebhookRecord(db, record, msgId));
   }
 
-  logger.info({
+  const responseMsgId = randomUUID();
+  bankhubLogger.info({
     event: "bankhub.webhook.processed",
     msgId,
+    responseMsgId,
+    durationMs: Date.now() - startedAt,
     records: records.map((record) => ({ transId: record.transId, error: record.error })),
   });
 
-  const responseMsgId = randomUUID();
   return c.json(
     {
       header: {
