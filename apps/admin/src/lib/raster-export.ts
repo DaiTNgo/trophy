@@ -147,7 +147,9 @@ async function inlineFonts(svg: string, design: CustomizationDesign, resolveFont
     const staticFont = FONT_FILES[fontId];
     const url = resolveFontUrl?.(fontId) ?? (staticFont ? `/fonts/${staticFont}` : null);
     if (!url) return "";
-    const dataUrl = await toDataUrl(url);
+    const dataUrl = await toDataUrl(url).catch(() => {
+      throw new Error(`Font "${fontId}" is unavailable, so the preview image cannot be exported.`);
+    });
     return `@font-face{font-family:${JSON.stringify(fontId)};src:url(${JSON.stringify(dataUrl)}) format('truetype');}`;
   }));
   if (!fontFaces.some(Boolean)) return svg;

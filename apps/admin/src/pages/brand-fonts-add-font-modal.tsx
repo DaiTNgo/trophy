@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { isDefaultFontFamilyId } from "@trophy/customization";
 import { Button, FocusModal, Heading, Input, Label, Text } from "@medusajs/ui";
 import { type BrandFont } from "../hooks/use-brand-assets";
 import { backendFetch } from "../lib/fetch";
@@ -44,6 +45,9 @@ export function AddFontModal({
     try {
       const id = createSlug(fontName);
       if (!id) throw new Error("Invalid font name");
+      if (isDefaultFontFamilyId(id)) {
+        throw new Error(`"${fontName}" is a built-in font family name. Choose a different name.`);
+      }
       if (existingFonts.some((f) => f.id === id)) {
         throw new Error(`A font family with the name "${fontName}" already exists.`);
       }

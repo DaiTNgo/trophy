@@ -44,6 +44,7 @@ USER node
 EXPOSE 8787
 ENV PORT=8787
 ENV STORAGE_DIR=/app/storage
+ENV FONTS_DIR=/app/fonts
 
 # Healthcheck for container orchestration
 HEALTHCHECK --interval=20s --timeout=5s --start-period=5s --retries=3 \

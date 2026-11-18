@@ -5,6 +5,7 @@ import { ProductCustomizationPreview, useBrowserTextMeasure } from "@trophy/cust
 import {
   buildDesignFromForm,
   DEFAULT_FONT_FAMILY_OPTIONS,
+  getUnavailableFontFamilyIds,
   FONT_FILES,
   resolveFont,
   resolveFontVariant,
@@ -14,25 +15,22 @@ import {
 
 import { useBrandAssets } from "../../hooks/use-brand-assets";
 import type { AdminOrderDetail } from "../../lib/orders-client";
-import { exportRasterPreviewClientSide, rasterExportExtension, type RasterExportFormat } from "../../lib/raster-export";
-import { buildOrderItemCustomizationTemplate, fetchUploadBytes, fontVariantLabel, formatCanvasPosition, getUploadedImageEntries, textPathLabel, sanitizeFilenamePart } from "./order-customization-preview-utils";
+import {
+  exportRasterPreviewClientSide,
+  rasterExportExtension,
+  type RasterExportFormat,
+} from "../../lib/raster-export";
+import {
+  buildOrderItemCustomizationTemplate,
+  fetchUploadBytes,
+  fontVariantLabel,
+  formatCanvasPosition,
+  getUploadedImageEntries,
+  textPathLabel,
+  sanitizeFilenamePart,
+} from "./order-customization-preview-utils";
 import type { OrderDetailItem } from "./order-detail-utils";
 import { BACKEND_URL } from "../../lib/fetch";
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 export function OrderCustomizationPreviewModal({
   order,
@@ -51,7 +49,7 @@ export function OrderCustomizationPreviewModal({
 }) {
   const template = buildOrderItemCustomizationTemplate(order, item);
   const preview = item.customization?.preview;
-  const { fonts } = useBrandAssets();
+  const { fonts, isLoading: isLoadingFonts } = useBrandAssets();
   const dynamicFonts = useMemo<DynamicFontFamily[]>(
     () =>
       fonts.map((font) => ({
@@ -77,10 +75,7 @@ export function OrderCustomizationPreviewModal({
             const families =
               fontPolicy.mode === "fixed"
                 ? [fontPolicy.fontId]
-                : [
-                    fontPolicy.defaultFontId,
-                    ...fontPolicy.options.map((opt) => opt.value),
-                  ];
+                : [fontPolicy.defaultFontId, ...fontPolicy.options.map((opt) => opt.value)];
             return families.flatMap((f) => [
               resolveFontVariant(f, false, false, dynamicFonts),
               resolveFontVariant(f, true, false, dynamicFonts),
@@ -120,23 +115,17 @@ export function OrderCustomizationPreviewModal({
     return design.layers
       .filter((layer) => layer.type === "text")
       .map((layer) => {
-        const sourceLayer = template.layers.find(
-          (entry) => entry.id === layer.layerId,
-        );
-        const field = template.formFields.find(
-          (entry) => entry.layerId === layer.layerId,
-        );
+        const sourceLayer = template.layers.find((entry) => entry.id === layer.layerId);
+        const field = template.formFields.find((entry) => entry.layerId === layer.layerId);
         const fieldValue = field ? preview.values[field.id] : null;
         const fontFamilyId =
           sourceLayer?.type === "text"
             ? resolveFont(
-              sourceLayer.text.fontPolicy,
-              fieldValue &&
-                typeof fieldValue === "object" &&
-                "text" in fieldValue
-                ? fieldValue.fontId
-                : undefined,
-            )
+                sourceLayer.text.fontPolicy,
+                fieldValue && typeof fieldValue === "object" && "text" in fieldValue
+                  ? fieldValue.fontId
+                  : undefined,
+              )
             : layer.fontId;
         const canvasWidth = template.background?.widthPx ?? 900;
         const canvasHeight = template.background?.heightPx ?? 900;
@@ -146,6 +135,7 @@ export function OrderCustomizationPreviewModal({
           name: sourceLayer?.name ?? resolveLocalizedInput(field?.label) ?? layer.id,
           fieldLabel: field ? resolveLocalizedInput(field.label) : null,
           text: layer.text,
+          fontFamilyId,
           fontName: fontNames.get(fontFamilyId) ?? fontFamilyId,
           variant: fontVariantLabel(layer.isBold, layer.isItalic),
           color: layer.color,
@@ -166,6 +156,24 @@ export function OrderCustomizationPreviewModal({
   const [isExportingPreview, setIsExportingPreview] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [exportError, setExportError] = useState("");
+  const [exportWarning, setExportWarning] = useState("");
+  // Brand Fonts referenced by the order but no longer available (e.g. deleted).
+  const unavailableFontNames = useMemo(() => {
+    if (isLoadingFonts) return [];
+    const missingIds = new Set(
+      getUnavailableFontFamilyIds(
+        productionTextSpecs.map((spec) => spec.fontFamilyId),
+        dynamicFonts,
+      ),
+    );
+    return Array.from(
+      new Set(
+        productionTextSpecs
+          .filter((spec) => missingIds.has(spec.fontFamilyId))
+          .map((spec) => spec.fontName),
+      ),
+    );
+  }, [dynamicFonts, isLoadingFonts, productionTextSpecs]);
   const orderDesign = useMemo(() => {
     if (!template || !preview) return null;
     return buildDesignFromForm({
@@ -181,9 +189,18 @@ export function OrderCustomizationPreviewModal({
     if (!template || !orderDesign) return;
     setIsExportingPdf(true);
     setExportError("");
+    setExportWarning("");
     try {
       const { exportVectorPdfClientSide } = await import("../../lib/pdf-export");
-      const blob = await exportVectorPdfClientSide(template, orderDesign, null);
+      const missingFonts: string[] = [];
+      const blob = await exportVectorPdfClientSide(template, orderDesign, null, {
+        onFontUnavailable: (fontId) => missingFonts.push(fontId),
+      });
+      if (missingFonts.length > 0) {
+        setExportWarning(
+          `PDF exported with the default Sans font because these fonts are unavailable: ${missingFonts.join(", ")}.`,
+        );
+      }
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
       anchor.href = url;
@@ -197,7 +214,6 @@ export function OrderCustomizationPreviewModal({
     }
   }
 
-  // oxlint-disable-next-line no-unused-vars
   // @ts-ignore
   async function exportPreviewImage(format: RasterExportFormat) {
     if (!template || !orderDesign) return;
@@ -206,9 +222,10 @@ export function OrderCustomizationPreviewModal({
     try {
       const blob = await exportRasterPreviewClientSide(template, orderDesign, {
         format,
-        resolveFontUrl: (fontId) => FONT_FILES[fontId]
-          ? `${BACKEND_URL}/fonts/${FONT_FILES[fontId]}`
-          : `${BACKEND_URL}/api/storefront/brand-assets/fonts/file/${fontId}`,
+        resolveFontUrl: (fontId) =>
+          FONT_FILES[fontId]
+            ? `${BACKEND_URL}/fonts/${FONT_FILES[fontId]}`
+            : `${BACKEND_URL}/api/storefront/brand-assets/fonts/file/${fontId}`,
       });
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
@@ -250,9 +267,7 @@ export function OrderCustomizationPreviewModal({
       URL.revokeObjectURL(url);
     } catch (error) {
       setDownloadError(
-        error instanceof Error
-          ? error.message
-          : "Failed to download uploaded images.",
+        error instanceof Error ? error.message : "Failed to download uploaded images.",
       );
     } finally {
       setIsDownloadingUploads(false);
@@ -319,9 +334,7 @@ export function OrderCustomizationPreviewModal({
                   variant="primary"
                   size="small"
                   disabled={isUpdating}
-                  onClick={() =>
-                    void onMarkItemReady(item.id, `production-ready-${item.id}`)
-                  }
+                  onClick={() => void onMarkItemReady(item.id, `production-ready-${item.id}`)}
                 >
                   Mark ready
                 </Button>
@@ -331,10 +344,7 @@ export function OrderCustomizationPreviewModal({
                   size="small"
                   disabled={isUpdating}
                   onClick={() =>
-                    void onMarkItemPendingReview(
-                      item.id,
-                      `production-pending-${item.id}`,
-                    )
+                    void onMarkItemPendingReview(item.id, `production-pending-${item.id}`)
                   }
                 >
                   Mark pending
@@ -356,6 +366,17 @@ export function OrderCustomizationPreviewModal({
               {exportError}
             </Text>
           ) : null}
+          {unavailableFontNames.length > 0 ? (
+            <Text size="small" className="text-ui-fg-error">
+              Unavailable font: {unavailableFontNames.join(", ")}. This order references a font that
+              no longer exists, so the preview and exports do not use the font the customer chose.
+            </Text>
+          ) : null}
+          {exportWarning ? (
+            <Text size="small" className="text-ui-fg-error">
+              {exportWarning}
+            </Text>
+          ) : null}
 
           {template && preview ? (
             <div className="grid min-h-0 flex-1 gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
@@ -370,26 +391,20 @@ export function OrderCustomizationPreviewModal({
                   resolveFontUrl={(assetId) =>
                     `${BACKEND_URL}/api/storefront/brand-assets/fonts/file/${assetId}`
                   }
-                  resolveStaticFontUrl={(fileName) =>
-                    `${BACKEND_URL}/fonts/${fileName}`
-                  }
+                  resolveStaticFontUrl={(fileName) => `${BACKEND_URL}/fonts/${fileName}`}
                 />
               </div>
               <aside className="flex flex-col gap-y-4 rounded-lg border border-ui-border-base bg-ui-bg-base p-5 xl:min-h-0 xl:overflow-y-auto">
                 <div className="flex flex-col gap-y-1">
                   <Heading level="h2">Submitted values</Heading>
                   <Text size="small" className="text-ui-fg-subtle">
-                    Values are frozen from the customer order and cannot be
-                    edited here.
+                    Values are frozen from the customer order and cannot be edited here.
                   </Text>
                 </div>
                 <div className="rounded-lg border border-ui-border-base bg-ui-bg-subtle p-3">
                   <div className="flex flex-col gap-3">
                     <div className="flex flex-col gap-y-1">
-                      <Text
-                        size="small"
-                        className="font-medium text-ui-fg-base"
-                      >
+                      <Text size="small" className="font-medium text-ui-fg-base">
                         Uploaded images
                       </Text>
                       <Text size="xsmall" className="text-ui-fg-subtle">
@@ -420,16 +435,10 @@ export function OrderCustomizationPreviewModal({
                       key={entry.fieldId}
                       className="flex flex-col gap-y-1 py-3 first:pt-0 last:pb-0"
                     >
-                      <Text
-                        size="small"
-                        className="font-medium text-ui-fg-subtle"
-                      >
+                      <Text size="small" className="font-medium text-ui-fg-subtle">
                         {entry.label}
                       </Text>
-                      <Text
-                        size="small"
-                        className="break-words text-ui-fg-base"
-                      >
+                      <Text size="small" className="break-words text-ui-fg-base">
                         {entry.valueSummary}
                       </Text>
                     </div>
@@ -439,8 +448,7 @@ export function OrderCustomizationPreviewModal({
                   <div className="flex flex-col gap-y-1">
                     <Heading level="h2">Production specification</Heading>
                     <Text size="small" className="text-ui-fg-subtle">
-                      Resolved from the frozen order snapshot, including fixed
-                      template settings.
+                      Resolved from the frozen order snapshot, including fixed template settings.
                     </Text>
                   </div>
                   {productionTextSpecs.length ? (
@@ -451,53 +459,29 @@ export function OrderCustomizationPreviewModal({
                           className="flex flex-col gap-y-3 rounded-lg border border-ui-border-base bg-ui-bg-subtle p-3"
                         >
                           <div className="flex flex-col gap-y-1">
-                            <Text
-                              size="small"
-                              className="font-medium text-ui-fg-base"
-                            >
+                            <Text size="small" className="font-medium text-ui-fg-base">
                               {spec.name}
                             </Text>
-                            {spec.fieldLabel &&
-                              spec.fieldLabel !== spec.name ? (
+                            {spec.fieldLabel && spec.fieldLabel !== spec.name ? (
                               <Text size="xsmall" className="text-ui-fg-subtle">
                                 Field: {spec.fieldLabel}
                               </Text>
                             ) : null}
                           </div>
                           <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-2 text-small">
-                            <Text
-                              as="div"
-                              size="small"
-                              className="text-ui-fg-subtle"
-                            >
+                            <Text as="div" size="small" className="text-ui-fg-subtle">
                               Text
                             </Text>
-                            <Text
-                              as="div"
-                              size="small"
-                              className="break-words text-ui-fg-base"
-                            >
+                            <Text as="div" size="small" className="break-words text-ui-fg-base">
                               {spec.text}
                             </Text>
-                            <Text
-                              as="div"
-                              size="small"
-                              className="text-ui-fg-subtle"
-                            >
+                            <Text as="div" size="small" className="text-ui-fg-subtle">
                               Font
                             </Text>
-                            <Text
-                              as="div"
-                              size="small"
-                              className="break-words text-ui-fg-base"
-                            >
+                            <Text as="div" size="small" className="break-words text-ui-fg-base">
                               {spec.fontName} · {spec.variant}
                             </Text>
-                            <Text
-                              as="div"
-                              size="small"
-                              className="text-ui-fg-subtle"
-                            >
+                            <Text as="div" size="small" className="text-ui-fg-subtle">
                               Color
                             </Text>
                             <Text
@@ -511,103 +495,47 @@ export function OrderCustomizationPreviewModal({
                               />
                               {spec.color.toUpperCase()}
                             </Text>
-                            <Text
-                              as="div"
-                              size="small"
-                              className="text-ui-fg-subtle"
-                            >
+                            <Text as="div" size="small" className="text-ui-fg-subtle">
                               Style
                             </Text>
-                            <Text
-                              as="div"
-                              size="small"
-                              className="text-ui-fg-base"
-                            >
+                            <Text as="div" size="small" className="text-ui-fg-base">
                               Bold: {spec.isBold ? "Yes" : "No"} · Italic:{" "}
                               {spec.isItalic ? "Yes" : "No"}
                             </Text>
-                            <Text
-                              as="div"
-                              size="small"
-                              className="text-ui-fg-subtle"
-                            >
+                            <Text as="div" size="small" className="text-ui-fg-subtle">
                               Alignment
                             </Text>
-                            <Text
-                              as="div"
-                              size="small"
-                              className="capitalize text-ui-fg-base"
-                            >
+                            <Text as="div" size="small" className="capitalize text-ui-fg-base">
                               {spec.align}
                             </Text>
-                            <Text
-                              as="div"
-                              size="small"
-                              className="text-ui-fg-subtle"
-                            >
+                            <Text as="div" size="small" className="text-ui-fg-subtle">
                               Type size
                             </Text>
-                            <Text
-                              as="div"
-                              size="small"
-                              className="text-ui-fg-base"
-                            >
+                            <Text as="div" size="small" className="text-ui-fg-base">
                               {spec.fontSizePt} pt
                             </Text>
-                            <Text
-                              as="div"
-                              size="small"
-                              className="text-ui-fg-subtle"
-                            >
+                            <Text as="div" size="small" className="text-ui-fg-subtle">
                               Text path
                             </Text>
-                            <Text
-                              as="div"
-                              size="small"
-                              className="text-ui-fg-base"
-                            >
+                            <Text as="div" size="small" className="text-ui-fg-base">
                               {spec.path}
                             </Text>
-                            <Text
-                              as="div"
-                              size="small"
-                              className="text-ui-fg-subtle"
-                            >
+                            <Text as="div" size="small" className="text-ui-fg-subtle">
                               Rotation
                             </Text>
-                            <Text
-                              as="div"
-                              size="small"
-                              className="text-ui-fg-base"
-                            >
+                            <Text as="div" size="small" className="text-ui-fg-base">
                               {spec.rotationDeg}°
                             </Text>
-                            <Text
-                              as="div"
-                              size="small"
-                              className="text-ui-fg-subtle"
-                            >
+                            <Text as="div" size="small" className="text-ui-fg-subtle">
                               Position
                             </Text>
-                            <Text
-                              as="div"
-                              size="small"
-                              className="text-ui-fg-base"
-                            >
+                            <Text as="div" size="small" className="text-ui-fg-base">
                               {spec.position}
                             </Text>
-                            <Text
-                              as="div"
-                              size="small"
-                              className="text-ui-fg-subtle"
-                            >
+                            <Text as="div" size="small" className="text-ui-fg-subtle">
                               Print area
                             </Text>
-                            <Text
-                              as="div"
-                              size="small"
-                              className="text-ui-fg-base"
-                            >
+                            <Text as="div" size="small" className="text-ui-fg-base">
                               {spec.size}
                             </Text>
                           </div>
@@ -625,8 +553,7 @@ export function OrderCustomizationPreviewModal({
           ) : (
             <Container>
               <Text size="small" className="text-ui-fg-subtle">
-                This order item does not have enough customization data to
-                render a preview.
+                This order item does not have enough customization data to render a preview.
               </Text>
             </Container>
           )}

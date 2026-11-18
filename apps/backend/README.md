@@ -70,6 +70,12 @@ The publish request is the business flow: Admin calls Trophy and the backend cal
 Uploaded assets are stored under `STORAGE_DIR` (default `./storage`). Image uploads
 are private and are served through `/api/customizations/assets/:id/content`.
 
+## Default fonts
+
+The built-in Sans, Serif and Script font files live in `apps/backend/fonts/` and are served at
+`/fonts/*`. They are read from `FONTS_DIR` (default `./fonts`, relative to the working directory).
+The Docker image sets `FONTS_DIR=/app/fonts`.
+
 ## Client type sharing
 
 Client apps can infer API types directly from this backend package:

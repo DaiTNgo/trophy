@@ -29,12 +29,14 @@ export const FONT_FAMILIES: Record<string, { regular: string; bold?: string; ita
     boldItalic: "serif-bold-italic",
   },
   "script": {
+    // Pacifico ships only a Regular style upstream, so no bold/italic variants.
     regular: "script-regular",
-    bold: "script-bold",
-    italic: "script-italic",
-    boldItalic: "script-bold-italic",
-  }
+  },
 };
+
+/** True when `fontFamilyId` names a built-in Default Font Family (sans, serif, script). */
+export const isDefaultFontFamilyId = (fontFamilyId: string) =>
+  Object.prototype.hasOwnProperty.call(FONT_FAMILIES, fontFamilyId.trim().toLowerCase());
 
 export type DynamicFontFamily = {
   id: string;
@@ -80,6 +82,12 @@ export const getFontStyleCapabilities = (
 
 export const isUsableFontFamily = (fontFamily: string, dynamicFonts: DynamicFontFamily[] = []) =>
   getFontStyleCapabilities(fontFamily, dynamicFonts).usable;
+
+/** Font family ids (default or uploaded) that can no longer be rendered, e.g. a deleted Brand Font. */
+export const getUnavailableFontFamilyIds = (
+  fontFamilyIds: string[],
+  dynamicFonts: DynamicFontFamily[] = [],
+) => Array.from(new Set(fontFamilyIds)).filter((id) => !isUsableFontFamily(id, dynamicFonts));
 
 export const getUsableFontOptions = (
   options: ChoiceOption[],
@@ -139,18 +147,15 @@ export const resolveFontVariant = (
 };
 
 export const FONT_FILES: Record<string, string> = {
-  "sans-regular": "SansBold.ttf",
-  "sans-bold": "SansBold.ttf",
-  "sans-italic": "SansBold.ttf",
-  "sans-bold-italic": "SansBold.ttf",
-  "serif-regular": "SerifDisplay.ttf",
-  "serif-bold": "SerifDisplay.ttf",
-  "serif-italic": "SerifDisplay.ttf",
-  "serif-bold-italic": "SerifDisplay.ttf",
+  "sans-regular": "Sans-Regular.ttf",
+  "sans-bold": "Sans-Bold.ttf",
+  "sans-italic": "Sans-Italic.ttf",
+  "sans-bold-italic": "Sans-BoldItalic.ttf",
+  "serif-regular": "Serif-Regular.ttf",
+  "serif-bold": "Serif-Bold.ttf",
+  "serif-italic": "Serif-Italic.ttf",
+  "serif-bold-italic": "Serif-BoldItalic.ttf",
   "script-regular": "ScriptElegant.ttf",
-  "script-bold": "ScriptElegant.ttf",
-  "script-italic": "ScriptElegant.ttf",
-  "script-bold-italic": "ScriptElegant.ttf",
 };
 
 export const DEFAULT_TEMPLATE: CustomizationTemplate = {

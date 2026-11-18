@@ -574,6 +574,14 @@ function TextStyleControls({
       ? [layer.text.fontPolicy.fontId]
       : layer.text.fontPolicy.options.map((option) => option.value);
   const supportsFormat = hasAvailableFontFormat(allowedFontIds, dynamicFonts);
+  const activeFontId =
+    layer.text.fontPolicy.mode === "fixed"
+      ? layer.text.fontPolicy.fontId
+      : layer.text.fontPolicy.defaultFontId;
+  const activeFontCaps = getFontStyleCapabilities(activeFontId, dynamicFonts);
+  const activeFontLabel =
+    (fontOptions ?? []).find((o) => o.value === activeFontId)?.label ?? activeFontId;
+  const activeFontName = typeof activeFontLabel === "string" ? activeFontLabel : activeFontId;
 
   useEffect(() => {
     if (!fontCapabilitiesLoaded || supportsFormat) return;
@@ -592,6 +600,27 @@ function TextStyleControls({
       },
     }));
   }, [fontCapabilitiesLoaded, layer.text.formatPolicy, onUpdate, supportsFormat]);
+
+  // Drop a Bold/Italic default the active font cannot render (e.g. switching the default font to Script).
+  useEffect(() => {
+    if (!fontCapabilitiesLoaded) return;
+    const policy = layer.text.formatPolicy;
+    const bold = policy.mode === "fixed" ? policy.isBold : policy.defaultBold;
+    const italic = policy.mode === "fixed" ? policy.isItalic : policy.defaultItalic;
+    const nextBold = bold && activeFontCaps.bold;
+    const nextItalic = italic && activeFontCaps.italic;
+    if (nextBold === bold && nextItalic === italic) return;
+    onUpdate((current) => ({
+      ...current,
+      text: {
+        ...(current as TextEditorLayer).text,
+        formatPolicy:
+          policy.mode === "fixed"
+            ? { mode: "fixed", isBold: nextBold, isItalic: nextItalic }
+            : { mode: "shopper_selectable", defaultBold: nextBold, defaultItalic: nextItalic },
+      },
+    }));
+  }, [fontCapabilitiesLoaded, layer.text.formatPolicy, onUpdate, activeFontCaps.bold, activeFontCaps.italic]);
 
   return (
     <div className="space-y-4">
@@ -822,10 +851,11 @@ function TextStyleControls({
           </Select>
         </div>
         <div className="flex items-center gap-4 rounded-md border border-ui-border-base p-2 bg-ui-bg-subtle">
-           <label className="flex items-center gap-1.5 text-sm font-medium"><input type="checkbox" checked={layer.text.formatPolicy.mode === "fixed" ? layer.text.formatPolicy.isBold : layer.text.formatPolicy.defaultBold} onChange={(e) => updateText(onUpdate, { formatPolicy: { ...layer.text.formatPolicy, ...(layer.text.formatPolicy.mode === "fixed" ? { isBold: e.target.checked } : { defaultBold: e.target.checked }) } as any })} className="rounded" /> B</label>
-           <label className="flex items-center gap-1.5 text-sm font-medium italic"><input type="checkbox" checked={layer.text.formatPolicy.mode === "fixed" ? layer.text.formatPolicy.isItalic : layer.text.formatPolicy.defaultItalic} onChange={(e) => updateText(onUpdate, { formatPolicy: { ...layer.text.formatPolicy, ...(layer.text.formatPolicy.mode === "fixed" ? { isItalic: e.target.checked } : { defaultItalic: e.target.checked }) } as any })} className="rounded" /> I</label>
+           <label className={`flex items-center gap-1.5 text-sm font-medium ${activeFontCaps.bold ? "" : "opacity-50"}`} title={activeFontCaps.bold ? undefined : `${activeFontName} has no Bold`}><input type="checkbox" disabled={!activeFontCaps.bold} checked={layer.text.formatPolicy.mode === "fixed" ? layer.text.formatPolicy.isBold : layer.text.formatPolicy.defaultBold} onChange={(e) => updateText(onUpdate, { formatPolicy: { ...layer.text.formatPolicy, ...(layer.text.formatPolicy.mode === "fixed" ? { isBold: e.target.checked } : { defaultBold: e.target.checked }) } as any })} className="rounded" /> B</label>
+           <label className={`flex items-center gap-1.5 text-sm font-medium italic ${activeFontCaps.italic ? "" : "opacity-50"}`} title={activeFontCaps.italic ? undefined : `${activeFontName} has no Italic`}><input type="checkbox" disabled={!activeFontCaps.italic} checked={layer.text.formatPolicy.mode === "fixed" ? layer.text.formatPolicy.isItalic : layer.text.formatPolicy.defaultItalic} onChange={(e) => updateText(onUpdate, { formatPolicy: { ...layer.text.formatPolicy, ...(layer.text.formatPolicy.mode === "fixed" ? { isItalic: e.target.checked } : { defaultItalic: e.target.checked }) } as any })} className="rounded" /> I</label>
         </div>
         {layer.text.formatPolicy.mode === "shopper_selectable" && <p className="text-[10px] text-ui-fg-muted">Checkboxes set the default state for shoppers.</p>}
+        {(!activeFontCaps.bold || !activeFontCaps.italic) && <p className="text-[10px] text-ui-fg-muted">{activeFontName} {!activeFontCaps.bold && !activeFontCaps.italic ? "is regular only" : !activeFontCaps.bold ? "has no Bold" : "has no Italic"}, so those options are disabled.</p>}
       </div> : null}
       <div className="space-y-2 pt-2 border-t border-ui-border-base">
         <div className="space-y-1">
@@ -985,6 +1015,7 @@ import {
   DEFAULT_FONT_FAMILY_OPTIONS,
   DEFAULT_TEXT_COLOR_OPTIONS,
   hasAvailableFontFormat,
+  getFontStyleCapabilities,
   getLayerPixelRect,
   layerPixelRectToGeometry,
   resolveLocalizedInput,

@@ -70,7 +70,7 @@ describe('public asset CORS', () => {
   })
 
   it('serves static font file with public CORS headers on GET', async () => {
-    const response = await app.request('/fonts/SansBold.ttf', {
+    const response = await app.request('/fonts/Sans-Regular.ttf', {
       method: 'GET',
       headers: {
         Origin: 'https://trophy-admin.pages.dev',
@@ -98,7 +98,7 @@ describe('public asset CORS', () => {
   })
 
   it('permits a font preflight from any origin', async () => {
-    const response = await app.request('/fonts/SansBold.ttf', {
+    const response = await app.request('/fonts/Sans-Regular.ttf', {
       method: 'OPTIONS',
       headers: {
         Origin: 'https://trophy-admin.pages.dev',
@@ -113,7 +113,7 @@ describe('public asset CORS', () => {
   })
 
   it('falls back to static font in assets brands route with public CORS', async () => {
-    const response = await app.request('/api/assets/brands/SansBold.ttf/content', {
+    const response = await app.request('/api/assets/brands/Sans-Regular.ttf/content', {
       method: 'GET',
       headers: {
         Origin: 'https://trophy-admin.pages.dev',

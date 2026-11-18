@@ -131,19 +131,35 @@ const embedPdfImage = async ({
 
 // ─── main export function ──────────────────────────────────────────────────────
 
+export type PdfExportOptions = {
+  /**
+   * Called once per font that could not be loaded. The export still completes
+   * using the default Sans file, so callers must show this to the operator.
+   */
+  onFontUnavailable?: (fontId: string) => void;
+};
+
 export const exportVectorPdfClientSide = async (
   template: CustomizationTemplate,
   design: CustomizationDesign,
-  pendingPdfFile: File | null
+  pendingPdfFile: File | null,
+  options: PdfExportOptions = {},
 ) => {
   const pdf = await PDFDocument.create();
   pdf.registerFontkit(fontkit);
 
   const embeddedFontCache = new Map<string, any>();
+  const reportedUnavailableFonts = new Set<string>();
+  const reportUnavailableFont = (fontId: string) => {
+    if (reportedUnavailableFonts.has(fontId)) return;
+    reportedUnavailableFonts.add(fontId);
+    options.onFontUnavailable?.(fontId);
+  };
 
   const getEmbeddedFont = async (fontId: string) => {
     if (embeddedFontCache.has(fontId)) return embeddedFontCache.get(fontId);
-    const bytes = await loadFontBytes(fontId);
+    const { bytes, unavailable } = await loadFontBytes(fontId);
+    if (unavailable) reportUnavailableFont(fontId);
     if (!bytes) return null;
     const embedded = await pdf.embedFont(bytes);
     embeddedFontCache.set(fontId, embedded);
@@ -392,7 +408,8 @@ export const exportVectorPdfClientSide = async (
 
         // Embed font as data URL inside the SVG so it works in the image context.
         let fontStyle = "";
-        const fontBytes = await loadFontBytes(layer.fontId);
+        const { bytes: fontBytes, unavailable: fontUnavailable } = await loadFontBytes(layer.fontId);
+        if (fontUnavailable) reportUnavailableFont(layer.fontId);
         if (fontBytes) {
           let binary = "";
           for (let i = 0; i < fontBytes.length; i++) binary += String.fromCharCode(fontBytes[i]!);

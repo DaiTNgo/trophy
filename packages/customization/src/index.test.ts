@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vite-plus/test";
 import {
   DEFAULT_TEMPLATE,
+  FONT_FILES,
   buildDesignFromForm,
   buildRuntimeImageClipartLayer,
   createDefaultFormValues,
@@ -16,12 +17,15 @@ import {
   getFontStyleCapabilities,
   getUsableFontOptions,
   hasAvailableFontFormat,
+  getUnavailableFontFamilyIds,
+  isDefaultFontFamilyId,
   isUsableFontFamily,
   getLayerPixelRect,
   getLayerVisualHeightPx,
   layerGeometryToPixels,
   layerPixelRectToGeometry,
   normalizeFontStyle,
+  resolveFontVariant,
   normalizeTextPath,
   pixelRectToLayerGeometry,
   resolveLocalizedInput,
@@ -843,7 +847,7 @@ describe("text fitting and paths", () => {
         maxFontSizePt: 30,
         maxLines: 1,
         colorPolicy: { mode: "fixed", color: "#000000" },
-        fontPolicy: { mode: "fixed", fontId: "script" },
+        fontPolicy: { mode: "fixed", fontId: "sans" },
         formatPolicy: { mode: "fixed", isBold: true, isItalic: false },
         alignPolicy: { mode: "fixed", align: "center" },
       },
@@ -854,7 +858,7 @@ describe("text fitting and paths", () => {
       value: { text: "Hello", isBold: true },
       availableWidthPx: 300,
     });
-    expect(fitted.fontId).toBe("script-bold");
+    expect(fitted.fontId).toBe("sans-bold");
     expect(fitted.isBold).toBe(true);
   });
 
@@ -1038,3 +1042,73 @@ describe("text fitting and paths", () => {
   });
 });
 
+
+describe("default font family ids", () => {
+  it("reserves sans, serif and script regardless of casing and spacing", () => {
+    for (const id of ["sans", "serif", "script", "Sans", " SCRIPT "]) {
+      expect(isDefaultFontFamilyId(id), id).toBe(true);
+    }
+  });
+
+  it("does not reserve uploaded font ids", () => {
+    for (const id of ["champion-serif", "sans-extra", "constructor", ""]) {
+      expect(isDefaultFontFamilyId(id), id).toBe(false);
+    }
+  });
+});
+
+describe("unavailable font families", () => {
+  const champion = {
+    id: "champion-serif",
+    name: "Champion Serif",
+    regularAssetId: "font_regular",
+    boldAssetId: null,
+    italicAssetId: null,
+    boldItalicAssetId: null,
+  };
+
+  it("always treats the default font families as available", () => {
+    expect(getUnavailableFontFamilyIds(["sans", "serif", "script"])).toEqual([]);
+  });
+
+  it("reports an uploaded font that was deleted, once", () => {
+    expect(getUnavailableFontFamilyIds(["champion-serif", "sans", "champion-serif"], [])).toEqual(["champion-serif"]);
+  });
+
+  it("treats an uploaded font as available while it has a regular file", () => {
+    expect(getUnavailableFontFamilyIds(["champion-serif"], [champion])).toEqual([]);
+    expect(getUnavailableFontFamilyIds(["champion-serif"], [{ ...champion, regularAssetId: null }])).toEqual(["champion-serif"]);
+  });
+});
+
+describe("default font family styles", () => {
+  it("offers all four styles for sans and serif", () => {
+    for (const family of ["sans", "serif"]) {
+      expect(getFontStyleCapabilities(family), family).toEqual({
+        usable: true,
+        bold: true,
+        italic: true,
+        boldItalic: true,
+      });
+    }
+  });
+
+  it("offers only the regular style for script", () => {
+    expect(getFontStyleCapabilities("script")).toEqual({
+      usable: true,
+      bold: false,
+      italic: false,
+      boldItalic: false,
+    });
+    expect(normalizeFontStyle({ fontFamily: "script", isBold: true, isItalic: true })).toEqual({
+      isBold: false,
+      isItalic: false,
+    });
+  });
+
+  it("resolves each style to its own file", () => {
+    expect(FONT_FILES[resolveFontVariant("sans", true, true)]).toBe("Sans-BoldItalic.ttf");
+    expect(FONT_FILES[resolveFontVariant("serif", false, true)]).toBe("Serif-Italic.ttf");
+    expect(FONT_FILES[resolveFontVariant("script", true, true)]).toBe("ScriptElegant.ttf");
+  });
+});

@@ -13,3 +13,22 @@ Restart steps:
 Open questions (design.md): partial/over-payment policy, paid → confirmed, exportInvoice/MeInvoice, production domains + JETPAY source IPs (nginx allowlist), domainWebsite per env, settings permission.
 
 Toolchain: `./init.sh` admin step `vp build` fails with a Vite+ alias mismatch unrelated to this change; `pnpm exec vite build` in apps/admin succeeds.
+
+## Debugging the flow (logs)
+
+All BankHub logs are pino JSON lines with `module: "bankhub"` and an `event` field. Filter in Docker:
+`docker compose logs -f backend | grep '"module":"bankhub"'` (or `| jq 'select(.module=="bankhub")'`).
+`LOG_LEVEL=debug` adds request/response bodies of JETPAY calls and the raw webhook body. Secrets, tokens,
+the token response and the webhook key are never logged.
+
+| Stage | Events |
+|---|---|
+| Outbound JETPAY HTTP | `bankhub.http` (resource, url, status, durationMs; bodies on failure/debug), `bankhub.token.issued`, `bankhub.token.rejected` |
+| Transaction init | `bankhub.init.start` / `.success` / `.failed` / `.not_configured` / `.order_missing` / `.unexpected_error` (trigger: checkout, payment_instructions, admin) |
+| Webhook intake | `bankhub.webhook.received` (sourceIp, msgId, recordCount), `.invalid_json`, `.invalid_signature` (reason), `.invalid_payload` (issues), `.not_configured`, `.raw` (debug) |
+| Per record | `bankhub.webhook.record` (matchStatus, error, paidBefore/After, paymentStatusBefore/After), `.record.duplicate`, `.record.race`, `bankhub.order.paid` |
+| Response | `bankhub.webhook.processed` (responseMsgId, durationMs, per-record error) |
+| Deeplink | `bankhub.deeplink.generated`, `bankhub.deeplink.failed`, `bankhub.bank_apps.failed` |
+| Admin | `bankhub.admin.reinitialize`, `bankhub.settings.updated` |
+
+Trace one order: grep its orderNumber (init + record + paid) and the webhook `msgId` (received → record → processed).

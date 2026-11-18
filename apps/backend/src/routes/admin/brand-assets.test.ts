@@ -146,6 +146,38 @@ describe("admin brand assets routes", () => {
     ).toBe(true);
   });
 
+  it.each(["sans", "serif", "script", "Sans", " SCRIPT "])(
+    "rejects a font family whose id %j collides with a default font family",
+    async (id) => {
+      const res = await adminBrandAssetsRoute.request("/fonts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, name: "Impostor", regularAssetId: "font_regular" }),
+      });
+
+      expect(res.status).toBe(422);
+      const body = (await res.json()) as { error: string };
+      expect(body.error).toContain("built-in font family id");
+      expect(db.mutations).toEqual([]);
+    },
+  );
+
+  it("rejects a font family whose id already exists", async () => {
+    db.selectQueue.push([{ id: "champion-serif" }]);
+
+    const res = await adminBrandAssetsRoute.request("/fonts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: "champion-serif", name: "Champion Serif" }),
+    });
+
+    expect(res.status).toBe(409);
+    await expect(res.json()).resolves.toEqual({
+      error: 'A font family with id "champion-serif" already exists.',
+    });
+    expect(db.mutations).toEqual([]);
+  });
+
   it("serves an uploaded font asset by asset ID", async () => {
     const res = await adminBrandAssetsRoute.request("/fonts/file/font_regular", {}, env as never);
 

@@ -1,3 +1,4 @@
+import { isDefaultFontFamilyId } from "@trophy/customization";
 import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { getDb } from "../../db/client";
@@ -48,8 +49,14 @@ export const adminBrandAssetsRoute = new Hono<AppEnv>()
     const body = await c.req.json();
     const { id, name, regularAssetId, boldAssetId, italicAssetId, boldItalicAssetId } = body;
     if (!id || !name) return jsonError(c, 400, "Missing required fields");
+    if (isDefaultFontFamilyId(String(id))) {
+      return jsonError(c, 422, `"${id}" is a built-in font family id and cannot be used for an uploaded font.`);
+    }
 
     const db = getDb(c.env);
+    const existing = await db.select({ id: fontFamilies.id }).from(fontFamilies).where(eq(fontFamilies.id, id));
+    if (existing.length > 0) return jsonError(c, 409, `A font family with id "${id}" already exists.`);
+
     const [font] = await db
       .insert(fontFamilies)
       .values({

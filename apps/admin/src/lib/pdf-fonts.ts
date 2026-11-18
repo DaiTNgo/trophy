@@ -1,56 +1,61 @@
-import { FONT_FILES } from "@trophy/customization";
+import { FONT_FAMILIES, FONT_FILES } from "@trophy/customization";
 import { BACKEND_URL } from "./fetch";
 
+// Family ids ("sans", "serif", "script") resolve to their regular file; style
+// variants come straight from the shared mapping.
 const fontFiles: Record<string, string> = {
   ...FONT_FILES,
-  "sans": "SansBold.ttf",
-  "sans-regular": "SansBold.ttf",
-  "sans-bold": "SansBold.ttf",
-  "sans-italic": "SansBold.ttf",
-  "sans-bold-italic": "SansBold.ttf",
-  "serif": "SerifDisplay.ttf",
-  "serif-regular": "SerifDisplay.ttf",
-  "serif-bold": "SerifDisplay.ttf",
-  "serif-italic": "SerifDisplay.ttf",
-  "serif-bold-italic": "SerifDisplay.ttf",
-  "script": "ScriptElegant.ttf",
-  "script-regular": "ScriptElegant.ttf",
-  "script-bold": "ScriptElegant.ttf",
-  "script-italic": "ScriptElegant.ttf",
-  "script-bold-italic": "ScriptElegant.ttf",
+  ...Object.fromEntries(
+    Object.entries(FONT_FAMILIES).flatMap(([familyId, family]) => {
+      const file = FONT_FILES[family.regular];
+      return file ? [[familyId, file]] : [];
+    }),
+  ),
 };
 
 // ─── raw bytes cache (shared between pdf-lib embed + opentype parse) ──────────
 
-const fontBytesCache = new Map<string, Uint8Array>();
+export type LoadedFont = {
+  bytes: Uint8Array | null;
+  /**
+   * True when the requested font could not be loaded. `bytes` then holds the
+   * default Sans file (so an export can still be produced) or null when even
+   * that is unreachable. Callers must surface this to the operator.
+   */
+  unavailable: boolean;
+};
 
-export async function loadFontBytes(variantId: string): Promise<Uint8Array | null> {
-  if (fontBytesCache.has(variantId)) return fontBytesCache.get(variantId)!;
-  const filename = fontFiles[variantId] ?? FONT_FILES[variantId];
+const fontCache = new Map<string, LoadedFont>();
+const DEFAULT_FALLBACK_FILE = fontFiles.sans!;
 
-  // If filename exists in fontFiles, it's a static font.
-  // Otherwise, assume variantId is an assetId from the database.
-  const url = filename
-    ? `${BACKEND_URL}/fonts/${filename}`
-    : `${BACKEND_URL}/api/storefront/brand-assets/fonts/file/${variantId}`;
-
-  let response = await fetch(url).catch(() => null);
-  if (!response?.ok && !filename) {
-    // Fallback to admin font asset route if storefront route returns 404
-    response = await fetch(`${BACKEND_URL}/api/admin/brand-assets/fonts/file/${variantId}`).catch(() => null);
-  }
-  if (!response?.ok) {
-    if (variantId !== "sans-bold" && variantId !== "SansBold.ttf") {
-      const fallbackBytes = await loadFontBytes("SansBold.ttf");
-      if (fallbackBytes) {
-        fontBytesCache.set(variantId, fallbackBytes);
-        return fallbackBytes;
-      }
-    }
-    return null;
-  }
-  const bytes = new Uint8Array(await response.arrayBuffer());
-  fontBytesCache.set(variantId, bytes);
-  return bytes;
+async function fetchBytes(url: string) {
+  const response = await fetch(url).catch(() => null);
+  return response?.ok ? new Uint8Array(await response.arrayBuffer()) : null;
 }
 
+export async function loadFontBytes(variantId: string): Promise<LoadedFont> {
+  const cached = fontCache.get(variantId);
+  if (cached) return cached;
+
+  const filename = fontFiles[variantId];
+  let bytes: Uint8Array | null;
+  if (filename) {
+    // Default font: served from the bundled static files.
+    bytes = await fetchBytes(`${BACKEND_URL}/fonts/${filename}`);
+  } else {
+    // Otherwise variantId is a Brand Font asset id.
+    bytes =
+      (await fetchBytes(`${BACKEND_URL}/api/storefront/brand-assets/fonts/file/${variantId}`)) ??
+      (await fetchBytes(`${BACKEND_URL}/api/admin/brand-assets/fonts/file/${variantId}`));
+  }
+
+  let result: LoadedFont;
+  if (bytes) {
+    result = { bytes, unavailable: false };
+  } else {
+    const fallback = await fetchBytes(`${BACKEND_URL}/fonts/${DEFAULT_FALLBACK_FILE}`);
+    result = { bytes: fallback, unavailable: true };
+  }
+  fontCache.set(variantId, result);
+  return result;
+}
